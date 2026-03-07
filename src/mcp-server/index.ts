@@ -15,6 +15,7 @@ const LOG_DIR = path.join(CLAUDE_DIR, "logs");
 const PORTFOLIO_FILE = path.join(KNOWLEDGE_DIR, "portfolio.json");
 const LANDSCAPE_FILE = path.join(KNOWLEDGE_DIR, "landscape.json");
 const TASTE_FILE = path.join(KNOWLEDGE_DIR, "taste.jsonl");
+const EDIT_PATTERNS_FILE = path.join(LOG_DIR, "edit-patterns.jsonl");
 
 // Ensure dirs exist
 for (const dir of [STATE_DIR, KNOWLEDGE_DIR, LOG_DIR]) {
@@ -301,14 +302,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "rhino_taste",
       description:
-        "Record or query taste signals. Taste entries are observations about the founder's preferences learned from their decisions — what they accept, reject, change, or consistently choose. Agents write here when they observe a preference pattern. Strategist and other agents read to align with founder's judgment.",
+        "Record, query, or export taste signals. Taste entries are observations about the founder's preferences learned from their decisions — what they accept, reject, change, or consistently choose. Agents write here when they observe a preference pattern. Strategist and other agents read to align with founder's judgment.",
       inputSchema: {
         type: "object" as const,
         properties: {
           action: {
             type: "string",
-            description: '"read" returns all taste entries. "record" adds a new observation. "query" filters by domain.',
-            enum: ["read", "record", "query"],
+            description: '"read" returns all taste entries. "record" adds a new observation. "query" filters by domain. "export" returns a portable taste profile.',
+            enum: ["read", "record", "query", "export"],
           },
           domain: {
             type: "string",
@@ -327,8 +328,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description: '"strong" (seen 3+ times), "moderate" (seen twice), "weak" (seen once). Defaults to "weak".',
             enum: ["strong", "moderate", "weak"],
           },
+          landscape_id: {
+            type: "string",
+            description: "Optional landscape position ID this taste signal aligns with. Links decisions to strategic positions.",
+          },
         },
         required: ["action"],
+      },
+    },
+    {
+      name: "rhino_agent_context",
+      description:
+        "Returns a curated context briefing for the current task. Assembles relevant taste signals, edit patterns (auto-extracted from coding behavior), portfolio focus, landscape positions, and last session summary into a single context block. Call this FIRST in any agent session to ground yourself in the founder's preferences and strategic context.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          project: {
+            type: "string",
+            description: "Project name to focus context on. If omitted, returns general context.",
+          },
+          domain: {
+            type: "string",
+            description: 'Filter taste signals by domain: "product", "design", "strategy", "technical". If omitted, returns all strong+moderate signals.',
+          },
+        },
       },
     },
   ],
@@ -755,6 +778,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const signal = args?.signal as string | undefined;
       const evidence = args?.evidence as string | undefined;
       const strength = (args?.strength as string) || "weak";
+      const landscapeId = args?.landscape_id as string | undefined;
 
       switch (action) {
         case "record": {
@@ -784,6 +808,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               existing.strength = newStrength;
               existing.ts = new Date().toISOString();
               if (evidence) existing.evidence = evidence;
+              if (landscapeId) existing.landscape_id = landscapeId;
 
               // Rewrite file with updated entry
               const updatedLines = entries.map((e: object) => JSON.stringify(e)).join("\n") + "\n";
@@ -792,15 +817,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             }
           }
 
-          const entry = {
+          const entry: Record<string, string> = {
             ts: new Date().toISOString(),
             domain,
             signal,
             evidence: evidence || "",
             strength,
           };
+          if (landscapeId) entry.landscape_id = landscapeId;
           fs.appendFileSync(TASTE_FILE, JSON.stringify(entry) + "\n", "utf-8");
-          return { content: [{ type: "text", text: `Taste recorded: [${domain}] ${signal}` }] };
+          return { content: [{ type: "text", text: `Taste recorded: [${domain}] ${signal}${landscapeId ? ` (linked to: ${landscapeId})` : ""}` }] };
         }
         case "read": {
           if (!fs.existsSync(TASTE_FILE)) {
@@ -845,9 +871,220 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ).join("\n");
           return { content: [{ type: "text", text: `## ${domain}\n${output}` }] };
         }
+        case "export": {
+          if (!fs.existsSync(TASTE_FILE)) {
+            return { content: [{ type: "text", text: "No taste signals to export." }] };
+          }
+          const lines = fs.readFileSync(TASTE_FILE, "utf-8").trim().split("\n").filter(Boolean);
+          const entries = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+
+          // Build portable taste profile
+          const profile: Record<string, { signals: Array<{ signal: string; strength: string; evidence: string; landscape_id?: string }> }> = {};
+          for (const e of entries) {
+            if (!profile[e.domain]) profile[e.domain] = { signals: [] };
+            profile[e.domain].signals.push({
+              signal: e.signal,
+              strength: e.strength,
+              evidence: e.evidence,
+              ...(e.landscape_id ? { landscape_id: e.landscape_id } : {}),
+            });
+          }
+
+          // Add edit pattern analysis if available
+          let editProfile: Record<string, number> | null = null;
+          if (fs.existsSync(EDIT_PATTERNS_FILE)) {
+            const patternLines = fs.readFileSync(EDIT_PATTERNS_FILE, "utf-8").trim().split("\n").filter(Boolean);
+            const tallies: Record<string, number> = {};
+            for (const pl of patternLines) {
+              try {
+                const pe = JSON.parse(pl);
+                for (const p of (pe.patterns || [])) {
+                  tallies[p] = (tallies[p] || 0) + 1;
+                }
+              } catch { /* skip */ }
+            }
+            if (Object.keys(tallies).length > 0) editProfile = tallies;
+          }
+
+          const exportData = {
+            version: "1.0",
+            exported: new Date().toISOString(),
+            taste_signals: profile,
+            ...(editProfile ? { edit_patterns: editProfile } : {}),
+          };
+
+          return { content: [{ type: "text", text: JSON.stringify(exportData, null, 2) }] };
+        }
         default:
           return { content: [{ type: "text", text: `Unknown taste action: ${action}` }], isError: true };
       }
+    }
+
+    case "rhino_agent_context": {
+      const project = args?.project as string | undefined;
+      const ctxDomain = args?.domain as string | undefined;
+      const sections: string[] = [];
+
+      // 1. Taste signals (strong + moderate, filtered by domain if provided)
+      if (fs.existsSync(TASTE_FILE)) {
+        const lines = fs.readFileSync(TASTE_FILE, "utf-8").trim().split("\n").filter(Boolean);
+        const entries = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+        const relevant = entries.filter((e: { strength: string; domain: string }) => {
+          if (ctxDomain && e.domain !== ctxDomain) return false;
+          return e.strength === "strong" || e.strength === "moderate";
+        });
+        if (relevant.length > 0) {
+          const tasteLines = relevant.map((e: { strength: string; domain: string; signal: string; landscape_id?: string }) =>
+            `  [${e.strength}/${e.domain}] ${e.signal}${e.landscape_id ? ` (linked: ${e.landscape_id})` : ""}`
+          );
+          sections.push(`## Taste Profile\nFounder preferences (observed from decisions):\n${tasteLines.join("\n")}`);
+        }
+      }
+
+      // 2. Edit pattern analysis (behavioral, auto-extracted)
+      if (fs.existsSync(EDIT_PATTERNS_FILE)) {
+        const patternLines = fs.readFileSync(EDIT_PATTERNS_FILE, "utf-8").trim().split("\n").filter(Boolean);
+
+        // Filter by project if specified
+        const relevant = project
+          ? patternLines.filter(l => { try { return JSON.parse(l).project === project; } catch { return false; } })
+          : patternLines;
+
+        // Only analyze last 7 days
+        const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+        const recent = relevant.filter(l => {
+          try { return JSON.parse(l).ts >= weekAgo; } catch { return false; }
+        });
+
+        if (recent.length > 0) {
+          const tallies: Record<string, number> = {};
+          for (const pl of recent) {
+            try {
+              const pe = JSON.parse(pl);
+              for (const p of (pe.patterns || [])) {
+                tallies[p] = (tallies[p] || 0) + 1;
+              }
+            } catch { /* skip */ }
+          }
+
+          // Derive human-readable preferences from tallies
+          const prefs: string[] = [];
+          if ((tallies.naming_camel || 0) > (tallies.naming_snake || 0) * 2) prefs.push("Strongly prefers camelCase naming");
+          else if ((tallies.naming_snake || 0) > (tallies.naming_camel || 0) * 2) prefs.push("Strongly prefers snake_case naming");
+
+          if ((tallies.quotes_single || 0) > (tallies.quotes_double || 0) * 2) prefs.push("Uses single quotes");
+          else if ((tallies.quotes_double || 0) > (tallies.quotes_single || 0) * 2) prefs.push("Uses double quotes");
+
+          if ((tallies.semicolons_removed || 0) > (tallies.semicolons_added || 0)) prefs.push("Removes semicolons (no-semi style)");
+          else if ((tallies.semicolons_added || 0) > (tallies.semicolons_removed || 0)) prefs.push("Adds semicolons consistently");
+
+          if ((tallies.comments_removed || 0) > (tallies.comments_added || 0) * 2) prefs.push("Tends to remove comments — prefers self-documenting code");
+          else if ((tallies.comments_added || 0) > (tallies.comments_removed || 0) * 2) prefs.push("Adds comments actively");
+
+          if ((tallies.decl_const || 0) > (tallies.decl_let || 0) * 3) prefs.push("Strong const preference over let");
+          if ((tallies.fn_arrow || 0) > (tallies.fn_keyword || 0) * 2) prefs.push("Prefers arrow functions");
+          else if ((tallies.fn_keyword || 0) > (tallies.fn_arrow || 0) * 2) prefs.push("Prefers function keyword");
+
+          if ((tallies.error_early_return || 0) > (tallies.error_try_catch || 0)) prefs.push("Prefers early return over try/catch");
+          if ((tallies.import_esm || 0) > (tallies.import_cjs || 0) * 2) prefs.push("Uses ES module imports");
+          else if ((tallies.import_cjs || 0) > (tallies.import_esm || 0) * 2) prefs.push("Uses CommonJS require");
+
+          if ((tallies.code_deletion || 0) > (tallies.code_expansion || 0)) prefs.push("Tends to reduce code — values conciseness");
+
+          if ((tallies.indent_tabs || 0) > (tallies.indent_2space || 0) + (tallies.indent_4space || 0)) prefs.push("Uses tabs for indentation");
+          else if ((tallies.indent_2space || 0) > (tallies.indent_4space || 0)) prefs.push("Uses 2-space indentation");
+          else if ((tallies.indent_4space || 0) > (tallies.indent_2space || 0)) prefs.push("Uses 4-space indentation");
+
+          if (prefs.length > 0) {
+            sections.push(`## Coding Style (auto-extracted from ${recent.length} edits, last 7d)\n${prefs.map(p => `  - ${p}`).join("\n")}`);
+          }
+        }
+      }
+
+      // 3. Portfolio focus
+      const portfolio = loadPortfolio();
+      if (portfolio.focus.primary) {
+        let focusSection = `## Portfolio Focus\nPrimary: ${portfolio.focus.primary}`;
+        if (portfolio.focus.secondary) focusSection += `\nSecondary: ${portfolio.focus.secondary}`;
+        if (portfolio.focus.kill && portfolio.focus.kill.length > 0) focusSection += `\nKill list: ${portfolio.focus.kill.join(", ")}`;
+
+        // If project specified, show its status
+        if (project) {
+          const proj = portfolio.projects.find(p => p.name === project);
+          if (proj) {
+            focusSection += `\n\n${project}: ${proj.stage} | ${proj.users} users | Core loop: ${proj.core_loop.complete ? "complete" : "INCOMPLETE"}`;
+          }
+        }
+        sections.push(focusSection);
+      }
+
+      // 4. Relevant landscape positions
+      const landscape = loadLandscape();
+      if (landscape.positions.length > 0) {
+        const strongPositions = landscape.positions
+          .filter(p => p.confidence === "strong")
+          .map(p => `  [${p.id || "?"}] ${p.position}`);
+        if (strongPositions.length > 0) {
+          sections.push(`## Landscape (strong positions)\n${strongPositions.join("\n")}`);
+        }
+      }
+
+      // 5. Drift detection (if project specified)
+      if (project) {
+        const usagePath = path.join(LOG_DIR, "usage.jsonl");
+        if (fs.existsSync(usagePath)) {
+          const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+          const usageLines = fs.readFileSync(usagePath, "utf-8").trim().split("\n").filter(Boolean);
+          const projectCounts: Record<string, number> = {};
+          let totalEdits = 0;
+          for (const ul of usageLines) {
+            try {
+              const ue = JSON.parse(ul);
+              if (ue.ts >= weekAgo && (ue.tool === "Edit" || ue.tool === "Write") && ue.project) {
+                projectCounts[ue.project] = (projectCounts[ue.project] || 0) + 1;
+                totalEdits++;
+              }
+            } catch { /* skip */ }
+          }
+          if (totalEdits > 0) {
+            const projectEdits = projectCounts[project] || 0;
+            const projectPct = Math.round((projectEdits / totalEdits) * 100);
+            const otherProjects = Object.entries(projectCounts)
+              .filter(([p]) => p !== project)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([p, c]) => `${p}: ${Math.round((c / totalEdits) * 100)}%`);
+
+            let driftNote = `## Focus Allocation (last 7d)\n  ${project}: ${projectPct}% of edits`;
+            if (otherProjects.length > 0) driftNote += `\n  Other: ${otherProjects.join(", ")}`;
+            if (portfolio.focus.primary === project && projectPct < 50) {
+              driftNote += `\n  DRIFT WARNING: ${project} is your stated primary but only ${projectPct}% of actual work`;
+            }
+            sections.push(driftNote);
+          }
+        }
+      }
+
+      // 6. Last session context
+      if (project) {
+        const sessionFile = path.join(KNOWLEDGE_DIR, "sessions", `${project}.md`);
+        if (fs.existsSync(sessionFile)) {
+          const sessionContent = fs.readFileSync(sessionFile, "utf-8");
+          // Get last entry
+          const entries = sessionContent.split(/^## /m).filter(Boolean);
+          if (entries.length > 0) {
+            const lastEntry = entries[entries.length - 1].trim();
+            const truncated = lastEntry.split("\n").slice(0, 10).join("\n");
+            sections.push(`## Last Session\n## ${truncated}`);
+          }
+        }
+      }
+
+      if (sections.length === 0) {
+        return { content: [{ type: "text", text: "No context available yet. Use rhino-os for a few sessions to build up taste signals and edit patterns." }] };
+      }
+
+      return { content: [{ type: "text", text: sections.join("\n\n") }] };
     }
 
     default:

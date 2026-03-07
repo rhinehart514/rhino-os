@@ -222,6 +222,62 @@ cmd_status() {
         total_count=$(wc -l < "$usage_file" | tr -d ' ')
         echo -e "${BOLD}Usage:${NC} ${today_count} tool calls today, ${total_count} total"
     fi
+    echo ""
+
+    # Focus drift detection
+    if [[ -f "$usage_file" ]] && command -v jq &> /dev/null; then
+        local week_ago
+        week_ago="$(date -u -v-7d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")"
+        if [[ -n "$week_ago" ]]; then
+            # Count edits per project in last 7 days
+            local drift_data
+            drift_data=$(awk -v cutoff="$week_ago" '
+                {
+                    if (match($0, /"ts":"([^"]+)"/, ts) && match($0, /"tool":"(Edit|Write)"/) && match($0, /"project":"([^"]*)"/, proj)) {
+                        if (ts[1] >= cutoff && proj[1] != "") {
+                            counts[proj[1]]++
+                            total++
+                        }
+                    }
+                }
+                END {
+                    if (total > 0) {
+                        for (p in counts) {
+                            pct = int(counts[p] * 100 / total)
+                            printf "  %s: %d%% (%d edits)\n", p, pct, counts[p]
+                        }
+                    }
+                }
+            ' "$usage_file")
+
+            if [[ -n "$drift_data" ]]; then
+                echo -e "${BOLD}Focus allocation (7d):${NC}"
+                echo "$drift_data" | sort -t: -k2 -rn
+
+                # Check for drift against portfolio focus
+                if [[ -f "$portfolio_file" ]]; then
+                    local primary_focus
+                    primary_focus=$(jq -r '.focus.primary // empty' "$portfolio_file" 2>/dev/null)
+                    if [[ -n "$primary_focus" ]]; then
+                        local primary_pct
+                        primary_pct=$(echo "$drift_data" | grep "$primary_focus" | grep -oE '[0-9]+%' | head -1 | tr -d '%')
+                        if [[ -n "$primary_pct" && "$primary_pct" -lt 50 ]]; then
+                            echo -e "  ${YELLOW}DRIFT:${NC} ${primary_focus} is primary focus but only ${primary_pct}% of edits"
+                        fi
+                    fi
+                fi
+                echo ""
+            fi
+        fi
+    fi
+
+    # Edit pattern summary
+    local pattern_file="$LOG_DIR/edit-patterns.jsonl"
+    if [[ -f "$pattern_file" ]]; then
+        local pattern_count
+        pattern_count=$(wc -l < "$pattern_file" | tr -d ' ')
+        echo -e "${BOLD}Edit patterns:${NC} ${pattern_count} observations captured"
+    fi
 }
 
 cmd_backup() {
@@ -387,6 +443,102 @@ cmd_doctor() {
     fi
 }
 
+cmd_taste() {
+    local subcommand="${1:-summary}"
+
+    local taste_file="$KNOWLEDGE_DIR/taste.jsonl"
+    local pattern_file="$LOG_DIR/edit-patterns.jsonl"
+
+    case "$subcommand" in
+        summary)
+            echo -e "${BOLD}=== rhino taste ===${NC}"
+            echo ""
+
+            # Taste signals
+            if [[ -f "$taste_file" ]]; then
+                echo -e "${BOLD}Recorded signals:${NC}"
+                if command -v jq &> /dev/null; then
+                    # Group by domain, show strength
+                    jq -r '"\(.strength)/\(.domain): \(.signal)"' "$taste_file" 2>/dev/null | sort | while read -r line; do
+                        local str="${line%%/*}"
+                        local rest="${line#*/}"
+                        case "$str" in
+                            strong)   echo -e "  ${GREEN}[strong]${NC} $rest" ;;
+                            moderate) echo -e "  ${YELLOW}[moderate]${NC} $rest" ;;
+                            weak)     echo -e "  ${DIM}[weak]${NC} $rest" ;;
+                        esac
+                    done
+                else
+                    local count
+                    count=$(wc -l < "$taste_file" | tr -d ' ')
+                    echo "  $count signals (install jq for details)"
+                fi
+            else
+                echo -e "  ${DIM}No taste signals recorded yet${NC}"
+            fi
+            echo ""
+
+            # Edit patterns
+            if [[ -f "$pattern_file" ]]; then
+                echo -e "${BOLD}Edit patterns (auto-extracted):${NC}"
+                local total_patterns
+                total_patterns=$(wc -l < "$pattern_file" | tr -d ' ')
+                echo -e "  ${total_patterns} edit observations"
+
+                if command -v jq &> /dev/null; then
+                    # Tally patterns and show top ones
+                    jq -r '.patterns[]' "$pattern_file" 2>/dev/null | sort | uniq -c | sort -rn | head -10 | while read -r count pattern; do
+                        echo -e "  ${DIM}${count}x${NC} $pattern"
+                    done
+                fi
+            else
+                echo -e "  ${DIM}No edit patterns yet (captured automatically as you code)${NC}"
+            fi
+            ;;
+        export)
+            echo -e "${BOLD}=== taste export ===${NC}"
+
+            if [[ ! -f "$taste_file" && ! -f "$pattern_file" ]]; then
+                echo -e "${YELLOW}Nothing to export${NC}"
+                return 1
+            fi
+
+            local export_file="$HOME/taste-profile-$(date +%Y%m%d).json"
+
+            # Build export via node if MCP server is available, otherwise basic
+            if command -v jq &> /dev/null; then
+                local signals="[]"
+                if [[ -f "$taste_file" ]]; then
+                    signals=$(jq -s '.' "$taste_file" 2>/dev/null || echo "[]")
+                fi
+
+                local patterns="{}"
+                if [[ -f "$pattern_file" ]]; then
+                    patterns=$(jq -r '.patterns[]' "$pattern_file" 2>/dev/null | sort | uniq -c | sort -rn | awk '{printf "\"%s\": %d,\n", $2, $1}' | sed '$ s/,$//' | { echo "{"; cat; echo "}"; })
+                fi
+
+                jq -n \
+                    --argjson signals "$signals" \
+                    --argjson patterns "$patterns" \
+                    '{version: "1.0", exported: now | todate, taste_signals: $signals, edit_patterns: $patterns}' \
+                    > "$export_file" 2>/dev/null
+
+                echo -e "${GREEN}Exported to:${NC} $export_file"
+                echo -e "  Signals: $(echo "$signals" | jq 'length')"
+                echo -e "  Edit patterns: $(echo "$patterns" | jq 'keys | length') categories"
+            else
+                echo -e "${YELLOW}jq required for export${NC}"
+                return 1
+            fi
+            ;;
+        *)
+            echo -e "${RED}Unknown taste subcommand: $subcommand${NC}"
+            echo "Usage: rhino taste [summary|export]"
+            return 1
+            ;;
+    esac
+}
+
 cmd_capture() {
     check_claude
 
@@ -455,7 +607,9 @@ cmd_help() {
     echo "  design [prompt]    Run design-engineer agent"
     echo ""
     echo -e "${BOLD}System commands:${NC}"
-    echo "  status             Show system state, knowledge freshness, recent activity"
+    echo "  status             Show system state, knowledge freshness, focus drift"
+    echo "  taste [summary]    View taste profile (signals + auto-extracted patterns)"
+    echo "  taste export       Export portable taste profile to ~/taste-profile.json"
     echo "  capture            Extract session decisions/preferences to knowledge"
     echo "  backup             Snapshot knowledge to timestamped backup"
     echo "  doctor             Check system health (symlinks, MCP, launchd, state)"
@@ -483,6 +637,7 @@ case "${1:-help}" in
     strategy)   shift; cmd_strategy "$@" ;;
     design)     shift; cmd_design "$@" ;;
     status)     cmd_status ;;
+    taste)      shift; cmd_taste "$@" ;;
     capture)    cmd_capture ;;
     backup)     cmd_backup ;;
     doctor)     cmd_doctor ;;

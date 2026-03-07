@@ -14,6 +14,15 @@
             "command": "~/.claude/hooks/enforce_ideation_readonly.sh"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session_context.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
