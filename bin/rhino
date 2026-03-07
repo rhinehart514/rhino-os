@@ -271,12 +271,12 @@ cmd_status() {
         fi
     fi
 
-    # Edit pattern summary
-    local pattern_file="$LOG_DIR/edit-patterns.jsonl"
-    if [[ -f "$pattern_file" ]]; then
-        local pattern_count
-        pattern_count=$(wc -l < "$pattern_file" | tr -d ' ')
-        echo -e "${BOLD}Edit patterns:${NC} ${pattern_count} observations captured"
+    # Code style summary (separate from taste)
+    local style_file="$LOG_DIR/code-style.jsonl"
+    if [[ -f "$style_file" ]]; then
+        local style_count
+        style_count=$(wc -l < "$style_file" | tr -d ' ')
+        echo -e "${BOLD}Code style:${NC} ${style_count} observations (auto-detected formatting patterns)"
     fi
 }
 
@@ -447,18 +447,20 @@ cmd_taste() {
     local subcommand="${1:-summary}"
 
     local taste_file="$KNOWLEDGE_DIR/taste.jsonl"
-    local pattern_file="$LOG_DIR/edit-patterns.jsonl"
+    local style_file="$LOG_DIR/code-style.jsonl"
 
     case "$subcommand" in
         summary)
             echo -e "${BOLD}=== rhino taste ===${NC}"
             echo ""
+            echo -e "${DIM}Taste = macro judgment (what to build, kill, prioritize)${NC}"
+            echo -e "${DIM}Code style = formatting (camelCase, semicolons) — separate concern${NC}"
+            echo ""
 
             # Taste signals
             if [[ -f "$taste_file" ]]; then
-                echo -e "${BOLD}Recorded signals:${NC}"
+                echo -e "${BOLD}Judgment signals:${NC}"
                 if command -v jq &> /dev/null; then
-                    # Group by domain, show strength
                     jq -r '"\(.strength)/\(.domain): \(.signal)"' "$taste_file" 2>/dev/null | sort | while read -r line; do
                         local str="${line%%/*}"
                         local rest="${line#*/}"
@@ -474,31 +476,28 @@ cmd_taste() {
                     echo "  $count signals (install jq for details)"
                 fi
             else
-                echo -e "  ${DIM}No taste signals recorded yet${NC}"
+                echo -e "  ${DIM}No taste signals yet — agents record these as they observe your decisions${NC}"
             fi
             echo ""
 
-            # Edit patterns
-            if [[ -f "$pattern_file" ]]; then
-                echo -e "${BOLD}Edit patterns (auto-extracted):${NC}"
-                local total_patterns
-                total_patterns=$(wc -l < "$pattern_file" | tr -d ' ')
-                echo -e "  ${total_patterns} edit observations"
+            # Code style (separate from taste)
+            if [[ -f "$style_file" ]]; then
+                echo -e "${BOLD}Code style (auto-detected, NOT taste):${NC}"
+                local total_styles
+                total_styles=$(wc -l < "$style_file" | tr -d ' ')
+                echo -e "  ${total_styles} observations"
 
                 if command -v jq &> /dev/null; then
-                    # Tally patterns and show top ones
-                    jq -r '.patterns[]' "$pattern_file" 2>/dev/null | sort | uniq -c | sort -rn | head -10 | while read -r count pattern; do
+                    jq -r '.s[]' "$style_file" 2>/dev/null | sort | uniq -c | sort -rn | head -5 | while read -r count pattern; do
                         echo -e "  ${DIM}${count}x${NC} $pattern"
                     done
                 fi
-            else
-                echo -e "  ${DIM}No edit patterns yet (captured automatically as you code)${NC}"
             fi
             ;;
         export)
             echo -e "${BOLD}=== taste export ===${NC}"
 
-            if [[ ! -f "$taste_file" && ! -f "$pattern_file" ]]; then
+            if [[ ! -f "$taste_file" && ! -f "$style_file" ]]; then
                 echo -e "${YELLOW}Nothing to export${NC}"
                 return 1
             fi
@@ -512,20 +511,20 @@ cmd_taste() {
                     signals=$(jq -s '.' "$taste_file" 2>/dev/null || echo "[]")
                 fi
 
-                local patterns="{}"
-                if [[ -f "$pattern_file" ]]; then
-                    patterns=$(jq -r '.patterns[]' "$pattern_file" 2>/dev/null | sort | uniq -c | sort -rn | awk '{printf "\"%s\": %d,\n", $2, $1}' | sed '$ s/,$//' | { echo "{"; cat; echo "}"; })
+                local styles="{}"
+                if [[ -f "$style_file" ]]; then
+                    styles=$(jq -r '.s[]' "$style_file" 2>/dev/null | sort | uniq -c | sort -rn | awk '{printf "\"%s\": %d,\n", $2, $1}' | sed '$ s/,$//' | { echo "{"; cat; echo "}"; })
                 fi
 
                 jq -n \
                     --argjson signals "$signals" \
-                    --argjson patterns "$patterns" \
-                    '{version: "1.0", exported: now | todate, taste_signals: $signals, edit_patterns: $patterns}' \
+                    --argjson code_style "$styles" \
+                    '{version: "1.0", exported: now | todate, taste_signals: $signals, code_style: $code_style}' \
                     > "$export_file" 2>/dev/null
 
                 echo -e "${GREEN}Exported to:${NC} $export_file"
-                echo -e "  Signals: $(echo "$signals" | jq 'length')"
-                echo -e "  Edit patterns: $(echo "$patterns" | jq 'keys | length') categories"
+                echo -e "  Judgment signals: $(echo "$signals" | jq 'length')"
+                echo -e "  Code style patterns: $(echo "$styles" | jq 'keys | length') categories"
             else
                 echo -e "${YELLOW}jq required for export${NC}"
                 return 1
@@ -540,37 +539,122 @@ cmd_taste() {
 }
 
 cmd_capture() {
-    check_claude
+    # NOTE: `claude -p` starts a NEW session with NO memory of the previous one.
+    # So we capture from observable artifacts: git diff, usage logs, plan state.
+    # This gives real data, not hallucinated session summaries.
 
     local project_name
     project_name="$(basename "$(pwd)")"
     local sessions_dir="$KNOWLEDGE_DIR/sessions"
     mkdir -p "$sessions_dir"
-
     local target_file="$sessions_dir/${project_name}.md"
+    local today
+    today="$(date +%Y-%m-%d)"
 
-    echo -e "${BLUE}rhino capture${NC} — extracting session knowledge for ${BOLD}${project_name}${NC}"
+    echo -e "${BLUE}rhino capture${NC} — extracting session artifacts for ${BOLD}${project_name}${NC}"
 
-    local capture_prompt="Summarize this session's key decisions, preferences, and patterns. Focus on:
-1. What was decided and why
-2. Any preferences the user expressed (coding style, architecture, tooling)
-3. Patterns that should be remembered for future sessions
+    local capture=""
 
-Output as concise bullet points under headers: ## Decisions, ## Preferences, ## Patterns
-Add a date header: ### $(date +%Y-%m-%d)"
+    # 1. Git activity (what actually changed)
+    if git rev-parse --is-inside-work-tree &>/dev/null; then
+        local recent_commits
+        recent_commits=$(git log --oneline --since="6 hours ago" 2>/dev/null | head -10)
+        if [[ -n "$recent_commits" ]]; then
+            capture+="### Commits
+$recent_commits
+"
+        fi
 
-    local result
-    result=$(claude -p --max-budget-usd 0.25 "$capture_prompt" 2>/dev/null) || {
-        echo -e "${RED}Capture failed${NC} — claude may not have session context"
-        return 1
-    }
+        local uncommitted
+        uncommitted=$(git diff --stat 2>/dev/null | tail -5)
+        if [[ -n "$uncommitted" ]]; then
+            capture+="### Uncommitted changes
+$uncommitted
+"
+        fi
+    fi
 
-    if [[ -n "$result" ]]; then
-        echo "" >> "$target_file"
-        echo "$result" >> "$target_file"
-        echo -e "${GREEN}Captured to:${NC} $target_file"
-    else
-        echo -e "${YELLOW}No output from capture${NC}"
+    # 2. Tool activity (what tools were used, on what)
+    local usage_file="$LOG_DIR/usage.jsonl"
+    if [[ -f "$usage_file" ]] && command -v jq &>/dev/null; then
+        local six_hours_ago
+        six_hours_ago="$(date -u -v-6H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '6 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")"
+        if [[ -n "$six_hours_ago" ]]; then
+            local edit_count
+            edit_count=$(awk -v cutoff="$six_hours_ago" -v proj="$project_name" '
+                /"ts":/ {
+                    match($0, /"ts":"([^"]+)"/, ts)
+                    if (ts[1] >= cutoff) {
+                        match($0, /"tool":"([^"]+)"/, tool)
+                        if (tool[1] == "Edit" || tool[1] == "Write") count++
+                    }
+                }
+                END { print count+0 }
+            ' "$usage_file")
+            if (( edit_count > 0 )); then
+                capture+="### Activity
+${edit_count} edits in last 6h
+"
+            fi
+        fi
+    fi
+
+    # 3. Active plan state
+    local plan_file="$CLAUDE_DIR/plans/active-plan.md"
+    if [[ -f "$plan_file" ]]; then
+        local plan_title
+        plan_title=$(head -3 "$plan_file" | grep -E '^#' | head -1 || echo "Active plan exists")
+        capture+="### Plan
+$plan_title
+"
+    fi
+
+    # 4. Taste signals recorded today
+    local taste_file="$KNOWLEDGE_DIR/taste.jsonl"
+    if [[ -f "$taste_file" ]]; then
+        local today_taste
+        today_taste=$(grep "$today" "$taste_file" 2>/dev/null | head -5)
+        if [[ -n "$today_taste" ]] && command -v jq &>/dev/null; then
+            local taste_summary
+            taste_summary=$(echo "$today_taste" | jq -r '"[\(.domain)] \(.signal)"' 2>/dev/null)
+            if [[ -n "$taste_summary" ]]; then
+                capture+="### Taste signals recorded
+$taste_summary
+"
+            fi
+        fi
+    fi
+
+    if [[ -z "$capture" ]]; then
+        echo -e "${YELLOW}Nothing to capture${NC} — no recent git activity, edits, or taste signals"
+        return 0
+    fi
+
+    # Write to session file
+    {
+        echo ""
+        echo "## $today — $project_name"
+        echo "$capture"
+    } >> "$target_file"
+
+    echo -e "${GREEN}Captured to:${NC} $target_file"
+
+    # Prune entries older than 60 days
+    if [[ -f "$target_file" ]]; then
+        local sixty_days_ago
+        sixty_days_ago=$(date -v-60d +%Y-%m-%d 2>/dev/null || date -d '60 days ago' +%Y-%m-%d 2>/dev/null || echo "")
+        if [[ -n "$sixty_days_ago" ]]; then
+            local tmpfile
+            tmpfile=$(mktemp)
+            awk -v cutoff="$sixty_days_ago" '
+                /^## [0-9]{4}-[0-9]{2}-[0-9]{2}/ {
+                    match($0, /[0-9]{4}-[0-9]{2}-[0-9]{2}/, arr)
+                    printing = (arr[0] >= cutoff)
+                }
+                printing { print }
+            ' "$target_file" > "$tmpfile"
+            mv "$tmpfile" "$target_file"
+        fi
     fi
 }
 

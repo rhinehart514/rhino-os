@@ -1,158 +1,87 @@
 #!/usr/bin/env bash
-# track_usage.sh — PostToolUse hook that logs tool invocations AND extracts edit patterns
-# Appended to ~/.claude/logs/usage.jsonl
-# Edit patterns logged to ~/.claude/logs/edit-patterns.jsonl for taste extraction
-# Must be fast (<100ms) and never block tool execution
+# track_usage.sh — PostToolUse hook
+# Logs tool invocations to usage.jsonl with project context.
+# Extracts CODE STYLE patterns (not taste) to code-style.jsonl.
+# Taste is macro judgment — what to build, kill, prioritize.
+# Code style is formatting — camelCase, semicolons, indentation.
+# Must be fast (<50ms). Never block tool execution.
 
 INPUT="$(cat)"
 TOOL_NAME="$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)"
 
-# Only log if we got a tool name
-if [[ -z "$TOOL_NAME" ]]; then
-    exit 0
-fi
+[[ -z "$TOOL_NAME" ]] && exit 0
 
 LOG_DIR="$HOME/.claude/logs"
-KNOWLEDGE_DIR="$HOME/.claude/knowledge"
-mkdir -p "$LOG_DIR" "$KNOWLEDGE_DIR"
+mkdir -p "$LOG_DIR"
 
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-# Extract file path from tool input (works for Edit, Write, Read)
+# Extract file path from tool input
 FILE_PATH="$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)"
 
 # Detect project from file path
 PROJECT=""
 if [[ -n "$FILE_PATH" ]]; then
-    # Extract project name: first directory component under ~/
     PROJECT="$(echo "$FILE_PATH" | sed "s|^$HOME/||" | cut -d'/' -f1)"
 fi
 
-# Enhanced usage log with file path and project
+# Log usage (always)
 echo "{\"ts\":\"$TS\",\"tool\":\"$TOOL_NAME\",\"project\":\"$PROJECT\",\"file\":\"$FILE_PATH\"}" >> "$LOG_DIR/usage.jsonl"
 
-# --- Edit Pattern Extraction ---
-# For Edit calls, analyze old_string → new_string for style patterns
-if [[ "$TOOL_NAME" == "Edit" ]]; then
-    OLD_STRING="$(echo "$INPUT" | jq -r '.tool_input.old_string // empty' 2>/dev/null)"
+# --- Code Style Extraction (Edit calls only) ---
+# These are FORMATTING preferences, not taste.
+# Taste comes from decisions (accept/reject/kill/build) captured by agents.
+if [[ "$TOOL_NAME" == "Edit" && -n "$FILE_PATH" ]]; then
     NEW_STRING="$(echo "$INPUT" | jq -r '.tool_input.new_string // empty' 2>/dev/null)"
 
-    if [[ -n "$OLD_STRING" && -n "$NEW_STRING" ]]; then
-        PATTERNS=()
+    if [[ -n "$NEW_STRING" ]]; then
+        STYLE_FILE="$LOG_DIR/code-style.jsonl"
 
-        # --- Naming convention detection ---
-        # Check new_string for dominant naming style in identifiers
-        if echo "$NEW_STRING" | grep -qE '[a-z][A-Z][a-z]'; then
-            PATTERNS+=("naming_camel")
-        fi
-        if echo "$NEW_STRING" | grep -qE '[a-z]_[a-z]'; then
-            PATTERNS+=("naming_snake")
-        fi
-
-        # --- Quote style ---
-        SINGLE_QUOTES=$(echo "$NEW_STRING" | grep -o "'" | wc -l | tr -d ' ')
-        DOUBLE_QUOTES=$(echo "$NEW_STRING" | grep -o '"' | wc -l | tr -d ' ')
-        BACKTICK_QUOTES=$(echo "$NEW_STRING" | grep -o '`' | wc -l | tr -d ' ')
-        if (( SINGLE_QUOTES > DOUBLE_QUOTES && SINGLE_QUOTES > 0 )); then
-            PATTERNS+=("quotes_single")
-        elif (( DOUBLE_QUOTES > SINGLE_QUOTES && DOUBLE_QUOTES > 0 )); then
-            PATTERNS+=("quotes_double")
-        fi
-        if (( BACKTICK_QUOTES > 0 )); then
-            PATTERNS+=("quotes_template_literal")
+        # Prune: keep only last 7 days (check once per 100 entries)
+        if [[ -f "$STYLE_FILE" ]]; then
+            LINE_COUNT=$(wc -l < "$STYLE_FILE" | tr -d ' ')
+            if (( LINE_COUNT > 500 )); then
+                WEEK_AGO="$(date -u -v-7d +%Y-%m-%dT 2>/dev/null || date -u -d '7 days ago' +%Y-%m-%dT 2>/dev/null || echo "")"
+                if [[ -n "$WEEK_AGO" ]]; then
+                    grep "\"ts\":\"$WEEK_AGO" "$STYLE_FILE" > "$STYLE_FILE.tmp" 2>/dev/null || true
+                    # Keep lines from this week
+                    awk -v cutoff="$WEEK_AGO" '/"ts":"/ { if (index($0, cutoff) > 0 || $0 > cutoff) print }' "$STYLE_FILE" > "$STYLE_FILE.tmp" 2>/dev/null
+                    mv "$STYLE_FILE.tmp" "$STYLE_FILE" 2>/dev/null || true
+                fi
+            fi
         fi
 
-        # --- Semicolons ---
-        OLD_SEMIS=$(echo "$OLD_STRING" | grep -c ';$' || true)
-        NEW_SEMIS=$(echo "$NEW_STRING" | grep -c ';$' || true)
-        if (( NEW_SEMIS > OLD_SEMIS )); then
-            PATTERNS+=("semicolons_added")
-        elif (( OLD_SEMIS > NEW_SEMIS )); then
-            PATTERNS+=("semicolons_removed")
+        # Lightweight detection — max 5 checks, no grep on full string
+        PATTERNS=""
+        SAMPLE="${NEW_STRING:0:2000}"  # Only check first 2000 chars
+
+        # Naming (one check)
+        if [[ "$SAMPLE" =~ [a-z][A-Z][a-z] ]]; then
+            PATTERNS="${PATTERNS:+$PATTERNS,}\"camel\""
+        elif [[ "$SAMPLE" =~ [a-z]_[a-z] ]]; then
+            PATTERNS="${PATTERNS:+$PATTERNS,}\"snake\""
         fi
 
-        # --- Comment changes ---
-        OLD_COMMENTS=$(echo "$OLD_STRING" | grep -cE '^\s*(//|#|/\*|\*)' || true)
-        NEW_COMMENTS=$(echo "$NEW_STRING" | grep -cE '^\s*(//|#|/\*|\*)' || true)
-        if (( NEW_COMMENTS > OLD_COMMENTS )); then
-            PATTERNS+=("comments_added")
-        elif (( OLD_COMMENTS > NEW_COMMENTS )); then
-            PATTERNS+=("comments_removed")
+        # Semicolons
+        if [[ "$SAMPLE" =~ \;$ ]]; then
+            PATTERNS="${PATTERNS:+$PATTERNS,}\"semi\""
         fi
 
-        # --- Variable declaration style ---
-        if echo "$NEW_STRING" | grep -qE '\bconst\b'; then
-            PATTERNS+=("decl_const")
-        fi
-        if echo "$NEW_STRING" | grep -qE '\blet\b'; then
-            PATTERNS+=("decl_let")
-        fi
-        if echo "$NEW_STRING" | grep -qE '\bvar\b'; then
-            PATTERNS+=("decl_var")
+        # Arrow vs function
+        if [[ "$SAMPLE" =~ =\> ]]; then
+            PATTERNS="${PATTERNS:+$PATTERNS,}\"arrow\""
         fi
 
-        # --- Function style ---
-        if echo "$NEW_STRING" | grep -qE '=>'; then
-            PATTERNS+=("fn_arrow")
-        fi
-        if echo "$NEW_STRING" | grep -qE '\bfunction\b'; then
-            PATTERNS+=("fn_keyword")
+        # ESM vs CJS
+        if [[ "$SAMPLE" =~ ^import\  ]]; then
+            PATTERNS="${PATTERNS:+$PATTERNS,}\"esm\""
         fi
 
-        # --- Error handling style ---
-        if echo "$NEW_STRING" | grep -qE '\btry\s*\{'; then
-            PATTERNS+=("error_try_catch")
-        fi
-        if echo "$NEW_STRING" | grep -qE '\bif\s*\(\s*!'; then
-            PATTERNS+=("error_early_return")
-        fi
-        if echo "$NEW_STRING" | grep -qE '\.catch\('; then
-            PATTERNS+=("error_promise_catch")
-        fi
-
-        # --- Import style ---
-        if echo "$NEW_STRING" | grep -qE '^import\b'; then
-            PATTERNS+=("import_esm")
-        fi
-        if echo "$NEW_STRING" | grep -qE '\brequire\('; then
-            PATTERNS+=("import_cjs")
-        fi
-
-        # --- Deletion detection (old is longer than new = removing code) ---
-        OLD_LINES=$(echo "$OLD_STRING" | wc -l | tr -d ' ')
-        NEW_LINES=$(echo "$NEW_STRING" | wc -l | tr -d ' ')
-        if (( OLD_LINES > NEW_LINES + 3 )); then
-            PATTERNS+=("code_deletion")
-        fi
-        if (( NEW_LINES > OLD_LINES + 5 )); then
-            PATTERNS+=("code_expansion")
-        fi
-
-        # --- Whitespace/formatting preferences ---
-        if echo "$NEW_STRING" | grep -qE '^\t'; then
-            PATTERNS+=("indent_tabs")
-        fi
-        if echo "$NEW_STRING" | grep -qE '^  [^ ]'; then
-            PATTERNS+=("indent_2space")
-        fi
-        if echo "$NEW_STRING" | grep -qE '^    [^ ]'; then
-            PATTERNS+=("indent_4space")
-        fi
-
-        # Log patterns if any detected
-        if [[ ${#PATTERNS[@]} -gt 0 ]]; then
-            PATTERN_JSON=$(printf '%s\n' "${PATTERNS[@]}" | jq -R . | jq -s .)
-            # Get file extension for language context
+        if [[ -n "$PATTERNS" ]]; then
             EXT="${FILE_PATH##*.}"
-            echo "{\"ts\":\"$TS\",\"project\":\"$PROJECT\",\"file\":\"$FILE_PATH\",\"ext\":\"$EXT\",\"patterns\":$PATTERN_JSON}" >> "$LOG_DIR/edit-patterns.jsonl"
+            echo "{\"ts\":\"$TS\",\"project\":\"$PROJECT\",\"ext\":\"$EXT\",\"s\":[$PATTERNS]}" >> "$STYLE_FILE"
         fi
     fi
-fi
-
-# --- Write tool: track what gets created ---
-if [[ "$TOOL_NAME" == "Write" && -n "$FILE_PATH" ]]; then
-    EXT="${FILE_PATH##*.}"
-    echo "{\"ts\":\"$TS\",\"project\":\"$PROJECT\",\"file\":\"$FILE_PATH\",\"ext\":\"$EXT\",\"patterns\":[\"file_created\"]}" >> "$LOG_DIR/edit-patterns.jsonl"
 fi
 
 exit 0

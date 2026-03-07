@@ -15,7 +15,6 @@ const LOG_DIR = path.join(CLAUDE_DIR, "logs");
 const PORTFOLIO_FILE = path.join(KNOWLEDGE_DIR, "portfolio.json");
 const LANDSCAPE_FILE = path.join(KNOWLEDGE_DIR, "landscape.json");
 const TASTE_FILE = path.join(KNOWLEDGE_DIR, "taste.jsonl");
-const EDIT_PATTERNS_FILE = path.join(LOG_DIR, "edit-patterns.jsonl");
 
 // Ensure dirs exist
 for (const dir of [STATE_DIR, KNOWLEDGE_DIR, LOG_DIR]) {
@@ -313,11 +312,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
           domain: {
             type: "string",
-            description: 'Category: "product", "design", "strategy", "technical", "communication". Used for record and query.',
+            description: 'Category: "product", "design", "strategy", "technical", "market", "risk", "user_instinct", "communication". Used for record and query.',
           },
           signal: {
             type: "string",
-            description: 'The observed preference (for record). e.g., "Prefers dense data layouts over whitespace", "Rejects onboarding flows — wants users dropped into value immediately"',
+            description: 'The observed JUDGMENT preference (for record). NOT code formatting. e.g., "Kills features aggressively when no user signal", "Prefers shipping speed over architectural correctness", "Trusts campus market despite competition", "Rejects onboarding flows — wants users dropped into value immediately"',
           },
           evidence: {
             type: "string",
@@ -332,6 +331,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description: "Optional landscape position ID this taste signal aligns with. Links decisions to strategic positions.",
           },
+          polarity: {
+            type: "string",
+            description: '"positive" (founder chose/accepted this) or "negative" (founder rejected/overrode this). Defaults to "positive". NEGATIVE signals are the most valuable — they capture what the founder explicitly pushes back on.',
+            enum: ["positive", "negative"],
+          },
         },
         required: ["action"],
       },
@@ -339,7 +343,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "rhino_agent_context",
       description:
-        "Returns a curated context briefing for the current task. Assembles relevant taste signals, edit patterns (auto-extracted from coding behavior), portfolio focus, landscape positions, and last session summary into a single context block. Call this FIRST in any agent session to ground yourself in the founder's preferences and strategic context.",
+        "Returns a curated context briefing for the current agent session. Assembles: taste signals (macro judgment preferences — NOT code formatting), portfolio focus + drift detection, strong landscape positions, and last session summary. Call this FIRST to align with the founder's judgment before doing anything.",
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -349,7 +353,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
           domain: {
             type: "string",
-            description: 'Filter taste signals by domain: "product", "design", "strategy", "technical". If omitted, returns all strong+moderate signals.',
+            description: 'Filter taste signals by domain: "product", "design", "strategy", "technical", "market", "risk". If omitted, returns all strong+moderate signals.',
           },
         },
       },
@@ -779,6 +783,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const evidence = args?.evidence as string | undefined;
       const strength = (args?.strength as string) || "weak";
       const landscapeId = args?.landscape_id as string | undefined;
+      const polarity = (args?.polarity as string) || "positive";
 
       switch (action) {
         case "record": {
@@ -823,10 +828,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             signal,
             evidence: evidence || "",
             strength,
+            polarity,
           };
           if (landscapeId) entry.landscape_id = landscapeId;
           fs.appendFileSync(TASTE_FILE, JSON.stringify(entry) + "\n", "utf-8");
-          return { content: [{ type: "text", text: `Taste recorded: [${domain}] ${signal}${landscapeId ? ` (linked to: ${landscapeId})` : ""}` }] };
+          const polarityLabel = polarity === "negative" ? " REJECTED" : "";
+          return { content: [{ type: "text", text: `Taste recorded:${polarityLabel} [${domain}] ${signal}${landscapeId ? ` (linked to: ${landscapeId})` : ""}` }] };
         }
         case "read": {
           if (!fs.existsSync(TASTE_FILE)) {
@@ -843,8 +850,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
 
           const output = Object.entries(byDomain).map(([d, items]) =>
-            `## ${d}\n` + items.map((i: { strength: string; signal: string; evidence: string }) =>
-              `  [${i.strength}] ${i.signal}${i.evidence ? ` (from: ${i.evidence})` : ""}`
+            `## ${d}\n` + items.map((i: { strength: string; signal: string; evidence: string; polarity?: string }) =>
+              `  [${i.strength}]${i.polarity === "negative" ? " REJECTS:" : ""} ${i.signal}${i.evidence ? ` (from: ${i.evidence})` : ""}`
             ).join("\n")
           ).join("\n\n");
 
@@ -890,27 +897,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             });
           }
 
-          // Add edit pattern analysis if available
-          let editProfile: Record<string, number> | null = null;
-          if (fs.existsSync(EDIT_PATTERNS_FILE)) {
-            const patternLines = fs.readFileSync(EDIT_PATTERNS_FILE, "utf-8").trim().split("\n").filter(Boolean);
+          // Add code style analysis if available (separate from taste — formatting, not judgment)
+          let codeStyle: Record<string, number> | null = null;
+          const codeStyleFile = path.join(LOG_DIR, "code-style.jsonl");
+          if (fs.existsSync(codeStyleFile)) {
+            const styleLines = fs.readFileSync(codeStyleFile, "utf-8").trim().split("\n").filter(Boolean);
             const tallies: Record<string, number> = {};
-            for (const pl of patternLines) {
+            for (const sl of styleLines) {
               try {
-                const pe = JSON.parse(pl);
-                for (const p of (pe.patterns || [])) {
+                const se = JSON.parse(sl);
+                for (const p of (se.s || [])) {
                   tallies[p] = (tallies[p] || 0) + 1;
                 }
               } catch { /* skip */ }
             }
-            if (Object.keys(tallies).length > 0) editProfile = tallies;
+            if (Object.keys(tallies).length > 0) codeStyle = tallies;
           }
 
           const exportData = {
             version: "1.0",
             exported: new Date().toISOString(),
             taste_signals: profile,
-            ...(editProfile ? { edit_patterns: editProfile } : {}),
+            ...(codeStyle ? { code_style: codeStyle } : {}),
           };
 
           return { content: [{ type: "text", text: JSON.stringify(exportData, null, 2) }] };
@@ -925,7 +933,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const ctxDomain = args?.domain as string | undefined;
       const sections: string[] = [];
 
-      // 1. Taste signals (strong + moderate, filtered by domain if provided)
+      // 1. Taste signals — MACRO JUDGMENT, not code formatting
+      // These are decisions about what to build, kill, prioritize, and how to approach work
       if (fs.existsSync(TASTE_FILE)) {
         const lines = fs.readFileSync(TASTE_FILE, "utf-8").trim().split("\n").filter(Boolean);
         const entries = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
@@ -934,102 +943,78 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return e.strength === "strong" || e.strength === "moderate";
         });
         if (relevant.length > 0) {
-          const tasteLines = relevant.map((e: { strength: string; domain: string; signal: string; landscape_id?: string }) =>
-            `  [${e.strength}/${e.domain}] ${e.signal}${e.landscape_id ? ` (linked: ${e.landscape_id})` : ""}`
-          );
-          sections.push(`## Taste Profile\nFounder preferences (observed from decisions):\n${tasteLines.join("\n")}`);
+          // Separate positive preferences from rejections — rejections are highest-signal
+          const rejections = relevant.filter((e: { polarity?: string }) => e.polarity === "negative");
+          const preferences = relevant.filter((e: { polarity?: string }) => e.polarity !== "negative");
+
+          const lines: string[] = [];
+          if (rejections.length > 0) {
+            lines.push("REJECTS (highest-signal — do NOT do these):");
+            for (const e of rejections as Array<{ strength: string; domain: string; signal: string; landscape_id?: string }>) {
+              lines.push(`  [${e.strength}/${e.domain}] ${e.signal}${e.landscape_id ? ` (linked: ${e.landscape_id})` : ""}`);
+            }
+          }
+          if (preferences.length > 0) {
+            if (rejections.length > 0) lines.push("");
+            lines.push("PREFERS:");
+            for (const e of preferences as Array<{ strength: string; domain: string; signal: string; landscape_id?: string }>) {
+              lines.push(`  [${e.strength}/${e.domain}] ${e.signal}${e.landscape_id ? ` (linked: ${e.landscape_id})` : ""}`);
+            }
+          }
+          sections.push(`## Founder Judgment Profile\nMacro decisions (what to build, kill, prioritize) — NOT code formatting:\n${lines.join("\n")}`);
         }
       }
 
-      // 2. Edit pattern analysis (behavioral, auto-extracted)
-      if (fs.existsSync(EDIT_PATTERNS_FILE)) {
-        const patternLines = fs.readFileSync(EDIT_PATTERNS_FILE, "utf-8").trim().split("\n").filter(Boolean);
-
-        // Filter by project if specified
-        const relevant = project
-          ? patternLines.filter(l => { try { return JSON.parse(l).project === project; } catch { return false; } })
-          : patternLines;
-
-        // Only analyze last 7 days
-        const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-        const recent = relevant.filter(l => {
-          try { return JSON.parse(l).ts >= weekAgo; } catch { return false; }
-        });
-
-        if (recent.length > 0) {
-          const tallies: Record<string, number> = {};
-          for (const pl of recent) {
-            try {
-              const pe = JSON.parse(pl);
-              for (const p of (pe.patterns || [])) {
-                tallies[p] = (tallies[p] || 0) + 1;
-              }
-            } catch { /* skip */ }
-          }
-
-          // Derive human-readable preferences from tallies
-          const prefs: string[] = [];
-          if ((tallies.naming_camel || 0) > (tallies.naming_snake || 0) * 2) prefs.push("Strongly prefers camelCase naming");
-          else if ((tallies.naming_snake || 0) > (tallies.naming_camel || 0) * 2) prefs.push("Strongly prefers snake_case naming");
-
-          if ((tallies.quotes_single || 0) > (tallies.quotes_double || 0) * 2) prefs.push("Uses single quotes");
-          else if ((tallies.quotes_double || 0) > (tallies.quotes_single || 0) * 2) prefs.push("Uses double quotes");
-
-          if ((tallies.semicolons_removed || 0) > (tallies.semicolons_added || 0)) prefs.push("Removes semicolons (no-semi style)");
-          else if ((tallies.semicolons_added || 0) > (tallies.semicolons_removed || 0)) prefs.push("Adds semicolons consistently");
-
-          if ((tallies.comments_removed || 0) > (tallies.comments_added || 0) * 2) prefs.push("Tends to remove comments — prefers self-documenting code");
-          else if ((tallies.comments_added || 0) > (tallies.comments_removed || 0) * 2) prefs.push("Adds comments actively");
-
-          if ((tallies.decl_const || 0) > (tallies.decl_let || 0) * 3) prefs.push("Strong const preference over let");
-          if ((tallies.fn_arrow || 0) > (tallies.fn_keyword || 0) * 2) prefs.push("Prefers arrow functions");
-          else if ((tallies.fn_keyword || 0) > (tallies.fn_arrow || 0) * 2) prefs.push("Prefers function keyword");
-
-          if ((tallies.error_early_return || 0) > (tallies.error_try_catch || 0)) prefs.push("Prefers early return over try/catch");
-          if ((tallies.import_esm || 0) > (tallies.import_cjs || 0) * 2) prefs.push("Uses ES module imports");
-          else if ((tallies.import_cjs || 0) > (tallies.import_esm || 0) * 2) prefs.push("Uses CommonJS require");
-
-          if ((tallies.code_deletion || 0) > (tallies.code_expansion || 0)) prefs.push("Tends to reduce code — values conciseness");
-
-          if ((tallies.indent_tabs || 0) > (tallies.indent_2space || 0) + (tallies.indent_4space || 0)) prefs.push("Uses tabs for indentation");
-          else if ((tallies.indent_2space || 0) > (tallies.indent_4space || 0)) prefs.push("Uses 2-space indentation");
-          else if ((tallies.indent_4space || 0) > (tallies.indent_2space || 0)) prefs.push("Uses 4-space indentation");
-
-          if (prefs.length > 0) {
-            sections.push(`## Coding Style (auto-extracted from ${recent.length} edits, last 7d)\n${prefs.map(p => `  - ${p}`).join("\n")}`);
-          }
-        }
-      }
-
-      // 3. Portfolio focus
+      // 2. Portfolio focus + project status
       const portfolio = loadPortfolio();
-      if (portfolio.focus.primary) {
-        let focusSection = `## Portfolio Focus\nPrimary: ${portfolio.focus.primary}`;
-        if (portfolio.focus.secondary) focusSection += `\nSecondary: ${portfolio.focus.secondary}`;
+      if (portfolio.projects.length > 0) {
+        let focusSection = "## Portfolio";
+        if (portfolio.focus.primary) focusSection += `\nPrimary focus: ${portfolio.focus.primary}`;
+        if (portfolio.focus.secondary) focusSection += ` | Secondary: ${portfolio.focus.secondary}`;
         if (portfolio.focus.kill && portfolio.focus.kill.length > 0) focusSection += `\nKill list: ${portfolio.focus.kill.join(", ")}`;
+        focusSection += `\nActive projects: ${portfolio.projects.filter(p => p.stage !== "killed" && p.stage !== "paused").length}`;
 
-        // If project specified, show its status
         if (project) {
           const proj = portfolio.projects.find(p => p.name === project);
           if (proj) {
-            focusSection += `\n\n${project}: ${proj.stage} | ${proj.users} users | Core loop: ${proj.core_loop.complete ? "complete" : "INCOMPLETE"}`;
+            focusSection += `\n\n${project}: ${proj.stage} | ${proj.users} users | MRR: $${proj.revenue_monthly} | Core loop: ${proj.core_loop.complete ? "complete" : "INCOMPLETE"}`;
+            if (proj.moat === "none") focusSection += " | NO MOAT";
           }
         }
         sections.push(focusSection);
       }
 
-      // 4. Relevant landscape positions
+      // 3. Landscape positions with DECAY WARNINGS
       const landscape = loadLandscape();
       if (landscape.positions.length > 0) {
-        const strongPositions = landscape.positions
-          .filter(p => p.confidence === "strong")
-          .map(p => `  [${p.id || "?"}] ${p.position}`);
-        if (strongPositions.length > 0) {
-          sections.push(`## Landscape (strong positions)\n${strongPositions.join("\n")}`);
+        const now = Date.now();
+        const thirtyDaysMs = 30 * 86400000;
+        const sixtyDaysMs = 60 * 86400000;
+
+        const positionLines: string[] = [];
+        const stalePositions: string[] = [];
+
+        for (const p of landscape.positions) {
+          const ageMs = now - new Date(p.updated).getTime();
+          const ageLabel = ageMs > sixtyDaysMs ? " STALE" : ageMs > thirtyDaysMs ? " aging" : "";
+          if (p.confidence === "strong" || p.confidence === "moderate") {
+            positionLines.push(`  [${p.confidence}${ageLabel}] ${p.position}`);
+          }
+          if (ageMs > sixtyDaysMs) {
+            stalePositions.push(p.id || p.position.slice(0, 40));
+          }
+        }
+
+        if (positionLines.length > 0) {
+          let landscapeSection = `## Landscape Positions\n${positionLines.join("\n")}`;
+          if (stalePositions.length > 0) {
+            landscapeSection += `\n\nSTALE POSITIONS (>60d, need scout review): ${stalePositions.join(", ")}`;
+          }
+          sections.push(landscapeSection);
         }
       }
 
-      // 5. Drift detection (if project specified)
+      // 4. Drift detection
       if (project) {
         const usagePath = path.join(LOG_DIR, "usage.jsonl");
         if (fs.existsSync(usagePath)) {
@@ -1046,7 +1031,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               }
             } catch { /* skip */ }
           }
-          if (totalEdits > 0) {
+          if (totalEdits > 10) {
             const projectEdits = projectCounts[project] || 0;
             const projectPct = Math.round((projectEdits / totalEdits) * 100);
             const otherProjects = Object.entries(projectCounts)
@@ -1065,12 +1050,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
 
-      // 6. Last session context
+      // 5. Last session context
       if (project) {
         const sessionFile = path.join(KNOWLEDGE_DIR, "sessions", `${project}.md`);
         if (fs.existsSync(sessionFile)) {
           const sessionContent = fs.readFileSync(sessionFile, "utf-8");
-          // Get last entry
           const entries = sessionContent.split(/^## /m).filter(Boolean);
           if (entries.length > 0) {
             const lastEntry = entries[entries.length - 1].trim();
@@ -1081,7 +1065,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       if (sections.length === 0) {
-        return { content: [{ type: "text", text: "No context available yet. Use rhino-os for a few sessions to build up taste signals and edit patterns." }] };
+        return { content: [{ type: "text", text: "No context available yet. Run rhino strategy to populate portfolio, rhino scout for landscape, and use agents to build up taste signals from your decisions." }] };
       }
 
       return { content: [{ type: "text", text: sections.join("\n\n") }] };

@@ -3,6 +3,9 @@
 # Fires once per session (30min cooldown), reads last session summary + active plan
 # Outputs context to stdout so the model sees it as hook feedback
 
+# MUST drain stdin first — hook protocol requires it
+cat > /dev/null
+
 CLAUDE_DIR="$HOME/.claude"
 STATE_DIR="$CLAUDE_DIR/state"
 KNOWLEDGE_DIR="$CLAUDE_DIR/knowledge"
@@ -15,9 +18,6 @@ if [[ -f "$MARKER" ]]; then
         exit 0
     fi
 fi
-
-# Read stdin (required by hook protocol)
-cat > /dev/null
 
 # Create/update marker
 mkdir -p "$STATE_DIR"

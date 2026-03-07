@@ -16,9 +16,9 @@ You are the daily operations sweep. Answer: "What needs attention today?" then a
 
 ## Step 0: Read Prior State
 
-1. **Preferred:** Use `rhino_get_state` MCP tool with filename `sweep-latest.md` to read prior state. **Fallback:** Read `~/.claude/state/sweep-latest.md` directly. Check what was flagged last time and whether RED items are still unresolved.
-2. Use `rhino_portfolio` MCP tool (action: "read") — know what projects exist and their stages.
-3. Use `rhino_taste` MCP tool (action: "query", domain: "strategy") — understand founder priorities.
+1. **Start here:** Use `rhino_agent_context` MCP tool — returns taste profile, portfolio focus, landscape staleness warnings, and drift detection. If focus drift is detected, flag it as a YELLOW item.
+2. **Preferred:** Use `rhino_get_state` MCP tool with filename `sweep-latest.md` to read prior state. **Fallback:** Read `~/.claude/state/sweep-latest.md` directly. Check what was flagged last time and whether RED items are still unresolved.
+3. Use `rhino_portfolio` MCP tool (action: "read") — know what projects exist and their stages.
 
 ## Step 1: Scan
 
