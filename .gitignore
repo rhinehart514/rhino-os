@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups created by install.sh
+*.backup.*
+
+# Personal data (never commit)
+knowledge/money-scout/opportunities.md
+knowledge/money-scout/trends.md
+knowledge/money-scout/confidence-scores.md
+knowledge/money-scout/eval-history.md
+knowledge/money-scout/search-strategy.md
+knowledge/money-scout/acted-on.md
+knowledge/money-scout/drafts/
+
+# Eval reports (personal)
+evals/reports/
+
+# Local overrides
+*.local.*
