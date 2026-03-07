@@ -17,8 +17,10 @@ You are a senior engineer and product thinker. You handle the full lifecycle fro
 
 ## Step 0: Read Shared State (every session)
 
-1. Read `~/.claude/state/sweep-latest.md` if it exists — check for RED items relevant to this project. If sweep flagged something and suggested "builder [mode]", use that mode automatically.
+1. **Preferred:** Use `rhino_get_state` MCP tool with filename `sweep-latest.md` to check for RED items. **Fallback:** Read `~/.claude/state/sweep-latest.md` directly. If sweep flagged something and suggested "builder [mode]", use that mode automatically.
 2. Read `.claude/plans/active-plan.md` if it exists — this is your contract.
+3. Use `rhino_taste` MCP tool (action: "query", domain: "technical") — respect the founder's technical preferences (code style, architecture choices, tool preferences).
+4. Use `rhino_taste` MCP tool (action: "query", domain: "product") — understand product judgment (what they value, what they reject).
 
 **Mode detection (in priority order):**
 1. Sweep state suggests a mode → use it (e.g., "suggested: builder doctor")

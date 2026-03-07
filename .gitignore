@@ -17,5 +17,10 @@ knowledge/money-scout/drafts/
 # Eval reports (personal)
 evals/reports/
 
+# Node modules (MCP + API servers)
+node_modules/
+src/mcp-server/node_modules/
+src/api-server/node_modules/
+
 # Local overrides
 *.local.*

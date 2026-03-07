@@ -9,7 +9,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>$HOME/rhino-os/automation/scripts/run-scout.sh --max-budget-usd 2.00</string>
+        <string>$HOME/bin/rhino scout</string>
     </array>
 
     <!-- Run weekly on Mondays at 6:00 AM -->

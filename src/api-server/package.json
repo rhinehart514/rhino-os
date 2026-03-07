@@ -1,0 +1,12 @@
+{
+  "name": "rhino-api",
+  "version": "1.0.0",
+  "description": "Localhost API server for rhino-os",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "tsx": "^4.19.0"
+  }
+}

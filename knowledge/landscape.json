@@ -1,0 +1,79 @@
+{
+  "positions": [
+    {
+      "id": "ai-wrappers-are-dead-model-providers-sh",
+      "position": "AI wrappers are dead — model providers ship features directly. The wedge is proprietary data + workflow, not API wrapping.",
+      "confidence": "strong",
+      "evidence": [
+        "Anthropic shipping Remote Control, Agent Teams, MCP natively",
+        "OpenAI shipping Codex, Operator, built-in tools",
+        "Enterprise consolidating spend on proven solutions, not wrappers (Sapphire Ventures 2026)"
+      ],
+      "implications": "Any product that's essentially wrapping Claude/GPT API is on borrowed time. Build around proprietary data or unique workflows.",
+      "updated": "2026-03-07T00:00:00Z"
+    },
+    {
+      "id": "solo-founders-win-on-context-engineering",
+      "position": "Solo founders win on context engineering + distribution, not product quality. Product quality is table stakes in 2026.",
+      "confidence": "strong",
+      "evidence": [
+        "41.8M solopreneurs in US, $1.3T economy contribution",
+        "60K+ GitHub repos with CLAUDE.md agent instructions",
+        "NxCode: 'context engineering is the era of thinking for AI, not talking to it'",
+        "Capital efficiency 10-50x vs traditional startups"
+      ],
+      "implications": "Stop polishing product. Focus on distribution channels and context engineering depth. The product that reaches users wins over the better product that doesn't.",
+      "updated": "2026-03-07T00:00:00Z"
+    },
+    {
+      "id": "the-claude-code-workflow-tool-market-is-c",
+      "position": "The Claude Code workflow tool market is commodity. 349+ skills, 40+ orchestrators, 100+ agent collections. No moat in more agents or better prompts.",
+      "confidence": "strong",
+      "evidence": [
+        "awesome-claude-code: 26.7k stars listing 40+ orchestration systems",
+        "everything-claude-code: 63k stars with 112 agents, 146 skills",
+        "Multiple 'AI OS' blueprints published (DEV Community, GitHub)",
+        "find-skills meta-skill: 418K installs — discovery itself is commoditized"
+      ],
+      "implications": "rhino-os competing on agents/skills/hooks is a losing game. Differentiate on knowledge compounding, strategic intelligence, or taste replication.",
+      "updated": "2026-03-07T00:00:00Z"
+    },
+    {
+      "id": "knowledge-compounding-is-the-only-defensi",
+      "position": "Knowledge compounding is the only defensible innovation in AI developer tools. Memory plugins are emerging but none do preference learning from observed behavior.",
+      "confidence": "moderate",
+      "evidence": [
+        "claude-mem: 33k stars, captures sessions mechanically but doesn't learn preferences",
+        "PAHF paper (Meta, Feb 2026): three-step preference learning loop from feedback",
+        "Compound engineering (Every): each session makes next session better via formalized knowledge"
+      ],
+      "implications": "The taste/preference learning system is genuinely novel. No competitor has behavior-based preference extraction for developer workflows.",
+      "updated": "2026-03-07T00:00:00Z"
+    },
+    {
+      "id": "taste-is-the-bottleneck-when-ai-makes-exe",
+      "position": "Taste is the bottleneck when AI makes execution free. Judgment — what to build, what to cut, what to ship — is the scarce resource.",
+      "confidence": "strong",
+      "evidence": [
+        "MJ Kang: 'AI makes execution cheap, making taste the primary differentiator'",
+        "HBR portfolio management: Buy/Sell/Hold scoring with kill triggers needed",
+        "Code quality is no longer a differentiator — every AI tool produces passing code"
+      ],
+      "implications": "Build systems that capture and replicate the founder's taste/judgment. This is what scales a solo founder beyond their own attention bandwidth.",
+      "updated": "2026-03-07T00:00:00Z"
+    },
+    {
+      "id": "campus-infrastructure-is-underserved-beca",
+      "position": "Campus infrastructure is underserved because incumbents sell to administrators, not students. Student-first tools have a distribution advantage.",
+      "confidence": "moderate",
+      "evidence": [
+        "Enterprise AI solutions target admin buyers (budgets, procurement)",
+        "Students adopt tools bottom-up via word-of-mouth, no procurement cycle",
+        "UB-specific: captive audience, known pain points, zero competition for AI-native campus tools"
+      ],
+      "implications": "HIVE's campus positioning is a real wedge if distribution is student-to-student, not admin-to-student.",
+      "updated": "2026-03-07T00:00:00Z"
+    }
+  ],
+  "updated": "2026-03-07T00:00:00Z"
+}

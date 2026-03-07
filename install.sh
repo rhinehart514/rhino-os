@@ -220,16 +220,58 @@ seed_knowledge_dir() {
 seed_knowledge_dir "scout" "Scout"
 seed_knowledge_dir "design-engineer" "Design Engineer"
 
+# Seed intelligence layer data (landscape.json, etc.)
+echo "Seeding intelligence layer data..."
+for seed_file in "$SCRIPT_DIR"/knowledge/*.json; do
+    [[ ! -f "$seed_file" ]] && continue
+    name="$(basename "$seed_file")"
+    target="$CLAUDE_DIR/knowledge/$name"
+    if [[ ! -f "$target" ]]; then
+        cp "$seed_file" "$target"
+        echo "  seeded: $name"
+    else
+        echo "  exists: $name (preserved)"
+    fi
+done
+
 # Migrate old money-scout knowledge → scout
 if [[ -d "$CLAUDE_DIR/knowledge/money-scout" && ! -d "$CLAUDE_DIR/knowledge/scout" ]]; then
     mv "$CLAUDE_DIR/knowledge/money-scout" "$CLAUDE_DIR/knowledge/scout"
     echo "  migrated: money-scout → scout"
 fi
 
-# --- 10. Make scripts executable ---
+# --- 10. Make scripts executable + install rhino CLI ---
 echo "Setting permissions..."
-chmod +x "$SCRIPT_DIR"/automation/scripts/*.sh
-echo "  automation scripts marked executable"
+if ls "$SCRIPT_DIR"/automation/scripts/*.sh &>/dev/null; then
+    chmod +x "$SCRIPT_DIR"/automation/scripts/*.sh
+    echo "  automation scripts marked executable"
+fi
+
+# Install rhino CLI
+chmod +x "$SCRIPT_DIR/bin/rhino"
+RHINO_BIN_TARGET="$HOME/bin/rhino"
+mkdir -p "$HOME/bin"
+ln -sf "$SCRIPT_DIR/bin/rhino" "$RHINO_BIN_TARGET"
+echo "  linked: rhino CLI → $RHINO_BIN_TARGET"
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+    echo "  NOTE: Add ~/bin to your PATH if not already present"
+fi
+
+# --- 10b. Install MCP server dependencies ---
+echo "Installing MCP server..."
+if [[ -f "$SCRIPT_DIR/src/mcp-server/package.json" ]]; then
+    (cd "$SCRIPT_DIR/src/mcp-server" && npm install --silent 2>/dev/null) && \
+        echo "  rhino-state MCP server installed" || \
+        echo "  WARNING: MCP server install failed (run manually: cd src/mcp-server && npm install)"
+fi
+
+# --- 10c. Install API server dependencies ---
+echo "Installing API server..."
+if [[ -f "$SCRIPT_DIR/src/api-server/package.json" ]]; then
+    (cd "$SCRIPT_DIR/src/api-server" && npm install --silent 2>/dev/null) && \
+        echo "  rhino API server installed" || \
+        echo "  WARNING: API server install failed (run manually: cd src/api-server && npm install)"
+fi
 
 # --- 11. LaunchAgents (macOS only) ---
 if [[ "$INSTALL_LAUNCHD" == "true" && "$(uname)" == "Darwin" ]]; then
@@ -268,9 +310,12 @@ echo "What's installed:"
 echo "  - 5 agents (strategist, builder, design-engineer, scout, sweep)"
 echo "  - 4 skills (todofocus, smart-commit, eval, product-2026)"
 echo "  - 2 rules (quality-bar, product-reasoning)"
-echo "  - 2 hooks (enforce_ideation_readonly, track_usage)"
+echo "  - 3 hooks (enforce_ideation_readonly, track_usage, capture_knowledge)"
+echo "  - 1 MCP server (rhino-state)"
+echo "  - 1 CLI (rhino)"
 echo ""
 echo "Next steps:"
 echo "  1. Edit ~/.claude/CLAUDE.md with your identity and project info"
-echo "  2. Run: claude --agent sweep"
-echo "  3. Run: claude --agent builder"
+echo "  2. Run: rhino doctor    # verify installation"
+echo "  3. Run: rhino sweep     # daily triage"
+echo "  4. Run: rhino build     # start building"

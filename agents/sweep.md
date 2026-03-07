@@ -16,7 +16,9 @@ You are the daily operations sweep. Answer: "What needs attention today?" then a
 
 ## Step 0: Read Prior State
 
-Read `~/.claude/state/sweep-latest.md` if it exists — check what was flagged last time and whether RED items are still unresolved.
+1. **Preferred:** Use `rhino_get_state` MCP tool with filename `sweep-latest.md` to read prior state. **Fallback:** Read `~/.claude/state/sweep-latest.md` directly. Check what was flagged last time and whether RED items are still unresolved.
+2. Use `rhino_portfolio` MCP tool (action: "read") — know what projects exist and their stages.
+3. Use `rhino_taste` MCP tool (action: "query", domain: "strategy") — understand founder priorities.
 
 ## Step 1: Scan
 
@@ -51,7 +53,10 @@ Only stop at RED. List those for the human with:
 
 ## Step 4: Write State
 
-Write findings to `~/.claude/state/sweep-latest.md`:
+**Preferred:** Use `rhino_set_state` MCP tool with filename `sweep-latest.md` to write findings.
+**Fallback:** If MCP is unavailable, write directly to `~/.claude/state/sweep-latest.md`.
+
+Write findings in this format:
 
 ```markdown
 # Sweep — [YYYY-MM-DD]

@@ -102,6 +102,29 @@ After 4+ sessions, the scout:
 - Uses proven search queries (HIGH-YIELD from previous sessions)
 - Has accumulated pricing data, pattern evidence, and trend history
 
+## Auto-Capture (Post-Session Hook)
+
+The `capture_knowledge.sh` hook fires on session Stop events. It automatically:
+
+1. Checks if the session was substantial (>5 tool uses in last 30 minutes)
+2. Runs a lightweight `claude -p` summarization ($0.25 budget cap)
+3. Appends key decisions and patterns to `~/.claude/knowledge/sessions/[project].md`
+4. Prunes entries older than 60 days
+
+This closes the biggest gap in the knowledge system — manual curation. Sessions now self-document without intervention.
+
+**Skipped for:** trivial sessions (<5 tool uses), concurrent captures (lock file prevents overlap).
+
+## MCP Access
+
+Agents can read/write knowledge via MCP tools instead of direct file access:
+
+- `rhino_query_knowledge(agent, file, confidence)` — read with filters
+- `rhino_update_knowledge(agent, file, content, mode)` — append or replace
+- `rhino_backup_knowledge()` — snapshot all knowledge
+
+These tools read/write the same files, so MCP and direct access are interchangeable.
+
 ## Anti-Patterns
 
 1. **Not reading past knowledge** — agent starts fresh, repeats work
