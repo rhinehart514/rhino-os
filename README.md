@@ -56,7 +56,7 @@ The system amplifies you, it doesn't replace you. Critical decisions (deploy, me
 | **money-scout** | Trend scanning, opportunity intelligence | Weekly (automated or manual) |
 | **morning-sweep** | Daily triage with dispatch taxonomy | Start of day (automated or manual) |
 | **self-audit** | System health: usage stats, prompt costs, stale knowledge | Periodically, to keep the system lean |
-| **design-engineer** | Three modes: scout (research), audit (diagnose UI/UX), build (fix + generate) | "Make my product look good" |
+| **design-engineer** | Design engineer with taste. Five modes: init, audit, review (subjective), recommend, build | "How does my UI feel?" / "What would look good?" |
 
 **Consolidated from 13 → 10.** Perspective-runner merged into eval-runner. Debt-collector merged into codebase-doctor (two modes: diagnose/fix). Scope-guard merged into `/todofocus` skill. Todo-planner absorbed by morning-sweep. Night-watch cut (aspirational automation that doesn't reliably work). Self-audit added for system introspection.
 
@@ -125,7 +125,9 @@ Periodically:
   claude --agent self-audit       # Is the system itself healthy?
 
 Design:
-  claude --agent design-engineer     # Audit UI, fix issues, generate components
+  claude --agent design-engineer              # Subjective review (default)
+  claude --agent design-engineer "recommend"  # What would look good?
+  claude --agent design-engineer "build"      # Fix + generate
 ```
 
 ## Installation Details
