@@ -73,7 +73,15 @@ symlink_file() {
     echo "  linked: $(basename "$target")"
 }
 
-# --- 1. Agents ---
+# --- 1. Programs (the core of rhino-os) ---
+echo "Installing programs..."
+mkdir -p "$CLAUDE_DIR/programs"
+for program in "$SCRIPT_DIR"/programs/*.md; do
+    name="$(basename "$program")"
+    symlink_file "$program" "$CLAUDE_DIR/programs/$name"
+done
+
+# --- 2. Agents (legacy, still functional) ---
 echo "Installing agents..."
 for agent in "$SCRIPT_DIR"/agents/*.md; do
     name="$(basename "$agent")"
@@ -89,7 +97,7 @@ if [[ -d "$SCRIPT_DIR/agents/refs" ]]; then
     done
 fi
 
-# --- 2. Skills ---
+# --- 3. Skills ---
 echo "Installing skills..."
 for skill_dir in "$SCRIPT_DIR"/skills/*/; do
     skill_name="$(basename "$skill_dir")"
@@ -334,15 +342,14 @@ fi
 
 echo ""
 echo "What's installed:"
+echo "  - 2 programs (strategy.md, build.md) — the core"
+echo "  - 6 skills (eval, experiment, product-eval, smart-commit, todofocus, product-2026)"
 echo "  - 5 agents (strategist, builder, design-engineer, scout, sweep)"
-echo "  - 4 skills (todofocus, smart-commit, eval, product-2026)"
-echo "  - 2 rules (quality-bar, product-reasoning)"
-echo "  - 4 hooks (enforce_ideation_readonly, track_usage, session_context, capture_knowledge)"
-echo "  - 1 MCP server (rhino-state)"
+echo "  - 2 hooks (session_context, track_usage)"
 echo "  - 1 CLI (rhino)"
 echo ""
-echo "Next steps:"
-echo "  1. Edit ~/.claude/CLAUDE.md with your identity and project info"
-echo "  2. Run: rhino doctor    # verify installation"
-echo "  3. Run: rhino sweep     # daily triage"
-echo "  4. Run: rhino build     # start building"
+echo "How to use:"
+echo "  \"read programs/strategy.md and run it\"  — decide what to build"
+echo "  \"read programs/build.md and run it\"      — build it, score it, keep/discard"
+echo "  rhino visuals [dir]                       — update GitHub badges"
+echo "  rhino experiments [dir]                   — see experiment results"
