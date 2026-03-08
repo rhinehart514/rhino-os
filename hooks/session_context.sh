@@ -33,8 +33,8 @@ CONTEXT=""
 # 1. Last session summary for this project
 SESSION_FILE="$KNOWLEDGE_DIR/sessions/${PROJECT_NAME}.md"
 if [[ -f "$SESSION_FILE" ]]; then
-    # Get last session entry (last ## block)
-    LAST_SESSION=$(tail -30 "$SESSION_FILE" | tac | sed '/^## /q' | tac)
+    # Get last session entry (last ## block) — no tac on macOS
+    LAST_SESSION=$(tail -30 "$SESSION_FILE" | awk '/^## /{buf=""} {buf=buf"\n"$0} END{print buf}')
     if [[ -n "$LAST_SESSION" ]]; then
         CONTEXT+="## Last Session ($PROJECT_NAME)
 $LAST_SESSION
@@ -87,6 +87,57 @@ if [[ -f "$SWEEP_FILE" ]]; then
 ## Recent Sweep (${SWEEP_AGE}h ago)
 $SWEEP_HEADER
 "
+    fi
+fi
+
+# 6. Eval state — check project-local eval history first, then global
+EVAL_HISTORY=""
+for eval_path in \
+    "$PROJECT_DIR/.claude/evals/reports/history.jsonl" \
+    "$PROJECT_DIR/docs/evals/reports/history.jsonl" \
+    "$CLAUDE_DIR/evals/reports/history.jsonl"; do
+    if [[ -f "$eval_path" ]]; then
+        EVAL_HISTORY="$eval_path"
+        break
+    fi
+done
+
+if [[ -n "$EVAL_HISTORY" ]] && command -v jq &>/dev/null; then
+    # Get latest eval entry
+    LATEST_EVAL=$(tail -1 "$EVAL_HISTORY")
+    if [[ -n "$LATEST_EVAL" ]]; then
+        eval_verdict=$(echo "$LATEST_EVAL" | jq -r '.verdict // empty' 2>/dev/null)
+        eval_feature=$(echo "$LATEST_EVAL" | jq -r '.feature // empty' 2>/dev/null)
+        eval_date=$(echo "$LATEST_EVAL" | jq -r '.date // empty' 2>/dev/null)
+        eval_type=$(echo "$LATEST_EVAL" | jq -r '.type // "feature-eval"' 2>/dev/null)
+
+        if [[ -n "$eval_verdict" ]]; then
+            CONTEXT+="
+## Latest Eval ($eval_date)
+$eval_feature · $eval_verdict"
+
+            # For product evals, show the key scores
+            if [[ "$eval_type" == "product-eval" ]]; then
+                overall=$(echo "$LATEST_EVAL" | jq -r '.overall // empty' 2>/dev/null)
+                day3=$(echo "$LATEST_EVAL" | jq -r '.day3_return // empty' 2>/dev/null)
+                escape=$(echo "$LATEST_EVAL" | jq -r '.escape_velocity // empty' 2>/dev/null)
+                CONTEXT+=" · overall: $overall"
+                [[ -n "$day3" ]] && CONTEXT+=" · day3: $day3"
+                [[ -n "$escape" ]] && CONTEXT+=" · escape: $escape"
+            else
+                ceiling=$(echo "$LATEST_EVAL" | jq -r '.ceiling // empty' 2>/dev/null)
+                [[ -n "$ceiling" ]] && CONTEXT+=" · ceiling: $ceiling"
+            fi
+
+            # Show top gaps (the most important part — what to fix)
+            top_gaps=$(echo "$LATEST_EVAL" | jq -r '(.top_gaps // .ceiling_gaps // [])[:3][]' 2>/dev/null)
+            if [[ -n "$top_gaps" ]]; then
+                CONTEXT+="
+Gaps: $top_gaps"
+            fi
+            CONTEXT+="
+"
+        fi
     fi
 fi
 
