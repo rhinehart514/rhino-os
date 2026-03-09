@@ -90,6 +90,15 @@ For each project, answer:
 - Is it a moat-builder (proprietary data, network effect) or commodity?
 - Kill features with no user signal and no moat. Be specific.
 
+## Landscape Reasoning with Agent Council
+
+Before making portfolio calls, read the agent council:
+1. Read `~/.claude/state/brains/scout.json` — what market positions does scout hold? What's their credibility?
+2. Read `~/.claude/state/brains/builder.json` — what execution stances exist? Are they hitting targets?
+3. Read `~/.claude/state/brains/design-engineer.json` — what quality assessments? How credible?
+4. If a high-credibility agent disagrees with your thesis, seriously consider their evidence before overriding.
+5. If you disagree with another agent's stance, create a conflicting stance in your brain — don't just ignore it.
+
 ## Landscape Reasoning
 
 If landscape positions exist, reason FROM them:

@@ -122,6 +122,44 @@ $SWEEP_HEADER
     fi
 fi
 
+# 5b. Agent Council — top agent suggestion + conflict count
+BRAINS_DIR="$STATE_DIR/brains"
+if [[ -d "$BRAINS_DIR" ]] && command -v jq &>/dev/null; then
+    # Find highest-credibility agent with high-priority next_move
+    TOP_AGENT=""
+    TOP_CRED="0"
+    TOP_ACTION=""
+    for brain_file in "$BRAINS_DIR"/*.json; do
+        [[ ! -f "$brain_file" ]] && continue
+        ba=$(jq -r '.agent // ""' "$brain_file" 2>/dev/null)
+        bp=$(jq -r '.next_move.priority // ""' "$brain_file" 2>/dev/null)
+        bc=$(jq -r '.track_record.credibility // 0.50' "$brain_file" 2>/dev/null)
+        baction=$(jq -r '.next_move.action // .next_move // ""' "$brain_file" 2>/dev/null)
+        if [[ "$bp" == "high" ]] && awk "BEGIN { exit !($bc > $TOP_CRED) }" 2>/dev/null; then
+            TOP_AGENT="$ba"
+            TOP_CRED="$bc"
+            TOP_ACTION="$baction"
+        fi
+    done
+    if [[ -n "$TOP_AGENT" && -n "$TOP_ACTION" && "$TOP_ACTION" != "null" ]]; then
+        CONTEXT+="
+## Agent Suggestion ($TOP_AGENT, cred:$TOP_CRED)
+$TOP_ACTION
+"
+    fi
+
+    # Conflict count
+    CONFLICTS_FILE="$STATE_DIR/conflicts.json"
+    if [[ -f "$CONFLICTS_FILE" ]]; then
+        CONFLICT_COUNT=$(jq '[.[] | select(.status == "open")] | length' "$CONFLICTS_FILE" 2>/dev/null || echo "0")
+        if [[ "$CONFLICT_COUNT" -gt 0 ]]; then
+            CONTEXT+="
+## ${CONFLICT_COUNT} agent conflict(s) pending — run 'rhino council'
+"
+        fi
+    fi
+fi
+
 # 6. Eval state — check project-local eval history first, then global
 EVAL_HISTORY=""
 for eval_path in \

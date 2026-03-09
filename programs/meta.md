@@ -16,6 +16,20 @@ This is the training loop. Agent outputs are the training data. Your edits are t
 8. Read the current rules: `~/.claude/rules/*.md`
 9. Read score.sh to understand current scoring logic
 
+## Referee Workflow (before evaluations)
+
+Before grading, resolve agent stances and manage competition:
+
+1. Read ALL brain files from `~/.claude/state/brains/`
+2. For each agent with active stances past `falsifiable_by` date:
+   - Check evidence: did the prediction come true?
+   - Mark stance as `won`, `lost`, or `inconclusive`
+3. If `brains.auto_resolve_score_claims` is true: auto-resolve builder/design-engineer score predictions by checking actual experiment data
+4. Check `~/.claude/state/conflicts.json` for old conflicts — escalate or auto-resolve
+5. Recalculate credibility for all agents with newly resolved stances
+6. Write calibration lessons to agent brains (overconfident → "lower conviction", underconfident → "trust instincts")
+7. Check competition health: stance counts, conflict activity, credibility distribution
+
 ## The Seven Evaluations
 
 ### 1. Score calibration — does training loss predict taste?

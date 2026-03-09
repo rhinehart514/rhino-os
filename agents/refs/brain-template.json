@@ -1,0 +1,30 @@
+{
+  "agent": "AGENT_NAME",
+  "version": 1,
+  "identity": {
+    "natural_tensions": [],
+    "bias_awareness": ""
+  },
+  "track_record": {
+    "total_stances": 0,
+    "resolved": 0,
+    "won": 0,
+    "lost": 0,
+    "withdrawn": 0,
+    "pending": 0,
+    "accuracy": 0,
+    "credibility": 0.50
+  },
+  "active_stances": [],
+  "beliefs": {
+    "what_matters_most": "",
+    "what_im_watching": [],
+    "my_blind_spot": ""
+  },
+  "next_move": null,
+  "memory": {
+    "lessons": [],
+    "last_run_summary": "First run."
+  },
+  "updated": ""
+}
