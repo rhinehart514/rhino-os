@@ -18,7 +18,6 @@ How rhino-os prevents autonomous agents from causing harm.
 | builder (gate) | No | No | None | Yes (approval gate) |
 | builder (plan) | No | No | None | Yes (ADR approval) |
 | builder (build) | No | Yes | None | Yes (task approval) |
-| builder (doctor) | No | Yes (fix mode) | None | Yes (tier 2+ fixes) |
 | design-engineer | No | Yes (build mode) | None | Yes (build mode) |
 | scout | No | Yes (knowledge only) | $2.00 | No |
 | sweep | No | No | $2.00 | Yes (RED items) |

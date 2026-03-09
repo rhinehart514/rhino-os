@@ -160,13 +160,14 @@ cmd_status() {
     fi
 
     # LaunchAgents
-    local sweep_loaded=false scout_loaded=false
-    if launchctl list 2>/dev/null | grep -q "com.claude-os.sweep"; then sweep_loaded=true; fi
-    if launchctl list 2>/dev/null | grep -q "com.claude-os.scout"; then scout_loaded=true; fi
-    if $sweep_loaded && $scout_loaded; then
-        echo -e "${GREEN}[OK]${NC} LaunchAgents (sweep + scout)"
-    elif $sweep_loaded || $scout_loaded; then
-        echo -e "${YELLOW}[WARN]${NC} Only one LaunchAgent loaded"
+    local agents_loaded=0 agents_list=""
+    if launchctl list 2>/dev/null | grep -q "com.claude-os.sweep"; then ((agents_loaded++)); agents_list+="sweep "; fi
+    if launchctl list 2>/dev/null | grep -q "com.claude-os.scout"; then ((agents_loaded++)); agents_list+="scout "; fi
+    if launchctl list 2>/dev/null | grep -q "com.claude-os.meta"; then ((agents_loaded++)); agents_list+="meta "; fi
+    if [[ "$agents_loaded" -ge 2 ]]; then
+        echo -e "${GREEN}[OK]${NC} LaunchAgents (${agents_list% })"
+    elif [[ "$agents_loaded" -eq 1 ]]; then
+        echo -e "${YELLOW}[WARN]${NC} Only ${agents_list% } loaded"
     else
         echo -e "${DIM}[--]${NC} No LaunchAgents"
     fi

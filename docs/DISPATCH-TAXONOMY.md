@@ -10,7 +10,6 @@ The dispatch taxonomy classifies every action into one of four categories based 
 | Action | Why it's GREEN |
 |--------|---------------|
 | Run test suites | Read-only, no side effects |
-| Run builder "doctor" | Diagnostic, produces report only |
 | Run scout | Creates knowledge files, no external communication |
 | Generate eval reports | Write-safe, creates files only |
 | Check dependency versions | Read-only |

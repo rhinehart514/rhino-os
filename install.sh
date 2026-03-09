@@ -6,7 +6,7 @@ set -euo pipefail
 # What this does:
 # 1. Backs up existing files before overwriting
 # 2. Symlinks individual files (not directories) from repo into ~/.claude/
-# 3. Merges settings.json (preserves your existing MCP servers and hooks)
+# 3. Merges settings.json (preserves your existing hooks and config)
 # 4. Seeds knowledge directories from templates
 # 5. Installs LaunchAgents on macOS (optional)
 #
@@ -297,21 +297,7 @@ if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo "  NOTE: Add ~/bin to your PATH if not already present"
 fi
 
-# --- 10b. Install MCP server dependencies ---
-echo "Installing MCP server..."
-if [[ -f "$SCRIPT_DIR/src/mcp-server/package.json" ]]; then
-    (cd "$SCRIPT_DIR/src/mcp-server" && npm install --silent 2>/dev/null) && \
-        echo "  rhino-state MCP server installed" || \
-        echo "  WARNING: MCP server install failed (run manually: cd src/mcp-server && npm install)"
-fi
-
-# --- 10c. Install API server dependencies ---
-echo "Installing API server..."
-if [[ -f "$SCRIPT_DIR/src/api-server/package.json" ]]; then
-    (cd "$SCRIPT_DIR/src/api-server" && npm install --silent 2>/dev/null) && \
-        echo "  rhino API server installed" || \
-        echo "  WARNING: API server install failed (run manually: cd src/api-server && npm install)"
-fi
+# --- 10b. (MCP server and API server removed — agents use filesystem directly) ---
 
 # --- 11. LaunchAgents (macOS only) ---
 if [[ "$INSTALL_LAUNCHD" == "true" && "$(uname)" == "Darwin" ]]; then
