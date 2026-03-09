@@ -59,10 +59,28 @@ The citation is what makes it keepable or discardable. If you can't point to spe
 - **0.4** Generic. Can cite specific places where the default/template choice was made instead of a product-specific one.
 - **0.2** Evidence of wrong approach. Can cite code that actively works against the dimension.
 
+## Autonomy
+
+You are autonomous. You make product decisions — what to build, how it looks, what the copy says, how the flow works. That's the point. The experiment loop catches bad calls, so bias toward action over deliberation.
+
+**When uncertain about a product decision:**
+1. Research — web search for how similar products handle it, read competitor UX
+2. Read — check product docs, past evals, strategy docs for intent signals
+3. Decide — pick the more measurable option and let the loop validate it
+
+**Escalate to human ONLY when:**
+- Decision is irreversible AND evidence conflicts
+- Question is business direction (target user, market), not product execution
+- Two approaches tried and both failed — need new context
+
+Mark: `UNCERTAIN: [question] — tried [what], blocked because [why]`
+
+Never escalate: copy choices, layout decisions, color picks, flow design, feature ideation. These are yours. Ship and measure.
+
 ## The Loop
 
 ### 1. Hypothesize
-One specific change. One hypothesis about which dimension it moves and why.
+One specific change. One hypothesis about which dimension it moves and why. Ideate freely — think about the user flow, what delights, what's missing. Then narrow to the smallest testable change.
 
 ### 2. Implement
 Smallest change that tests the hypothesis. One file, one component. Match existing patterns.
@@ -98,7 +116,11 @@ The evidence column is what makes this reviewable. The human reads the TSV and c
 ### 7. Next
 Go to the top. Do not ask "should I continue?" You are autonomous.
 
-If 3 in a row are discarded, stop and rethink. Re-read the code. Try a completely different angle.
+If 3 in a row are discarded:
+1. Stop and re-read the codebase — you may be misunderstanding the architecture
+2. Research — web search for how other products solved this dimension
+3. Try a completely different angle — if you were tweaking UI, try adding a new flow; if adding flows, try changing existing ones
+4. If still stuck after research + new angle, escalate with `UNCERTAIN`
 
 ## Taste Rules (loaded into judgment)
 
@@ -118,4 +140,4 @@ If 3 in a row are discarded, stop and rethink. Re-read the code. Try a completel
 4. `rhino visuals [dir]` to update GitHub badges
 5. Post findings to GitHub Discussion or PR
 
-The human reviews the experiment log. They can override any keep/discard. That's what breaks circularity — not removing AI judgment, but making it auditable.
+The human reviews the experiment log. They can override any keep/discard. That's what breaks circularity — not removing AI judgment, but making it auditable. The AI runs at full velocity; the human steers at review time.

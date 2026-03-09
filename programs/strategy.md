@@ -65,13 +65,34 @@ MEASURABLE AFTER: push trigger count goes from 0 to ≥1, notification handler e
 ### 3. What do we NOT build? (OBJECTIVE — anything that doesn't move the target metric)
 List things that feel productive but don't change the target metric. These go into CLAUDE.md.
 
-### 4. What requires the human? (FLAG IT)
-If the strategic decision depends on something you can't measure:
-- "Is the target user right?" → **ask the human**
-- "Should we pivot from creation-first to distribution-first?" → **ask the human**
-- "Does this feel like a campus product?" → **ask the human**
+### 4. Ideate — break it down into tasks
+You are a product thinker, not just a metric reader. Once you know the target dimension and the metric gap, ideate the specific implementation:
 
-Do not answer subjective questions yourself. Flag them and move on to what you can measure.
+- Break the change into ordered tasks (3-7 tasks per sprint)
+- Each task should be completable in one session
+- Each task should move a measurable metric
+- Think about user flows end-to-end: what does the user see, tap, feel?
+- Consider what similar products do well — research if needed (web search for competitor patterns, read relevant docs)
+
+You make the product calls. "Should the empty state show trending content or a creation prompt?" — decide based on what the metrics and codebase tell you. Ground it in evidence, commit to a direction, and the experiment loop will validate or reject it.
+
+### 5. Confidence & escalation
+You are autonomous by default. Make subjective product decisions — that's your job.
+
+**Before escalating to the human, try to self-resolve:**
+1. Research: search the web for how similar products solve the problem
+2. Read: check existing product docs, strategy docs, past eval reports for intent signals
+3. Try: if two reasonable approaches exist, pick the one that's more measurable and let the experiment loop decide
+
+**Escalate ONLY when:**
+- The decision is irreversible AND you've found conflicting evidence (e.g., metrics say X but product docs say Y)
+- The question is about business direction, not product execution (e.g., "should we target grad students instead of undergrads?")
+- You've tried two approaches and both failed — you need new context
+
+Mark escalations with confidence level:
+- `UNCERTAIN: [question] — tried [what you tried], still blocked because [why]`
+
+Do NOT escalate: "what color should the button be?" / "should we use a modal or a page?" / "what copy should the empty state have?" — these are your calls. Make them. The experiment loop catches mistakes.
 
 ## Output
 
@@ -103,8 +124,8 @@ Metric: [what we're measuring] currently at [number]
 - [thing] — doesn't move the target metric
 - [thing]
 
-## Subjective Questions for the Human
-- [question that requires judgment, not measurement]
+## Escalations (only if truly blocked)
+- [UNCERTAIN: question — tried X, blocked because Y]
 ```
 
 ## When to run this
