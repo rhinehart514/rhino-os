@@ -216,36 +216,64 @@ Two sources of truth for subjective judgment:
 
 ### The Loop
 
-#### 1. Ideate + Hypothesize
-You are not just optimizing existing code. You are inventing.
+#### 0. Read experiment history (BEFORE ideating)
+Read `.claude/experiments/*.tsv` — what was already tried on this dimension?
 
-**Think about what DOESN'T EXIST YET — features AND feel:**
+For each past experiment, note:
+- What was the hypothesis?
+- Did it KEEP or DISCARD?
+- WHY did it fail? (the evidence column tells you)
+
+**Rules:**
+- Never repeat a discarded hypothesis verbatim
+- If a direction failed twice, that direction is dead — try the opposite
+- If 5+ experiments kept on one dimension but the score plateaued, the dimension needs a fundamentally different approach, not incremental improvement
+- Successful experiments reveal WHAT WORKS for this codebase — double down on that pattern
+
+#### 1. Ideate + Hypothesize
+
+Two inputs feed your hypothesis:
+
+**Input A: Taste eval evidence (if available)**
+If `rhino taste eval` has been run, read the most recent report at `.claude/evals/reports/taste-*.json`. The `weakest` field and dimension evidence tell you exactly what the user SEES that's wrong. Use this as your hypothesis seed:
+- "hierarchy 2/5: hero text competes with sidebar" → experiment on visual weight
+- "distinctiveness 1/5: looks like shadcn template" → experiment on one signature element
+- "wayfinding 2/5: dead end after form submit" → experiment on post-action flow
+
+**Input B: What doesn't exist yet**
 
 Functionality:
 - What flow is missing? What would a user expect to find?
-- What do competing products do that this doesn't? (research if needed)
+- What do competing products do that this doesn't? (web search if needed)
 - What feature would make users tell someone else?
 
 Information Architecture:
 - Does the navigation make sense for THIS product, not generic SaaS?
 - Does the app show different things based on user state (new vs returning, empty vs full)?
 - Is content ordered dynamically (trending, personalized) or just a static list?
-- Are there multiple ways to discover content, or one flat feed?
 
 Visual Architecture:
 - Does ANY interaction feel distinctive? A signature animation, a branded moment?
-- Are design tokens used, or is everything hardcoded/generic?
-- Do loading states exist? (skeletons, not blank screens)
-- Does every action have visible feedback? (toasts, animations, not silent)
 - Would you know this product with the logo hidden?
+
+**2026 awareness — what stands out now:**
+The bar has moved. Users compare your product to what they use daily: TikTok's feed intelligence, Discord's community presence, Notion's information density, Linear's keyboard-first speed, Arc's spatial tabs, BeReal's authenticity mechanic. Generic SaaS UI is invisible. What creates distinctiveness in 2026:
+- **Contextual intelligence** — UI that adapts to user state, time, history (not static pages)
+- **Spatial/gestural interaction** — swipe, drag, pinch, long-press (not just click)
+- **Ambient information** — glanceable status, live counters, presence indicators (not empty screens)
+- **Personality in copy** — the product has a voice, not corporate placeholder text
+- **Speed as feature** — instant transitions, optimistic updates, offline-capable (not loading spinners)
+- **AI-native patterns** — generation, summarization, smart defaults (not forms and dropdowns for everything)
+
+Ask: "What would make a user screenshot this and send it to a friend?" That's your experiment target.
 
 **Then narrow to ONE hypothesis.** One specific change that either:
 - Adds a new capability (score goes up via capabilities/product signals)
-- Adds distinctiveness (score goes up via taste — animation, branded component, contextual UI)
+- Adds distinctiveness (taste eval score goes up)
 - Improves an existing flow (score goes up via structure)
 - Cleans up debt (score goes up via hygiene)
 
-The best experiments move BOTH functionality AND taste. Example: "add a trending feed to the empty state with a signature animation — gives new users content AND replaces a dead-end AND adds visual distinctiveness."
+The best experiments move BOTH functionality AND taste.
 
 #### 2. Implement
 Smallest change that tests the hypothesis. Match existing patterns.
@@ -285,10 +313,43 @@ The `cross_check` column records which hard metric confirmed the subjective scor
 Go to step 1. Do not ask "should I continue?" You are autonomous. NEVER STOP.
 
 If 3 in a row are discarded:
-1. Stop and re-read the codebase — you may be misunderstanding the architecture
-2. Research — web search for how other products solved this dimension
-3. Try a completely different angle
-4. If still stuck after research + new angle, escalate with `UNCERTAIN`
+1. **Read experiment history** — what pattern do the failures share? Same direction = dead direction
+2. **Research competitors** — web search for how products users love (not SaaS templates) solved this. Screenshot them. What specifically works?
+3. **Try the opposite** — if you've been adding, try removing. If you've been styling, try restructuring. If you've been visual, try behavioral
+4. **Spawn a taste eval** — `rhino taste eval` to see what the user actually sees right now. The evidence might reveal the real problem isn't what you thought
+5. If still stuck after all four, escalate with `UNCERTAIN: [dimension] — tried [approaches], failed because [pattern]`
+
+---
+
+## Team Experiments (multi-agent)
+
+When a dimension needs parallel exploration, spawn agents as a team:
+
+```
+"experiment on identity with a team"
+```
+
+How it works:
+1. **Lead agent** reads experiment history, runs taste eval, identifies the weakest dimension
+2. **Lead spawns 2-3 agents in worktrees** — each gets a DIFFERENT hypothesis:
+   - Agent A: "try a distinctive font + color accent"
+   - Agent B: "try a signature micro-animation on the core action"
+   - Agent C: "try contextual empty states with personality"
+3. **Each agent implements + measures independently** (isolated git worktree)
+4. **Lead collects results**, picks the winner (highest score delta), merges it
+5. Discarded worktrees are cleaned up automatically
+
+This is the multi-GPU equivalent — parallel hypothesis testing. 3x experiments in the same wall-clock time.
+
+**When to use team experiments:**
+- A dimension is stuck (3+ discards in a row on same dimension)
+- Multiple valid hypotheses and no clear winner
+- Time pressure — need to improve taste score before a sprint ships
+
+**When NOT to use:**
+- Simple experiments (one file, one change)
+- Sequential dependencies (experiment B depends on A's outcome)
+- Early exploration (you don't know enough to generate 3 good hypotheses yet)
 
 ---
 
