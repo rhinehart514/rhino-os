@@ -282,8 +282,13 @@ if ls "$SCRIPT_DIR"/automation/scripts/*.sh &>/dev/null; then
     echo "  automation scripts marked executable"
 fi
 
-# Install rhino CLI
+# Install rhino CLI + taste evaluator deps
 chmod +x "$SCRIPT_DIR/bin/rhino"
+if [[ -f "$SCRIPT_DIR/bin/package.json" ]]; then
+    (cd "$SCRIPT_DIR/bin" && npm install --silent 2>/dev/null) && \
+        echo "  taste evaluator dependencies installed" || \
+        echo "  WARNING: taste deps install failed (run manually: cd bin && npm install)"
+fi
 RHINO_BIN_TARGET="$HOME/bin/rhino"
 mkdir -p "$HOME/bin"
 ln -sf "$SCRIPT_DIR/bin/rhino" "$RHINO_BIN_TARGET"
@@ -352,5 +357,6 @@ echo "How to use:"
 echo "  cd your-project && rhino init .  — bootstrap project (baseline score, dirs, test template)"
 echo "  \"run strategy\"                   — decide what to build"
 echo "  \"let's build\"                    — build it, score it, keep/discard"
-echo "  rhino score .                    — computable product score (your val_bpb)"
-echo "  rhino experiments                — see experiment results"
+echo "  rhino score .                    — training loss (cheap, every commit)"
+echo "  rhino taste eval                 — eval loss (Playwright + Claude vision)"
+echo "  rhino dashboard                  — score history, experiments, dimensions"

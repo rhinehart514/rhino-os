@@ -544,9 +544,53 @@ cmd_taste() {
                 return 1
             fi
             ;;
+        eval)
+            # Visual taste evaluation — screenshots + Claude vision
+            # This is the expensive eval (eval loss). Run on demand.
+            shift 2>/dev/null || true
+            echo -e "${BOLD}=== rhino taste eval — visual product evaluation ===${NC}"
+            echo ""
+            echo -e "${DIM}Screenshots every route → Claude vision judges from user perspective${NC}"
+            echo ""
+
+            if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+                echo -e "${RED}Error: ANTHROPIC_API_KEY required${NC}"
+                echo "  export ANTHROPIC_API_KEY=sk-ant-..."
+                return 1
+            fi
+
+            # Check for playwright
+            if ! npx playwright --version &>/dev/null 2>&1; then
+                echo -e "${YELLOW}Installing Playwright chromium...${NC}"
+                npx playwright install chromium
+            fi
+
+            # Run the visual evaluator
+            node "$RHINO_DIR/bin/taste.mjs" "$@"
+            ;;
+        history)
+            echo -e "${BOLD}=== taste eval history ===${NC}"
+            echo ""
+            local reports_dir=".claude/evals/reports"
+            if [[ -d "$reports_dir" ]]; then
+                for f in $(ls -t "$reports_dir"/taste-*.json 2>/dev/null); do
+                    if command -v jq &> /dev/null; then
+                        local ts overall weakest
+                        ts=$(jq -r '.meta.timestamp // "unknown"' "$f" 2>/dev/null)
+                        overall=$(jq -r '.score_100 // "?"' "$f" 2>/dev/null)
+                        weakest=$(jq -r '.weakest // "?"' "$f" 2>/dev/null)
+                        echo -e "  ${GREEN}${overall}/100${NC}  $(basename "$f")  — weakest: $weakest"
+                    else
+                        echo "  $(basename "$f")"
+                    fi
+                done
+            else
+                echo -e "  ${DIM}No taste evals yet — run: rhino taste eval${NC}"
+            fi
+            ;;
         *)
             echo -e "${RED}Unknown taste subcommand: $subcommand${NC}"
-            echo "Usage: rhino taste [summary|export]"
+            echo "Usage: rhino taste [summary|eval|history|export]"
             return 1
             ;;
     esac
@@ -1342,6 +1386,133 @@ YMLEOF
     echo ""
 }
 
+cmd_dashboard() {
+    echo -e "${BOLD}=== rhino dashboard ===${NC}"
+    echo ""
+
+    # --- 1. Current score ---
+    local current_score
+    current_score=$("$RHINO_DIR/bin/score.sh" "${1:-.}" 2>/dev/null || echo "?")
+    echo -e "${BOLD}Product Score:${NC} ${GREEN}${current_score}/100${NC}"
+    echo ""
+
+    # --- 2. Score history sparkline ---
+    local exp_dir=".claude/experiments"
+    if [[ -d "$exp_dir" ]]; then
+        local scores=()
+        for tsv in "$exp_dir"/*.tsv; do
+            [[ ! -f "$tsv" ]] && continue
+            while IFS=$'\t' read -r commit score rest; do
+                [[ "$commit" == "commit" ]] && continue  # skip header
+                [[ -n "$score" && "$score" =~ ^[0-9]+$ ]] && scores+=("$score")
+            done < "$tsv"
+        done
+
+        if [[ ${#scores[@]} -gt 0 ]]; then
+            echo -e "${BOLD}Score History:${NC}"
+            # Terminal sparkline using block chars
+            local blocks=("▁" "▂" "▃" "▄" "▅" "▆" "▇" "█")
+            local min=100 max=0
+            for s in "${scores[@]}"; do
+                [[ "$s" -lt "$min" ]] && min=$s
+                [[ "$s" -gt "$max" ]] && max=$s
+            done
+            local range=$((max - min))
+            [[ "$range" -eq 0 ]] && range=1
+
+            local sparkline="  "
+            for s in "${scores[@]}"; do
+                local idx=$(( (s - min) * 7 / range ))
+                sparkline+="${blocks[$idx]}"
+            done
+            echo -e "$sparkline  ${DIM}(${#scores[@]} experiments, ${min}-${max})${NC}"
+            echo ""
+        fi
+
+        # --- 3. Keep/Discard ratio ---
+        local kept=0 discarded=0 total_exp=0
+        for tsv in "$exp_dir"/*.tsv; do
+            [[ ! -f "$tsv" ]] && continue
+            while IFS=$'\t' read -r commit score subjective delta status rest; do
+                [[ "$commit" == "commit" ]] && continue
+                total_exp=$((total_exp + 1))
+                case "$status" in
+                    KEEP|keep|kept) kept=$((kept + 1)) ;;
+                    DISCARD|discard|discarded) discarded=$((discarded + 1)) ;;
+                esac
+            done < "$tsv"
+        done
+
+        if [[ "$total_exp" -gt 0 ]]; then
+            local keep_pct=$((kept * 100 / total_exp))
+            echo -e "${BOLD}Experiments:${NC} ${total_exp} total, ${GREEN}${kept} kept${NC}, ${RED}${discarded} discarded${NC} (${keep_pct}% hit rate)"
+            echo ""
+        fi
+    fi
+
+    # --- 4. Taste eval history ---
+    local reports_dir=".claude/evals/reports"
+    if [[ -d "$reports_dir" ]] && ls "$reports_dir"/taste-*.json &>/dev/null 2>&1; then
+        echo -e "${BOLD}Taste Evals:${NC}"
+        local taste_scores=()
+        for f in $(ls -t "$reports_dir"/taste-*.json 2>/dev/null | head -5); do
+            if command -v jq &> /dev/null; then
+                local ts overall weakest strongest
+                ts=$(jq -r '.meta.timestamp // "?"' "$f" 2>/dev/null | cut -c1-10)
+                overall=$(jq -r '.score_100 // "?"' "$f" 2>/dev/null)
+                weakest=$(jq -r '.weakest // "?" | .[0:60]' "$f" 2>/dev/null)
+                echo -e "  ${GREEN}${overall}/100${NC}  ${DIM}${ts}${NC}  weakest: ${weakest}"
+                taste_scores+=("$overall")
+            else
+                echo "  $(basename "$f")"
+            fi
+        done
+        echo ""
+    else
+        echo -e "${DIM}Taste: not yet evaluated — run: rhino taste eval${NC}"
+        echo ""
+    fi
+
+    # --- 5. Dimension breakdown (current) ---
+    echo -e "${BOLD}Dimensions:${NC}"
+    local json
+    json=$("$RHINO_DIR/bin/score.sh" "${1:-.}" --json 2>/dev/null || echo "{}")
+    if command -v jq &> /dev/null && [[ "$json" != "{}" ]]; then
+        local dims=("build" "structure" "product" "capabilities" "hygiene")
+        local labels=("Build    " "Structure" "Product  " "Capabilty" "Hygiene  ")
+        local blocks=("▁" "▂" "▃" "▄" "▅" "▆" "▇" "█")
+        for i in "${!dims[@]}"; do
+            local val
+            val=$(echo "$json" | jq -r ".${dims[$i]} // 0" 2>/dev/null)
+            local bar_len=$((val / 10))
+            local bar=""
+            for ((b=0; b<bar_len; b++)); do bar+="█"; done
+            for ((b=bar_len; b<10; b++)); do bar+="░"; done
+            echo -e "  ${labels[$i]}  ${bar}  ${val}/100"
+        done
+    else
+        "$RHINO_DIR/bin/score.sh" "${1:-.}" --breakdown 2>/dev/null | grep "^  "
+    fi
+    echo ""
+
+    # --- 6. Baseline comparison ---
+    local baseline_file=".claude/experiments/baseline.json"
+    if [[ -f "$baseline_file" ]] && command -v jq &> /dev/null; then
+        local baseline
+        baseline=$(jq -r '.score // 0' "$baseline_file" 2>/dev/null)
+        local delta=$((current_score - baseline))
+        local delta_str=""
+        if [[ "$delta" -gt 0 ]]; then
+            delta_str="${GREEN}+${delta}${NC}"
+        elif [[ "$delta" -lt 0 ]]; then
+            delta_str="${RED}${delta}${NC}"
+        else
+            delta_str="${DIM}±0${NC}"
+        fi
+        echo -e "${BOLD}vs Baseline:${NC} ${baseline} → ${current_score} (${delta_str})"
+    fi
+}
+
 cmd_help() {
     echo -e "${BOLD}rhino${NC} v${VERSION} — CLI for rhino-os"
     echo ""
@@ -1356,8 +1527,11 @@ cmd_help() {
     echo ""
     echo -e "${BOLD}System commands:${NC}"
     echo "  status             Show system state, knowledge freshness, focus drift"
-    echo "  taste [summary]    View taste profile (signals + auto-extracted patterns)"
-    echo "  taste export       Export portable taste profile to ~/taste-profile.json"
+    echo "  score [dir]        Product score — training loss (cheap, every commit)"
+    echo "  taste eval         Taste score — eval loss (Playwright + Claude vision)"
+    echo "  taste history      View past taste evaluations"
+    echo "  taste summary      View taste signals + patterns"
+    echo "  dashboard          Score history, experiments, dimensions at a glance"
     echo "  capture            Extract session decisions/preferences to knowledge"
     echo "  backup             Snapshot knowledge to timestamped backup"
     echo "  doctor             Check system health (symlinks, MCP, launchd, state)"
@@ -1399,6 +1573,7 @@ case "${1:-help}" in
     report)     cmd_report ;;
     experiments|exp) shift; cmd_experiments "$@" ;;
     score)      shift; "$RHINO_DIR/bin/score.sh" "${@:-.}" ;;
+    dashboard|dash) shift; cmd_dashboard "$@" ;;
     init)       shift; cmd_init "$@" ;;
     help|--help|-h) cmd_help ;;
     version|--version|-v) echo "rhino v${VERSION}" ;;

@@ -138,7 +138,7 @@ The autoresearch pattern applied to product development. You run the loop. NEVER
 
 You score every change. Some scores come from running commands. Some come from reading code and judging. Both are valid. The key: every subjective score must be grounded in something observable.
 
-#### Computable score (your val_bpb)
+#### Training loss (computable, every commit)
 
 Run after EVERY commit:
 ```bash
@@ -147,9 +147,23 @@ rhino score . --json   # machine-readable for the TSV
 rhino score . --breakdown  # see what moved
 ```
 
-This scores build health, structure (dead ends, empty states), product signals (share, notifications, OG tags, retention), and code hygiene (hardcoded colors, any types, console.logs). The number should never go down. If a commit lowers the score, discard it.
+This scores build health, structure, product signals, capabilities, and code hygiene. Pure grep — cheap and fast. The number should never go down. If a commit lowers the score, discard it.
 
-Projects can add custom checks via `.claude/score.yml` (future).
+#### Eval loss (visual, on demand)
+
+Run when working on taste-related experiments, or periodically:
+```bash
+rhino taste eval              # screenshots every route, Claude vision judges
+rhino taste eval --url http://localhost:3000   # if dev server already running
+rhino taste history           # see past taste scores
+```
+
+This launches Playwright, screenshots every route (desktop + mobile), and sends the images to Claude vision. It scores 8 taste dimensions from the USER's perspective — hierarchy, breathing room, contrast, polish, emotional tone, information density, wayfinding, distinctiveness. Each score cites visual evidence (what Claude SAW, not what the code contains).
+
+This is the expensive eval. Don't run it every commit. Run it:
+- After taste-focused experiments
+- Before shipping a sprint
+- When you need a reality check on product quality
 
 #### Hard metrics (when you need to dig deeper)
 
@@ -165,25 +179,33 @@ grep -rn "og:title\|og:image\|twitter:card" --include="*.tsx" --include="*.ts" -
 grep -rn '#[0-9A-Fa-f]\{6\}' --include="*.tsx" --include="*.css" | grep -v 'node_modules\|tokens\|\.svg' | wc -l
 ```
 
-#### Grounded subjective scores (read code, judge, cite evidence)
+#### Grounded subjective scores
 
-When you score a subjective dimension, you MUST cite the specific code that justifies the score.
+Two sources of truth for subjective judgment:
+
+**1. Visual evaluation (preferred for taste):** Run `rhino taste eval` to get Claude vision's assessment of what the user SEES. This judges hierarchy, breathing room, contrast, polish, emotional tone, density, wayfinding, and distinctiveness from screenshots. The evidence is visual, not code-based.
+
+**2. Code-grounded judgment (for non-visual dimensions):** When scoring dimensions that can't be seen in screenshots (retention mechanics, distribution infrastructure), cite specific code.
 
 **Wrong way:**
 > identity: 0.3 — "the UI feels like a template"
 
-**Right way:**
-> identity: 0.3 — ShellCreateBar.tsx:46 uses hardcoded `#FFD700` instead of design token. AppSidebar.tsx has no campus-specific imagery or copy. Empty state at SpacesPage.tsx:42 says "You haven't joined any spaces yet" — generic, no personality, no campus context. 0/5 screens would be recognizable without the logo.
+**Right way (visual):**
+> identity: 0.3 — taste eval shows: hero competes with sidebar for attention, empty state is generic "No items" with no personality, mobile nav is just desktop shrunk. 0/5 screens recognizable without logo.
+
+**Right way (code-grounded):**
+> day3_return: 0.2 — 0 notification triggers, no "since you left" component, no digest email. Nothing pulls the user back.
 
 #### Scoring dimensions
 
-| Dimension | What to measure | Grounding |
-|-----------|----------------|-----------|
-| day3_return | Does something pull the user back? | Count: notification triggers, "since you left" components, digest emails, dynamic content between visits |
-| empty_room | What does a new user with no connections see? | Read every empty state component. Does each one have: (1) explanation, (2) specific action, (3) personality? Score = fraction that pass |
-| identity | Does it feel like THIS product? | Count: hardcoded colors, screens with campus-specific copy, custom illustrations, signature interactions. Score = fraction of screens recognizable without logo |
-| creation_distribution | Does creation reach people? | Count: share integrations, post-deploy CTAs, link preview tags. Trace: taps from "deployed" to "someone else sees it" |
-| escape_velocity | Does it compound? | Count: features that get better with more users. Check: does user-generated content accumulate? Is there a social graph? Switching cost after 30 days? |
+| Dimension | What to measure | How to ground it |
+|-----------|----------------|-----------------|
+| taste | Does the product FEEL right to a user? | `rhino taste eval` — visual scoring via screenshots + Claude vision |
+| day3_return | Does something pull the user back? | Count: notification triggers, "since you left" components, digest emails |
+| empty_room | What does a new user with no connections see? | Read empty state components + check taste eval's wayfinding score |
+| identity | Does it feel like THIS product? | taste eval's distinctiveness + emotional_tone scores |
+| creation_distribution | Does creation reach people? | Count: share integrations, link preview tags, post-creation CTAs |
+| escape_velocity | Does it compound? | Count: features that improve with more users, social graph, switching cost |
 
 #### Scoring guide
 
@@ -233,16 +255,16 @@ Smallest change that tests the hypothesis. Match existing patterns.
 Commit: `git commit -m "exp: [hypothesis in 10 words]"`
 
 #### 3. Measure
-Run `rhino score .` — get the number. Then score the target dimension with grounded evidence.
-Record the computable score, the cited evidence, and which sub-scores moved.
+Run `rhino score .` — get the training loss number.
+If the experiment targets taste (identity, polish, hierarchy, etc.), also run `rhino taste eval` to get the visual score.
+Record the computable score, the taste score (if applicable), and which sub-scores moved.
 
 #### 4. Cross-check
-Verify hard metrics and subjective scores agree directionally:
-- Subjective identity up → hardcoded color count should go down
-- Subjective day3_return up → notification trigger count should go up
-- Subjective empty_room up → empty states with CTAs count should go up
-
-If they disagree, do NOT keep. Re-read the code and re-score.
+Verify different measurement sources agree directionally:
+- Training loss (rhino score) should not drop
+- If taste experiment: taste eval score should improve on the target dimension
+- Hard metrics should confirm: identity up → hardcoded color count down, day3_return up → notification triggers up
+- If sources disagree, do NOT keep. Re-read the code, re-screenshot, re-score.
 
 #### 5. Decide
 - **`rhino score` same or higher AND subjective score improved AND cross-check passes** → KEEP
@@ -254,7 +276,7 @@ If they disagree, do NOT keep. Re-read the code and re-score.
 #### 6. Log
 Append to `.claude/experiments/[dimension]-[date].tsv`:
 ```
-commit	rhino_score	subjective_score	delta	status	description	evidence	cross_check
+commit	rhino_score	taste_score	delta	status	description	evidence	cross_check
 ```
 `rhino_score` is the computable number from `rhino score . --json`. `subjective_score` is your grounded judgment.
 The `cross_check` column records which hard metric confirmed the subjective score (e.g., "hardcoded_colors 15→12").
