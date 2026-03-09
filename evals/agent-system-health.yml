@@ -1,0 +1,97 @@
+# Eval spec: Agent System Health
+# Run after every meta cycle. TDD for AI agents.
+# Usage: /eval agent-system-health
+
+name: agent-system-health
+description: Validates that all 5 agents produce required artifacts and feedback loops are connected.
+
+## Deterministic (pass/fail, no AI judgment)
+deterministic:
+  - name: scripts_syntax
+    check: bash -n bin/rhino && bash -n bin/score.sh && bash -n bin/lib/config.sh && node --check bin/taste.mjs
+    expect: exit 0
+
+  - name: no_broken_symlinks
+    check: for f in ~/.claude/agents/*.md; do [[ -L "$f" && ! -e "$f" ]] && exit 1; done
+    expect: exit 0
+
+  - name: config_loads
+    check: ./bin/rhino config >/dev/null 2>&1
+    expect: exit 0
+
+  - name: portfolio_exists
+    check: test -f ~/.claude/state/portfolio.json
+    expect: exit 0
+
+  - name: sweep_state_exists
+    check: test -f ~/.claude/state/sweep-latest.md
+    expect: exit 0
+
+  - name: landscape_exists
+    check: test -f ~/.claude/knowledge/landscape.json
+    expect: exit 0
+
+  - name: no_artifact_failures
+    check: test ! -s ~/.claude/logs/artifact-failures.jsonl
+    expect: exit 0
+
+## Functional (AI checks output quality)
+functional:
+  - name: sweep_all_tiers
+    description: Sweep output must contain GREEN, YELLOW (or "No YELLOW"), RED, GRAY sections
+    check_file: ~/.claude/state/sweep-latest.md
+    expect_contains: ["Executed", "RED", "GRAY"]
+
+  - name: builder_gate_has_score
+    description: Builder gate mode must run rhino score and show result
+    check_log: ~/.claude/logs/builder-*.log
+    expect_pattern: "rhino score|/100"
+
+  - name: scout_unknowns_longest
+    description: "What I Didn't Find" section must have more items than Position Updates
+    check_log: ~/.claude/logs/scout-*.log
+    expect: unknowns_count >= position_updates_count
+
+  - name: strategist_writes_plan
+    description: Strategist must create a plan file and symlink active-plan.md
+    check: ls -la $(cat ~/.claude/state/portfolio.json | python3 -c "import sys,json; p=json.load(sys.stdin)['projects'][0]['path']; print(p.replace('~','/Users/laneyfraass'))")/.claude/plans/active-plan.md 2>/dev/null
+    expect: symlink exists
+
+  - name: design_has_baseline
+    description: Design audit must reference a score with baseline comparison
+    check_file: ~/.claude/knowledge/design-engineer/audit-history.jsonl
+    expect_pattern: '"score":\d+'
+
+## Ceiling (human-judged, scored 0-1)
+ceiling:
+  - name: meta_fix_improves_grade
+    description: Does the meta cycle's fix measurably improve the target agent?
+    measure: Compare agent grade before/after fix in grades.jsonl
+    target: ">=0.7"
+
+  - name: scout_changes_decisions
+    description: Did scout surface information that changed a product or strategy decision?
+    measure: Human reviews scout output for actionable alpha
+    target: ">=0.6"
+
+  - name: dead_agent_auto_detected
+    description: If an agent fails to write artifacts, is meta triggered within 48h?
+    measure: Simulate artifact failure, check catchup() triggers meta
+    target: ">=0.8"
+
+  - name: sweep_catches_new_issues
+    description: Does sweep find issues that weren't in the previous sweep?
+    measure: Diff sweep-latest.md across runs
+    target: ">=0.5"
+
+## Targets (numbers to beat)
+targets:
+  rhino_score: 95
+  agents_operational: 5
+  avg_agent_grade: "A-"
+  artifact_failures: 0
+  hive_product_eval: 0.70
+  hive_day3_return: 0.50
+  hive_design_audit: 75
+  landscape_positions: 15
+  scout_unknowns_per_run: 10
