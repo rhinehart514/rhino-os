@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>rhino-os — Graphs</title>
+<title>rhino-os — Proof It Works</title>
 <style>
   :root {
     --bg: #0a0a0a;
@@ -19,8 +19,9 @@
     --fix: #f87171;
     --blue: #60a5fa;
     --cyan: #22d3ee;
-    --docs: #60a5fa;
-    --tighten: #facc15;
+    --buy: #22c55e;
+    --hold: #f59e0b;
+    --sell: #f87171;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -43,7 +44,7 @@
   .hero { padding: 100px 40px 20px; max-width: 1300px; margin: 0 auto; }
   .hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 6px; }
   .hero h1 span { color: var(--accent); }
-  .hero p { color: var(--dim); font-size: 14px; }
+  .hero p { color: var(--dim); font-size: 14px; max-width: 640px; }
 
   section { max-width: 1300px; margin: 0 auto; padding: 32px 40px; }
   section h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
@@ -72,7 +73,6 @@
 
   canvas {
     width: 100% !important;
-    height: auto !important;
   }
 
   .legend {
@@ -82,6 +82,32 @@
     display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim);
   }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .verdict-row {
+    display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .verdict {
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .verdict.buy { color: var(--buy); border-color: #22c55e44; background: #22c55e0a; }
+  .verdict.hold { color: var(--hold); border-color: #f59e0b44; background: #f59e0b0a; }
+  .verdict.sell { color: var(--sell); border-color: #f8717144; background: #f871710a; }
+
+  .callout {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    margin: 24px 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+  .callout strong { color: var(--text); }
 
   footer {
     max-width: 1300px; margin: 0 auto; padding: 40px;
@@ -111,66 +137,90 @@
 </nav>
 
 <div class="hero">
-  <h1>Project <span>graphs</span></h1>
-  <p>Real data from git history. How rhino-os was built, measured, and compressed.</p>
+  <h1>Proof it <span>works</span></h1>
+  <p>Real data from real agent runs, real scoring, real portfolio decisions. Not vanity metrics about how the code was written — evidence that the system delivers value.</p>
 </div>
 
 <section>
   <div class="chart-grid">
 
-    <!-- 1. Cumulative lines over time (area chart) -->
+    <!-- 1. TASTE EVAL — 8 dimensions radar -->
     <div class="chart-card wide">
-      <h3>Codebase size over time</h3>
-      <div class="chart-sub">Cumulative insertions vs deletions. Growth bursts followed by compression.</div>
-      <canvas id="cumulativeChart" height="200"></canvas>
+      <h3>Taste eval: HIVE product quality</h3>
+      <div class="chart-sub">8 visual dimensions scored by Claude vision from Playwright screenshots. Overall: 40/100. This is what "measuring by looking" produces — honest, evidence-backed scores.</div>
+      <canvas id="tasteRadar" height="320"></canvas>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background: var(--feat);"></div> total insertions</div>
-        <div class="legend-item"><div class="legend-dot" style="background: var(--fix);"></div> total deletions</div>
-        <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> net lines</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> HIVE score (out of 5)</div>
+        <div class="legend-item"><div class="legend-dot" style="background: #333;"></div> max possible</div>
       </div>
     </div>
 
-    <!-- 2. Commit type donut -->
+    <!-- 2. AGENT GRADES — meta cycle improvement -->
     <div class="chart-card">
-      <h3>Commit types</h3>
-      <div class="chart-sub">What kind of work shaped the project</div>
-      <canvas id="typeDonut" height="240"></canvas>
-      <div class="legend" id="donutLegend"></div>
+      <h3>Agent grades over meta cycles</h3>
+      <div class="chart-sub">Meta grades agents, fixes broken prompts. Scout B&rarr;B+ after adding Devil's Advocate requirement.</div>
+      <canvas id="agentGrades" height="300"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background: var(--feat);"></div> cycle 1</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> cycle 2</div>
+      </div>
     </div>
 
-    <!-- 3. Architecture compression -->
+    <!-- 3. PORTFOLIO — Buy/Sell/Hold decisions -->
+    <div class="chart-card">
+      <h3>Portfolio decisions</h3>
+      <div class="chart-sub">Strategist scanned 6 projects. Killed 4 dead ones. This is the hard call other systems won't make.</div>
+      <canvas id="portfolioChart" height="300"></canvas>
+      <div class="verdict-row">
+        <span class="verdict buy">BUY &middot; HIVE</span>
+        <span class="verdict hold">HOLD &middot; rhino-os</span>
+        <span class="verdict sell">SELL &middot; 4 projects</span>
+      </div>
+    </div>
+
+    <!-- 4. SCORE DIMENSIONS — training loss breakdown -->
+    <div class="chart-card wide">
+      <h3>Training loss: score.sh dimensions over 15 runs</h3>
+      <div class="chart-sub">Build and structure pinned at 100. Hygiene stable at 95. Product started at 32, capabilities at 0 — then scoring was refined to 3 dimensions (build, structure, hygiene). The system honestly measured that product/capabilities were broken metrics for a CLI tool and removed them.</div>
+      <canvas id="scoreDimensions" height="200"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background: var(--feat);"></div> build</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--blue);"></div> structure</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> hygiene</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--fix); opacity: 0.4;"></div> product (removed)</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--refactor); opacity: 0.4;"></div> capabilities (removed)</div>
+      </div>
+    </div>
+
+    <!-- 5. AGENT ACTIVITY — who ran, when, how much output -->
+    <div class="chart-card">
+      <h3>Agent run log sizes</h3>
+      <div class="chart-sub">Lines of output per agent run. Dead runs (2 lines) = agent crashed. Real runs = 80-163 lines of work.</div>
+      <canvas id="agentActivity" height="300"></canvas>
+    </div>
+
+    <!-- 6. ARCHITECTURE COMPRESSION — the only good graph from before -->
     <div class="chart-card">
       <h3>Architecture compression</h3>
-      <div class="chart-sub">Components over time — the system deleted itself</div>
-      <canvas id="compressionChart" height="240"></canvas>
+      <div class="chart-sub">The system deleted itself into shape. 13 agents &rarr; 5 agents + 2 programs.</div>
+      <canvas id="compressionChart" height="300"></canvas>
     </div>
 
-    <!-- 4. Churn per commit (insertions vs deletions, dual bar) -->
+    <!-- 7. PRODUCT EVAL — ship readiness (HIVE) -->
     <div class="chart-card wide">
-      <h3>Code churn per commit</h3>
-      <div class="chart-sub">Green = insertions, red = deletions. Big refactors visible as balanced bars.</div>
-      <canvas id="churnChart" height="180"></canvas>
+      <h3>Product eval: HIVE ship readiness</h3>
+      <div class="chart-sub">4 ceiling dimensions scored 0-1. Verdict: NOT READY (0.35). Day 3 return at 0.2 is the critical gap. This score drove the current sprint plan.</div>
+      <canvas id="productEval" height="220"></canvas>
+      <div class="callout" style="margin-top: 16px;">
+        <strong>This is the point.</strong> The system didn't say "looks good!" — it said NOT READY, identified day3_return as the bottleneck, and the strategist wrote a sprint plan targeting exactly that gap. Score &rarr; gap &rarr; plan &rarr; build. The loop works.
+      </div>
     </div>
 
-    <!-- 5. Commit velocity (hour of day) -->
-    <div class="chart-card">
-      <h3>Commit velocity by hour</h3>
-      <div class="chart-sub">When development happened</div>
-      <canvas id="hourChart" height="240"></canvas>
-    </div>
-
-    <!-- 6. File size distribution -->
-    <div class="chart-card">
-      <h3>Codebase composition</h3>
-      <div class="chart-sub">Lines of code by component type</div>
-      <canvas id="compositionChart" height="240"></canvas>
-    </div>
-
-    <!-- 7. Net change per commit (waterfall) -->
+    <!-- 8. SELF-HEALING TIMELINE -->
     <div class="chart-card wide">
-      <h3>Net change waterfall</h3>
-      <div class="chart-sub">Each bar = net lines for one commit. Green = growth, purple = compression, red = fix.</div>
-      <canvas id="waterfallChart" height="160"></canvas>
+      <h3>Self-healing: bugs found and fixed by the system itself</h3>
+      <div class="chart-sub">Meta cycle fixes that agents applied to their own prompts and code.</div>
+      <canvas id="selfHealing" height="200"></canvas>
     </div>
 
   </div>
@@ -181,89 +231,19 @@
 </footer>
 
 <script>
-// === DATA ===
-const commits = [
-  { time: "03-07 01:05", type: "feat", msg: "initial release", ins: 3402, del: 0, hour: 1 },
-  { time: "03-07 01:27", type: "refactor", msg: "13 agents → 8", ins: 204, del: 501, hour: 1 },
-  { time: "03-07 02:00", type: "feat", msg: "instrumentation + 65% trim", ins: 579, del: 946, hour: 2 },
-  { time: "03-07 02:53", type: "feat", msg: "design-scout agent", ins: 252, del: 4, hour: 2 },
-  { time: "03-07 02:58", type: "refactor", msg: "scout → engineer", ins: 329, del: 196, hour: 2 },
-  { time: "03-07 11:19", type: "feat", msg: "design-engineer rewrite", ins: 353, del: 247, hour: 11 },
-  { time: "03-07 11:25", type: "feat", msg: "taste layer", ins: 237, del: 6, hour: 11 },
-  { time: "03-07 11:30", type: "feat", msg: "visual verification", ins: 70, del: 14, hour: 11 },
-  { time: "03-07 14:35", type: "refactor", msg: "10 → 5 agents, rebrand", ins: 539, del: 838, hour: 14 },
-  { time: "03-07 14:39", type: "feat", msg: "IA/VA convergence", ins: 73, del: 2, hour: 14 },
-  { time: "03-07 14:46", type: "feat", msg: "shared state (IPC)", ins: 178, del: 85, hour: 14 },
-  { time: "03-07 15:59", type: "feat", msg: "intelligence hardening", ins: 4630, del: 251, hour: 15 },
-  { time: "03-07 16:01", type: "docs", msg: "README", ins: 204, del: 69, hour: 16 },
-  { time: "03-07 16:11", type: "feat", msg: "taste extraction", ins: 654, del: 12, hour: 16 },
-  { time: "03-07 16:21", type: "refactor", msg: "taste vs code style", ins: 279, del: 283, hour: 16 },
-  { time: "03-07 16:23", type: "fix", msg: "config merge", ins: 41, del: 12, hour: 16 },
-  { time: "03-07 16:23", type: "fix", msg: "awk compat", ins: 11, del: 7, hour: 16 },
-  { time: "03-07 16:25", type: "fix", msg: "MCP paths", ins: 6, del: 3, hour: 16 },
-  { time: "03-07 16:32", type: "fix", msg: "SIGPIPE fix", ins: 14, del: 14, hour: 16 },
-  { time: "03-08 16:23", type: "feat", msg: "eval state injection", ins: 53, del: 2, hour: 16 },
-  { time: "03-08 17:37", type: "feat", msg: "experiment mode", ins: 322, del: 4, hour: 17 },
-  { time: "03-08 17:43", type: "feat", msg: "experiment visibility", ins: 556, del: 9, hour: 17 },
-  { time: "03-08 19:45", type: "feat", msg: "two programs", ins: 179, del: 11, hour: 19 },
-  { time: "03-08 19:45", type: "feat", msg: "product-eval", ins: 160, del: 0, hour: 19 },
-  { time: "03-08 19:45", type: "fix", msg: "eval rewrite", ins: 761, del: 69, hour: 19 },
-  { time: "03-08 19:56", type: "refactor", msg: "objective metrics", ins: 158, del: 75, hour: 19 },
-  { time: "03-08 20:02", type: "fix", msg: "grounded subjectivity", ins: 62, del: 81, hour: 20 },
-  { time: "03-08 20:09", type: "feat", msg: "cross-check step", ins: 15, del: 5, hour: 20 },
-  { time: "03-08 20:13", type: "feat", msg: "autonomous-first", ins: 54, del: 11, hour: 20 },
-  { time: "03-08 20:23", type: "refactor", msg: "programs = brain", ins: 279, del: 549, hour: 20 },
-  { time: "03-08 20:26", type: "tighten", msg: "experiment constraints", ins: 4, del: 1, hour: 20 },
-  { time: "03-08 20:48", type: "feat", msg: "score.sh v1", ins: 298, del: 7, hour: 20 },
-  { time: "03-08 20:52", type: "feat", msg: "score.sh v2", ins: 206, del: 126, hour: 20 },
-  { time: "03-08 21:22", type: "feat", msg: "rhino init", ins: 174, del: 16, hour: 21 },
-  { time: "03-08 21:33", type: "feat", msg: "taste in score.sh", ins: 122, del: 27, hour: 21 },
-  { time: "03-08 22:05", type: "feat", msg: "two-tier scoring", ins: 1186, del: 127, hour: 22 },
-  { time: "03-08 22:21", type: "feat", msg: "anti-slop rule", ins: 67, del: 0, hour: 22 },
-  { time: "03-08 23:03", type: "feat", msg: "experiment memory", ins: 74, del: 13, hour: 23 },
-  { time: "03-08 23:19", type: "feat", msg: "feature set mode", ins: 115, del: 0, hour: 23 },
-  { time: "03-08 23:26", type: "refactor", msg: "Karpathy pressure test", ins: 171, del: 200, hour: 23 },
-  { time: "03-08 23:30", type: "feat", msg: "meta (self-eval)", ins: 138, del: 4, hour: 23 },
-  { time: "03-09 00:18", type: "feat", msg: "HTML showcase + scoring", ins: 2894, del: 181, hour: 0 },
-];
-
-const typeColors = {
-  feat: '#22c55e',
-  refactor: '#a78bfa',
-  fix: '#f87171',
-  docs: '#60a5fa',
-  tighten: '#facc15',
-};
-
-const compressionSteps = [
-  { label: "Initial", count: 13, commit: 0 },
-  { label: "Cut fat", count: 8, commit: 1 },
-  { label: "+features", count: 10, commit: 7 },
-  { label: "Rebrand", count: 5, commit: 8 },
-  { label: "Programs", count: 2, commit: 22 },
-];
-
-const composition = [
-  { label: "rhino CLI", lines: 1609, color: '#f59e0b' },
-  { label: "score.sh", lines: 531, color: '#22c55e' },
-  { label: "taste.mjs", lines: 494, color: '#60a5fa' },
-  { label: "build.md", lines: 475, color: '#a78bfa' },
-  { label: "design-eng", lines: 287, color: '#22d3ee' },
-  { label: "strategy.md", lines: 158, color: '#f87171' },
-  { label: "skills (6)", lines: 579, color: '#facc15' },
-  { label: "other agents", lines: 276, color: '#666' },
-];
-
-// === DRAWING HELPERS ===
+// === HELPERS ===
 function getCtx(id) {
   const canvas = document.getElementById(id);
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
+  const w = rect.width;
+  const h = parseInt(canvas.getAttribute('height')) || rect.height;
+  canvas.style.height = h + 'px';
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  return { ctx, w: rect.width, h: rect.height };
+  return { ctx, w, h };
 }
 
 function drawGridLines(ctx, w, h, ySteps, pad) {
@@ -278,124 +258,376 @@ function drawGridLines(ctx, w, h, ySteps, pad) {
   }
 }
 
-// === 1. CUMULATIVE LINES ===
-function drawCumulative() {
-  const { ctx, w, h } = getCtx('cumulativeChart');
-  const pad = { top: 20, right: 20, bottom: 30, left: 50 };
+// === DATA ===
+
+// Taste eval — real data from taste-2026-03-09.json
+const tasteDimensions = [
+  { label: "Hierarchy", score: 3 },
+  { label: "Breathing room", score: 2 },
+  { label: "Contrast", score: 3 },
+  { label: "Polish", score: 1 },
+  { label: "Emotional tone", score: 2 },
+  { label: "Info density", score: 1 },
+  { label: "Wayfinding", score: 2 },
+  { label: "Distinctiveness", score: 3 },
+];
+
+// Agent grades — real data from meta/grades.jsonl
+const agentGrades = {
+  cycle1: { scout: 2.7, sweep: 0, builder: 0, design: 0, strategist: 0 },
+  cycle2: { scout: 3.0, sweep: 0, builder: 0, design: 0, strategist: 0 },
+};
+// 0 = ungraded (?), grade scale: F=0, D=1, C=2, B=2.7, B+=3, A-=3.3, A=3.7, A+=4
+
+// Portfolio — real data from state/portfolio.json
+const portfolio = [
+  { name: "HIVE", call: "BUY", stage: "pre-launch", eval: 0.35 },
+  { name: "rhino-os", call: "HOLD", stage: "production", eval: null },
+  { name: "owshsystems", call: "SELL", stage: "stale", eval: null },
+  { name: "shelf-scout", call: "SELL", stage: "stale", eval: null },
+  { name: "mission-control", call: "SELL", stage: "stale", eval: null },
+  { name: "goose", call: "SELL", stage: "stale", eval: null },
+];
+
+// Score history — real data from .claude/scores/history.tsv
+const scoreHistory = [
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 32, capabilities: 0, hygiene: 95 },
+  { build: 100, structure: 100, product: 22, capabilities: 40, hygiene: 95 },
+  // Scoring refined — removed product/capabilities for CLI tools
+  { build: 100, structure: 100, product: null, capabilities: null, hygiene: 95 },
+  { build: 100, structure: 100, product: null, capabilities: null, hygiene: 95 },
+  { build: 100, structure: 100, product: null, capabilities: null, hygiene: 95 },
+  { build: 100, structure: 100, product: null, capabilities: null, hygiene: 95 },
+  { build: 100, structure: 100, product: null, capabilities: null, hygiene: 95 },
+];
+
+// Agent run log sizes — real data from ~/.claude/logs/
+const agentRuns = [
+  { agent: "builder", date: "03-07", lines: 2, status: "dead" },
+  { agent: "design", date: "03-07", lines: 2, status: "dead" },
+  { agent: "design", date: "03-08", lines: 2, status: "dead" },
+  { agent: "scout", date: "03-07", lines: 2, status: "dead" },
+  { agent: "sweep", date: "03-08", lines: 2, status: "dead" },
+  { agent: "builder", date: "03-09", lines: 82, status: "alive" },
+  { agent: "design", date: "03-09", lines: 122, status: "alive" },
+  { agent: "scout", date: "03-09", lines: 161, status: "alive" },
+  { agent: "strategist", date: "03-09", lines: 125, status: "alive" },
+  { agent: "sweep", date: "03-09", lines: 163, status: "alive" },
+  { agent: "meta", date: "03-09", lines: 37, status: "alive" },
+];
+
+// Product eval — real data from HIVE eval reports
+const productEval = [
+  { dim: "Four-second test", score: 0.5 },
+  { dim: "Empty room test", score: 0.3 },
+  { dim: "Creation→distribution", score: 0.5 },
+  { dim: "Day 3 return", score: 0.2 },
+  { dim: "Identity score", score: 0.3 },
+  { dim: "Escape velocity", score: 0.3 },
+];
+
+// Self-healing timeline — real fixes from meta + audit commits
+const selfHealingEvents = [
+  { label: "3 agents dead\n(CLAUDECODE block)", type: "bug", x: 0 },
+  { label: "Meta finds\nstream-json crash", type: "detect", x: 1 },
+  { label: "Fix: --output-format\ntext for all agents", type: "fix", x: 2 },
+  { label: "Scout alpha rate\n0.2 → 0.4", type: "improve", x: 3 },
+  { label: "13 broken feedback\nloops found", type: "detect", x: 4 },
+  { label: "All 13 fixed\nin one commit", type: "fix", x: 5 },
+  { label: "5/5 agents\noperational", type: "result", x: 6 },
+];
+
+const compressionSteps = [
+  { label: "Initial", count: 13 },
+  { label: "Cut fat", count: 8 },
+  { label: "+features", count: 10 },
+  { label: "Rebrand", count: 5 },
+  { label: "Final", count: 5 },
+];
+
+// === 1. TASTE RADAR ===
+function drawTasteRadar() {
+  const { ctx, w, h } = getCtx('tasteRadar');
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = Math.min(cx, cy) - 50;
+  const n = tasteDimensions.length;
+  const max = 5;
+
+  // Grid rings
+  for (let ring = 1; ring <= max; ring++) {
+    const rr = (ring / max) * r;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const x = cx + Math.cos(angle) * rr;
+      const y = cy + Math.sin(angle) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = ring === max ? '#333' : '#1a1a1a';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Spokes
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.stroke();
+  }
+
+  // Data polygon
+  ctx.beginPath();
+  tasteDimensions.forEach((d, i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const dr = (d.score / max) * r;
+    const x = cx + Math.cos(angle) * dr;
+    const y = cy + Math.sin(angle) * dr;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = '#f59e0b18';
+  ctx.fill();
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Data dots + labels
+  tasteDimensions.forEach((d, i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const dr = (d.score / max) * r;
+    const x = cx + Math.cos(angle) * dr;
+    const y = cy + Math.sin(angle) * dr;
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = d.score <= 1 ? '#f87171' : d.score <= 2 ? '#f59e0b' : '#22c55e';
+    ctx.fill();
+
+    // Label
+    const lx = cx + Math.cos(angle) * (r + 30);
+    const ly = cy + Math.sin(angle) * (r + 30);
+    ctx.fillStyle = '#888';
+    ctx.font = '10px monospace';
+    ctx.textAlign = Math.abs(angle) < 0.1 || Math.abs(angle - Math.PI) < 0.1 ? 'center' :
+                    lx > cx ? 'left' : 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${d.label} (${d.score})`, lx, ly);
+  });
+
+  // Center score
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('40', cx, cy - 6);
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.fillText('/100', cx, cy + 14);
+}
+
+// === 2. AGENT GRADES ===
+function drawAgentGrades() {
+  const { ctx, w, h } = getCtx('agentGrades');
+  const pad = { top: 30, right: 20, bottom: 40, left: 60 };
+  const agents = ['scout', 'sweep', 'builder', 'design', 'strategist'];
+  const gradeLabels = ['?', 'F', 'D', 'C', 'B', 'B+', 'A-', 'A', 'A+'];
+  const barW = 28;
+  const groupW = 80;
+  const maxGrade = 4;
+
+  agents.forEach((agent, i) => {
+    const gx = pad.left + i * groupW;
+    const v1 = agentGrades.cycle1[agent];
+    const v2 = agentGrades.cycle2[agent];
+
+    // Cycle 1 bar
+    const h1 = v1 > 0 ? (v1 / maxGrade) * (h - pad.top - pad.bottom) : 8;
+    const y1 = h - pad.bottom - h1;
+    ctx.fillStyle = v1 > 0 ? '#22c55e' : '#333';
+    ctx.beginPath();
+    ctx.roundRect(gx, y1, barW, h1, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Cycle 2 bar
+    const h2 = v2 > 0 ? (v2 / maxGrade) * (h - pad.top - pad.bottom) : 8;
+    const y2 = h - pad.bottom - h2;
+    ctx.fillStyle = v2 > 0 ? '#f59e0b' : '#333';
+    ctx.beginPath();
+    ctx.roundRect(gx + barW + 4, y2, barW, h2, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Grade labels on bars
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    if (v1 > 0) ctx.fillText('B', gx + barW / 2, y1 - 6);
+    else ctx.fillText('?', gx + barW / 2, y1 - 6);
+    if (v2 > 0) ctx.fillText('B+', gx + barW + 4 + barW / 2, y2 - 6);
+    else ctx.fillText('?', gx + barW + 4 + barW / 2, y2 - 6);
+
+    // Agent name
+    ctx.fillStyle = '#888';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(agent, gx + barW + 2, h - pad.bottom + 16);
+  });
+
+  // Y axis
+  ctx.fillStyle = '#444';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'right';
+  ['F', 'C', 'B', 'A', 'A+'].forEach((label, i) => {
+    const y = h - pad.bottom - (i / 4) * (h - pad.top - pad.bottom);
+    ctx.fillText(label, pad.left - 8, y + 3);
+  });
+}
+
+// === 3. PORTFOLIO ===
+function drawPortfolio() {
+  const { ctx, w, h } = getCtx('portfolioChart');
+  const pad = { top: 20, right: 20, bottom: 20, left: 20 };
+  const barH = 30;
+  const gap = 8;
+
+  const callColors = { BUY: '#22c55e', HOLD: '#f59e0b', SELL: '#f87171' };
+
+  portfolio.forEach((p, i) => {
+    const y = pad.top + i * (barH + gap);
+    const barW = p.eval ? p.eval * (w - pad.left - pad.right - 120) : (w - pad.left - pad.right - 120) * 0.15;
+
+    // Bar
+    ctx.fillStyle = callColors[p.call];
+    ctx.globalAlpha = p.call === 'SELL' ? 0.3 : 0.7;
+    ctx.beginPath();
+    ctx.roundRect(pad.left + 100, y, Math.max(barW, 20), barH, [0, 4, 4, 0]);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Name
+    ctx.fillStyle = callColors[p.call];
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.name, pad.left + 90, y + barH / 2);
+
+    // Call badge
+    ctx.fillStyle = '#333';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    const label = p.eval ? `${p.call} (${p.eval})` : `${p.call} · ${p.stage}`;
+    ctx.fillText(label, pad.left + 100 + Math.max(barW, 20) + 8, y + barH / 2);
+  });
+}
+
+// === 4. SCORE DIMENSIONS OVER TIME ===
+function drawScoreDimensions() {
+  const { ctx, w, h } = getCtx('scoreDimensions');
+  const pad = { top: 20, right: 20, bottom: 30, left: 40 };
   const cw = w - pad.left - pad.right;
   const ch = h - pad.top - pad.bottom;
 
-  let cumIns = 0, cumDel = 0;
-  const data = commits.map(c => {
-    cumIns += c.ins;
-    cumDel += c.del;
-    return { ins: cumIns, del: cumDel, net: cumIns - cumDel };
-  });
-
-  const maxVal = Math.max(...data.map(d => d.ins));
   drawGridLines(ctx, w, h, 4, pad);
 
-  // Y-axis labels
+  // Y axis labels
   ctx.fillStyle = '#555';
   ctx.font = '10px monospace';
   ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
-    const val = Math.round((1 - i/4) * maxVal);
+    const val = 100 - i * 25;
     const y = pad.top + (i / 4) * ch;
-    ctx.fillText(val.toLocaleString(), pad.left - 8, y + 4);
+    ctx.fillText(val, pad.left - 8, y + 4);
   }
 
-  function drawLine(points, color, fill) {
+  function drawLine(key, color, dashed) {
     ctx.beginPath();
-    points.forEach((v, i) => {
-      const x = pad.left + (i / (points.length - 1)) * cw;
-      const y = pad.top + (1 - v / maxVal) * ch;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    ctx.setLineDash(dashed ? [4, 4] : []);
+    let started = false;
+    scoreHistory.forEach((s, i) => {
+      if (s[key] === null || s[key] === undefined) return;
+      const x = pad.left + (i / (scoreHistory.length - 1)) * cw;
+      const y = pad.top + (1 - s[key] / 100) * ch;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
     });
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
+    ctx.globalAlpha = dashed ? 0.4 : 1;
     ctx.stroke();
-
-    if (fill) {
-      ctx.lineTo(pad.left + cw, pad.top + ch);
-      ctx.lineTo(pad.left, pad.top + ch);
-      ctx.closePath();
-      ctx.fillStyle = fill;
-      ctx.fill();
-    }
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
   }
 
-  drawLine(data.map(d => d.ins), '#22c55e', '#22c55e11');
-  drawLine(data.map(d => d.del), '#f87171', '#f8717111');
-  drawLine(data.map(d => d.net), '#f59e0b', false);
+  drawLine('product', '#f87171', true);
+  drawLine('capabilities', '#a78bfa', true);
+  drawLine('build', '#22c55e', false);
+  drawLine('structure', '#60a5fa', false);
+  drawLine('hygiene', '#f59e0b', false);
 
-  // End values
-  const last = data[data.length - 1];
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#22c55e';
-  ctx.fillText(`+${last.ins.toLocaleString()}`, w - pad.right + 4, pad.top + (1 - last.ins / maxVal) * ch + 4);
-  ctx.fillStyle = '#f87171';
-  ctx.fillText(`-${last.del.toLocaleString()}`, w - pad.right + 4, pad.top + (1 - last.del / maxVal) * ch + 4);
-  ctx.fillStyle = '#f59e0b';
-  ctx.fillText(`net ${last.net.toLocaleString()}`, w - pad.right + 4, pad.top + (1 - last.net / maxVal) * ch + 4);
+  // Annotation: "removed — wrong metrics for CLI tool"
+  ctx.fillStyle = '#f8717166';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('removed: wrong metrics for CLI', pad.left + cw * 0.35, pad.top + ch * 0.85);
+
+  // Run labels
+  ctx.fillStyle = '#333';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('run 1', pad.left, h - 8);
+  ctx.fillText('run 15', pad.left + cw, h - 8);
 }
 
-// === 2. TYPE DONUT ===
-function drawDonut() {
-  const { ctx, w, h } = getCtx('typeDonut');
-  const types = {};
-  commits.forEach(c => { types[c.type] = (types[c.type] || 0) + 1; });
-  const entries = Object.entries(types).sort((a, b) => b[1] - a[1]);
-  const total = commits.length;
-  const cx = w / 2;
-  const cy = h / 2;
-  const r = Math.min(cx, cy) - 20;
-  const inner = r * 0.55;
+// === 5. AGENT ACTIVITY ===
+function drawAgentActivity() {
+  const { ctx, w, h } = getCtx('agentActivity');
+  const pad = { top: 20, right: 20, bottom: 40, left: 20 };
+  const barW = 36;
+  const gap = (w - pad.left - pad.right - barW * agentRuns.length) / (agentRuns.length - 1);
+  const maxLines = Math.max(...agentRuns.map(r => r.lines));
+  const ch = h - pad.top - pad.bottom;
 
-  let angle = -Math.PI / 2;
-  entries.forEach(([type, count]) => {
-    const slice = (count / total) * Math.PI * 2;
+  agentRuns.forEach((run, i) => {
+    const x = pad.left + i * (barW + Math.max(gap, 2));
+    const barH = (run.lines / maxLines) * ch;
+    const y = h - pad.bottom - barH;
+
+    ctx.fillStyle = run.status === 'dead' ? '#f8717166' : '#22c55eaa';
     ctx.beginPath();
-    ctx.arc(cx, cy, r, angle, angle + slice);
-    ctx.arc(cx, cy, inner, angle + slice, angle, true);
-    ctx.closePath();
-    ctx.fillStyle = typeColors[type] || '#666';
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
     ctx.fill();
 
+    // Lines count
+    ctx.fillStyle = run.status === 'dead' ? '#f87171' : '#e0e0e0';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(run.lines === 2 ? 'DEAD' : run.lines, x + barW / 2, y - 6);
+
     // Label
-    const mid = angle + slice / 2;
-    const lx = cx + Math.cos(mid) * (r + inner) / 2;
-    const ly = cy + Math.sin(mid) * (r + inner) / 2;
-    if (slice > 0.3) {
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(count, lx, ly);
-    }
-
-    angle += slice;
-  });
-
-  // Center text
-  ctx.fillStyle = '#e0e0e0';
-  ctx.font = 'bold 24px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(total, cx, cy - 6);
-  ctx.fillStyle = '#555';
-  ctx.font = '10px monospace';
-  ctx.fillText('commits', cx, cy + 12);
-
-  // Legend
-  const legendEl = document.getElementById('donutLegend');
-  entries.forEach(([type, count]) => {
-    legendEl.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background: ${typeColors[type] || '#666'};"></div>${type} (${count})</div>`;
+    ctx.fillStyle = '#555';
+    ctx.font = '9px monospace';
+    ctx.save();
+    ctx.translate(x + barW / 2, h - pad.bottom + 8);
+    ctx.rotate(Math.PI / 4);
+    ctx.textAlign = 'left';
+    ctx.fillText(`${run.agent} ${run.date}`, 0, 0);
+    ctx.restore();
   });
 }
 
-// === 3. COMPRESSION ===
+// === 6. COMPRESSION (kept from original) ===
 function drawCompression() {
   const { ctx, w, h } = getCtx('compressionChart');
   const pad = { top: 30, right: 20, bottom: 40, left: 20 };
@@ -408,209 +640,146 @@ function drawCompression() {
     const barH = (step.count / maxCount) * (h - pad.top - pad.bottom);
     const y = h - pad.bottom - barH;
 
-    // Bar
-    const color = step.count <= 2 ? '#f59e0b' : step.count <= 5 ? '#a78bfa' : '#22c55e';
+    const color = step.count <= 5 ? '#f59e0b' : step.count <= 8 ? '#a78bfa' : '#22c55e';
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
     ctx.fill();
 
-    // Count
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 18px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(step.count, x + barW / 2, y - 8);
 
-    // Label
     ctx.fillStyle = '#555';
     ctx.font = '10px monospace';
     ctx.fillText(step.label, x + barW / 2, h - pad.bottom + 14);
 
-    // Arrow
     if (i < compressionSteps.length - 1) {
       ctx.fillStyle = '#333';
       ctx.font = '16px monospace';
-      ctx.fillText('→', x + barW + gap / 2, h / 2);
+      ctx.fillText('\u2192', x + barW + gap / 2, h / 2);
     }
   });
 }
 
-// === 4. CHURN ===
-function drawChurn() {
-  const { ctx, w, h } = getCtx('churnChart');
-  const pad = { top: 10, right: 10, bottom: 20, left: 10 };
-  const cw = w - pad.left - pad.right;
-  const ch = h - pad.top - pad.bottom;
-  const maxChurn = Math.max(...commits.map(c => Math.max(c.ins, c.del)));
-  const barW = Math.max(2, (cw / commits.length) - 1);
-  const midY = pad.top + ch / 2;
-
-  commits.forEach((c, i) => {
-    const x = pad.left + (i / commits.length) * cw;
-    const insH = (c.ins / maxChurn) * (ch / 2);
-    const delH = (c.del / maxChurn) * (ch / 2);
-
-    // Insertion (up)
-    ctx.fillStyle = '#22c55e';
-    ctx.fillRect(x, midY - insH, barW, insH);
-
-    // Deletion (down)
-    ctx.fillStyle = '#f87171';
-    ctx.fillRect(x, midY, barW, delH);
-  });
-
-  // Center line
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, midY);
-  ctx.lineTo(w - pad.right, midY);
-  ctx.stroke();
-
-  // Labels
-  ctx.fillStyle = '#444';
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('+ins', pad.left, pad.top + 10);
-  ctx.fillText('-del', pad.left, h - pad.bottom - 4);
-}
-
-// === 5. HOUR CHART ===
-function drawHourChart() {
-  const { ctx, w, h } = getCtx('hourChart');
-  const pad = { top: 20, right: 20, bottom: 30, left: 30 };
-  const hours = new Array(24).fill(0);
-  commits.forEach(c => hours[c.hour]++);
-  const maxH = Math.max(...hours);
-  const cw = w - pad.left - pad.right;
-  const ch = h - pad.top - pad.bottom;
-  const barW = (cw / 24) - 2;
-
-  hours.forEach((count, hour) => {
-    const x = pad.left + (hour / 24) * cw + 1;
-    const barH = (count / maxH) * ch;
-    const y = h - pad.bottom - barH;
-
-    const intensity = count / maxH;
-    ctx.fillStyle = `rgba(245, 158, 11, ${0.2 + intensity * 0.8})`;
-    ctx.beginPath();
-    ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
-    ctx.fill();
-
-    if (count > 0) {
-      ctx.fillStyle = '#e0e0e0';
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(count, x + barW / 2, y - 4);
-    }
-  });
-
-  // Hour labels
-  ctx.fillStyle = '#444';
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'center';
-  for (let i = 0; i < 24; i += 3) {
-    ctx.fillText(`${i}h`, pad.left + (i / 24) * cw + barW / 2 + 1, h - pad.bottom + 14);
-  }
-}
-
-// === 6. COMPOSITION (horizontal bars) ===
-function drawComposition() {
-  const { ctx, w, h } = getCtx('compositionChart');
-  const pad = { top: 10, right: 20, bottom: 10, left: 90 };
-  const maxLines = Math.max(...composition.map(c => c.lines));
-  const barH = 22;
+// === 7. PRODUCT EVAL ===
+function drawProductEval() {
+  const { ctx, w, h } = getCtx('productEval');
+  const pad = { top: 20, right: 40, bottom: 20, left: 160 };
+  const barH = 20;
   const gap = 6;
+  const maxW = w - pad.left - pad.right;
 
-  composition.forEach((comp, i) => {
+  productEval.forEach((d, i) => {
     const y = pad.top + i * (barH + gap);
-    const barW = (comp.lines / maxLines) * (w - pad.left - pad.right);
+    const barW = d.score * maxW;
 
-    // Bar
-    ctx.fillStyle = comp.color;
-    ctx.globalAlpha = 0.8;
+    // Background track
+    ctx.fillStyle = '#1a1a1a';
     ctx.beginPath();
-    ctx.roundRect(pad.left, y, barW, barH, [0, 4, 4, 0]);
+    ctx.roundRect(pad.left, y, maxW, barH, 4);
     ctx.fill();
-    ctx.globalAlpha = 1;
+
+    // Score bar
+    const color = d.score <= 0.3 ? '#f87171' : d.score <= 0.5 ? '#f59e0b' : '#22c55e';
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(pad.left, y, barW, barH, [4, barW >= maxW ? 4 : 0, barW >= maxW ? 4 : 0, 4]);
+    ctx.fill();
 
     // Label
     ctx.fillStyle = '#aaa';
     ctx.font = '11px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText(comp.label, pad.left - 8, y + barH / 2);
+    ctx.fillText(d.dim, pad.left - 10, y + barH / 2);
 
-    // Count
+    // Score
     ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`${comp.lines}`, pad.left + barW + 8, y + barH / 2);
-  });
-}
-
-// === 7. WATERFALL ===
-function drawWaterfall() {
-  const { ctx, w, h } = getCtx('waterfallChart');
-  const pad = { top: 10, right: 10, bottom: 20, left: 10 };
-  const cw = w - pad.left - pad.right;
-  const ch = h - pad.top - pad.bottom;
-  const nets = commits.map(c => c.ins - c.del);
-  const maxAbs = Math.max(...nets.map(Math.abs));
-  const barW = Math.max(2, (cw / commits.length) - 1);
-  const midY = pad.top + ch / 2;
-
-  commits.forEach((c, i) => {
-    const net = c.ins - c.del;
-    const x = pad.left + (i / commits.length) * cw;
-    const barH = Math.max(2, (Math.abs(net) / maxAbs) * (ch / 2));
-
-    if (net >= 0) {
-      ctx.fillStyle = typeColors[c.type] || '#22c55e';
-      ctx.fillRect(x, midY - barH, barW, barH);
-    } else {
-      ctx.fillStyle = typeColors[c.type] || '#a78bfa';
-      ctx.fillRect(x, midY, barW, barH);
-    }
+    ctx.fillText(d.score.toFixed(1), pad.left + barW + 8, y + barH / 2);
   });
 
-  // Center line
-  ctx.strokeStyle = '#333';
+  // 0.5 threshold line
+  const threshX = pad.left + 0.5 * maxW;
+  ctx.strokeStyle = '#f59e0b44';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(pad.left, midY);
-  ctx.lineTo(w - pad.right, midY);
+  ctx.moveTo(threshX, pad.top - 4);
+  ctx.lineTo(threshX, pad.top + productEval.length * (barH + gap));
   ctx.stroke();
   ctx.setLineDash([]);
-
-  ctx.fillStyle = '#444';
+  ctx.fillStyle = '#f59e0b66';
   ctx.font = '9px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('growth ↑', pad.left, pad.top + 10);
-  ctx.fillText('compression ↓', pad.left, h - pad.bottom - 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('ship threshold', threshX, pad.top - 8);
 }
 
-// === RENDER ALL ===
-window.addEventListener('load', () => {
-  drawCumulative();
-  drawDonut();
-  drawCompression();
-  drawChurn();
-  drawHourChart();
-  drawComposition();
-  drawWaterfall();
-});
+// === 8. SELF-HEALING TIMELINE ===
+function drawSelfHealing() {
+  const { ctx, w, h } = getCtx('selfHealing');
+  const pad = { top: 30, right: 40, bottom: 30, left: 40 };
+  const cw = w - pad.left - pad.right;
+  const cy = h / 2;
+  const n = selfHealingEvents.length;
 
-window.addEventListener('resize', () => {
-  document.getElementById('donutLegend').innerHTML = '';
-  drawCumulative();
-  drawDonut();
+  // Timeline line
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, cy);
+  ctx.lineTo(w - pad.right, cy);
+  ctx.stroke();
+
+  const typeColors = { bug: '#f87171', detect: '#f59e0b', fix: '#22c55e', improve: '#60a5fa', result: '#a78bfa' };
+
+  selfHealingEvents.forEach((evt, i) => {
+    const x = pad.left + (i / (n - 1)) * cw;
+    const above = i % 2 === 0;
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(x, cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = typeColors[evt.type];
+    ctx.fill();
+
+    // Connector
+    ctx.strokeStyle = typeColors[evt.type];
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, cy + (above ? -6 : 6));
+    ctx.lineTo(x, cy + (above ? -30 : 30));
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = '#aaa';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    const lines = evt.label.split('\n');
+    lines.forEach((line, li) => {
+      const ty = above ? cy - 36 - (lines.length - 1 - li) * 12 : cy + 36 + li * 12;
+      ctx.fillText(line, x, ty);
+    });
+  });
+}
+
+// === RENDER ===
+function renderAll() {
+  drawTasteRadar();
+  drawAgentGrades();
+  drawPortfolio();
+  drawScoreDimensions();
+  drawAgentActivity();
   drawCompression();
-  drawChurn();
-  drawHourChart();
-  drawComposition();
-  drawWaterfall();
-});
+  drawProductEval();
+  drawSelfHealing();
+}
+
+window.addEventListener('load', renderAll);
+window.addEventListener('resize', renderAll);
 </script>
 
 </body>
