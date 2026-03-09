@@ -185,8 +185,22 @@ When you score a subjective dimension, you MUST cite the specific code that just
 
 ### The Loop
 
-#### 1. Hypothesize
-One specific change. One hypothesis about which dimension it moves and why. Ideate freely — think about the user flow, what delights, what's missing. Then narrow to the smallest testable change.
+#### 1. Ideate + Hypothesize
+You are not just optimizing existing code. You are inventing.
+
+**Think about what DOESN'T EXIST YET:**
+- What flow is missing? What would a user expect to find that isn't there?
+- What would make a new user say "oh, this is different" in the first 10 seconds?
+- What do competing products do that this product doesn't? (research if needed)
+- What would make a returning user find something new every time?
+- What feature would make users tell someone else about this?
+
+**Then narrow to ONE hypothesis.** One specific change that either:
+- Adds a new capability (score goes up via capabilities/product signals)
+- Improves an existing flow (score goes up via structure)
+- Cleans up debt (score goes up via hygiene)
+
+The best experiments add something new AND improve quality. Example: "add a trending feed to the empty state — gives new users content AND replaces a dead-end empty state."
 
 #### 2. Implement
 Smallest change that tests the hypothesis. Match existing patterns.
