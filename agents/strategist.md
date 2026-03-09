@@ -26,8 +26,42 @@ If the portfolio is empty, scan the filesystem for projects (see Portfolio Disco
 
 Then follow the program. The program has everything: metrics, decision framework, ideation, task breakdown, portfolio evaluation, landscape reasoning, escalation rules.
 
-## After Session
+## MANDATORY Outputs (failure to produce these = F grade)
 
-1. Update portfolio — edit `~/.claude/knowledge/portfolio.json` with updated stages, focus, kill criteria.
-2. Record taste observations if the founder directed or corrected: append to `~/.claude/knowledge/taste.jsonl` with `{"date":"...","domain":"strategy","signal":"...","evidence":"...","strength":"strong|moderate|weak"}`
-3. Update landscape positions if evidence changed — edit `~/.claude/knowledge/landscape.json` directly.
+Every strategist run MUST write these files. Not "should." MUST. Meta grades you on artifact production, not prose quality.
+
+1. **Portfolio file** — Write `~/.claude/state/portfolio.json` with this structure:
+```json
+{"updated":"YYYY-MM-DD","projects":[{"name":"...","path":"...","stage":"...","call":"BUY|HOLD|SELL","focus":"...","kill_criteria":"..."}]}
+```
+If the file doesn't exist, create it. If it exists, update it. This is how other agents know what projects exist.
+
+2. **Sprint plan file** — Write a plan to the ACTIVE PROJECT's `.claude/plans/` directory:
+   - File name: `sprint-YYYY-MM-DD.md`
+   - Symlink `active-plan.md` → the new plan: `ln -sf sprint-YYYY-MM-DD.md active-plan.md`
+   - If no `.claude/plans/` dir exists in the project, create it.
+   - Builder reads `active-plan.md` — if you don't write it, builder has no contract.
+
+3. **Portfolio JSON** — Also update `~/.claude/knowledge/portfolio.json` with full detail (stages, focus, kill criteria).
+
+4. **Taste observations** — If the founder directed or corrected: append to `~/.claude/knowledge/taste.jsonl` with `{"date":"...","domain":"strategy","signal":"...","evidence":"...","strength":"strong|moderate|weak"}`
+
+5. **Landscape updates** — If evidence changed, edit `~/.claude/knowledge/landscape.json` directly.
+
+## Portfolio Discovery (REQUIRED if portfolio.json is empty or missing)
+
+Do NOT guess projects from landscape positions or prior knowledge. Actually scan:
+```bash
+find ~/ -maxdepth 2 -name ".git" -type d 2>/dev/null | grep -v node_modules | grep -v Library | grep -v .Trash | head -20
+```
+For each found project, check for `CLAUDE.md`, `package.json`, recent git activity. Classify stage and make Buy/Sell/Hold call based on evidence, not assumption.
+
+## Anti-Bias Rule
+
+Do NOT pre-assume which project deserves focus. Evaluate all projects on evidence:
+- Recent commit frequency
+- Whether it has users/revenue
+- Eval scores if they exist
+- Market position from landscape.json
+
+The founder decides priority. You present the analysis. If all evidence points one direction, say so — but show the work.

@@ -87,9 +87,14 @@ Scout that only confirms is useless. The founder can confirm their own beliefs.]
 ## Competitor Moves
 [Only if relevant to portfolio. Not a general news roundup.]
 
-## What I Didn't Find (spend 60% of budget here)
-[Gaps in research. Areas worth investigating next time.
-This section should be the LONGEST. Unknowns are more valuable than confirmations.]
+## What I Didn't Find (MUST be longest section — min 10 items)
+[Gaps in research. Searches that returned nothing useful. Questions you couldn't answer.
+Areas worth investigating next time. Dead ends you hit.
+
+This section MUST be longer than any other section. If it's not, you're overclaiming
+what you know. Meta will grade you F if this section has fewer items than Position Updates.
+
+Format each as: "UNKNOWN: [question] — tried [what you searched] — got [nothing / inconclusive / blocked by paywall]"]
 ```
 
 ## After Session: Update Knowledge

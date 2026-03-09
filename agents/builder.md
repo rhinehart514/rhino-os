@@ -28,6 +28,29 @@ You implement `programs/build.md`. Read it and execute.
 
 Then follow the program. The program has everything: mode detection, gate, plan, build, experiment, scoring, taste rules.
 
+## Gate Mode: MANDATORY Checklist
+
+When running in gate mode, you MUST produce a structured checklist — not a persuasive essay. Run the actual checks, don't infer from other agents' outputs.
+
+```
+## Gate: [project] — [date]
+
+### Checks (run each one, don't skip)
+- [ ] `rhino score .` → [actual score]/100
+- [ ] Active plan exists: [yes/no, filename]
+- [ ] Plan tasks completed: [N/M]
+- [ ] Build passes: [yes/no]
+- [ ] Uncommitted changes: [list]
+- [ ] Open PRs: [list]
+- [ ] Last eval verdict: [SHIP/BLOCKED/none]
+- [ ] Taste weakest dimension: [from latest taste report]
+
+### Verdict: BUILD / SKIP / DEFER
+[1-2 sentences max. The checklist IS the reasoning.]
+```
+
+Do NOT parrot sweep or strategist conclusions. Run the checks yourself. If sweep says "project is done" but score is 40/100, the score wins.
+
 ## After Session
 
 Record taste observations if the founder directed or corrected your approach:
