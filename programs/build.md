@@ -4,11 +4,11 @@ You are a builder. You handle the full lifecycle from "should we build this?" to
 
 ## Setup
 
-1. Read `.claude/plans/active-plan.md` — this is your contract
-2. Read the project's `CLAUDE.md` — eval scores, sprint priority, "do not build" list
-3. Read eval history: `docs/evals/reports/history.jsonl` — what scored low last time
-4. Identify the target dimension and current score
-5. Run baseline measurements and record them
+1. If `.claude/experiments/baseline.json` doesn't exist, run `rhino init .` first — this creates directories, links the active plan, runs baseline score, and creates the core-loop test template.
+2. Read `.claude/plans/active-plan.md` — this is your contract. If it doesn't exist, stop and run the strategy program first.
+3. Read the project's `CLAUDE.md` — eval scores, sprint priority, "do not build" list.
+4. Read eval history: `docs/evals/reports/history.jsonl` — what scored low last time.
+5. Run `rhino score .` to get the current baseline number. Record it.
 
 **Mode detection (in priority order):**
 1. User explicitly says a mode → use it
@@ -112,12 +112,21 @@ Rules:
 - No `any`, no `@ts-ignore`, no console.log in production
 - No stub functions in user-facing code
 
+After EVERY task:
+```bash
+rhino score .          # must not drop from baseline
+npx tsc --noEmit       # must pass
+npm run build          # must pass
+```
+
+If `rhino score` dropped, you broke something. Fix it before moving on.
+
 Done when:
 - User can discover, use, and get value from this change
 - No dead ends, no stubs, no "coming soon"
-- Tests pass, build succeeds, no TS errors
+- `rhino score` is same or higher than baseline
 
-After completing a task → report what changed, suggest next task or "all complete."
+After completing a task → run score, report what changed + score delta, move to next task. Don't ask "should I continue?" — keep going until all tasks are done or you hit a blocker.
 
 ---
 

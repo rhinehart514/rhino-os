@@ -1196,6 +1196,152 @@ cmd_serve() {
     RHINO_PORT="$port" RHINO_DIR="$RHINO_DIR" npx --prefix "$RHINO_DIR/src/api-server" tsx "$RHINO_DIR/src/api-server/index.ts"
 }
 
+cmd_init() {
+    local project_dir="${1:-.}"
+    cd "$project_dir"
+    local project_name
+    project_name=$(basename "$(pwd)")
+
+    echo -e "${BOLD}=== rhino init: $project_name ===${NC}"
+    echo ""
+
+    # 1. Create directories
+    echo -e "${BLUE}Creating .claude directories...${NC}"
+    mkdir -p .claude/{plans,experiments,evals/reports}
+    echo "  .claude/plans/"
+    echo "  .claude/experiments/"
+    echo "  .claude/evals/reports/"
+
+    # 2. Find and link active plan (find any .md in plans/, use the most recent)
+    local plan_count
+    plan_count=$(find .claude/plans/ -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$plan_count" -gt 0 ]] && [[ ! -f ".claude/plans/active-plan.md" ]]; then
+        local latest_plan
+        latest_plan=$(ls -t .claude/plans/*.md 2>/dev/null | head -1)
+        if [[ -n "$latest_plan" ]]; then
+            ln -sf "$(basename "$latest_plan")" .claude/plans/active-plan.md
+            echo -e "  ${GREEN}linked active-plan.md → $(basename "$latest_plan")${NC}"
+        fi
+    elif [[ -f ".claude/plans/active-plan.md" ]]; then
+        echo -e "  ${DIM}active-plan.md already exists${NC}"
+    else
+        echo -e "  ${YELLOW}no plans found — run 'run strategy' to create one${NC}"
+    fi
+
+    # 3. Run baseline score
+    echo ""
+    echo -e "${BLUE}Running baseline score...${NC}"
+    local baseline_score
+    baseline_score=$("$RHINO_DIR/bin/score.sh" . --json 2>/dev/null || echo '{"score":0}')
+    local score_num
+    score_num=$(echo "$baseline_score" | grep -o '"score":[0-9]*' | grep -o '[0-9]*')
+    echo -e "  ${BOLD}Baseline: ${score_num}/100${NC}"
+    "$RHINO_DIR/bin/score.sh" . --breakdown 2>/dev/null | grep "^  " || true
+
+    # Save baseline
+    echo "$baseline_score" > .claude/experiments/baseline.json
+    echo ""
+    echo -e "  ${DIM}saved to .claude/experiments/baseline.json${NC}"
+
+    # 4. Create core-loop test template if it doesn't exist
+    if [[ ! -f ".claude/core-loop.spec.ts" ]] && [[ ! -f "e2e/core-loop.spec.ts" ]]; then
+        echo ""
+        echo -e "${BLUE}Creating core-loop test template...${NC}"
+        mkdir -p e2e
+        cat > e2e/core-loop.spec.ts << 'TESTEOF'
+// Core Loop Test — Your val_bpb.
+// This test verifies the product's core loop works end-to-end.
+// Customize the steps below for YOUR product.
+//
+// Run: npx playwright test e2e/core-loop.spec.ts
+// The experiment loop uses this as ground truth.
+
+import { test, expect } from '@playwright/test';
+
+test('core loop: user creates something and it reaches someone', async ({ page }) => {
+  // Step 1: Land on the product
+  await page.goto('http://localhost:3000');
+
+  // Step 2: Sign in (customize for your auth)
+  // await page.click('[data-testid="sign-in"]');
+  // await page.fill('[name="email"]', 'test@example.com');
+
+  // Step 3: Navigate to creation
+  // await page.click('[data-testid="create-button"]');
+
+  // Step 4: Create something
+  // await page.fill('[data-testid="title"]', 'Test Creation');
+  // await page.click('[data-testid="submit"]');
+
+  // Step 5: Verify it exists
+  // await expect(page.locator('[data-testid="creation-card"]')).toBeVisible();
+
+  // Step 6: Verify distribution (someone else can see it)
+  // Open in new context (different user)
+  // const viewer = await browser.newPage();
+  // await viewer.goto('http://localhost:3000/feed');
+  // await expect(viewer.locator('text=Test Creation')).toBeVisible();
+
+  // Step 7: Verify feedback loop (creator gets notified)
+  // await page.goto('http://localhost:3000/notifications');
+  // await expect(page.locator('[data-testid="notification"]')).toBeVisible();
+
+  // TODO: Uncomment and customize the steps above for your product.
+  // This test is your val_bpb — the ground truth metric.
+  // If this passes, the core loop works. If it fails, nothing else matters.
+  expect(true).toBe(true); // placeholder — replace with real assertions
+});
+TESTEOF
+        echo -e "  ${GREEN}created e2e/core-loop.spec.ts${NC}"
+        echo -e "  ${YELLOW}TODO: customize the test steps for your product${NC}"
+    fi
+
+    # 5. Create score.yml template if it doesn't exist
+    if [[ ! -f ".claude/score.yml" ]]; then
+        cat > .claude/score.yml << 'YMLEOF'
+# Project-specific scoring overrides for rhino score.
+# Add custom grep patterns that matter for YOUR product.
+#
+# custom_checks:
+#   - name: "campus-specific copy"
+#     pattern: "UB|Buffalo|campus|dorm"
+#     files: "*.tsx"
+#     direction: "higher_is_better"
+#     weight: 5
+#
+#   - name: "creation entry points"
+#     pattern: "CreateButton|create-button|new-shell"
+#     files: "*.tsx"
+#     direction: "higher_is_better"
+#     weight: 10
+#
+# core_loop_test: "e2e/core-loop.spec.ts"
+# dev_server: "npm run dev"
+# dev_port: 3000
+YMLEOF
+        echo -e "  ${GREEN}created .claude/score.yml (customize for your product)${NC}"
+    fi
+
+    # 6. Summary
+    echo ""
+    echo -e "${BOLD}=== Ready ===${NC}"
+    echo ""
+    echo "  Baseline score: ${score_num}/100"
+    if [[ -f ".claude/plans/active-plan.md" ]]; then
+        local plan_title
+        plan_title=$(head -1 .claude/plans/active-plan.md | sed 's/^#\s*//')
+        echo "  Active plan: $plan_title"
+    else
+        echo "  Active plan: none — say 'run strategy' to create one"
+    fi
+    echo ""
+    echo "  Next steps:"
+    echo "    1. Customize e2e/core-loop.spec.ts for your product's core loop"
+    echo "    2. Customize .claude/score.yml for project-specific signals"
+    echo "    3. Open Claude and say 'let's build'"
+    echo ""
+}
+
 cmd_help() {
     echo -e "${BOLD}rhino${NC} v${VERSION} — CLI for rhino-os"
     echo ""
@@ -1253,6 +1399,7 @@ case "${1:-help}" in
     report)     cmd_report ;;
     experiments|exp) shift; cmd_experiments "$@" ;;
     score)      shift; "$RHINO_DIR/bin/score.sh" "${@:-.}" ;;
+    init)       shift; cmd_init "$@" ;;
     help|--help|-h) cmd_help ;;
     version|--version|-v) echo "rhino v${VERSION}" ;;
     *)

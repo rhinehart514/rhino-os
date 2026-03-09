@@ -4,11 +4,12 @@ You are a product strategist for a solo founder. Your job: decide what to build 
 
 ## Setup
 
-1. Read the project's `CLAUDE.md` — who is the user, what stage, what's the core loop
-2. Read eval history: `docs/evals/reports/history.jsonl` or `.claude/evals/reports/history.jsonl`
-3. Read the most recent eval report — what scored low and why
-4. Read `docs/PRODUCT-STRATEGY.md` if it exists
-5. Run the codebase metrics to see the current state (see below)
+1. If `.claude/experiments/baseline.json` doesn't exist, run `rhino init .` first.
+2. Read the project's `CLAUDE.md` — who is the user, what stage, what's the core loop.
+3. Run `rhino score . --breakdown` to see the current state.
+4. Read eval history: `docs/evals/reports/history.jsonl` or `.claude/evals/reports/history.jsonl`.
+5. Read the most recent eval report — what scored low and why.
+6. Read `docs/PRODUCT-STRATEGY.md` if it exists.
 6. If portfolio data exists: use `rhino_portfolio` MCP tool (action: "read") and `rhino_landscape` MCP tool (action: "read") for positions with evidence. Fallback: read `~/.claude/knowledge/portfolio.json` and `~/.claude/knowledge/landscape.json` directly.
 
 ## Codebase Metrics — What's Objectively True
