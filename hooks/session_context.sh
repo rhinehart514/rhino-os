@@ -74,11 +74,17 @@ if [[ -n "$TASTE_REPORT" ]] && command -v jq &>/dev/null; then
     taste_score=$(jq -r '.score_100 // empty' "$TASTE_REPORT" 2>/dev/null)
     taste_weakest=$(jq -r '.weakest_dimension // empty' "$TASTE_REPORT" 2>/dev/null)
     taste_one_thing=$(jq -r '.one_thing // empty' "$TASTE_REPORT" 2>/dev/null)
+    taste_return=$(jq -r '.would_return // empty' "$TASTE_REPORT" 2>/dev/null)
+    taste_recommend=$(jq -r '.would_recommend // empty' "$TASTE_REPORT" 2>/dev/null)
     taste_date=$(jq -r '.meta.timestamp // empty' "$TASTE_REPORT" 2>/dev/null | head -c10)
     if [[ -n "$taste_score" ]]; then
         CONTEXT+="
 ## Taste Eval ($taste_date): ${taste_score}/100"
         [[ -n "$taste_weakest" ]] && CONTEXT+=" · weakest: $taste_weakest"
+        [[ -n "$taste_return" ]] && CONTEXT+="
+Return? $taste_return"
+        [[ -n "$taste_recommend" ]] && CONTEXT+="
+Recommend? $taste_recommend"
         [[ -n "$taste_one_thing" ]] && CONTEXT+="
 One thing: $taste_one_thing"
         CONTEXT+="
@@ -190,14 +196,13 @@ if [[ -n "$EVAL_HISTORY" ]] && command -v jq &>/dev/null; then
 ## Latest Eval ($eval_date)
 $eval_feature · $eval_verdict"
 
-            # For product evals, show the key scores
+            # For product evals, show key scores dynamically
             if [[ "$eval_type" == "product-eval" ]]; then
                 overall=$(echo "$LATEST_EVAL" | jq -r '.overall // empty' 2>/dev/null)
-                day3=$(echo "$LATEST_EVAL" | jq -r '.day3_return // empty' 2>/dev/null)
-                escape=$(echo "$LATEST_EVAL" | jq -r '.escape_velocity // empty' 2>/dev/null)
                 CONTEXT+=" · overall: $overall"
-                [[ -n "$day3" ]] && CONTEXT+=" · day3: $day3"
-                [[ -n "$escape" ]] && CONTEXT+=" · escape: $escape"
+                # Show lowest-scoring dimensions (the bottlenecks)
+                lowest=$(echo "$LATEST_EVAL" | jq -r 'to_entries | map(select(.value | type == "number" and . <= 1 and . >= 0)) | map(select(.key | IN("date","overall","type","feature") | not)) | sort_by(.value) | .[0:3] | map("\(.key): \(.value)") | join(" · ")' 2>/dev/null)
+                [[ -n "$lowest" ]] && CONTEXT+=" · $lowest"
             else
                 ceiling=$(echo "$LATEST_EVAL" | jq -r '.ceiling // empty' 2>/dev/null)
                 [[ -n "$ceiling" ]] && CONTEXT+=" · ceiling: $ceiling"
