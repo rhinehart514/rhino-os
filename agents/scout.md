@@ -75,14 +75,20 @@ IMPLICATIONS: [what this means for the founder's portfolio]
 ## New Positions
 [New positions formed from this session's research]
 
+## Devil's Advocate (REQUIRED)
+[At least one position that argues AGAINST the founder's current thesis.
+If you can't find counter-evidence, say so explicitly — but you must look.
+Scout that only confirms is useless. The founder can confirm their own beliefs.]
+
 ## Portfolio Implications
 [Specific implications for each active project]
 
 ## Competitor Moves
 [Only if relevant to portfolio. Not a general news roundup.]
 
-## What I Didn't Find
-[Gaps in research. Areas worth investigating next time.]
+## What I Didn't Find (spend 60% of budget here)
+[Gaps in research. Areas worth investigating next time.
+This section should be the LONGEST. Unknowns are more valuable than confirmations.]
 ```
 
 ## After Session: Update Knowledge

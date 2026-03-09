@@ -102,6 +102,10 @@ run_agent() {
             budget="${budget:-2.00}"
             [[ -z "$prompt" ]] && prompt="Auto-detect mode from context and proceed."
             ;;
+        meta)
+            budget="${budget:-3.00}"
+            [[ -z "$prompt" ]] && prompt="Run the full meta-evaluation. Grade all agent outputs, score calibration, experiment efficiency, and propose concrete improvements. Be honest — if nothing needs changing, say so."
+            ;;
     esac
 
     if [[ -n "$budget" ]]; then
@@ -801,25 +805,8 @@ cmd_init() {
 # ============================================================
 
 cmd_meta() {
-    echo -e "${BOLD}=== rhino meta — self-evaluation ===${NC}"
-    echo ""
-
-    check_claude
-
-    local budget="${RHINO_BUDGET:-2.00}"
-    local log_file
-    log_file=$(log_start "meta")
-
-    echo -e "${BLUE}Running meta-evaluation...${NC}"
-    echo -e "${DIM}Budget: \$$budget | Log: $log_file${NC}"
-    echo ""
-
-    claude -p "Read ~/.claude/programs/meta.md and execute it. You are rhino-os evaluating yourself. Gather experiment data from any projects with .claude/experiments/ directories, run all 6 evaluations, and propose concrete improvements. Be honest — if nothing needs changing, say so." \
-        --max-turns 30 \
-        --budget "$budget" \
-        2>&1 | tee -a "$log_file"
-
-    log_end "meta"
+    # Meta runs through run_agent — gets system prompt injection for free
+    run_agent meta "$@"
 }
 
 # ============================================================
