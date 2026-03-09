@@ -3,9 +3,13 @@
 A knowledge-compounding strategy engine for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Built for solo technical founders who need strategic clarity, not more workflow automation.
 
 ```
-6 Agents  ·  3 Intelligence Layers  ·  1 CLI
+5 Agents  ·  3 Intelligence Layers  ·  Self-Enforcing Feedback Loops  ·  1 CLI
 Thick-skinned. Charges forward. Kills what isn't working.
 ```
+
+**System status:** 5/5 agents operational · rhino score 95/100 · 3 meta cycles completed · all feedback loops connected
+
+[Overview](docs/index.html) · [Architecture](docs/architecture.html) · [Scoring](docs/scoring.html) · [Graphs](docs/graphs.html) · [Agent System](docs/agents.html)
 
 ## What is this?
 
@@ -206,6 +210,43 @@ Agents share state through the filesystem, not direct calls:
 - **Agent markdown** is injected as system prompt via `--system-prompt` when `rhino` runs an agent
 
 This means agents work asynchronously. The sweep runs, writes state, and the strategist picks it up on the next run.
+
+### Self-enforcing feedback loops
+
+The system detects and fixes its own failures:
+
+```
+Agent runs → verify_artifacts() checks required outputs →
+  ✓ artifacts exist → normal operation
+  ✗ artifacts missing → logged to artifact-failures.jsonl →
+    catchup() triggers meta within 48h →
+      meta reads failures → fixes the agent prompt → clears the log
+```
+
+**Three layers prevent silent agent death:**
+1. **Immediate:** `verify_artifacts()` prints a warning right after an agent runs
+2. **Passive:** `catchup()` checks on every `rhino` CLI invocation — triggers meta if failures pile up
+3. **Scheduled:** Meta LaunchAgent runs weekly as a floor
+
+Each agent has **mandatory artifact requirements** — if it runs but doesn't write its outputs, meta grades it F and fixes the prompt. Agents that parrot other agents' conclusions instead of running their own checks get downgraded.
+
+### Agent grades (meta cycle 3)
+
+| Agent | Grade | What it produces | Key check |
+|-------|-------|-----------------|-----------|
+| **Sweep** | A- | `sweep-latest.md` with GREEN/YELLOW/RED/GRAY classification | Verifies all agent artifacts exist |
+| **Scout** | A- | Updated `landscape.json` positions with evidence | "What I Didn't Find" must be longest section |
+| **Builder** | A | Experiments, code changes, score deltas | Gate mode must run `rhino score`, produce checklist |
+| **Design** | A- | `audit-history.jsonl`, design system docs | Must validate target value, take screenshots |
+| **Strategist** | A- | `portfolio.json`, sprint plan + symlink | Must scan filesystem, write plan file |
+
+### AI eval spec
+
+The system includes a formal eval spec at `.claude/evals/agent-system-health.yml` with three tiers:
+
+- **Deterministic** — syntax checks, artifact existence, config loads (automated, pass/fail)
+- **Functional** — sweep uses all 4 tiers, builder runs score, scout unknowns exceed confirmations (AI-checked)
+- **Ceiling** — meta fix improves target grade, scout changes a decision, dead agents auto-detected (human-judged)
 
 ## Hooks
 

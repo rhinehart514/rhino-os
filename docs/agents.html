@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rhino-os — Agent System</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #222;
+    --border2: #333;
+    --text: #e0e0e0;
+    --dim: #555;
+    --dim2: #444;
+    --accent: #f59e0b;
+    --green: #22c55e;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+    --gold: #fbbf24;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  nav {
+    position: fixed; top: 0; width: 100%;
+    background: rgba(10,10,10,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border); z-index: 100;
+    padding: 12px 40px; display: flex; align-items: center; gap: 32px;
+  }
+  nav .logo { font-weight: 700; font-size: 15px; color: var(--accent); text-decoration: none; }
+  nav a { color: var(--dim); text-decoration: none; font-size: 12px; }
+  nav a:hover, nav a.active { color: var(--text); }
+
+  .hero { padding: 100px 40px 20px; max-width: 1300px; margin: 0 auto; }
+  .hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 6px; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--dim); font-size: 14px; }
+
+  section { max-width: 1300px; margin: 0 auto; padding: 32px 40px; }
+  section h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: var(--dim); font-size: 12px; margin-bottom: 16px; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .stat-card .label { font-size: 11px; color: var(--dim); margin-bottom: 4px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; }
+  .stat-card .delta { font-size: 11px; margin-top: 4px; }
+  .stat-card .delta.up { color: var(--green); }
+  .stat-card .delta.down { color: var(--red); }
+  .stat-card .delta.neutral { color: var(--dim); }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    overflow: hidden;
+  }
+  .chart-card.wide { grid-column: span 2; }
+  .chart-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .chart-card .chart-sub { font-size: 11px; color: var(--dim); margin-bottom: 16px; }
+
+  canvas { width: 100% !important; height: auto !important; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .target-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+  }
+  .target-table th, .target-table td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .target-table th {
+    color: var(--dim);
+    font-weight: 400;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .target-table .current { color: var(--accent); font-weight: 600; }
+  .target-table .target { color: var(--green); font-weight: 600; }
+  .target-table .bar-cell { width: 200px; }
+  .target-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border2);
+    overflow: hidden;
+  }
+  .target-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s;
+  }
+  .grade { font-weight: 700; font-size: 14px; }
+  .grade-a { color: var(--green); }
+  .grade-b { color: var(--blue); }
+  .grade-c { color: var(--accent); }
+  .grade-d { color: var(--red); }
+  .grade-f { color: #ef4444; }
+
+  .loop-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  .loop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    font-size: 12px;
+  }
+  .loop-node {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .loop-arrow { color: var(--dim); font-size: 16px; }
+  .loop-artifact {
+    padding: 4px 10px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .loop-status { font-size: 11px; margin-left: 8px; }
+  .loop-ok { color: var(--green); }
+  .loop-fail { color: var(--red); }
+
+  footer {
+    max-width: 1300px; margin: 0 auto; padding: 40px;
+    border-top: 1px solid var(--border); color: var(--dim); font-size: 11px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 768px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .chart-card.wide { grid-column: span 1; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    nav { padding: 12px 20px; gap: 16px; }
+    .hero { padding: 80px 20px 20px; }
+    section { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">rhino-os</a>
+  <a href="index.html">overview</a>
+  <a href="architecture.html">architecture</a>
+  <a href="scoring.html">scoring</a>
+  <a href="graphs.html">graphs</a>
+  <a href="agents.html" class="active">agents</a>
+  <a href="evolution.html">evolution</a>
+</nav>
+
+<div class="hero">
+  <h1>Agent <span>system</span></h1>
+  <p>5 agents, 3 meta cycles, self-enforcing feedback loops. Real data from 2026-03-09.</p>
+</div>
+
+<!-- KPI STATS -->
+<section>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="label">Agents Operational</div>
+      <div class="value" style="color: var(--green);">5/5</div>
+      <div class="delta up">+3 from yesterday (were crashing)</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">rhino score</div>
+      <div class="value" style="color: var(--accent);">95</div>
+      <div class="delta neutral">/100 &mdash; hygiene is weakest</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Agent Runs Today</div>
+      <div class="value">14</div>
+      <div class="delta neutral">across 5 agents</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Meta Cycles</div>
+      <div class="value">3</div>
+      <div class="delta up">all improved system</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Feedback Loops</div>
+      <div class="value" style="color: var(--green);">5/5</div>
+      <div class="delta up">all connected</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Commits (3 days)</div>
+      <div class="value">57</div>
+      <div class="delta neutral">~19/day velocity</div>
+    </div>
+  </div>
+</section>
+
+<!-- AGENT GRADES -->
+<section>
+  <h2>Agent grades <span>meta cycle 3</span></h2>
+  <div class="subtitle">Graded on artifact production, not prose quality. F = missing mandatory output.</div>
+
+  <div class="chart-grid">
+    <!-- Grade progression chart -->
+    <div class="chart-card wide">
+      <h3>Grade progression across meta cycles</h3>
+      <div class="chart-sub">Each cycle applies one fix. Grades should trend up or the fix didn't work.</div>
+      <canvas id="gradeChart" height="200"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent);"></div> sweep</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--blue);"></div> scout</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--green);"></div> builder</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--pink);"></div> design</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--gold);"></div> strategist</div>
+      </div>
+    </div>
+
+    <!-- Agent grade cards -->
+    <div class="chart-card">
+      <h3>Current grades</h3>
+      <div class="chart-sub">After meta cycle 3 prompt fixes</div>
+      <table class="target-table">
+        <tr><th>Agent</th><th>Before</th><th>After</th><th>Fix</th></tr>
+        <tr><td>Sweep</td><td><span class="grade grade-c">C+</span></td><td><span class="grade grade-a">A-</span></td><td>artifact checking, 4 tiers</td></tr>
+        <tr><td>Scout</td><td><span class="grade grade-b">B+</span></td><td><span class="grade grade-a">A-</span></td><td>10+ unknowns required</td></tr>
+        <tr><td>Builder</td><td><span class="grade grade-d">D</span></td><td><span class="grade grade-a">A</span></td><td>must run score, checklist</td></tr>
+        <tr><td>Design</td><td><span class="grade grade-c">C</span></td><td><span class="grade grade-a">A-</span></td><td>target validation, baseline</td></tr>
+        <tr><td>Strategist</td><td><span class="grade grade-f">F</span></td><td><span class="grade grade-a">A-</span></td><td>must write artifacts</td></tr>
+      </table>
+    </div>
+
+    <!-- Agent budget usage -->
+    <div class="chart-card">
+      <h3>Budget efficiency</h3>
+      <div class="chart-sub">Cost per run vs budget cap</div>
+      <canvas id="budgetChart" height="240"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- FEEDBACK LOOPS -->
+<section>
+  <h2>Feedback loops</h2>
+  <div class="subtitle">Each loop produces an artifact that the next agent reads. Broken artifact = broken loop.</div>
+
+  <div class="loop-diagram">
+    <div class="loop-row">
+      <div class="loop-node" style="background: #1e3a2f; color: var(--green);">Scout</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-artifact">landscape.json (11 positions)</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-node" style="background: #3b2f1e; color: var(--gold);">Strategist</div>
+      <span class="loop-status loop-ok">CONNECTED</span>
+    </div>
+    <div class="loop-row">
+      <div class="loop-node" style="background: #3b2f1e; color: var(--gold);">Strategist</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-artifact">portfolio.json + active-plan.md</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-node" style="background: #1e2e3a; color: var(--green);">Builder</div>
+      <span class="loop-status loop-ok">CONNECTED</span>
+    </div>
+    <div class="loop-row">
+      <div class="loop-node" style="background: #2f1e3b; color: var(--accent);">Sweep</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-artifact">sweep-latest.md (RED items)</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-node" style="background: #1e2e3a; color: var(--green);">Builder</div>
+      <span class="loop-status loop-ok">CONNECTED</span>
+    </div>
+    <div class="loop-row">
+      <div class="loop-node" style="background: #1e2e3a; color: var(--green);">Builder</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-artifact">experiments/*.tsv + score delta</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-node" style="background: #3b1e2f; color: var(--pink);">Design</div>
+      <span class="loop-status loop-ok">CONNECTED</span>
+    </div>
+    <div class="loop-row">
+      <div class="loop-node" style="background: #2e1e3b; color: var(--purple);">Meta</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-artifact">grades.jsonl + prompt fixes</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-node" style="background: #1a1a1a; color: var(--text);">All Agents</div>
+      <span class="loop-status loop-ok">CONNECTED</span>
+    </div>
+    <div class="loop-row" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <div class="loop-node" style="background: #1a1a1a; color: var(--red);">Self-Heal</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-artifact">artifact-failures.jsonl</div>
+      <span class="loop-arrow">&rarr;</span>
+      <div class="loop-node" style="background: #2e1e3b; color: var(--purple);">Meta (auto-trigger &lt;48h)</div>
+      <span class="loop-status loop-ok">NEW</span>
+    </div>
+  </div>
+</section>
+
+<!-- TARGETS -->
+<section>
+  <h2>Targets to beat</h2>
+  <div class="subtitle">Current metrics vs where we need to be. Green = target. Amber = current.</div>
+
+  <div class="chart-grid">
+    <div class="chart-card wide">
+      <h3>System health targets</h3>
+      <div class="chart-sub">rhino-os is the tool. HIVE is the product. Both must improve.</div>
+      <table class="target-table">
+        <tr>
+          <th>Metric</th><th>Current</th><th>Target</th><th class="bar-cell">Progress</th>
+        </tr>
+        <tr>
+          <td>rhino score</td>
+          <td class="current">95/100</td>
+          <td class="target">95+</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 100%; background: var(--green);"></div></div></td>
+        </tr>
+        <tr>
+          <td>Agents operational</td>
+          <td class="current">5/5</td>
+          <td class="target">5/5</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 100%; background: var(--green);"></div></div></td>
+        </tr>
+        <tr>
+          <td>Agent avg grade</td>
+          <td class="current">A-</td>
+          <td class="target">A</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 88%; background: var(--green);"></div></div></td>
+        </tr>
+        <tr>
+          <td>Artifact failures</td>
+          <td class="current">0</td>
+          <td class="target">0</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 100%; background: var(--green);"></div></div></td>
+        </tr>
+        <tr>
+          <td>HIVE product eval</td>
+          <td class="current">0.35/1.0</td>
+          <td class="target">0.70</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 50%; background: var(--accent);"></div></div></td>
+        </tr>
+        <tr>
+          <td>HIVE day3 return</td>
+          <td class="current">0.2</td>
+          <td class="target">0.5</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 40%; background: var(--red);"></div></div></td>
+        </tr>
+        <tr>
+          <td>HIVE design audit</td>
+          <td class="current">58/100</td>
+          <td class="target">75</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 77%; background: var(--accent);"></div></div></td>
+        </tr>
+        <tr>
+          <td>HIVE taste score</td>
+          <td class="current">40/100</td>
+          <td class="target">65</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 62%; background: var(--accent);"></div></div></td>
+        </tr>
+        <tr>
+          <td>Landscape positions</td>
+          <td class="current">11</td>
+          <td class="target">15+</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 73%; background: var(--accent);"></div></div></td>
+        </tr>
+        <tr>
+          <td>Scout unknowns</td>
+          <td class="current">14</td>
+          <td class="target">10+ per run</td>
+          <td class="bar-cell"><div class="target-bar"><div class="target-fill" style="width: 100%; background: var(--green);"></div></div></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- HIVE sprint progress -->
+    <div class="chart-card">
+      <h3>HIVE sprint: Ship the Return Loop</h3>
+      <div class="chart-sub">Tasks completed / total. Target: day3_return 0.2 &rarr; 0.5</div>
+      <canvas id="sprintChart" height="240"></canvas>
+    </div>
+
+    <!-- Codebase composition -->
+    <div class="chart-card">
+      <h3>rhino-os composition</h3>
+      <div class="chart-sub">Lines of code by component (3,892 total)</div>
+      <canvas id="compositionChart" height="240"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- EVAL TARGETS -->
+<section>
+  <h2>AI eval spec <span>agent-system-health</span></h2>
+  <div class="subtitle">Deterministic + functional + ceiling tests. Run after every meta cycle.</div>
+
+  <div class="chart-card wide">
+    <h3>Eval criteria</h3>
+    <div class="chart-sub">TDD for AI agents. Each row is a pass/fail test.</div>
+    <table class="target-table">
+      <tr><th>Tier</th><th>Test</th><th>Check</th><th>Status</th></tr>
+      <tr>
+        <td style="color: var(--green);">Deterministic</td>
+        <td>All scripts pass syntax check</td>
+        <td><code>bash -n bin/rhino && node --check bin/taste.mjs</code></td>
+        <td style="color: var(--green);">PASS</td>
+      </tr>
+      <tr>
+        <td style="color: var(--green);">Deterministic</td>
+        <td>No broken symlinks</td>
+        <td><code>for f in ~/.claude/agents/*.md; test -e "$f"</code></td>
+        <td style="color: var(--green);">PASS</td>
+      </tr>
+      <tr>
+        <td style="color: var(--green);">Deterministic</td>
+        <td>Config loads without error</td>
+        <td><code>rhino config</code> exits 0</td>
+        <td style="color: var(--green);">PASS</td>
+      </tr>
+      <tr>
+        <td style="color: var(--blue);">Functional</td>
+        <td>Each agent writes required artifacts</td>
+        <td><code>verify_artifacts()</code> after every run</td>
+        <td style="color: var(--green);">PASS (5/5)</td>
+      </tr>
+      <tr>
+        <td style="color: var(--blue);">Functional</td>
+        <td>Sweep uses all 4 classification tiers</td>
+        <td>Output contains GREEN, YELLOW, RED, GRAY sections</td>
+        <td style="color: var(--green);">PASS</td>
+      </tr>
+      <tr>
+        <td style="color: var(--blue);">Functional</td>
+        <td>Builder gate mode runs score</td>
+        <td>Output contains <code>rhino score</code> result</td>
+        <td style="color: var(--green);">PASS</td>
+      </tr>
+      <tr>
+        <td style="color: var(--blue);">Functional</td>
+        <td>Scout unknowns &ge; position updates</td>
+        <td>Count "UNKNOWN:" entries vs "CONFIRMED/REVISED"</td>
+        <td style="color: var(--green);">PASS (14 vs 7)</td>
+      </tr>
+      <tr>
+        <td style="color: var(--blue);">Functional</td>
+        <td>Strategist writes plan file + symlink</td>
+        <td><code>test -L active-plan.md</code></td>
+        <td style="color: var(--green);">PASS</td>
+      </tr>
+      <tr>
+        <td style="color: var(--purple);">Ceiling</td>
+        <td>Meta fix improves target agent grade</td>
+        <td>Compare grades.jsonl before/after</td>
+        <td style="color: var(--green);">PASS (all improved)</td>
+      </tr>
+      <tr>
+        <td style="color: var(--purple);">Ceiling</td>
+        <td>Scout produces actionable sprint reordering</td>
+        <td>Human judgment: did scout output change a decision?</td>
+        <td style="color: var(--green);">PASS (Flare finding)</td>
+      </tr>
+      <tr>
+        <td style="color: var(--purple);">Ceiling</td>
+        <td>Design-engineer finds issues code review wouldn't</td>
+        <td>Human judgment: novel finding?</td>
+        <td style="color: var(--green);">PASS (1684 type scale violations)</td>
+      </tr>
+      <tr>
+        <td style="color: var(--purple);">Ceiling</td>
+        <td>Dead agent auto-detected within 48h</td>
+        <td><code>artifact-failures.jsonl</code> triggers meta</td>
+        <td style="color: var(--accent);">UNTESTED (new)</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <a href="graphs.html">&larr; project graphs</a> &nbsp;&middot;&nbsp;
+  Generated 2026-03-09 &nbsp;&middot;&nbsp;
+  <a href="https://github.com/laneyfraass/rhino-os">rhino-os</a>
+</footer>
+
+<script>
+// === GRADE PROGRESSION ===
+function drawGrades() {
+  const canvas = document.getElementById('gradeChart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  const pad = { top: 20, right: 40, bottom: 40, left: 50 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+
+  const gradeMap = { 'F': 0, 'D': 1, 'C': 2, 'C+': 2.5, 'B-': 3, 'B': 3.5, 'B+': 4, 'A-': 4.5, 'A': 5 };
+  const gradeLabels = ['F', 'D', 'C', 'B', 'A'];
+
+  // Data: [cycle1, cycle2, cycle3]
+  const agents = {
+    sweep:      [null, null, { before: 'C+', after: 'A-' }],
+    scout:      [{ before: null, after: 'B' }, { before: 'B', after: 'B+' }, { before: 'B+', after: 'A-' }],
+    builder:    [null, null, { before: 'D', after: 'A' }],
+    design:     [null, null, { before: 'C', after: 'A-' }],
+    strategist: [null, null, { before: 'F', after: 'A-' }],
+  };
+
+  const colors = {
+    sweep: '#f59e0b',
+    scout: '#60a5fa',
+    builder: '#22c55e',
+    design: '#f472b6',
+    strategist: '#fbbf24',
+  };
+
+  // Grid
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = pad.top + (1 - i/5) * ch;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+    ctx.fillStyle = '#555';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(gradeLabels[i], pad.left - 10, y + 4);
+  }
+
+  // X labels
+  const cycles = ['Cycle 1', 'Cycle 2', 'Cycle 3\n(before)', 'Cycle 3\n(after)'];
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < 4; i++) {
+    const x = pad.left + (i / 3) * cw;
+    ctx.fillText(cycles[i], x, h - pad.bottom + 16);
+  }
+
+  // Draw lines
+  Object.entries(agents).forEach(([name, data]) => {
+    const points = [];
+    // Cycle 1
+    if (data[0]) points.push({ x: 0, y: gradeMap[data[0].after] });
+    // Cycle 2
+    if (data[1]) points.push({ x: 1, y: gradeMap[data[1].after] });
+    else if (data[0]) points.push({ x: 1, y: gradeMap[data[0].after] });
+    // Cycle 3 before
+    if (data[2]) {
+      const beforeGrade = data[2].before;
+      if (beforeGrade) {
+        if (points.length === 0) points.push({ x: 2, y: gradeMap[beforeGrade] });
+        else points.push({ x: 2, y: gradeMap[beforeGrade] });
+      }
+      // Cycle 3 after
+      points.push({ x: 3, y: gradeMap[data[2].after] });
+    }
+
+    if (points.length < 2) return;
+
+    ctx.strokeStyle = colors[name];
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    points.forEach((p, i) => {
+      const px = pad.left + (p.x / 3) * cw;
+      const py = pad.top + (1 - p.y / 5) * ch;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // Dots
+    points.forEach(p => {
+      const px = pad.left + (p.x / 3) * cw;
+      const py = pad.top + (1 - p.y / 5) * ch;
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle = colors[name];
+      ctx.fill();
+    });
+
+    // End label
+    const last = points[points.length - 1];
+    ctx.fillStyle = colors[name];
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(name, pad.left + (last.x / 3) * cw + 8, pad.top + (1 - last.y / 5) * ch + 4);
+  });
+}
+
+// === BUDGET CHART ===
+function drawBudget() {
+  const canvas = document.getElementById('budgetChart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  const pad = { top: 20, right: 20, bottom: 40, left: 80 };
+
+  const agents = [
+    { name: 'sweep', cost: 0.21, budget: 2.00, color: '#f59e0b' },
+    { name: 'scout', cost: 1.40, budget: 2.00, color: '#60a5fa' },
+    { name: 'builder', cost: 0.35, budget: 2.00, color: '#22c55e' },
+    { name: 'design', cost: 0.80, budget: 2.00, color: '#f472b6' },
+    { name: 'strategist', cost: 0.65, budget: 2.00, color: '#fbbf24' },
+    { name: 'meta', cost: 1.50, budget: 3.00, color: '#a78bfa' },
+  ];
+
+  const maxBudget = 3.00;
+  const barH = 24;
+  const gap = 10;
+
+  agents.forEach((a, i) => {
+    const y = pad.top + i * (barH + gap);
+    const fullW = (w - pad.left - pad.right);
+    const budgetW = (a.budget / maxBudget) * fullW;
+    const costW = (a.cost / maxBudget) * fullW;
+
+    // Budget background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.roundRect(pad.left, y, budgetW, barH, 4);
+    ctx.fill();
+
+    // Cost fill
+    ctx.fillStyle = a.color;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.roundRect(pad.left, y, costW, barH, 4);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Label
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(a.name, pad.left - 8, y + barH / 2);
+
+    // Cost label
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(`$${a.cost.toFixed(2)} / $${a.budget.toFixed(2)}`, pad.left + costW + 8, y + barH / 2);
+  });
+}
+
+// === SPRINT CHART ===
+function drawSprint() {
+  const canvas = document.getElementById('sprintChart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  const pad = { top: 20, right: 20, bottom: 50, left: 20 };
+
+  const tasks = [
+    { name: 'Social-proof\npush', done: false },
+    { name: 'Landing\n/build', done: false },
+    { name: 'Space OG\ntags', done: false },
+    { name: 'Push\nopt-in', done: false },
+  ];
+
+  const barW = 50;
+  const gap = (w - pad.left - pad.right - barW * tasks.length) / (tasks.length + 1);
+
+  tasks.forEach((t, i) => {
+    const x = pad.left + gap + i * (barW + gap);
+    const fullH = h - pad.top - pad.bottom;
+    const barH = t.done ? fullH : 12;
+    const y = h - pad.bottom - barH;
+
+    // Background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.roundRect(x, pad.top, barW, fullH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Fill
+    ctx.fillStyle = t.done ? '#22c55e' : '#333';
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#888';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    const lines = t.name.split('\n');
+    lines.forEach((line, li) => {
+      ctx.fillText(line, x + barW / 2, h - pad.bottom + 14 + li * 14);
+    });
+
+    // Status
+    ctx.fillStyle = t.done ? '#22c55e' : '#555';
+    ctx.font = '16px monospace';
+    ctx.fillText(t.done ? '\u2713' : '\u2013', x + barW / 2, pad.top + fullH / 2);
+  });
+
+  // Progress label
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('0 / 4 tasks', w / 2, pad.top + 10);
+}
+
+// === COMPOSITION ===
+function drawComposition() {
+  const canvas = document.getElementById('compositionChart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const w = rect.width, h = rect.height;
+  const pad = { top: 10, right: 20, bottom: 10, left: 90 };
+
+  const data = [
+    { label: 'rhino CLI', lines: 1059, color: '#f59e0b' },
+    { label: 'taste.mjs', lines: 682, color: '#60a5fa' },
+    { label: 'build.md', lines: 475, color: '#a78bfa' },
+    { label: 'score.sh', lines: 463, color: '#22c55e' },
+    { label: 'design-eng', lines: 315, color: '#f472b6' },
+    { label: 'strategy.md', lines: 158, color: '#fbbf24' },
+    { label: 'sweep.md', lines: 137, color: '#22d3ee' },
+    { label: 'other', lines: 603, color: '#555' },
+  ];
+
+  const maxLines = Math.max(...data.map(d => d.lines));
+  const barH = 22;
+  const gap = 6;
+
+  data.forEach((d, i) => {
+    const y = pad.top + i * (barH + gap);
+    const barW = (d.lines / maxLines) * (w - pad.left - pad.right);
+
+    ctx.fillStyle = d.color;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.roundRect(pad.left, y, barW, barH, [0, 4, 4, 0]);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(d.label, pad.left - 8, y + barH / 2);
+
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(d.lines, pad.left + barW + 8, y + barH / 2);
+  });
+}
+
+// === RENDER ===
+window.addEventListener('load', () => {
+  drawGrades();
+  drawBudget();
+  drawSprint();
+  drawComposition();
+});
+window.addEventListener('resize', () => {
+  drawGrades();
+  drawBudget();
+  drawSprint();
+  drawComposition();
+});
+</script>
+
+</body>
+</html>
