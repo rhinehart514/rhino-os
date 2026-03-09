@@ -235,13 +235,13 @@
       </div>
     </div>
 
-    <!-- 10. CONFLICT RESOLUTION — who beats whom -->
+    <!-- 10. LIVE CONFLICTS + AGENT NEXT MOVES -->
     <div class="chart-card">
-      <h3>Conflict resolution history</h3>
-      <div class="chart-sub">Agents disagree, meta resolves. Natural tensions: builder vs design-engineer (velocity vs quality), scout vs strategist (market vs portfolio).</div>
+      <h3>Active conflicts + next moves</h3>
+      <div class="chart-sub">Real disagreements from live agent runs on HIVE. Strategist vs scout on Lovable threat model. Each agent has a next_move that drives the system forward.</div>
       <canvas id="conflictHistory" height="300"></canvas>
       <div class="callout" style="margin-top: 16px;">
-        <strong>Why this matters.</strong> Without competition, agents parrot each other. With falsifiable stances and credibility tracking, the system surfaces real tradeoffs — quality vs speed, build vs buy — instead of consensus mush.
+        <strong>Why this matters.</strong> Without competition, agents parrot each other. With falsifiable stances and credibility tracking, the system surfaces real tradeoffs — "is Lovable a product threat or distribution threat?" — instead of consensus mush. Run <code>rhino resolve 1 scout</code> to pick a side.
       </div>
     </div>
 
@@ -367,26 +367,29 @@ const selfHealingEvents = [
   { label: "5/5 agents\noperational", type: "result", x: 6 },
 ];
 
-// Agent council — brain system data
+// Agent council — real data from first live brain runs (2026-03-09)
 const councilData = [
-  { agent: "design-engineer", credibility: 0.88, wins: 4, losses: 0, pending: 0, domain: "quality" },
-  { agent: "scout", credibility: 0.50, wins: 1, losses: 0, pending: 1, domain: "market" },
+  { agent: "scout", credibility: 0.50, wins: 0, losses: 0, pending: 2, domain: "market" },
+  { agent: "strategist", credibility: 0.50, wins: 0, losses: 0, pending: 2, domain: "portfolio" },
+  { agent: "design-engineer", credibility: 0.50, wins: 0, losses: 0, pending: 1, domain: "quality" },
   { agent: "sweep", credibility: 0.50, wins: 0, losses: 0, pending: 1, domain: "safety" },
-  { agent: "strategist", credibility: 0.50, wins: 0, losses: 1, pending: 1, domain: "portfolio" },
-  { agent: "meta", credibility: 0.50, wins: 0, losses: 0, pending: 0, domain: "referee" },
-  { agent: "builder", credibility: 0.18, wins: 0, losses: 4, pending: 0, domain: "execution" },
+  { agent: "builder", credibility: 0.50, wins: 0, losses: 0, pending: 0, domain: "execution" },
 ];
 
-// Conflict resolution timeline
-const conflictResolutions = [
-  { winner: "design-engineer", loser: "builder", domain: "quality",
-    claim: "Taste scores > agent complexity", date: "03-09" },
-  { winner: "scout", loser: "strategist", domain: "portfolio",
-    claim: "Claude memory coming soon", date: "03-09" },
-  { winner: "design-engineer", loser: "builder", domain: "quality",
-    claim: "Spacing/contrast > brain features", date: "03-09" },
-  { winner: "design-engineer", loser: "builder", domain: "quality",
-    claim: "Polish baseline needed first", date: "03-09" },
+// Active conflicts — real disagreements from live agent runs
+const activeConflicts = [
+  { side_a: "strategist", side_b: "scout", domain: "portfolio",
+    claim_a: "Lovable won't ship campus templates — distribution play only",
+    claim_b: "Lovable will have 10+ campus ambassadors by Fall 2026",
+    conv_a: 0.55, conv_b: 0.65, date: "03-09" },
+];
+
+// What each agent is watching (real next_moves from brains)
+const agentNextMoves = [
+  { agent: "scout", action: "Deep dive Lovable campus templates + Campus Leaders winners", priority: "high" },
+  { agent: "strategist", action: "After builder ships tasks 1-2, run eval to validate day3_return", priority: "normal" },
+  { agent: "design-engineer", action: "Debug invisible landing page sections (DOM present, not rendering)", priority: "normal" },
+  { agent: "sweep", action: "Escalate day3_return sprint if still 0/4 next sweep", priority: "normal" },
 ];
 
 const compressionSteps = [
@@ -873,63 +876,93 @@ function drawCouncilLeaderboard() {
   });
 }
 
-// === 10. CONFLICT HISTORY ===
+// === 10. CONFLICTS + NEXT MOVES ===
 function drawConflictHistory() {
   const { ctx, w, h } = getCtx('conflictHistory');
-  const pad = { top: 20, right: 20, bottom: 30, left: 20 };
-  const rowH = 56;
-  const n = conflictResolutions.length;
+  const pad = { top: 10, right: 20, bottom: 10, left: 20 };
 
-  conflictResolutions.forEach((res, i) => {
-    const y = pad.top + i * rowH;
+  // Active conflict
+  const c = activeConflicts[0];
+  const halfW = (w - pad.left - pad.right) / 2 - 30;
+  const conflictH = 70;
 
-    // Winner side (green)
-    const halfW = (w - pad.left - pad.right) / 2 - 30;
-    ctx.fillStyle = '#22c55e';
-    ctx.globalAlpha = 0.15;
+  // Side A
+  ctx.fillStyle = '#f59e0b';
+  ctx.globalAlpha = 0.12;
+  ctx.beginPath();
+  ctx.roundRect(pad.left, pad.top, halfW, conflictH, [4, 0, 0, 4]);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Side B
+  ctx.fillStyle = '#60a5fa';
+  ctx.globalAlpha = 0.12;
+  ctx.beginPath();
+  ctx.roundRect(pad.left + halfW + 60, pad.top, halfW, conflictH, [0, 4, 4, 0]);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // VS badge
+  const cx = pad.left + halfW + 30;
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('VS', cx, pad.top + conflictH / 2);
+
+  // Side A details
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${c.side_a} (${c.conv_a})`, pad.left + halfW / 2, pad.top + 16);
+  ctx.fillStyle = '#888';
+  ctx.font = '9px monospace';
+  const a1 = c.claim_a.slice(0, 28);
+  const a2 = c.claim_a.slice(28, 56);
+  ctx.fillText(a1, pad.left + halfW / 2, pad.top + 34);
+  if (a2) ctx.fillText(a2, pad.left + halfW / 2, pad.top + 46);
+  ctx.fillStyle = '#555';
+  ctx.fillText(`[${c.domain}]`, pad.left + halfW / 2, pad.top + 60);
+
+  // Side B details
+  ctx.fillStyle = '#60a5fa';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText(`${c.side_b} (${c.conv_b})`, pad.left + halfW + 60 + halfW / 2, pad.top + 16);
+  ctx.fillStyle = '#888';
+  ctx.font = '9px monospace';
+  const b1 = c.claim_b.slice(0, 28);
+  const b2 = c.claim_b.slice(28, 56);
+  ctx.fillText(b1, pad.left + halfW + 60 + halfW / 2, pad.top + 34);
+  if (b2) ctx.fillText(b2, pad.left + halfW + 60 + halfW / 2, pad.top + 46);
+
+  // Next moves section
+  const movesY = pad.top + conflictH + 20;
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('Agent Next Moves', pad.left, movesY);
+
+  agentNextMoves.forEach((m, i) => {
+    const y = movesY + 20 + i * 36;
+    const isHigh = m.priority === 'high';
+
+    // Priority indicator
+    ctx.fillStyle = isHigh ? '#f59e0b' : '#333';
     ctx.beginPath();
-    ctx.roundRect(pad.left, y, halfW, rowH - 8, [4, 0, 0, 4]);
+    ctx.roundRect(pad.left, y, 4, 24, 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
 
-    // Loser side (red)
-    ctx.fillStyle = '#f87171';
-    ctx.globalAlpha = 0.08;
-    ctx.beginPath();
-    ctx.roundRect(pad.left + halfW + 60, y, halfW, rowH - 8, [0, 4, 4, 0]);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // VS badge
-    const cx = pad.left + halfW + 30;
-    ctx.fillStyle = '#f59e0b';
+    // Agent name
+    ctx.fillStyle = isHigh ? '#f59e0b' : '#888';
     ctx.font = 'bold 10px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('VS', cx, y + (rowH - 8) / 2);
+    ctx.textAlign = 'left';
+    ctx.fillText(m.agent, pad.left + 12, y + 10);
 
-    // Winner name
-    ctx.fillStyle = '#22c55e';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(res.winner, pad.left + halfW / 2, y + 14);
-
-    // Loser name
-    ctx.fillStyle = '#f87171';
-    ctx.font = '11px monospace';
-    ctx.fillText(res.loser, pad.left + halfW + 60 + halfW / 2, y + 14);
-
-    // Claim
+    // Action
     ctx.fillStyle = '#666';
     ctx.font = '9px monospace';
-    ctx.textAlign = 'center';
-    const claimTrunc = res.claim.length > 35 ? res.claim.slice(0, 35) + '...' : res.claim;
-    ctx.fillText(claimTrunc, w / 2, y + 32);
-
-    // Domain + date
-    ctx.fillStyle = '#444';
-    ctx.font = '9px monospace';
-    ctx.fillText(`[${res.domain}] ${res.date}`, w / 2, y + 44);
+    const actionTrunc = m.action.length > 70 ? m.action.slice(0, 70) + '...' : m.action;
+    ctx.fillText(actionTrunc, pad.left + 12, y + 22);
   });
 }
 

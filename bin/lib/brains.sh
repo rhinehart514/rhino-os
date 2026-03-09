@@ -266,7 +266,11 @@ detect_conflicts() {
         while IFS= read -r stance; do
             [[ -z "$stance" ]] && continue
             local target_agent
-            target_agent=$(echo "$stance" | jq -r '.conflicts_with' 2>/dev/null)
+            # Extract agent name from conflicts_with (agents may write "scout — reason..." so take first word)
+            local raw_target
+            raw_target=$(echo "$stance" | jq -r '.conflicts_with' 2>/dev/null)
+            target_agent="${raw_target%% *}"  # first word only
+            target_agent="${target_agent%% —*}"  # also strip " —" suffix
             local domain
             domain=$(echo "$stance" | jq -r '.domain' 2>/dev/null)
 

@@ -1261,9 +1261,9 @@ case "${1:-help}" in
     # Agents
     sweep)      shift; run_agent sweep "$@" ;;
     scout)      shift; run_agent scout "$@" ;;
-    build)      shift; run_agent builder "$@" ;;
-    strategy)   shift; run_agent strategist "$@" ;;
-    design)     shift; run_agent design-engineer "$@" ;;
+    build|builder) shift; run_agent builder "$@" ;;
+    strategy|strategist) shift; run_agent strategist "$@" ;;
+    design|design-engineer) shift; run_agent design-engineer "$@" ;;
     # Inspect
     status)     cmd_status ;;
     score)      shift; cmd_score "$@" ;;
