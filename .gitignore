@@ -24,3 +24,6 @@ src/api-server/node_modules/
 
 # Local overrides
 *.local.*
+
+# Runtime state (per-project, not source)
+.claude/

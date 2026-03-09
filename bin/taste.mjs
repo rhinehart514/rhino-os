@@ -16,15 +16,40 @@
  *   node taste.mjs [project-dir] [--json] [--port 3000] [--url http://localhost:3000]
  *
  * Requires:
- *   - ANTHROPIC_API_KEY env var
  *   - playwright (npx playwright install chromium)
+ *   - claude CLI (for evaluation via OAuth — no API key needed)
  */
 
 import { chromium } from "playwright";
-import Anthropic from "@anthropic-ai/sdk";
-import { readFileSync, existsSync, writeFileSync, readdirSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from "fs";
 import { join, resolve } from "path";
 import { execSync, spawn } from "child_process";
+
+// --- Progress display ---
+const DIM = "\x1b[2m";
+const BOLD = "\x1b[1m";
+const GREEN = "\x1b[32m";
+const YELLOW = "\x1b[33m";
+const NC = "\x1b[0m";
+const spinChars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
+let spinInterval = null;
+
+function startSpinner(msg) {
+  let i = 0;
+  process.stderr.write(DIM);
+  spinInterval = setInterval(() => {
+    process.stderr.write(`\r  ${spinChars[i % spinChars.length]} ${msg}`);
+    i++;
+  }, 100);
+}
+
+function stopSpinner(msg) {
+  if (spinInterval) {
+    clearInterval(spinInterval);
+    spinInterval = null;
+  }
+  process.stderr.write(`\r  ${GREEN}✓${NC} ${msg}\n`);
+}
 
 // --- Config ---
 const args = process.argv.slice(2);
@@ -33,16 +58,18 @@ let outputMode = "breakdown";
 let baseUrl = null;
 let port = null;
 let skipServer = false;
+let force = false;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--json") outputMode = "json";
   else if (args[i] === "--score") outputMode = "score";
   else if (args[i] === "--port") port = parseInt(args[i + 1]), i++;
   else if (args[i] === "--url") baseUrl = args[i + 1], skipServer = true, i++;
+  else if (args[i] === "--force") force = true;
   else if (args[i] === "--help" || args[i] === "-h") {
-    console.log(`Usage: node taste.mjs [project-dir] [--json] [--port 3000] [--url http://...]`);
+    console.log(`Usage: node taste.mjs [project-dir] [--json] [--port 3000] [--url http://...] [--force]`);
     console.log(`\nEvaluates product taste by screenshotting every route and judging with Claude vision.`);
-    console.log(`\nRequires: ANTHROPIC_API_KEY, playwright (npx playwright install chromium)`);
+    console.log(`\nRequires: claude CLI (OAuth), playwright (npx playwright install chromium)`);
     process.exit(0);
   }
   else if (!args[i].startsWith("-")) projectDir = args[i];
@@ -210,59 +237,60 @@ Routes screenshotted: ${routes.join(", ")}
 Respond with ONLY the JSON object, no markdown fences.`;
 }
 
-// --- Call Claude Vision ---
-async function evaluateWithClaude(screenshots, routes) {
-  const client = new Anthropic();
-
-  // Build content array with images
-  const content = [];
-
-  content.push({
-    type: "text",
-    text: buildRubricPrompt(routes),
-  });
-
-  // Add screenshots (limit to avoid token explosion — max ~20 images)
+// --- Call Claude via CLI (uses OAuth, no API key needed) ---
+async function evaluateWithClaude(screenshots, routes, screenshotDir) {
+  // Save screenshots to disk so claude CLI can read them
+  const savedPaths = [];
   const maxScreenshots = 20;
   const selected = screenshots.slice(0, maxScreenshots);
 
   for (const ss of selected) {
-    content.push({
-      type: "text",
-      text: `\n--- ${ss.route} (${ss.viewport}, ${ss.dimensions}) ---`,
-    });
-    content.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: "image/png",
-        data: ss.base64,
-      },
-    });
+    const filename = `${ss.route.replace(/\//g, "_") || "root"}-${ss.viewport}.png`;
+    const filepath = join(screenshotDir, filename);
+    writeFileSync(filepath, Buffer.from(ss.base64, "base64"));
+    savedPaths.push({ path: filepath, route: ss.route, viewport: ss.viewport, dimensions: ss.dimensions });
   }
 
-  if (screenshots.length > maxScreenshots) {
-    content.push({
-      type: "text",
-      text: `\n(${screenshots.length - maxScreenshots} additional screenshots omitted for context limits)`,
-    });
-  }
+  // Build prompt with image references for claude -p
+  let prompt = buildRubricPrompt(routes);
+  prompt += "\n\nScreenshots are attached as images. Evaluate them and respond with ONLY the JSON object.";
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 2000,
-    messages: [{ role: "user", content }],
-  });
+  // Build claude command with image flags
+  const imageArgs = savedPaths.map(s => `--image "${s.path}"`).join(" ");
+  const cmd = `echo ${JSON.stringify(prompt)} | claude -p ${imageArgs} --output-format text 2>/dev/null`;
 
-  // Parse JSON response
-  const text = response.content[0].text;
   try {
-    return JSON.parse(text);
+    const output = execSync(cmd, {
+      encoding: "utf-8",
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 120000,
+      shell: true,
+    });
+
+    // Parse JSON response
+    const text = output.trim();
+    try {
+      return JSON.parse(text);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+      throw new Error(`Failed to parse Claude response as JSON:\n${text}`);
+    }
+  } catch (err) {
+    if (err.status) {
+      throw new Error(`claude CLI failed (exit ${err.status}). Is claude installed and authenticated?\n${err.stderr || ""}`);
+    }
+    throw err;
+  }
+}
+
+// --- Check if server is already running on a port ---
+async function isPortActive(portNum) {
+  try {
+    const resp = await fetch(`http://localhost:${portNum}`, { signal: AbortSignal.timeout(2000) });
+    return resp.ok || resp.status < 500;
   } catch {
-    // Try extracting JSON from markdown fences
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error(`Failed to parse Claude response as JSON:\n${text}`);
+    return false;
   }
 }
 
@@ -281,14 +309,20 @@ async function startDevServer(dir) {
   let detectedPort = 3000;
 
   if (scripts.dev) {
-    // Try to detect port from dev script
     const portMatch = scripts.dev.match(/-p\s*(\d+)|--port\s*(\d+)|PORT=(\d+)/);
     if (portMatch) detectedPort = parseInt(portMatch[1] || portMatch[2] || portMatch[3]);
   }
 
   if (port) detectedPort = port;
 
-  console.error(`  Starting dev server on port ${detectedPort}...`);
+  // Check if server is already running
+  if (await isPortActive(detectedPort)) {
+    const serverUrl = `http://localhost:${detectedPort}`;
+    stopSpinner(`dev server already running at ${serverUrl}`);
+    return { url: serverUrl, process: null, port: detectedPort };
+  }
+
+  startSpinner(`starting dev server on port ${detectedPort}...`);
 
   const child = spawn("npm", ["run", devCmd], {
     cwd: dir,
@@ -301,10 +335,10 @@ async function startDevServer(dir) {
   let ready = false;
   let attempts = 0;
 
-  while (!ready && attempts < 30) {
+  while (!ready && attempts < 60) {
     attempts++;
     try {
-      await fetch(serverUrl);
+      await fetch(serverUrl, { signal: AbortSignal.timeout(2000) });
       ready = true;
     } catch {
       await new Promise(r => setTimeout(r, 1000));
@@ -313,23 +347,58 @@ async function startDevServer(dir) {
 
   if (!ready) {
     child.kill();
-    throw new Error(`Dev server failed to start on port ${detectedPort} after 30s`);
+    throw new Error(`Dev server failed to start on port ${detectedPort} after 60s`);
   }
 
-  console.error(`  Dev server ready at ${serverUrl}`);
+  stopSpinner(`dev server ready at ${serverUrl}`);
   return { url: serverUrl, process: child, port: detectedPort };
 }
 
 // --- Main ---
 async function main() {
-  // Check for API key
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("Error: ANTHROPIC_API_KEY env var required");
-    console.error("Set it: export ANTHROPIC_API_KEY=sk-ant-...");
+  // Check for claude CLI
+  try {
+    execSync("which claude", { stdio: "pipe" });
+  } catch {
+    console.error("Error: claude CLI not found. Install Claude Code first.");
     process.exit(1);
   }
 
-  console.error("=== rhino taste — visual product evaluation ===\n");
+  console.error(`${BOLD}=== rhino taste — visual product evaluation ===${NC}\n`);
+
+  // --- Freshness check ---
+  const reportDir = join(projectDir, ".claude", "evals", "reports");
+  const CACHE_MAX_AGE = 2 * 60 * 60 * 1000; // 2 hours
+
+  if (!force && existsSync(reportDir)) {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayReport = join(reportDir, `taste-${today}.json`);
+    if (existsSync(todayReport)) {
+      const age = Date.now() - statSync(todayReport).mtimeMs;
+      if (age < CACHE_MAX_AGE) {
+        const cached = JSON.parse(readFileSync(todayReport, "utf-8"));
+        const ageMin = Math.round(age / 60000);
+        console.error(`${YELLOW}  Eval already ran ${ageMin}m ago. Use --force to re-run.${NC}\n`);
+
+        // Show the cached result
+        switch (outputMode) {
+          case "json": console.log(JSON.stringify(cached)); break;
+          case "score": console.log(cached.score_100); break;
+          default:
+            console.log(`=== Taste Score: ${cached.score_100}/100 (${cached.overall}/5) ===\n`);
+            for (const [dim, data] of Object.entries(cached.dimensions)) {
+              const bar = "█".repeat(data.score) + "░".repeat(5 - data.score);
+              console.log(`  ${dim.padEnd(20)} ${bar} ${data.score}/5`);
+              console.log(`  ${"".padEnd(20)} ${data.evidence}\n`);
+            }
+            console.log(`  Strongest: ${cached.strongest}`);
+            console.log(`  Weakest:   ${cached.weakest}`);
+            console.log(`\n  → ${cached.one_thing}`);
+        }
+        return;
+      }
+    }
+  }
 
   // Find source dir for route detection
   let srcDir = projectDir;
@@ -337,33 +406,40 @@ async function main() {
   else if (existsSync(join(projectDir, "src"))) srcDir = join(projectDir, "src");
 
   // Detect routes
+  startSpinner("detecting routes...");
   const routes = detectRoutes(srcDir);
-  console.error(`  Found ${routes.length} routes: ${routes.join(", ")}`);
+  stopSpinner(`found ${routes.length} routes: ${routes.join(", ")}`);
 
   // Start or connect to dev server
   let server = null;
   let url = baseUrl;
 
   if (!url) {
+    startSpinner("checking dev server...");
     server = await startDevServer(projectDir);
     url = server.url;
   }
 
   try {
     // Launch Playwright
-    console.error("  Launching browser...");
+    startSpinner("launching browser...");
     const browser = await chromium.launch({ headless: true });
+    stopSpinner("browser ready");
 
     // Screenshot all routes
-    console.error("  Screenshotting routes...");
+    startSpinner(`screenshotting ${routes.length} routes × 2 viewports...`);
     const screenshots = await screenshotRoutes(browser, url, routes);
-    console.error(`  Captured ${screenshots.length} screenshots`);
+    stopSpinner(`captured ${screenshots.length} screenshots`);
 
     await browser.close();
 
-    // Evaluate with Claude vision
-    console.error("  Evaluating with Claude vision...\n");
-    const result = await evaluateWithClaude(screenshots, routes);
+    // Save screenshots and evaluate with Claude via CLI (OAuth)
+    const screenshotDir = join(projectDir, ".claude", "evals", "screenshots");
+    mkdirSync(screenshotDir, { recursive: true });
+
+    startSpinner("evaluating with Claude vision (this takes ~30s)...");
+    const result = await evaluateWithClaude(screenshots, routes, screenshotDir);
+    stopSpinner("evaluation complete");
 
     // Add metadata
     result.meta = {
@@ -378,11 +454,10 @@ async function main() {
     result.score_100 = Math.round((result.overall / 5) * 100);
 
     // Save result
-    const reportDir = join(projectDir, ".claude", "evals", "reports");
-    execSync(`mkdir -p "${reportDir}"`);
+    mkdirSync(reportDir, { recursive: true });
     const reportPath = join(reportDir, `taste-${new Date().toISOString().slice(0, 10)}.json`);
     writeFileSync(reportPath, JSON.stringify(result, null, 2));
-    console.error(`  Report saved: ${reportPath}\n`);
+    console.error(`\n  ${GREEN}Report saved: ${reportPath}${NC}\n`);
 
     // Output
     switch (outputMode) {

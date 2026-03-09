@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rhino-os — Operating System for Claude Code</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1a1a1a;
+    --border: #222;
+    --text: #e0e0e0;
+    --dim: #666;
+    --accent: #f59e0b;
+    --accent2: #d97706;
+    --feat: #22c55e;
+    --refactor: #a78bfa;
+    --fix: #f87171;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* --- Nav --- */
+  nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: rgba(10,10,10,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+    padding: 12px 40px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  nav .logo {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  nav a {
+    color: var(--dim);
+    text-decoration: none;
+    font-size: 12px;
+    transition: color 0.2s;
+  }
+  nav a:hover, nav a.active { color: var(--text); }
+
+  /* --- Hero --- */
+  .hero {
+    padding: 140px 40px 80px;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    line-height: 1.1;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero .tagline {
+    font-size: 18px;
+    color: var(--dim);
+    max-width: 560px;
+    margin: 0 auto 40px;
+    line-height: 1.6;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    margin-top: 32px;
+  }
+  .hero-stat {
+    text-align: center;
+  }
+  .hero-stat .val {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .hero-stat .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+
+  /* --- Install block --- */
+  .install {
+    max-width: 560px;
+    margin: 40px auto 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .install code {
+    color: var(--feat);
+    font-size: 14px;
+  }
+  .install .dim { color: var(--dim); font-size: 11px; }
+
+  /* --- Section --- */
+  section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 40px;
+  }
+  section h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.3px;
+  }
+  section h2 span { color: var(--dim); font-weight: 400; font-size: 16px; }
+  section .subtitle {
+    color: var(--dim);
+    margin-bottom: 32px;
+    font-size: 14px;
+    max-width: 640px;
+  }
+
+  /* --- Architecture grid --- */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .arch-cell {
+    background: var(--surface);
+    padding: 28px 24px;
+  }
+  .arch-cell.span2 { grid-column: span 2; }
+  .arch-cell.span3 { grid-column: span 3; }
+  .arch-cell h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .arch-cell h3 .badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--border);
+    color: var(--dim);
+  }
+  .arch-cell p {
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.5;
+  }
+  .arch-cell .items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .arch-cell .item {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  /* --- Feature cards --- */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 24px;
+    transition: border-color 0.2s;
+  }
+  .feature:hover { border-color: var(--accent); }
+  .feature h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .feature p {
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+  .feature .tag {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  /* --- Pages grid --- */
+  .pages {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .page-link {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .page-link:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .page-link h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .page-link p {
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.5;
+  }
+  .page-link .arrow {
+    color: var(--accent);
+    font-size: 14px;
+    margin-top: 12px;
+    display: block;
+  }
+
+  /* --- Command table --- */
+  .cmd-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+  }
+  .cmd-table th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--dim);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cmd-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .cmd-table td:first-child {
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .cmd-table td:last-child {
+    color: var(--dim);
+  }
+  .cmd-table tr:hover td { background: var(--surface2); }
+
+  /* --- Principle --- */
+  .principles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .principle {
+    padding: 20px;
+    border-left: 3px solid var(--border);
+  }
+  .principle h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .principle p {
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.5;
+  }
+
+  /* --- Footer --- */
+  footer {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    color: var(--dim);
+    font-size: 11px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 768px) {
+    nav { padding: 12px 20px; gap: 16px; }
+    .hero { padding: 100px 20px 40px; }
+    .hero h1 { font-size: 28px; }
+    .hero-stats { gap: 24px; flex-wrap: wrap; }
+    section { padding: 40px 20px; }
+    .arch-grid { grid-template-columns: 1fr; }
+    .arch-cell.span2, .arch-cell.span3 { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">rhino-os</a>
+  <a href="index.html" class="active">overview</a>
+  <a href="architecture.html">architecture</a>
+  <a href="scoring.html">scoring</a>
+  <a href="evolution.html">evolution</a>
+</nav>
+
+<div class="hero">
+  <h1>rhino-os</h1>
+  <p class="tagline">
+    A strategic operating system for Claude Code.
+    Two programs. Five agents. One loop.
+    Built for solo founders who ship.
+  </p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="val">2</div>
+      <div class="label">programs</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">5</div>
+      <div class="label">agents</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">6</div>
+      <div class="label">skills</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">48h</div>
+      <div class="label">to build</div>
+    </div>
+  </div>
+  <div class="install">
+    <code>git clone &amp;&amp; ./install.sh</code>
+    <span class="dim">idempotent, symlink-based</span>
+  </div>
+</div>
+
+<!-- What it does -->
+<section>
+  <h2>What it does</h2>
+  <p class="subtitle">
+    rhino-os gives Claude Code a brain. Instead of a blank-slate assistant,
+    you get an opinionated system that tracks your portfolio, learns your taste,
+    scores your product, and autonomously decides what to build next.
+  </p>
+
+  <div class="features">
+    <div class="feature">
+      <div class="tag">strategy</div>
+      <h3>Portfolio intelligence</h3>
+      <p>Buy/Sell/Hold verdicts on your projects. Escape velocity checks. Sprint planning that starts from "what's the weakest dimension?" not "what do I feel like building?"</p>
+    </div>
+    <div class="feature">
+      <div class="tag">build</div>
+      <h3>The one loop</h3>
+      <p>Read state, decide scope, execute, measure, keep or discard. Five modes auto-detected: gate, plan, build, experiment, doctor. No process — just momentum.</p>
+    </div>
+    <div class="feature">
+      <div class="tag">scoring</div>
+      <h3>Two-tier measurement</h3>
+      <p>Training loss (grep-based, every commit, 5 dimensions) + eval loss (Playwright screenshots, Claude vision, 8 taste dimensions). Track trends, not averages.</p>
+    </div>
+    <div class="feature">
+      <div class="tag">knowledge</div>
+      <h3>Compounding intelligence</h3>
+      <p>Taste signals, market positions, design preferences, session artifacts. Agents read shared state — no human relay. Knowledge compounds across sessions.</p>
+    </div>
+    <div class="feature">
+      <div class="tag">autonomy</div>
+      <h3>AI-first decisions</h3>
+      <p>Agents ideate, research, and decide before escalating. Human approves irreversible actions. The system runs overnight and posts findings for morning review.</p>
+    </div>
+    <div class="feature">
+      <div class="tag">taste</div>
+      <h3>Anti-convergence</h3>
+      <p>IA/VA convergence detection fights "all AI apps look the same." Anti-slop rules loaded on every UI file. Taste is measured by looking, not grepping.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture overview -->
+<section>
+  <h2>System architecture <span>overview</span></h2>
+  <p class="subtitle">Three layers. Programs are the brain. Agents are the hands. Knowledge is the memory.</p>
+
+  <div class="arch-grid">
+    <div class="arch-cell span3">
+      <h3>Programs <span class="badge">brain</span></h3>
+      <p>Markdown instructions that drive all behavior. The programs ARE the product.</p>
+      <div class="items">
+        <span class="item">strategy.md — what to build</span>
+        <span class="item">build.md — the one loop</span>
+        <span class="item">meta.md — self-evaluation</span>
+      </div>
+    </div>
+    <div class="arch-cell">
+      <h3>builder <span class="badge">agent</span></h3>
+      <p>Gate, plan, build, experiment, doctor. Reads the build program, executes tasks.</p>
+    </div>
+    <div class="arch-cell">
+      <h3>strategist <span class="badge">agent</span></h3>
+      <p>Portfolio verdicts, sprint planning. Reads strategy program.</p>
+    </div>
+    <div class="arch-cell">
+      <h3>sweep <span class="badge">agent</span></h3>
+      <p>Daily triage. GREEN/YELLOW/RED/GRAY classification. Executes safe fixes.</p>
+    </div>
+    <div class="arch-cell">
+      <h3>scout <span class="badge">agent</span></h3>
+      <p>Market intelligence. Maintains opinionated positions with evidence.</p>
+    </div>
+    <div class="arch-cell">
+      <h3>design-engineer <span class="badge">agent</span></h3>
+      <p>Visual audits. Taste checks. Design system work.</p>
+    </div>
+    <div class="arch-cell">
+      <h3>score.sh <span class="badge">training loss</span></h3>
+      <p>5 dimensions, every commit, grep-based. Returns weakest link.</p>
+    </div>
+    <div class="arch-cell span3">
+      <h3>Knowledge layer <span class="badge">memory</span></h3>
+      <p>Append-only stores that compound across sessions. Agents read shared state automatically.</p>
+      <div class="items">
+        <span class="item">portfolio.json</span>
+        <span class="item">landscape.json</span>
+        <span class="item">taste.jsonl</span>
+        <span class="item">scores/history.tsv</span>
+        <span class="item">sessions/*.md</span>
+        <span class="item">*/knowledge.md</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Commands -->
+<section>
+  <h2>Commands</h2>
+  <p class="subtitle">Everything runs through the rhino CLI.</p>
+
+  <table class="cmd-table">
+    <thead>
+      <tr><th>Command</th><th>What it does</th><th>Agent</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>rhino strategy</td><td>Portfolio evaluation, sprint planning</td><td>strategist</td></tr>
+      <tr><td>rhino build [mode]</td><td>Gate, plan, build, experiment, or doctor</td><td>builder</td></tr>
+      <tr><td>rhino sweep</td><td>Daily triage — scan, classify, fix safe issues</td><td>sweep</td></tr>
+      <tr><td>rhino scout</td><td>Market intelligence, landscape positions</td><td>scout</td></tr>
+      <tr><td>rhino design [mode]</td><td>Visual audit, taste check, design system</td><td>design-engineer</td></tr>
+      <tr><td>rhino score [dir]</td><td>5-dimension structural lint</td><td>—</td></tr>
+      <tr><td>rhino taste eval</td><td>Playwright screenshots + Claude vision</td><td>—</td></tr>
+      <tr><td>rhino status</td><td>System health, drift detection, knowledge freshness</td><td>—</td></tr>
+      <tr><td>rhino doctor</td><td>Health checks (symlinks, MCP, state files)</td><td>—</td></tr>
+      <tr><td>rhino init [dir]</td><td>Bootstrap a project for the build loop</td><td>—</td></tr>
+      <tr><td>rhino visuals [dir]</td><td>Generate SVG badges + eval report markdown</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Design principles -->
+<section>
+  <h2>Design principles</h2>
+  <div class="principles">
+    <div class="principle">
+      <h4>Momentum over process</h4>
+      <p>One builder handles all modes. Skip what you don't need. No ceremonies, no standups, no sprint retrospectives.</p>
+    </div>
+    <div class="principle">
+      <h4>Minimal manual input</h4>
+      <p>Agents read shared state automatically. No human relay between agents. The filesystem IS the message bus.</p>
+    </div>
+    <div class="principle">
+      <h4>Knowledge compounds</h4>
+      <p>Taste signals, market positions, design preferences persist and strengthen. By week four, agents know your style.</p>
+    </div>
+    <div class="principle">
+      <h4>Measure by looking</h4>
+      <p>Don't grep for quality. Screenshot the product and judge what you see. Training loss is cheap; eval loss is real.</p>
+    </div>
+    <div class="principle">
+      <h4>Subtractive design</h4>
+      <p>Started with 13 agents, ended with 2 programs. The system deletes itself into shape. Less surface area = less confusion.</p>
+    </div>
+    <div class="principle">
+      <h4>Safety by default</h4>
+      <p>Budget caps on agents. Human approves RED items. No auto-deploy. Irreversible actions require confirmation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Explore pages -->
+<section>
+  <h2>Explore</h2>
+  <div class="pages">
+    <a href="architecture.html" class="page-link">
+      <h3>Architecture</h3>
+      <p>Full system diagram. How programs, agents, skills, and knowledge connect. Data flow and decision paths.</p>
+      <span class="arrow">&rarr;</span>
+    </a>
+    <a href="scoring.html" class="page-link">
+      <h3>Scoring system</h3>
+      <p>Two-tier measurement. Training loss vs eval loss. How each dimension works and what it catches.</p>
+      <span class="arrow">&rarr;</span>
+    </a>
+    <a href="evolution.html" class="page-link">
+      <h3>Evolution</h3>
+      <p>41 commits, 48 hours. How autonomous development compressed 13 agents into 2 programs.</p>
+      <span class="arrow">&rarr;</span>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <span>rhino-os &mdash; thick-skinned. charges forward. kills what isn't working.</span>
+  <a href="https://github.com">github</a>
+</footer>
+
+</body>
+</html>
