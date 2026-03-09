@@ -14,8 +14,8 @@ You are an autonomous researcher. The human has given you a target. Run the loop
 2. Read `.claude/evals/reports/history.jsonl` or `docs/evals/reports/history.jsonl` — find the target dimension's current score
 3. Read the most recent eval report for context on WHY the score is low
 4. Parse the user's request to identify:
-   - **Target dimension**: e.g., `day3_return`, `identity`, `empty_room`, `creation_distribution`, `escape_velocity`
-   - **Starting score**: from history.jsonl
+   - **Target dimension**: any measurable aspect of the project (taste dimension, product metric, code quality signal, performance target, etc.)
+   - **Starting score**: from history.jsonl or `rhino score .`
 5. Create experiment branch: `git checkout -b exp/[dimension]/[date]`
 6. Create experiment log at `.claude/experiments/[dimension]-[date].tsv` with header:
    ```
@@ -29,9 +29,11 @@ LOOP UNTIL INTERRUPTED:
 
 ### 1a. Hypothesize
 Read the current code for the area that affects the target dimension. Form ONE specific hypothesis:
-- "Adding a push notification trigger when poll hits 10 votes should improve day3_return"
-- "Replacing the empty spaces text with contextual creation prompts should improve empty_room"
-- "Adding campus photography to the hero section should improve identity"
+- "Reducing bundle size by lazy-loading this route should improve performance"
+- "Adding keyboard shortcuts to the main actions should improve power_user_speed"
+- "Replacing generic placeholder text with contextual prompts should improve empty_states"
+
+The dimension is whatever the user specified. If it maps to a taste dimension, use taste eval. If it maps to a code metric, use `rhino score .`. If it's a custom metric, define how to measure it before starting.
 
 Write the hypothesis down before coding.
 
@@ -112,4 +114,4 @@ Go to 1a. Do NOT ask the user if you should continue. You are autonomous.
 - **Honest scoring.** If you inflate scores, the loop is worthless. A 0.3 → 0.35 is real progress. A fake 0.3 → 0.6 teaches nothing.
 - **Log dead ends.** Dead ends are data. "Adding illustration didn't help because the design system has no illustration assets" saves the next agent from trying the same thing.
 - **Never ask.** The human might be asleep. Keep going.
-- **Branch per dimension.** Don't mix "improve identity" experiments with "improve day3_return" on the same branch.
+- **Branch per dimension.** Don't mix experiments targeting different dimensions on the same branch.

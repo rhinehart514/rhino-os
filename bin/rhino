@@ -756,14 +756,9 @@ SVGEOF
     # Product eval section
     local product_section=""
     if [[ -n "$product_entry" ]] && command -v jq &>/dev/null; then
-        local p_4sec p_empty p_create p_day3 p_identity p_escape p_verdict
-        p_4sec=$(echo "$product_entry" | jq -r '.four_second // "?"' 2>/dev/null)
-        p_empty=$(echo "$product_entry" | jq -r '.empty_room // "?"' 2>/dev/null)
-        p_create=$(echo "$product_entry" | jq -r '.creation_distribution // "?"' 2>/dev/null)
-        p_day3=$(echo "$product_entry" | jq -r '.day3_return // "?"' 2>/dev/null)
-        p_identity=$(echo "$product_entry" | jq -r '.identity // "?"' 2>/dev/null)
-        p_escape=$(echo "$product_entry" | jq -r '.escape_velocity // "?"' 2>/dev/null)
+        local p_verdict p_overall
         p_verdict=$(echo "$product_entry" | jq -r '.verdict // "?"' 2>/dev/null)
+        p_overall=$(echo "$product_entry" | jq -r '.overall // "?"' 2>/dev/null)
 
         make_bar() {
             local score="$1" width=30
@@ -775,17 +770,35 @@ SVGEOF
             printf '%*s' "$empty" '' | tr ' ' '░'
         }
 
+        # Dynamically extract all numeric dimensions (0-1 range) from the product eval
+        local dim_lines=""
+        dim_lines=$(echo "$product_entry" | jq -r '
+            to_entries
+            | map(select(.value | type == "number" and . >= 0 and . <= 1))
+            | map(select(.key | IN("overall") | not))
+            | sort_by(.value)
+            | .[]
+            | "\(.key)|\(.value)"
+        ' 2>/dev/null)
+
+        local bar_section=""
+        while IFS='|' read -r dim_name dim_score; do
+            [[ -z "$dim_name" ]] && continue
+            # Format dimension name: underscores to spaces, title case first word
+            local display_name
+            display_name=$(echo "$dim_name" | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1')
+            # Pad to 22 chars for alignment
+            local padded
+            padded=$(printf '%-22s' "$display_name")
+            bar_section+="${padded}$(make_bar "$dim_score")  ${dim_score}
+"
+        done <<< "$dim_lines"
+
         product_section="
 ## Product Eval — ${p_verdict} (${p_overall}/1.0)
 
 \`\`\`
-4-Second Test         $(make_bar "$p_4sec")  ${p_4sec}
-Empty Room            $(make_bar "$p_empty")  ${p_empty}
-Creation→Distribution $(make_bar "$p_create")  ${p_create}
-Day 3 Return          $(make_bar "$p_day3")  ${p_day3}
-Identity              $(make_bar "$p_identity")  ${p_identity}
-Escape Velocity       $(make_bar "$p_escape")  ${p_escape}
-\`\`\`
+${bar_section}\`\`\`
 "
     fi
 

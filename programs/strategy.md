@@ -39,9 +39,9 @@ find apps/web/src/components -name "*.tsx" | wc -l                              
 Read the eval scores. The lowest number is the bottleneck. Don't interpret — just rank.
 
 Then check the codebase metrics. The metrics either confirm or contradict the eval:
-- Eval says day3_return is 0.2 AND push trigger count is 0 → **confirmed, no mechanism exists**
-- Eval says identity is 0.3 AND hardcoded color count is 15 → **confirmed, not using design system**
-- Eval says creation_distribution is 0.5 AND share integration count is 0 → **confirmed, no share flow**
+- Eval says [dimension] is low AND the corresponding metric shows nothing exists → **confirmed, no mechanism**
+- Eval says [dimension] is moderate AND metrics show partial implementation → **confirmed, incomplete**
+- Eval says [dimension] is low BUT metrics show implementation exists → **eval may be wrong, investigate**
 
 If the metrics contradict the eval score, the eval was wrong. Trust the metrics.
 

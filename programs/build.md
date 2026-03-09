@@ -71,8 +71,8 @@ When no plan exists, or when evaluating a new idea.
 ### Think Like the User
 
 Before writing the brief, simulate being the target user:
-- What app did they just close? (Instagram, Discord, iMessage, TikTok)
-- What's their emotional state? (bored, stressed, social, curious)
+- What were they doing 30 seconds before opening this? What app, what mindset?
+- What's their emotional state? (bored, stressed, social, curious, focused)
 - What makes them stay vs bounce in 3 seconds?
 - What makes them come back tomorrow without being reminded?
 
@@ -236,16 +236,19 @@ This is the expensive eval. Don't run it every commit. Run it:
 #### Hard metrics (when you need to dig deeper)
 
 ```bash
-# Build health
-npx tsc --noEmit 2>&1 | tail -5                    # must pass
+# Build health (universal)
+npx tsc --noEmit 2>&1 | tail -5                    # must pass (TS projects)
 npm run build 2>&1 | tail -5                        # must pass
+npm test 2>&1 | tail -10                            # test suite status
 
-# Structural signals
-grep -rn "sendNotification\|pushNotification\|messaging().send\|fcm" --include="*.ts" --include="*.tsx" -l | wc -l
-grep -rn "navigator.share\|ShareSheet\|share.*modal\|shareUrl" --include="*.ts" --include="*.tsx" -l | wc -l
-grep -rn "og:title\|og:image\|twitter:card" --include="*.tsx" --include="*.ts" -l | wc -l
-grep -rn '#[0-9A-Fa-f]\{6\}' --include="*.tsx" --include="*.css" | grep -v 'node_modules\|tokens\|\.svg' | wc -l
+# Project-specific signals — grep for what matters to YOUR dimension
+# Examples:
+# grep -rn "TODO\|FIXME\|HACK" --include="*.ts" -l | wc -l
+# grep -rn "console.log" --include="*.ts" --exclude-dir="*test*" | wc -l
+# wc -l src/**/*.test.ts | tail -1                  # test coverage proxy
 ```
+
+Define the hard metrics that matter for your project and dimension. The scoring guide below tells you how to ground them.
 
 #### Grounded subjective scores
 
@@ -256,24 +259,28 @@ Two sources of truth for subjective judgment:
 **2. Code-grounded judgment (for non-visual dimensions):** When scoring dimensions that can't be seen in screenshots (retention mechanics, distribution infrastructure), cite specific code.
 
 **Wrong way:**
-> identity: 0.3 — "the UI feels like a template"
+> [dimension]: 0.3 — "it feels bad"
 
 **Right way (visual):**
-> identity: 0.3 — taste eval shows: hero competes with sidebar for attention, empty state is generic "No items" with no personality, mobile nav is just desktop shrunk. 0/5 screens recognizable without logo.
+> hierarchy: 0.3 — taste eval shows: hero competes with sidebar for attention, empty state is generic "No items" with no personality, mobile nav is just desktop shrunk.
 
 **Right way (code-grounded):**
-> day3_return: 0.2 — 0 notification triggers, no "since you left" component, no digest email. Nothing pulls the user back.
+> test_coverage: 0.2 — 3/47 modules have tests, 0 integration tests, no CI gate. Critical paths untested.
 
 #### Scoring dimensions
 
-| Dimension | What to measure | How to ground it |
-|-----------|----------------|-----------------|
-| taste | Does the product FEEL right to a user? | `rhino taste eval` — visual scoring via screenshots + Claude vision |
-| day3_return | Does something pull the user back? | Count: notification triggers, "since you left" components, digest emails |
-| empty_room | What does a new user with no connections see? | Read empty state components + check taste eval's wayfinding score |
-| identity | Does it feel like THIS product? | taste eval's distinctiveness + emotional_tone scores |
-| creation_distribution | Does creation reach people? | Count: share integrations, link preview tags, post-creation CTAs |
-| escape_velocity | Does it compound? | Count: features that improve with more users, social graph, switching cost |
+Dimensions are project-specific. Define them based on what matters for YOUR product. Common categories:
+
+| Category | Example dimensions | How to ground them |
+|----------|-------------------|-------------------|
+| Visual quality | taste, hierarchy, polish, identity | `rhino taste eval` — screenshots + Claude vision |
+| User retention | return_triggers, onboarding, empty_states | Count: notification triggers, "since you left" components, contextual prompts |
+| Distribution | sharing, link_previews, virality | Count: share integrations, OG tags, post-action CTAs |
+| Code health | test_coverage, type_safety, bundle_size | `rhino score .`, test runner output, build stats |
+| Performance | load_time, ttfb, interaction_speed | Lighthouse, Web Vitals, profiler output |
+| Compounding | network_effects, data_moats, switching_cost | Count: features that improve with more users/content/time |
+
+Pick the dimensions that matter for your project's current stage. Early stage? Focus on taste + core loop. Growing? Focus on retention + distribution. Scaling? Focus on performance + code health.
 
 #### Scoring guide
 
@@ -305,7 +312,7 @@ Two inputs feed your hypothesis:
 **Input A: Taste eval evidence (if available)**
 If `rhino taste eval` has been run, read the most recent report at `.claude/evals/reports/taste-*.json`. The `weakest` field and dimension evidence tell you exactly what the user SEES that's wrong. Use this as your hypothesis seed:
 - "hierarchy 2/5: hero text competes with sidebar" → experiment on visual weight
-- "distinctiveness 1/5: looks like shadcn template" → experiment on one signature element
+- "distinctiveness 1/5: looks like a template" → experiment on one signature element
 - "wayfinding 2/5: dead end after form submit" → experiment on post-action flow
 
 **Input B: What doesn't exist yet**
@@ -352,14 +359,14 @@ Commit: `git commit -m "exp: [hypothesis in 10 words]"`
 
 #### 3. Measure
 Run `rhino score .` — get the training loss number.
-If the experiment targets taste (identity, polish, hierarchy, etc.), also run `rhino taste eval` to get the visual score.
+If the experiment targets a visual/taste dimension, also run `rhino taste eval` to get the visual score.
 Record the computable score, the taste score (if applicable), and which sub-scores moved.
 
 #### 4. Cross-check
 Verify different measurement sources agree directionally:
 - Training loss (rhino score) should not drop
 - If taste experiment: taste eval score should improve on the target dimension
-- Hard metrics should confirm: identity up → hardcoded color count down, day3_return up → notification triggers up
+- Hard metrics should confirm directionally: if the dimension improved, the grounded evidence should show it
 - If sources disagree, do NOT keep. Re-read the code, re-screenshot, re-score.
 
 #### 5. Decide
@@ -400,9 +407,9 @@ When a dimension needs parallel exploration, spawn agents as a team:
 How it works:
 1. **Lead agent** reads experiment history, runs taste eval, identifies the weakest dimension
 2. **Lead spawns 2-3 agents in worktrees** — each gets a DIFFERENT hypothesis:
-   - Agent A: "try a distinctive font + color accent"
-   - Agent B: "try a signature micro-animation on the core action"
-   - Agent C: "try contextual empty states with personality"
+   - Agent A: hypothesis targeting the dimension from one angle
+   - Agent B: hypothesis targeting it from a completely different angle
+   - Agent C: hypothesis that challenges the assumption of A and B
 3. **Each agent implements + measures independently** (isolated git worktree)
 4. **Lead collects results**, picks the winner (highest score delta), merges it
 5. Discarded worktrees are cleaned up automatically

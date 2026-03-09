@@ -60,18 +60,18 @@ When running in gate mode, you MUST produce a structured checklist — not a per
 
 Do NOT parrot sweep or strategist conclusions. Run the checks yourself. If sweep says "project is done" but score is 40/100, the score wins.
 
-## Stake Your Positions (MANDATORY)
+## Stake Your Positions (MANDATORY — ALL MODES)
 
-After completing your build work, you MUST update your brain.
+After EVERY session — including gate mode — you MUST update your brain. Gate verdicts are predictions. Track them.
 
 1. **Review existing stances** — did score predictions come true? Mark won/lost.
 2. **Stake at least ONE new falsifiable claim** per run. Format:
    ```json
    {
-     "claim": "Implementing post-creation sharing will improve creation_distribution score from 0.3 to 0.6",
+     "claim": "[Specific implementation] will improve [dimension] score from [X] to [Y]",
      "domain": "execution",
      "conviction": 0.7,
-     "falsifiable_by": "Run rhino score after implementation and check creation_distribution",
+     "falsifiable_by": "Run rhino score after implementation and check [dimension]",
      "staked": "2026-03-09T00:00:00Z",
      "status": "pending",
      "conflicts_with": null

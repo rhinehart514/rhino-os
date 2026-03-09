@@ -144,7 +144,7 @@ Save full report to `.claude/evals/reports/[feature]-[date].md`
 
 Append single-line JSON to `.claude/evals/reports/history.jsonl`:
 ```json
-{"date":"2026-03-08","feature":"shell-nav","deterministic":"4/4","functional":"3/3","ceiling":0.65,"perspectives":0.7,"verdict":"SHIP WITH FIXES","ceiling_gaps":["no return pull — second visit identical to first","UI reads as generic dark mode template"],"gaps_addressed":["mobile create now opens sheet instead of navigating"],"escape_velocity":0.4,"uniqueness":0.5,"ia_benefit":0.7,"return_pull":0.3}
+{"date":"[date]","feature":"[feature]","deterministic":"N/N","functional":"N/N","ceiling":0.0,"perspectives":0.0,"verdict":"[SHIP|SHIP WITH FIXES|NOT READY]","ceiling_gaps":["[gap 1]","[gap 2]"],"gaps_addressed":["[addressed gap]"],"escape_velocity":0.0,"uniqueness":0.0,"ia_benefit":0.0,"return_pull":0.0}
 ```
 
 The `ceiling_gaps` field feeds forward: builder reads it in Step 0, gate mode checks against it, and the next eval spec's ceiling tests should verify the gaps were addressed.
