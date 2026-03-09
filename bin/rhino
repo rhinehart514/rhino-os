@@ -69,6 +69,7 @@ run_agent() {
 
     local args=(
         -p
+        --output-format text
         --allowedTools "Read,Write,Edit,Bash,Glob,Grep,Agent,WebFetch,WebSearch"
     )
 
@@ -129,10 +130,40 @@ run_agent() {
     echo -e "${DIM}logging to: $log_file${NC}"
     echo ""
 
-    claude "${args[@]}" "$prompt" 2>> "$log_file" | tee -a "$log_file"
+    CLAUDECODE= claude "${args[@]}" "$prompt" 2>> "$log_file" | tee -a "$log_file"
 
     log_end "$agent"
     update_marker "$agent"
+    verify_artifacts "$agent"
+}
+
+# Post-run artifact verification — catches agents that "ran" but wrote nothing
+verify_artifacts() {
+    local agent="$1"
+    local missing=()
+
+    case "$agent" in
+        sweep)
+            [[ ! -f "$STATE_DIR/sweep-latest.md" ]] && missing+=("state/sweep-latest.md")
+            ;;
+        strategist)
+            [[ ! -f "$STATE_DIR/portfolio.json" ]] && missing+=("state/portfolio.json")
+            ;;
+        scout)
+            [[ ! -f "$KNOWLEDGE_DIR/landscape.json" ]] && missing+=("knowledge/landscape.json")
+            ;;
+    esac
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "${RED}⚠ ARTIFACT CHECK FAILED${NC} — $agent ran but didn't write:"
+        for m in "${missing[@]}"; do
+            echo -e "  ${RED}✗${NC} $m"
+        done
+        echo -e "${YELLOW}This agent may need a prompt fix. Run 'rhino meta' to diagnose.${NC}"
+        # Log the failure so meta can pick it up
+        echo "{\"date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"agent\":\"$agent\",\"event\":\"artifact_missing\",\"missing\":[$(printf '"%s",' "${missing[@]}" | sed 's/,$//')]}" >> "$LOG_DIR/artifact-failures.jsonl"
+    fi
 }
 
 # ============================================================
@@ -956,6 +987,32 @@ catchup() {
     else
         echo "$now" > "$scout_marker"
     fi
+
+    # Meta: overdue if >8 days since last run (catches missed weekly)
+    local meta_marker="$marker_dir/.last-meta"
+    if [[ -f "$meta_marker" ]]; then
+        local meta_age=$(( now - $(cat "$meta_marker") ))
+        if [[ "$meta_age" -gt 691200 ]]; then
+            echo -e "${DIM}  meta overdue — running in background${NC}" >&2
+            nohup "$0" meta > /dev/null 2>&1 &
+            echo "$now" > "$meta_marker"
+        fi
+    else
+        echo "$now" > "$meta_marker"
+    fi
+
+    # Emergency: if artifact failures exist and meta hasn't run in 48h, trigger meta
+    local failures_file="$LOG_DIR/artifact-failures.jsonl"
+    if [[ -f "$failures_file" ]] && [[ -f "$meta_marker" ]]; then
+        local meta_age_hr=$(( (now - $(cat "$meta_marker")) / 3600 ))
+        local failure_count
+        failure_count=$(wc -l < "$failures_file" | tr -d ' ')
+        if [[ "$failure_count" -gt 0 && "$meta_age_hr" -gt 48 ]]; then
+            echo -e "${YELLOW}  ${failure_count} artifact failures detected — triggering meta${NC}" >&2
+            nohup "$0" meta > /dev/null 2>&1 &
+            echo "$now" > "$meta_marker"
+        fi
+    fi
 }
 
 # Update markers when agents actually run
@@ -964,6 +1021,7 @@ update_marker() {
     case "$agent" in
         sweep) date +%s > "$STATE_DIR/.last-sweep" ;;
         scout) date +%s > "$STATE_DIR/.last-scout" ;;
+        meta)  date +%s > "$STATE_DIR/.last-meta" ;;
     esac
 }
 

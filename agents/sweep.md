@@ -36,7 +36,22 @@ Find rhino-os install dir: `readlink ~/bin/rhino` → follow to repo root.
 
 If ANY check fails → classify as YELLOW and fix it inline. rhino-os fixing itself is always safe (worst case: revert the commit).
 
-### 1b. Scan user projects
+### 1b. Verify agent output artifacts exist
+
+Check that each agent's required outputs are present and fresh. If missing, classify as YELLOW:
+
+| Agent | Required Artifact | Location |
+|-------|-------------------|----------|
+| sweep | state file | `~/.claude/state/sweep-latest.md` |
+| scout | landscape updates | `~/.claude/knowledge/landscape.json` (check `updated` dates) |
+| strategist | portfolio file | `~/.claude/state/portfolio.json` |
+| strategist | sprint plan | check active project `.claude/plans/active-plan.md` |
+| builder | experiment data | check active project `.claude/experiments/*.tsv` |
+| design-engineer | audit history | `~/.claude/knowledge/design-engineer/audit-history.jsonl` |
+
+If an agent's artifacts are missing or >7 days stale, report it. This catches agents that "ran" but failed to write outputs.
+
+### 1c. Scan user projects
 
 For each project directory with a CLAUDE.md:
 - `git log --oneline -5` and `git status --short`
@@ -50,11 +65,13 @@ Check: `~/.claude/evals/reports/` for recent eval results.
 ## Step 2: Classify
 
 **GREEN** (safe, reversible): Tests, diagnostics, reports. Read-only or creates-new-files-only.
-**YELLOW** (low-risk, notify after): Fix lint, update docs, close stale branches. Low-risk code mods.
+**YELLOW** (low-risk, notify after): Fix lint, update docs, close stale branches. Low-risk code mods. Missing agent artifacts. Stale state files.
 **RED** (judgment required, wait): Deploy, merge PRs, send communications, create features, delete anything, spend >$5.
 **GRAY** (FYI only): Market trends, stats, competitor moves. No action.
 
 When unsure → RED.
+
+You MUST use all 4 tiers in your output. If you have zero YELLOW items, explicitly state "No YELLOW items found" — don't just skip the section. Skipping a tier means you didn't check for it.
 
 ## Step 3: Execute GREEN and YELLOW
 
@@ -103,6 +120,15 @@ Check agent system health:
 - State files: anything in `~/.claude/state/` older than 7 days → delete
 
 Report: what to keep, what to trim, what's stale.
+
+## Output Footer (REQUIRED)
+
+Every sweep MUST end with:
+```
+Duration: [X minutes]
+Cost: $[X.XX]
+Artifacts written: sweep-latest.md [✓/✗]
+```
 
 ## Safety
 - NEVER auto-dispatch RED items

@@ -51,6 +51,16 @@ When tuning, log the change in grades.jsonl with rationale. Only tune ONE parame
 
 You have Edit and Write tools. Don't propose — apply. The human reviews the git diff.
 
+## Step -1: Check Artifact Failures
+
+Read `~/.claude/logs/artifact-failures.jsonl` FIRST. If it exists and has entries, these are agents that ran but failed to write required outputs. This is the highest-priority signal — it means a feedback loop is broken RIGHT NOW.
+
+For each failure entry:
+1. Read that agent's log for the same date — find what went wrong
+2. Read that agent's prompt — check if the artifact requirement is clear enough
+3. Fix the prompt or the code
+4. Clear the failures file after processing: `> ~/.claude/logs/artifact-failures.jsonl`
+
 ## Self-Heal: Audit rhino-os Code
 
 Before grading agents, check the system itself:
@@ -80,10 +90,32 @@ Five feedback loops. If any is broken, fix it before anything else:
 
 Grade each agent on **alpha production** — outputs that change decisions in ways the founder couldn't reach alone.
 
+### Automatic F Conditions (non-negotiable)
+
+An agent gets an F if ANY of these are true:
+- **Strategist**: `~/.claude/state/portfolio.json` doesn't exist or wasn't updated. No plan file written to `.claude/plans/`.
+- **Sweep**: `~/.claude/state/sweep-latest.md` doesn't exist or wasn't updated. Missing YELLOW tier in output.
+- **Builder (gate)**: Didn't run `rhino score .` or equivalent check. Produced essay instead of checklist.
+- **Builder (build)**: Didn't run score before/after. No experiment logged.
+- **Design-engineer (audit)**: No screenshots taken when dev server was available. No baseline comparison.
+- **Design-engineer (review)**: No screenshots at all — review without looking is not a review.
+- **Scout**: "What I Didn't Find" section has fewer items than "Position Updates" section.
+
+### Grading Scale
+- **A**: Changed a decision. Produced alpha the founder couldn't reach alone. All artifacts written.
+- **B**: Correct output, all artifacts written, but didn't surface anything surprising.
+- **C**: Ran successfully, some artifacts missing, output was mostly parroting other agents.
+- **D**: Ran but produced unusable output or missed critical checks.
+- **F**: Failed to write required artifacts, broke a feedback loop, or violated an automatic F condition.
+
 Log one line to `~/.claude/knowledge/meta/grades.jsonl`:
 ```json
-{"date":"YYYY-MM-DD","agents":{"scout":"B","sweep":"A","builder":"C","design":"B","strategist":"B"},"alpha_rate":0.4,"fix_applied":{"file":"...","change":"...","rationale":"..."},"last_fix_result":"improved|flat|worse"}
+{"date":"YYYY-MM-DD","agents":{"scout":"B","sweep":"A","builder":"C","design":"B","strategist":"B"},"alpha_rate":0.4,"fix_applied":{"file":"...","change":"...","rationale":"..."},"last_fix_result":"improved|flat|worse","f_reasons":{}}
 ```
+
+### Fix Tracking
+
+When a fix doesn't work (last_fix_result: "flat" or "worse"), log it as a failed fix pattern. Check `grades.jsonl` history — if the same fix type has failed twice, try a fundamentally different approach. Don't repeat failed fixes.
 
 ## Constraints
 
