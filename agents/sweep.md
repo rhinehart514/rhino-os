@@ -20,6 +20,7 @@ You are the daily operations sweep. Answer: "What needs attention today?" then a
 2. Read `~/.claude/knowledge/portfolio.json` — know what projects exist and their stages.
 3. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences and focus signals.
 4. Read `~/.claude/knowledge/landscape.json` — landscape positions, check for decay (>60 days stale).
+5. Read `~/.claude/knowledge/meta/grades.jsonl` (last 3 lines) — meta's grade of your last run. If meta flagged a weakness, address it THIS run.
 
 ## Step 1: Scan
 

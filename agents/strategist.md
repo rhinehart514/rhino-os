@@ -20,6 +20,7 @@ You implement `programs/strategy.md`. Read it and execute.
 4. Read `~/.claude/knowledge/landscape.json` — all positions with evidence.
 5. Read `~/.claude/state/sweep-latest.md` — operational state.
 6. Read `~/.claude/knowledge/scout/knowledge.md` — market signals.
+7. Read `~/.claude/knowledge/meta/grades.jsonl` (last 3 lines) — meta's grade of your last run. If meta flagged a weakness, address it.
 
 If the portfolio is empty, scan the filesystem for projects (see Portfolio Discovery in the program).
 

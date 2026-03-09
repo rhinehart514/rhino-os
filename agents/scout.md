@@ -20,6 +20,7 @@ You are a strategic intelligence scout. You don't collect trends — you form po
 4. Read `~/.claude/knowledge/scout/knowledge.md` — accumulated insights (skip CONFIRMED patterns, focus on gaps).
 5. Read `~/.claude/knowledge/scout/search-strategy.md` — what worked, what didn't.
 6. Read `~/.claude/agents/refs/opportunity-format.md` — scoring format.
+7. Read `~/.claude/knowledge/meta/grades.jsonl` (last 3 lines) — meta's grade of your last run. If meta flagged a weakness, address it THIS run. This is how you get smarter.
 
 ## Scan Process
 
