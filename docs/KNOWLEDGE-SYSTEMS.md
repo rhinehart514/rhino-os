@@ -115,15 +115,14 @@ This closes the biggest gap in the knowledge system — manual curation. Session
 
 **Skipped for:** trivial sessions (<5 tool uses), concurrent captures (lock file prevents overlap).
 
-## MCP Access
+## How Agents Access Knowledge
 
-Agents can read/write knowledge via MCP tools instead of direct file access:
+Agents read/write knowledge files directly via filesystem. No MCP layer — saves tokens and removes a dependency.
 
-- `rhino_query_knowledge(agent, file, confidence)` — read with filters
-- `rhino_update_knowledge(agent, file, content, mode)` — append or replace
-- `rhino_backup_knowledge()` — snapshot all knowledge
-
-These tools read/write the same files, so MCP and direct access are interchangeable.
+- Read: `Read ~/.claude/knowledge/{agent}/knowledge.md`
+- Write: `Edit ~/.claude/knowledge/{agent}/knowledge.md`
+- Landscape: `Read/Edit ~/.claude/knowledge/landscape.json`
+- Taste: `Append to ~/.claude/knowledge/taste.jsonl`
 
 ## Anti-Patterns
 

@@ -19,7 +19,7 @@ Read `~/.claude/programs/strategy.md` and run it. Use when:
 ### Build — "Build it, score it, keep or discard."
 Read `~/.claude/programs/build.md` and run it. Use when:
 - "let's build" / "run build" / "improve [dimension]" / "start the loop"
-- Modes auto-detected: gate → plan → build → experiment → doctor
+- Scope auto-detected: assess → plan → build → experiment
 
 ## Quick Reference
 - Quick fix (typo, obvious bug, one-liner): just do it
