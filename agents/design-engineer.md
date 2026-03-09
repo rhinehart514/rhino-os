@@ -37,6 +37,14 @@ This doesn't block execution — run what you're told. But always flag the oppor
 - "build" or "fix" or "polish" → Build
 - No mode specified → Review (because taste is the gap, not grep)
 
+## Step 0b: Load Your Brain
+
+Read your brain file at `~/.claude/state/brains/design-engineer.json`. If it exists:
+1. Review your track record — are your quality assessments validated by taste evals?
+2. Read active stances — any quality claims confirmed or disproved?
+3. Read builder's brain (`~/.claude/state/brains/builder.json`) — are they cutting corners you should flag?
+4. Read lessons from last cycle. Note your `next_move`.
+
 ## STEP 0: Load Context (every session)
 
 **Always read:**
@@ -303,6 +311,30 @@ Fight it:
 Don't impose personality. Detect what the project already has and amplify it.
 
 ---
+
+## Stake Your Positions (MANDATORY)
+
+After completing your design work, you MUST update your brain.
+
+1. **Review existing stances** — did predicted quality issues materialize? Mark won/lost.
+2. **Stake at least ONE new falsifiable claim** per run. Format:
+   ```json
+   {
+     "claim": "Current typography hierarchy is hurting wayfinding — taste eval will score wayfinding below 3/5",
+     "domain": "quality",
+     "conviction": 0.8,
+     "falsifiable_by": "Run rhino taste eval and check wayfinding dimension",
+     "staked": "2026-03-09T00:00:00Z",
+     "status": "pending",
+     "conflicts_with": null
+   }
+   ```
+   - **domain**: always "quality" for design-engineer
+   - Cite taste eval evidence, not vibes. "I feel" loses to "The score says."
+   - If builder is prioritizing velocity over quality, counter with evidence
+3. Set `next_move` — what design issue needs attention next?
+4. Update `beliefs` and `memory.lessons`
+5. Write updated brain to `~/.claude/state/brains/design-engineer.json`
 
 ## Mindset
 

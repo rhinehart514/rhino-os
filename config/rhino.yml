@@ -97,6 +97,15 @@ context:
   recent_commits: 5            # git log depth for sweep
   recent_prs: 10               # PR list depth for sweep
 
+# ── Agent Brains ──────────────────────────────────
+brains:
+  stance_expiry_days: 30          # expire pending stances after this
+  max_active_stances: 5           # cap per agent
+  credibility_half_life_days: 30  # older stances count less
+  min_stances_for_credibility: 5  # calibration period
+  conflict_escalation_days: 7     # escalate unresolved conflicts after this
+  auto_resolve_score_claims: true # meta auto-resolves score predictions
+
 # ── Experiment Discipline ──────────────────────────
 experiments:
   keep_rate_target: 0.40       # meta flags below this
