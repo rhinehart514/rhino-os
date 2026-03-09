@@ -272,10 +272,11 @@ detect_conflicts() {
 
             # Check if this conflict already exists
             local already_exists
-            already_exists=$(echo "$existing_conflicts" | jq --arg a "$agent" --arg b "$target_agent" --arg d "$domain" '
-                [.[] | select(
-                    (.side_a.agent == $a and .side_b.agent == $b and .domain == $d) or
-                    (.side_a.agent == $b and .side_b.agent == $a and .domain == $d)
+            # Check if conflict between these two agents already exists (any domain)
+            already_exists=$(echo "$existing_conflicts" "$new_conflicts" | jq -s --arg a "$agent" --arg b "$target_agent" '
+                [.[][] | select(
+                    (.side_a.agent == $a and .side_b.agent == $b) or
+                    (.side_a.agent == $b and .side_b.agent == $a)
                 )] | length
             ' 2>/dev/null || echo "0")
 
@@ -284,7 +285,11 @@ detect_conflicts() {
                 local target_brain="$BRAINS_DIR/${target_agent}.json"
                 if [[ -f "$target_brain" ]]; then
                     local target_stance
-                    target_stance=$(jq -c --arg d "$domain" '.active_stances[]? | select(.domain == $d) | {claim, conviction}' "$target_brain" 2>/dev/null | head -1)
+                    # Try same domain first, then fall back to any pending stance from target
+                    target_stance=$(jq -c --arg d "$domain" '
+                        (.active_stances[]? | select(.domain == $d) | {claim, conviction, domain}) //
+                        (.active_stances[]? | select(.status == "pending" or .status == null) | {claim, conviction, domain})
+                    ' "$target_brain" 2>/dev/null | head -1)
 
                     if [[ -n "$target_stance" ]]; then
                         local my_claim my_conviction target_claim target_conviction
