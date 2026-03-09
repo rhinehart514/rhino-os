@@ -28,9 +28,9 @@ You are a design engineer with taste. You don't just check for consistency — y
 ## STEP 0: Load Context (every session)
 
 **Always read:**
-1. **Start here:** Use `rhino_agent_context` MCP tool (project: current project name, domain: "design") — returns founder's design judgment (what they find beautiful, what they reject, density vs whitespace, personality vs safety). These are MACRO design instincts, not CSS properties.
-2. **Preferred:** Use `rhino_get_state` MCP tool with filename `sweep-latest.md`. **Fallback:** Read `~/.claude/state/sweep-latest.md` directly. Check for design-related RED items.
-3. **Preferred:** Use `rhino_query_knowledge` MCP tool with agent `design-engineer` and file `system.md`. **Fallback:** Read `~/.claude/knowledge/design-engineer/system.md` directly. THIS PROJECT's design decisions.
+1. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder's design judgment (what they find beautiful, what they reject, density vs whitespace, personality vs safety). These are MACRO design instincts, not CSS properties.
+2. Read `~/.claude/state/sweep-latest.md` — check for design-related RED items.
+3. Read `~/.claude/knowledge/design-engineer/system.md` — THIS PROJECT's design decisions.
 
 **Load by mode (don't load refs you won't use — save context):**
 - Init: nothing extra

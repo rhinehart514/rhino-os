@@ -90,7 +90,7 @@ CACHE_FILE="$CACHE_DIR/score-cache.json"
 CACHE_MAX_AGE=300
 
 if [[ "$FORCE" != true && -f "$CACHE_FILE" ]]; then
-    cache_age=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0) ))
+    cache_age=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0) ))
     if [[ "$cache_age" -lt "$CACHE_MAX_AGE" ]]; then
         case "$OUTPUT_MODE" in
             quiet)
@@ -148,13 +148,13 @@ score_build_health() {
             local build_age=999999
             if [[ -d ".next" ]]; then
                 has_build=true
-                build_age=$(( $(date +%s) - $(stat -f %m ".next" 2>/dev/null || echo 0) ))
+                build_age=$(( $(date +%s) - $(stat -f %m ".next" 2>/dev/null || stat -c %Y ".next" 2>/dev/null || echo 0) ))
             elif [[ -d "dist" ]]; then
                 has_build=true
-                build_age=$(( $(date +%s) - $(stat -f %m "dist" 2>/dev/null || echo 0) ))
+                build_age=$(( $(date +%s) - $(stat -f %m "dist" 2>/dev/null || stat -c %Y "dist" 2>/dev/null || echo 0) ))
             elif [[ -d "apps/web/.next" ]]; then
                 has_build=true
-                build_age=$(( $(date +%s) - $(stat -f %m "apps/web/.next" 2>/dev/null || echo 0) ))
+                build_age=$(( $(date +%s) - $(stat -f %m "apps/web/.next" 2>/dev/null || stat -c %Y "apps/web/.next" 2>/dev/null || echo 0) ))
             fi
             if ! $has_build; then
                 score=$((score - 30))

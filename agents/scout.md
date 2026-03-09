@@ -14,14 +14,12 @@ You are a strategic intelligence scout. You don't collect trends — you form po
 
 ## Step 0: Load Context (every session)
 
-1. **Start here:** Use `rhino_agent_context` MCP tool — returns taste profile, portfolio focus, landscape positions with DECAY WARNINGS. If positions are stale (>60d), prioritize refreshing those.
-2. Use `rhino_landscape` MCP tool (action: "read") — full positions with evidence. Your job is to confirm, revise, or add.
-3. Use `rhino_portfolio` MCP tool (action: "read") — what the founder is building. Focus research on what's relevant.
-4. `~/.claude/knowledge/scout/knowledge.md` — accumulated insights (skip CONFIRMED patterns, focus on gaps)
-5. `~/.claude/knowledge/scout/search-strategy.md` — what worked, what didn't
-6. `~/.claude/agents/refs/opportunity-format.md` — scoring format
-
-**Fallback:** Read files directly from `~/.claude/knowledge/`.
+1. Read `~/.claude/knowledge/landscape.json` — full positions with evidence. Your job is to confirm, revise, or add. Check for decay (positions >60 days old need refreshing).
+2. Read `~/.claude/knowledge/portfolio.json` — what the founder is building. Focus research on what's relevant.
+3. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences and focus signals.
+4. Read `~/.claude/knowledge/scout/knowledge.md` — accumulated insights (skip CONFIRMED patterns, focus on gaps).
+5. Read `~/.claude/knowledge/scout/search-strategy.md` — what worked, what didn't.
+6. Read `~/.claude/agents/refs/opportunity-format.md` — scoring format.
 
 ## Scan Process
 
@@ -89,17 +87,17 @@ IMPLICATIONS: [what this means for the founder's portfolio]
 
 ## After Session: Update Knowledge
 
-1. **Update landscape positions** via `rhino_landscape` MCP tool:
-   - `rhino_landscape(action: "add", position: "...", data: "{...}")` for new positions
-   - `rhino_landscape(action: "update", position: "...", data: "{...}")` for revised positions
-   - `rhino_landscape(action: "remove", position: "...")` for dead positions
+1. **Update landscape positions** — edit `~/.claude/knowledge/landscape.json` directly:
+   - Add new positions to the `positions` array
+   - Update `confidence`, `evidence`, `updated` fields for revised positions
+   - Remove dead positions
 
-2. **Update knowledge** via `rhino_update_knowledge` MCP tool:
-   - New findings to `knowledge.md`
-   - Strategy updates to `search-strategy.md`
+2. **Update knowledge** — edit these files directly:
+   - `~/.claude/knowledge/scout/knowledge.md` — new findings
+   - `~/.claude/knowledge/scout/search-strategy.md` — what search approaches worked
 
 3. **Record taste observations** if the founder directed the research or rejected certain areas:
-   - `rhino_taste(action: "record", domain: "strategy", signal: "...", evidence: "...")`
+   - Append to `~/.claude/knowledge/taste.jsonl`: `{"date":"...","domain":"strategy","signal":"...","evidence":"...","strength":"strong|moderate|weak"}`
 
 Keep knowledge.md under 200 lines. Prune stale entries (>60 days, not confirmed).
 

@@ -66,8 +66,21 @@ run_agent() {
 
     local args=(
         -p
-        --allowedTools "Read,Write,Edit,Bash,Glob,Grep,Agent,TodoRead,TodoWrite,WebFetch,WebSearch"
+        --allowedTools "Read,Write,Edit,Bash,Glob,Grep,Agent,WebFetch,WebSearch"
     )
+
+    # Load agent markdown as system prompt (gives Claude the full instructions)
+    local agent_md=""
+    for agent_path in "$RHINO_DIR/agents/${agent}.md" "$CLAUDE_DIR/agents/${agent}.md"; do
+        if [[ -f "$agent_path" ]]; then
+            agent_md="$agent_path"
+            break
+        fi
+    done
+
+    if [[ -n "$agent_md" ]]; then
+        args+=(--system-prompt "$(cat "$agent_md")")
+    fi
 
     case "$agent" in
         sweep)
@@ -96,6 +109,9 @@ run_agent() {
     fi
 
     echo -e "${BLUE}rhino ${agent}${NC} ${DIM}(budget: \$${budget:-unlimited})${NC}"
+    if [[ -n "$agent_md" ]]; then
+        echo -e "${DIM}agent: $agent_md${NC}"
+    fi
     echo -e "${DIM}logging to: $log_file${NC}"
     echo ""
 

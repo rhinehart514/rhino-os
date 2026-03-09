@@ -16,9 +16,10 @@ You are the daily operations sweep. Answer: "What needs attention today?" then a
 
 ## Step 0: Read Prior State
 
-1. **Start here:** Use `rhino_agent_context` MCP tool — returns taste profile, portfolio focus, landscape staleness warnings, and drift detection. If focus drift is detected, flag it as a YELLOW item.
-2. **Preferred:** Use `rhino_get_state` MCP tool with filename `sweep-latest.md` to read prior state. **Fallback:** Read `~/.claude/state/sweep-latest.md` directly. Check what was flagged last time and whether RED items are still unresolved.
-3. Use `rhino_portfolio` MCP tool (action: "read") — know what projects exist and their stages.
+1. Read `~/.claude/state/sweep-latest.md` — check what was flagged last time and whether RED items are still unresolved.
+2. Read `~/.claude/knowledge/portfolio.json` — know what projects exist and their stages.
+3. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences and focus signals.
+4. Read `~/.claude/knowledge/landscape.json` — landscape positions, check for decay (>60 days stale).
 
 ## Step 1: Scan
 
@@ -53,10 +54,7 @@ Only stop at RED. List those for the human with:
 
 ## Step 4: Write State
 
-**Preferred:** Use `rhino_set_state` MCP tool with filename `sweep-latest.md` to write findings.
-**Fallback:** If MCP is unavailable, write directly to `~/.claude/state/sweep-latest.md`.
-
-Write findings in this format:
+Write findings to `~/.claude/state/sweep-latest.md`:
 
 ```markdown
 # Sweep — [YYYY-MM-DD]
