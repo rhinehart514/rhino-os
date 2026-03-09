@@ -132,6 +132,7 @@ run_agent() {
     claude "${args[@]}" "$prompt" 2>> "$log_file" | tee -a "$log_file"
 
     log_end "$agent"
+    update_marker "$agent"
 }
 
 # ============================================================
@@ -916,8 +917,61 @@ cmd_config() {
 }
 
 # ============================================================
+# CATCH-UP — run overdue agents in background on any CLI use
+# ============================================================
+
+catchup() {
+    # Skip if we're already running an agent (avoid recursion)
+    [[ "${1:-}" == "sweep" || "${1:-}" == "scout" || "${1:-}" == "meta" ]] && return
+    # Skip for fast commands
+    [[ "${1:-}" == "help" || "${1:-}" == "--help" || "${1:-}" == "version" || "${1:-}" == "--version" || "${1:-}" == "config" ]] && return
+
+    local marker_dir="$STATE_DIR"
+    local now
+    now=$(date +%s)
+
+    # Sweep: overdue if >26 hours since last run (catches missed daily)
+    local sweep_marker="$marker_dir/.last-sweep"
+    if [[ -f "$sweep_marker" ]]; then
+        local sweep_age=$(( now - $(cat "$sweep_marker") ))
+        if [[ "$sweep_age" -gt 93600 ]]; then
+            echo -e "${DIM}  sweep overdue — running in background${NC}" >&2
+            nohup "$0" sweep > /dev/null 2>&1 &
+            echo "$now" > "$sweep_marker"
+        fi
+    else
+        # First run — create marker, don't trigger
+        echo "$now" > "$sweep_marker"
+    fi
+
+    # Scout: overdue if >8 days since last run (catches missed weekly)
+    local scout_marker="$marker_dir/.last-scout"
+    if [[ -f "$scout_marker" ]]; then
+        local scout_age=$(( now - $(cat "$scout_marker") ))
+        if [[ "$scout_age" -gt 691200 ]]; then
+            echo -e "${DIM}  scout overdue — running in background${NC}" >&2
+            nohup "$0" scout > /dev/null 2>&1 &
+            echo "$now" > "$scout_marker"
+        fi
+    else
+        echo "$now" > "$scout_marker"
+    fi
+}
+
+# Update markers when agents actually run
+update_marker() {
+    local agent="$1"
+    case "$agent" in
+        sweep) date +%s > "$STATE_DIR/.last-sweep" ;;
+        scout) date +%s > "$STATE_DIR/.last-scout" ;;
+    esac
+}
+
+# ============================================================
 # MAIN
 # ============================================================
+
+catchup "${1:-help}"
 
 case "${1:-help}" in
     # Agents
