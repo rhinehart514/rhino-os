@@ -130,6 +130,121 @@ After completing a task → run score, report what changed + score delta, move t
 
 ---
 
+## Feature Set Mode: Coordinated Changes With Taste
+
+For features that need multiple pieces to deliver value. Too big for one experiment, but needs the keep/discard discipline and taste evaluation that Build mode lacks.
+
+**Trigger:** "build [feature] as a feature set" or when a plan has 3-7 tightly coupled tasks that only compound together.
+
+### 1. Define the set
+
+Before writing code, define:
+```markdown
+## Feature Set: [name]
+
+**Value prop:** [what the user gets when ALL pieces are in place]
+**Pieces:** (ordered — each builds on the last)
+1. [piece] — what it adds to the user experience
+2. [piece] — what it adds
+3. [piece] — what it adds
+
+**Taste target:** [which taste dimensions should improve when complete]
+**Combined signal:** [what you'd see in a taste eval that proves it worked]
+**Revert trigger:** [what failure looks like — revert the whole set]
+```
+
+### 2. Baseline
+
+Before starting:
+```bash
+rhino score .                    # record training loss baseline
+rhino taste eval                 # record taste baseline (the before screenshot)
+```
+
+Save both numbers. The taste eval screenshots are your "before" — you'll compare against them at the end.
+
+### 3. Build pieces with milestone gates
+
+For each piece in order:
+
+**a) Implement the piece.** Match existing patterns. No stubs.
+
+**b) Milestone gate:**
+```bash
+rhino score .          # must not DROP (pieces can be neutral individually)
+npx tsc --noEmit       # must pass
+npm run build          # must pass
+```
+
+Training loss can stay flat during a feature set — individual pieces don't need to raise the score. But it can NEVER drop. If it drops, the piece broke something. Fix before continuing.
+
+**c) Taste check (lightweight):** After each piece, ask yourself:
+- Does this piece make the product WORSE visually? (layout broken, dead end created, empty state with no guidance)
+- If yes → fix the taste issue before moving to next piece
+- If no → continue
+
+Commit each piece: `git commit -m "feat(set): [feature] — piece N: [what]"`
+
+### 4. Set completion — the real evaluation
+
+When ALL pieces are implemented:
+
+```bash
+rhino score .              # training loss — must be >= baseline
+rhino taste eval           # taste eval — the "after" screenshot
+```
+
+Now compare:
+- **Training loss:** must be same or higher than baseline
+- **Taste eval:** compare the target dimensions against the baseline taste eval
+  - Did the taste target dimensions improve?
+  - Read the `weakest` and `strongest` fields — did they shift?
+  - Compare "before" and "after" screenshots for the affected routes
+
+### 5. Keep or revert the whole set
+
+**KEEP** if:
+- Training loss >= baseline
+- Taste eval shows improvement on target dimensions
+- The combined value prop is delivered (user can discover, use, and get value)
+- No new dead ends, no stubs, no "coming soon"
+
+**REVERT** if:
+- Training loss dropped and can't be fixed
+- Taste eval shows NO improvement or regression on target dimensions
+- The value prop isn't actually delivered (pieces exist but don't connect)
+
+Revert = `git reset --hard` to the commit before piece 1. The whole set goes, not individual pieces. A feature set is atomic — it works together or not at all.
+
+### 6. Log
+
+Append to `.claude/experiments/featureset-[date].tsv`:
+```
+feature	pieces	score_before	score_after	taste_before	taste_after	taste_delta	status	target_dimensions	evidence
+```
+
+### Examples of feature sets vs experiments vs build tasks
+
+| Type | Example | Why |
+|------|---------|-----|
+| Experiment | "change empty state copy to be campus-specific" | One file, one change, testable alone |
+| Feature set | "social layer: follow + feed + presence" | 3 pieces, only valuable together, taste target: distinctiveness + wayfinding |
+| Feature set | "creation flow: editor + preview + publish + share CTA" | 4 pieces, each piece is neutral alone, combined = creation_distribution score up |
+| Build task | "add auth system" | Infrastructure, not taste-sensitive, just needs to work |
+
+### When to use feature set mode
+- The feature needs 3-7 coordinated changes
+- Individual pieces don't deliver value alone
+- You have a specific taste dimension you're targeting
+- You want before/after taste eval comparison
+
+### When NOT to use
+- Single changes (use experiment mode)
+- Infrastructure work with no taste impact (use build mode)
+- 8+ pieces (too big — break into multiple feature sets)
+
+---
+
 ## Experiment Mode: Autonomous Iteration
 
 The autoresearch pattern applied to product development. You run the loop. NEVER STOP until interrupted or exhausted.
