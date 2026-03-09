@@ -382,15 +382,18 @@ async function evaluateWithClaude(screenshots, routes, screenshotDir) {
   let prompt = buildRubricPrompt(routes);
   prompt += "\n\nScreenshots are attached as images. Evaluate them and respond with ONLY the JSON object.";
 
-  // Build claude command with image flags
-  const imageArgs = savedPaths.map(s => `--image "${s.path}"`).join(" ");
-  const cmd = `echo ${JSON.stringify(prompt)} | claude -p ${imageArgs} --output-format text 2>/dev/null`;
+  // Build claude args array (no shell interpolation — safe from injection)
+  const claudeArgs = ["-p", "--output-format", "text"];
+  for (const s of savedPaths) {
+    claudeArgs.push("--image", s.path);
+  }
 
   try {
-    const output = execSync(cmd, {
+    const output = execSync(`claude ${claudeArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`, {
       encoding: "utf-8",
+      input: prompt,
       maxBuffer: 10 * 1024 * 1024,
-      timeout: 120000,
+      timeout: 180000,
       shell: true,
     });
 
@@ -414,7 +417,7 @@ async function evaluateWithClaude(screenshots, routes, screenshotDir) {
 // --- Check if server is already running on a port ---
 async function isPortActive(portNum) {
   try {
-    const resp = await fetch(`http://localhost:${portNum}`, { signal: AbortSignal.timeout(2000) });
+    const resp = await fetch(`http://localhost:${portNum}`, { signal: AbortSignal.timeout(5000) });
     return resp.ok || resp.status < 500;
   } catch {
     return false;

@@ -3,7 +3,7 @@
 A knowledge-compounding strategy engine for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Built for solo technical founders who need strategic clarity, not more workflow automation.
 
 ```
-5 Agents  ·  3 Intelligence Layers  ·  1 MCP Server  ·  1 CLI
+6 Agents  ·  3 Intelligence Layers  ·  1 CLI
 Thick-skinned. Charges forward. Kills what isn't working.
 ```
 
@@ -32,9 +32,9 @@ If you're on a team, use something else. If you want a prettier CLI, use somethi
 
 ## Prerequisites
 
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (OAuth — no API key needed)
 - macOS or Linux (macOS for LaunchAgent automation)
-- Node.js 18+ (for MCP server)
+- Node.js 18+ (for taste visual eval)
 - `jq` recommended (`brew install jq`) for `rhino status` details
 
 ## Setup
@@ -51,49 +51,42 @@ The installer is idempotent (safe to re-run). It:
 2. Merges `settings.json` and `config.json` (preserves your existing config)
 3. Seeds knowledge directories from templates
 4. Copies `landscape.json` to `~/.claude/knowledge/` (won't overwrite existing)
-5. Installs the MCP server (`rhino-state`) and API server dependencies
-6. Links the `rhino` CLI to `~/bin/rhino`
-7. Optionally installs macOS LaunchAgents for scheduled sweep/scout
+5. Links the `rhino` CLI to `~/bin/rhino`
+6. Optionally installs macOS LaunchAgents for scheduled sweep/scout
 
 ```bash
 # Skip LaunchAgents (e.g., on Linux):
 ./install.sh --no-launchd
 
 # Verify everything:
-rhino doctor
+rhino status
 ```
 
 After install, edit `~/.claude/CLAUDE.md` with your identity and project info.
 
 ## Usage
 
-### CLI Commands
+### CLI Commands — 12 commands, 3 groups
 
 ```bash
-# Strategic (weekly)
-rhino strategy               # Portfolio evaluation — Buy/Sell/Hold verdicts
-rhino scout                  # Update landscape positions from market signals
-
-# Operational (daily)
+# Agents (run specialized Claude sessions)
 rhino sweep                  # Daily triage — what needs attention?
-rhino status                 # System health, knowledge freshness, intelligence stats
-
-# Building
-rhino build                  # Auto-detects mode (gate → plan → build → doctor)
+rhino scout                  # Update landscape positions from market signals
+rhino build                  # Auto-detects mode (gate → plan → build → experiment)
 rhino build "implement task 3"   # Build a specific task
-rhino build "gate"           # Should I build this? (ideation mode)
+rhino strategy               # Portfolio evaluation — Buy/Sell/Hold verdicts
+rhino design                 # Auto-detect design mode (audit/review/build)
 
-# Design
-rhino design                 # Auto-detect design mode
-rhino design "audit"         # Visual audit of current project
+# Inspect (cheap, fast, local)
+rhino status                 # System health, knowledge freshness, intelligence stats
+rhino score [dir]            # Structural lint score (training loss)
+rhino dashboard [dir]        # Per-project dashboard (--html for visual)
 
-# Knowledge
-rhino capture                # Extract session decisions/preferences to knowledge
-rhino backup                 # Snapshot all knowledge to timestamped backup
-
-# System
-rhino doctor                 # Health check (symlinks, MCP, LaunchAgents, state)
-rhino serve                  # Start API server on localhost:7890
+# Operate (on-demand tools)
+rhino taste [dir]            # Visual product eval with Claude vision (eval loss)
+rhino visuals [dir]          # Generate GitHub badges from score
+rhino init [dir]             # Initialize rhino in a project
+rhino meta                   # Self-evaluation — rhino grades its own agents
 ```
 
 ### Environment Variables
@@ -101,12 +94,10 @@ rhino serve                  # Start API server on localhost:7890
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `RHINO_BUDGET` | per-agent defaults | Override Claude budget cap (e.g., `RHINO_BUDGET=5.00 rhino scout`) |
-| `RHINO_PORT` | `7890` | API server port |
-| `RHINO_API_KEY` | — | API server authentication key |
 
 ### First Run
 
-1. `rhino doctor` — verify installation
+1. `rhino status` — verify installation
 2. `rhino strategy` — the strategist will auto-discover projects in `~/` with `.git` directories and populate your portfolio
 3. Review the Buy/Sell/Hold verdicts. Update project stages and user counts as needed.
 4. `rhino scout` — populates landscape positions with market intelligence
@@ -114,48 +105,27 @@ rhino serve                  # Start API server on localhost:7890
 
 ## The Three Intelligence Layers
 
-### Portfolio Model (`rhino_portfolio`)
+### Portfolio Model (`~/.claude/knowledge/portfolio.json`)
 
 Structured JSON tracking every project, every feature, every kill criterion. The strategist reads the entire portfolio before making any recommendation.
 
-```
-rhino_portfolio(action: "evaluate")
-→ project-a → BUY  (core loop complete, 12 users, clear moat)
-→ project-b → HOLD (useful but commodity market, don't chase stars)
-→ project-c → SELL (no users in 60 days, kill trigger hit)
-
-FOCUS WARNING: 3 active projects. 1 project at 100% = escape velocity.
-3 at 33% = none escape.
-```
-
 Kill criteria are checked automatically: "No real user need in 30 days", "Can't name one person who'd pay", "Core loop incomplete for >2 months".
 
-### Landscape Positions (`rhino_landscape`)
+### Landscape Positions (`~/.claude/knowledge/landscape.json`)
 
 Opinionated beliefs about what works right now. Not trends — positions with evidence and implications that every agent reasons from.
 
 ```
 [STRONG] "AI wrappers are dead — the wedge is proprietary data + workflow"
   Implications: Any product wrapping Claude/GPT API is on borrowed time
-  Evidence: Anthropic shipping natively, enterprise consolidating spend
 
 [STRONG] "Solo founders win on context engineering + distribution, not product quality"
   Implications: Stop polishing. Focus on reaching users.
-
-[MODERATE] "Knowledge compounding is the only defensible innovation in AI dev tools"
-  Implications: The taste/preference learning system is genuinely novel
-```
-
-Positions have IDs for easy update/removal. Substring matching works too:
-
-```
-rhino_landscape(action: "update", position: "ai wrappers")
-→ matches "AI wrappers are dead — the wedge is proprietary data + workflow"
 ```
 
 Scout maintains these. Strategist reasons from them. Every recommendation references a position.
 
-### Taste Signals (`rhino_taste`)
+### Taste Signals (`~/.claude/knowledge/taste.jsonl`)
 
 Observations about your preferences, recorded as agents watch you work. Duplicate signals get deduplicated with strength promotion (weak → moderate → strong).
 
@@ -163,10 +133,22 @@ Observations about your preferences, recorded as agents watch you work. Duplicat
 [product]   "Rejects onboarding flows — wants users dropped into value immediately"   [strong]
 [design]    "Prefers dense data layouts over whitespace"                               [moderate]
 [strategy]  "Kills features aggressively when no user signal exists"                   [moderate]
-[technical] "Prefers simple bash over complex TypeScript when both work"               [weak]
 ```
 
-Every agent reads taste before acting. The design-engineer uses it instead of generic design rubrics. The builder respects your technical preferences. The strategist aligns recommendations with your judgment patterns.
+Every agent reads taste before acting. The design-engineer uses it instead of generic design rubrics. The builder respects your technical preferences.
+
+## Two-Tier Scoring
+
+```
+rhino score .     = training loss (cheap, every commit, structural lint)
+rhino taste .     = eval loss (expensive, on demand, Claude vision)
+```
+
+**Score** measures what grep can honestly measure: build health, structure, hygiene. Fast, free, runs every commit.
+
+**Taste** measures what only looking can measure: hierarchy, contrast, polish, emotional tone, distinctiveness. Expensive (~1 Claude call), runs on demand. Market-aware — reads landscape positions and founder preferences before judging.
+
+Both feed into `rhino dashboard`. Track the gap between them like training loss vs eval loss.
 
 ## Architecture
 
@@ -174,36 +156,43 @@ Every agent reads taste before acting. The design-engineer uses it instead of ge
 ~/.claude/
 ├── agents/              # Symlinked agent definitions
 │   ├── strategist.md    # Portfolio strategy, Buy/Sell/Hold
-│   ├── builder.md       # Gate → Plan → Build → Doctor
+│   ├── builder.md       # Gate → Plan → Build → Experiment
 │   ├── design-engineer.md # Visual eval, design systems
 │   ├── scout.md         # Market intelligence, landscape maintenance
-│   └── sweep.md         # Daily triage, system health
+│   ├── sweep.md         # Daily triage, system health
+│   └── meta.md          # Self-evaluation, agent quality grading
 ├── skills/              # User-invocable skills
 │   ├── eval/            # Ship-readiness checks
 │   ├── smart-commit/    # Conventional commits tied to plans
-│   ├── todofocus/       # Scope enforcement
+│   ├── experiment/      # Autonomous iteration loop
 │   └── product-2026/    # Product strategy reasoning
 ├── rules/               # Always-on coding rules
 │   ├── quality-bar.md
 │   └── product-reasoning.md
 ├── hooks/               # Event-driven automation
 │   ├── enforce_ideation_readonly.sh  # Blocks edits during ideation
-│   ├── track_usage.sh               # Tool call logging
-│   └── capture_knowledge.sh         # Session knowledge extraction
+│   ├── session_context.sh           # Injects eval state at session start
+│   └── track_usage.sh               # Tool call logging
 ├── knowledge/           # Intelligence layer data (gitignored)
 │   ├── portfolio.json   # Project portfolio model
 │   ├── landscape.json   # Strategic positions
 │   ├── taste.jsonl      # Preference signals
-│   └── sessions/        # Captured session knowledge
+│   └── {agent}/         # Per-agent knowledge
+├── programs/            # Detailed program instructions
+│   ├── build.md         # Builder's brain
+│   ├── strategy.md      # Strategist's brain
+│   └── meta.md          # Meta-evaluator's brain
 ├── state/               # Inter-agent operational state
-├── logs/                # Session and usage logs
-└── config.json          # MCP server registration
+└── logs/                # Session and usage logs
 
 ~/rhino-os/              # Source repo
-├── src/
-│   ├── mcp-server/      # rhino-state MCP server (9 tools)
-│   └── api-server/      # REST API for programmatic access
-├── bin/rhino             # CLI wrapper
+├── agents/              # Agent definitions (symlinked to ~/.claude/agents/)
+├── programs/            # Program instructions (symlinked to ~/.claude/programs/)
+├── bin/
+│   ├── rhino            # CLI (12 commands)
+│   ├── score.sh         # Structural lint scorer
+│   ├── taste.mjs        # Visual product evaluator
+│   └── gen-dashboard.sh # HTML dashboard generator
 ├── install.sh           # Idempotent installer
 └── uninstall.sh         # Clean removal
 ```
@@ -212,38 +201,19 @@ Every agent reads taste before acting. The design-engineer uses it instead of ge
 
 Agents share state through the filesystem, not direct calls:
 
-- **MCP tools** (`rhino_*`) read/write structured data in `~/.claude/knowledge/`
-- **State files** in `~/.claude/state/` pass operational context (e.g., sweep writes `sweep-latest.md`, strategist reads it)
+- **State files** in `~/.claude/state/` pass operational context (e.g., sweep writes `sweep-latest.md`, builder reads it)
 - **Knowledge files** in `~/.claude/knowledge/{agent}/` accumulate per-agent learnings
+- **Agent markdown** is injected as system prompt via `--system-prompt` when `rhino` runs an agent
 
 This means agents work asynchronously. The sweep runs, writes state, and the strategist picks it up on the next run.
-
-## MCP Tools Reference
-
-The `rhino-state` MCP server provides 9 tools that agents use automatically:
-
-| Tool | Purpose |
-|------|---------|
-| `rhino_portfolio` | Read, add, update, remove, or evaluate projects |
-| `rhino_landscape` | Read, add, update, or remove strategic positions |
-| `rhino_taste` | Record, read, or query preference signals (with dedup) |
-| `rhino_get_state` | Read inter-agent state files |
-| `rhino_set_state` | Write inter-agent state files |
-| `rhino_query_knowledge` | Query agent knowledge with confidence filtering |
-| `rhino_update_knowledge` | Append or replace knowledge files |
-| `rhino_log_session` | Log session metadata (agent, cost, duration) |
-| `rhino_get_usage` | Query usage stats by period and grouping |
-| `rhino_backup_knowledge` | Snapshot all knowledge to timestamped backup |
 
 ## Hooks
 
 | Hook | Trigger | Purpose |
 |------|---------|---------|
 | `enforce_ideation_readonly.sh` | PreToolUse (Edit/Write/Bash) | Blocks file edits during ideation/gate mode |
+| `session_context.sh` | PreToolUse | Injects eval verdict + gaps + active plan at session start |
 | `track_usage.sh` | PostToolUse (all) | Logs every tool call to `usage.jsonl` |
-| `capture_knowledge.sh` | Manual (`rhino capture`) | Extracts session decisions/preferences to knowledge |
-
-Knowledge capture is opt-in — run `rhino capture` when you want to save a session's learnings. It won't auto-fire on every session stop.
 
 ## Uninstall
 
@@ -264,7 +234,7 @@ Removes symlinks and LaunchAgents. Your knowledge files in `~/.claude/knowledge/
 
 **Budget caps are real.** The `rhino` CLI passes `--max-budget-usd` to Claude. Default is $2.00 for most agents. Override with `RHINO_BUDGET`.
 
-**Knowledge files are gitignored.** They live in `~/.claude/knowledge/`, not in the repo. Use `rhino backup` regularly.
+**Knowledge files are gitignored.** They live in `~/.claude/knowledge/`, not in the repo.
 
 **This is a solo founder tool.** It assumes one person making all decisions. Team dynamics, code review workflows, and multi-person taste profiles are not supported.
 

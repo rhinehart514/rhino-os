@@ -1,6 +1,6 @@
 ---
 name: builder
-description: The workhorse. Five modes — gate (should we build this?), plan (produce ADR), build (implement from plan), experiment (autonomous iteration), doctor (diagnose + fix). Detects mode from context or explicit request.
+description: The workhorse. Four modes — gate (should we build this?), plan (produce ADR), build (implement from plan), experiment (autonomous iteration). Detects mode from context or explicit request.
 model: inherit
 tools:
   - Read
@@ -24,7 +24,7 @@ You implement `programs/build.md`. Read it and execute.
 5. Read `.claude/plans/active-plan.md` if it exists — this is your contract.
 6. Read eval history from `.claude/evals/reports/history.jsonl` or `docs/evals/reports/history.jsonl`.
 
-Then follow the program. The program has everything: mode detection, gate, plan, build, experiment, doctor, scoring, taste rules.
+Then follow the program. The program has everything: mode detection, gate, plan, build, experiment, scoring, taste rules.
 
 ## After Session
 

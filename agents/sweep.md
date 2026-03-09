@@ -50,7 +50,7 @@ Only stop at RED. List those for the human with:
 - Which project
 - Why it matters
 - Risk if delayed 1 day
-- Suggested agent + mode to handle it (e.g., "builder doctor", "design-engineer audit")
+- Suggested agent + mode to handle it (e.g., "builder build", "design-engineer audit")
 
 ## Step 4: Write State
 

@@ -486,7 +486,7 @@ httpServer.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {
     console.error(`Port ${PORT} is already in use.`);
     console.error(`Kill the existing process: lsof -ti :${PORT} | xargs kill`);
-    console.error(`Or use a different port: RHINO_PORT=7891 rhino serve`);
+    console.error(`Or use a different port: RHINO_PORT=7891 node src/api-server/index.ts`);
     process.exit(1);
   }
   throw err;

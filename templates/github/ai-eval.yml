@@ -1,7 +1,7 @@
 # AI Eval — runs on PRs via Claude Code (your auth, no API key)
 #
 # Setup:
-#   1. Copy to .github/workflows/ai-eval.yml (or run: rhino init-eval)
+#   1. Copy to .github/workflows/ai-eval.yml
 #   2. Run `claude setup-token` locally, copy the token
 #   3. Add CLAUDE_CODE_OAUTH_TOKEN to repo secrets
 #   4. Use builder plan mode to generate .claude/evals/[feature].yml

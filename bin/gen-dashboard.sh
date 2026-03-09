@@ -44,7 +44,7 @@ SCORE_DATA="[]"
 HISTORY_FILE=".claude/scores/history.tsv"
 if [[ -f "$HISTORY_FILE" ]]; then
     SCORE_DATA=$(tail -n +2 "$HISTORY_FILE" | awk -F'\t' '{
-        printf "{\"ts\":\"%s\",\"build\":%s,\"structure\":%s,\"product\":%s,\"capabilities\":%s,\"hygiene\":%s},", $1, $2, $3, $4, $5, $6
+        printf "{\"ts\":\"%s\",\"build\":%s,\"structure\":%s,\"hygiene\":%s},", $1, $2, $3, $4
     }' | sed 's/,$//')
     SCORE_DATA="[$SCORE_DATA]"
 fi
