@@ -221,8 +221,8 @@ async function screenshotRoutes(browser, url, routeConfig) {
     // Desktop for all routes
     await page.setViewportSize({ width: desktopVp.width, height: desktopVp.height });
     try {
-      await page.goto(`${url}${route}`, { waitUntil: "networkidle", timeout: 15000 });
-      await page.waitForTimeout(1000);
+      await page.goto(`${url}${route}`, { waitUntil: "networkidle", timeout: cfg("taste.timeouts.page_load", 30000) });
+      await page.waitForTimeout(cfg("taste.timeouts.post_load_wait", 1000));
       const buffer = await page.screenshot({ fullPage: true, type: "png" });
       screenshots.push({ route, viewport: "desktop", dimensions: `${desktopVp.width}x${desktopVp.height}`, base64: buffer.toString("base64") });
     } catch (err) {
@@ -233,8 +233,8 @@ async function screenshotRoutes(browser, url, routeConfig) {
     if (mobileOnly.includes(route)) {
       await page.setViewportSize({ width: mobileVp.width, height: mobileVp.height });
       try {
-        await page.goto(`${url}${route}`, { waitUntil: "networkidle", timeout: 15000 });
-        await page.waitForTimeout(1000);
+        await page.goto(`${url}${route}`, { waitUntil: "networkidle", timeout: cfg("taste.timeouts.page_load", 30000) });
+        await page.waitForTimeout(cfg("taste.timeouts.post_load_wait", 1000));
         const buffer = await page.screenshot({ fullPage: true, type: "png" });
         screenshots.push({ route, viewport: "mobile", dimensions: `${mobileVp.width}x${mobileVp.height}`, base64: buffer.toString("base64") });
       } catch (err) {
@@ -413,15 +413,16 @@ async function evaluateWithClaude(screenshots, routes, screenshotDir) {
     savedPaths.push({ path: filepath, route: ss.route, viewport: ss.viewport, dimensions: ss.dimensions });
   }
 
-  // Build prompt with image references for claude -p
+  // Build prompt — tell Claude to read the screenshot files
   let prompt = buildRubricPrompt(routes);
-  prompt += "\n\nScreenshots are attached as images. Evaluate them and respond with ONLY the JSON object.";
+  prompt += "\n\nRead each screenshot file below using the Read tool, then evaluate what you see.\n";
+  for (const s of savedPaths) {
+    prompt += `\n- ${s.path} (${s.route} — ${s.viewport} ${s.dimensions || ""})`;
+  }
+  prompt += "\n\nAfter reading ALL screenshots, respond with ONLY the JSON object.";
 
   // Build claude args array (no shell interpolation — safe from injection)
-  const claudeArgs = ["-p", "--output-format", "text"];
-  for (const s of savedPaths) {
-    claudeArgs.push("--image", s.path);
-  }
+  const claudeArgs = ["-p", "--output-format", "text", "--allowedTools", "Read"];
 
   try {
     const output = execSync(`claude ${claudeArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`, {
@@ -503,7 +504,7 @@ async function startDevServer(dir) {
   while (!ready && attempts < 60) {
     attempts++;
     try {
-      await fetch(serverUrl, { signal: AbortSignal.timeout(2000) });
+      await fetch(serverUrl, { signal: AbortSignal.timeout(cfg("taste.timeouts.server_startup", 3000)) });
       ready = true;
     } catch {
       await new Promise(r => setTimeout(r, 1000));

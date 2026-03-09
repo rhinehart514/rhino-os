@@ -50,11 +50,11 @@ taste:
     mobile: { width: 390, height: 844 }
 
   timeouts:
-    page_load: 15000          # ms — playwright goto timeout
+    page_load: 30000          # ms — playwright goto timeout
     post_load_wait: 1000      # ms — wait after page load
     eval_timeout: 180000      # ms — claude vision timeout
     port_check: 5000          # ms — dev server check
-    server_startup: 60        # seconds — max wait for dev server
+    server_startup: 3000      # ms — per-attempt fetch timeout for dev server readiness
 
   context:
     taste_lines: 20           # lines from taste.jsonl
