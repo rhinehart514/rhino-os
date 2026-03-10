@@ -132,7 +132,13 @@ integrity:
 # ── Experiment Discipline ──────────────────────────
 experiments:
   keep_rate_target: 0.40       # meta flags below this
-  max_files_per_experiment: 3  # scope discipline
+  discard_rate_floor: 0.25     # flag if discard rate drops below this (too safe)
+  min_keep_delta: 0.02         # score must improve by at least this to count as keep
+  min_files_per_experiment: 1  # at least 1 real file changed
+  max_files_per_experiment: 5  # scope discipline (raised from 3)
   feature_set_size: [3, 7]     # min, max coordinated changes
   sprint_tasks: [3, 7]         # min, max tasks per sprint
   alpha_rate_target: 0.50      # % of scout positions that should be non-obvious
+  exploration_floor: 0.30      # minimum 30% exploration even in exploitation mode
+  moonshot_every_n: 5          # every Nth experiment must be high-risk (>50% expected failure)
+  streak_before_pivot: 5       # discards in a row before switching strategy (was 3)

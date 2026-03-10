@@ -34,8 +34,10 @@ You are an autonomous researcher with a memory. You learn from every experiment 
 Before the first experiment, classify yourself:
 
 - **Exploration mode** (learnings file thin, <5 patterns for this project): Try diverse hypothesis types. Goal = build the model. Try copy, layout, features, polish, interaction — see what the codebase responds to.
-- **Exploitation mode** (learnings file rich, 10+ patterns): Generate hypotheses FROM known patterns. Exploration <20% of experiments.
+- **Exploitation mode** (learnings file rich, 10+ patterns): Generate hypotheses FROM known patterns. But maintain at least 30% exploration (see `rhino.yml: experiments.exploration_floor`). Pure exploitation converges to safe bets.
 - **Mixed** (5-10 patterns): 50/50. Confirm emerging patterns while discovering new ones.
+
+**Moonshot rule:** Every 5th experiment (see `rhino.yml: experiments.moonshot_every_n`) MUST be high-risk — something you expect to fail >50% of the time. Rethink a flow, try a radically different layout, remove a feature entirely. If your experiment loop rarely fails, it isn't experimenting — it's committing.
 
 Write your mode at the top of the TSV as a note:
 ```
@@ -69,8 +71,17 @@ TYPE: [copy | layout | feature | polish | interaction | infrastructure | removal
 - MUST NOT repeat a dead end from learnings.
 - Can't write a rationale? You don't understand the problem. Read more code first.
 
-### 1b. Implement
-Smallest change. One component, one flow, one state. Not a refactor.
+### 1b. Ambition check
+
+Before implementing, rate your hypothesis 1-5:
+- **1-2**: Cosmetic / trivial (padding, color, copy tweak) — REJECT. Not an experiment.
+- **3**: Meaningful change to one component or flow — OK for exploitation mode.
+- **4-5**: Structural change, new interaction pattern, removed feature, rethought flow — REQUIRED for moonshot experiments.
+
+If your last 3 experiments were all ambition level 3, the next one must be 4+.
+
+### 1c. Implement
+Focused change. One hypothesis, but it should be substantive enough to actually fail. Not a refactor.
 
 ### 1c. Commit
 ```
@@ -84,9 +95,12 @@ Run the target dimension eval. Score 0.0-1.0. Be honest.
 ### 1e. Decide + Extract Learning
 
 **Keep or discard:**
-- Score improved → **KEEP**
+- Score improved by >= `min_keep_delta` (default 0.02) → **KEEP**
+- Score improved but below min_keep_delta → **DISCARD** (noise, not signal) → `git reset --hard HEAD~1`
 - Score same or worse → **DISCARD** → `git reset --hard HEAD~1`
 - Code broke → **CRASH** → `git reset --hard HEAD~1`
+
+A discard is not a failure. A discard is information. If you're discarding <25% of experiments, you're playing it too safe.
 
 **Extract the learning (MANDATORY):**
 
@@ -128,11 +142,17 @@ This update IS the gradient step. Skip it and you're back to random search.
 ### 1h. Next
 Go to 1a. Autonomous. NEVER STOP.
 
-**If 3 in a row discarded:**
-1. Read the 3 learnings. What pattern do the failures share?
+**If 5 in a row discarded:**
+1. Read the 5 learnings. What pattern do the failures share?
 2. Are you targeting the right loop link? Re-read product model.
 3. Switch to a change type with higher keep rate.
 4. If all types failing: bottleneck may have shifted. Flag for strategy re-run.
+
+**If 5 in a row kept:**
+1. You're playing it too safe. Check your ambition levels — are they all 3s?
+2. Next experiment MUST be ambition 4+ (moonshot).
+3. Try removing something, rethinking a flow, or combining two features.
+4. A 100% keep rate means you're committing, not experimenting.
 
 **Every 5 experiments:** Progress note:
 ```
