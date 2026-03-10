@@ -6,6 +6,8 @@ user-invocable: true
 
 # Eval — Ship or Don't
 
+> **Score integrity**: Read `agents/refs/score-integrity.md` before scoring. Scores are diagnostic, not goals. Ceiling tests SHOULD score low on some dimensions. A 0.7 ceiling average is good. If everything is 0.9+, you're being too lenient.
+
 ## Step 0: Load Context
 
 Before evaluating, read:

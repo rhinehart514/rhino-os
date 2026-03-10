@@ -17,10 +17,8 @@ You are the daily operations sweep. Answer: "What needs attention today?" then a
 ## Step 0b: Load Your Brain
 
 Read your brain file at `~/.claude/state/brains/sweep.json`. If it exists:
-1. Review your track record — how many of your RED flags were real issues vs false alarms?
-2. Read active stances — any safety predictions confirmed or disproved?
-3. Read builder's brain (`~/.claude/state/brains/builder.json`) — are they aware of the risks you flagged?
-4. Read lessons from last cycle. Note your `next_move`.
+1. Read your `next_move` from last run — pick up where you left off.
+2. Read builder's brain (`~/.claude/state/brains/builder.json`) — are they aware of the risks you flagged?
 
 ## Step 0: Read Prior State
 
@@ -138,29 +136,12 @@ Cost: $[X.XX]
 Artifacts written: sweep-latest.md [✓/✗]
 ```
 
-## Stake Your Positions (MANDATORY)
+## Update Your Brain (MANDATORY)
 
-After completing your sweep, you MUST update your brain.
-
-1. **Review existing stances** — did flagged risks materialize? Mark won/lost.
-2. **Stake at least ONE new falsifiable claim** per run. Format:
-   ```json
-   {
-     "claim": "The broken symlink in agents/ will cause builder to fail within 48 hours",
-     "domain": "safety",
-     "conviction": 0.6,
-     "falsifiable_by": "Check if builder ran successfully in next 48h",
-     "staked": "2026-03-09T00:00:00Z",
-     "status": "pending",
-     "conflicts_with": null
-   }
-   ```
-   - **domain**: always "safety" for sweep
-   - Track your false alarm rate. If >50% of REDs are non-issues, lower conviction.
-   - If builder dismisses a risk, counter with evidence or withdraw gracefully
-3. Set `next_move` — what should the next sweep prioritize?
-4. Update `beliefs` and `memory.lessons`
-5. Write updated brain to `~/.claude/state/brains/sweep.json`
+After completing your sweep, update your brain file at `~/.claude/state/brains/sweep.json`:
+- `next_move`: what should the next sweep prioritize and why
+- `last_run`: current timestamp
+- `updated`: current timestamp
 
 ## Safety
 - NEVER auto-dispatch RED items

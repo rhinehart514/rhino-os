@@ -87,6 +87,49 @@ Return? $taste_return"
 Recommend? $taste_recommend"
         [[ -n "$taste_one_thing" ]] && CONTEXT+="
 One thing: $taste_one_thing"
+
+        # Taste trend from taste-history.tsv
+        TASTE_HISTORY=""
+        for th_dir in "$PROJECT_DIR/.claude/evals" "$PROJECT_DIR/docs/evals"; do
+            if [[ -f "$th_dir/taste-history.tsv" ]]; then
+                TASTE_HISTORY="$th_dir/taste-history.tsv"
+                break
+            fi
+        done
+        if [[ -n "$TASTE_HISTORY" ]]; then
+            taste_eval_count=$(tail -n +2 "$TASTE_HISTORY" | grep -cv '^$' 2>/dev/null || echo "0")
+            if [[ "$taste_eval_count" -gt 1 ]]; then
+                # Compare first and last overall scores to determine direction
+                first_overall=$(tail -n +2 "$TASTE_HISTORY" | head -1 | cut -f2)
+                last_overall=$(tail -1 "$TASTE_HISTORY" | cut -f2)
+                if [[ -n "$first_overall" && -n "$last_overall" ]]; then
+                    if awk "BEGIN { exit !($last_overall > $first_overall) }" 2>/dev/null; then
+                        taste_direction="improving"
+                    elif awk "BEGIN { exit !($last_overall < $first_overall) }" 2>/dev/null; then
+                        taste_direction="declining"
+                    else
+                        taste_direction="flat"
+                    fi
+                    CONTEXT+="
+Taste trend: $taste_direction ($taste_eval_count evals, $first_overall -> $last_overall)"
+                fi
+            fi
+
+            # Show weakest feature if features.yml exists
+            FEATURES_YML=""
+            for fy in "$PROJECT_DIR/.claude/features.yml" "$PROJECT_DIR/.claude/features.yaml"; do
+                [[ -f "$fy" ]] && FEATURES_YML="$fy" && break
+            done
+            if [[ -n "$FEATURES_YML" ]]; then
+                # Get the most recent feature-specific eval (non-"all")
+                weakest_feature=$(tail -n +2 "$TASTE_HISTORY" | awk -F'\t' '$5 != "all" && $5 != "" {print $5, $2}' | sort -k2 -n | head -1 | cut -d' ' -f1)
+                if [[ -n "$weakest_feature" ]]; then
+                    CONTEXT+="
+Weakest feature: $weakest_feature"
+                fi
+            fi
+        fi
+
         CONTEXT+="
 "
     fi
@@ -128,45 +171,25 @@ $SWEEP_HEADER
     fi
 fi
 
-# 5b. Agent Council — top agent suggestion + conflict count
+# 5b. Agent Suggestions — show each agent's next_move
 BRAINS_DIR="$STATE_DIR/brains"
 if [[ -d "$BRAINS_DIR" ]] && command -v jq &>/dev/null; then
-    # Find highest-credibility agent with high-priority next_move
-    TOP_AGENT=""
-    TOP_CRED="0"
-    TOP_ACTION=""
+    SUGGESTIONS=""
+    LATEST_TS="0"
     for brain_file in "$BRAINS_DIR"/*.json; do
         [[ ! -f "$brain_file" ]] && continue
         ba=$(jq -r '.agent // ""' "$brain_file" 2>/dev/null)
-        bp=$(jq -r 'if .next_move | type == "object" then .next_move.priority // "" else "" end' "$brain_file" 2>/dev/null || true)
-        bc=$(jq -r '.track_record.credibility // 0.50' "$brain_file" 2>/dev/null || true)
-        baction=$(jq -r 'if .next_move | type == "object" then .next_move.action // "" elif .next_move then .next_move else "" end' "$brain_file" 2>/dev/null || true)
-        if [[ "$bp" == "high" ]] && awk "BEGIN { exit !($bc > $TOP_CRED) }" 2>/dev/null; then
-            TOP_AGENT="$ba"
-            TOP_CRED="$bc"
-            TOP_ACTION="$baction"
+        baction=$(jq -r '.next_move // "" | if type == "object" then .action // "" else . end' "$brain_file" 2>/dev/null || true)
+        bupdated=$(jq -r '.updated // ""' "$brain_file" 2>/dev/null || true)
+        if [[ -n "$baction" && "$baction" != "null" && "$baction" != "" ]]; then
+            SUGGESTIONS+="- ${ba}: ${baction}
+"
         fi
     done
-    if [[ -n "$TOP_AGENT" && -n "$TOP_ACTION" && "$TOP_ACTION" != "null" ]]; then
+    if [[ -n "$SUGGESTIONS" ]]; then
         CONTEXT+="
-## Agent Suggestion ($TOP_AGENT, cred:$TOP_CRED)
-$TOP_ACTION
-"
-    fi
-
-    # Conflict details (not just count)
-    CONFLICTS_FILE="$STATE_DIR/conflicts.json"
-    if [[ -f "$CONFLICTS_FILE" ]]; then
-        CONFLICT_COUNT=$(jq '[.[] | select(.status == "open")] | length' "$CONFLICTS_FILE" 2>/dev/null || echo "0")
-        if [[ "$CONFLICT_COUNT" -gt 0 ]]; then
-            CONFLICT_DETAILS=$(jq -r '[.[] | select(.status == "open")][:3] | .[] |
-                "#\(.id) [\(.domain)] \(.side_a.agent) (conv:\(.side_a.conviction)) vs \(.side_b.agent) (conv:\(.side_b.conviction)): \(.side_a.claim[:80])"
-            ' "$CONFLICTS_FILE" 2>/dev/null)
-            CONTEXT+="
-## ${CONFLICT_COUNT} agent conflict(s) — run 'rhino council'
-${CONFLICT_DETAILS}
-"
-        fi
+## Agent Suggestions
+${SUGGESTIONS}"
     fi
 fi
 
@@ -247,6 +270,20 @@ for exp_dir in "$PROJECT_DIR/.claude/experiments" "$PROJECT_DIR/docs/experiments
 ## Experiment: $ename — $ekept/$etotal kept, last: $elast"
         done
         break
+    fi
+done
+
+# 8. Score integrity warnings (from last score run)
+for cache_path in "$PROJECT_DIR/.claude/cache/score-cache.json"; do
+    if [[ -f "$cache_path" ]] && command -v jq &>/dev/null; then
+        warnings=$(jq -r '.integrity_warnings // [] | .[]' "$cache_path" 2>/dev/null)
+        if [[ -n "$warnings" ]]; then
+            CONTEXT+="
+## Score Integrity Warnings
+$warnings
+Scores are diagnostic instruments, not goals. Address warnings before chasing numbers.
+"
+        fi
     fi
 done
 

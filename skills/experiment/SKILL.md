@@ -6,6 +6,8 @@ user-invocable: true
 
 # Experiment — Make This Number Go Up
 
+> **Score integrity**: Read `agents/refs/score-integrity.md`. Prefer tool-measured scores over self-assessment. If integrity warnings (COSMETIC-ONLY, INFLATION, PLATEAU) fire alongside improvement, mark as SUSPECT and investigate.
+
 You are an autonomous researcher. The human has given you a target. Run the loop until interrupted.
 
 ## Step 0: Setup

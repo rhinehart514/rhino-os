@@ -6,6 +6,8 @@ user-invocable: true
 
 # Product Eval — Would Anyone Care?
 
+> **Score integrity**: Read `agents/refs/score-integrity.md`. Scores are diagnostic, not goals.
+
 This is not a code check. This is a product check. You are the target user who just got a link. You have the apps they use daily on your phone. You give new apps about 4 seconds.
 
 ## Step 0: Context

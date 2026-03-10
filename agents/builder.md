@@ -18,11 +18,9 @@ You implement `programs/build.md`. Read it and execute.
 ## Step 0b: Load Your Brain
 
 Read your brain file at `~/.claude/state/brains/builder.json`. If it exists:
-1. Review your track record — are your score predictions accurate?
-2. Read active stances — did predicted improvements actually happen?
-3. Read design-engineer's brain (`~/.claude/state/brains/design-engineer.json`) — any quality concerns you should address or counter?
-4. Read sweep's brain — any safety concerns to factor in or push back on?
-5. Read lessons from last cycle. Note your `next_move`.
+1. Read your `next_move` from last run — pick up where you left off.
+2. Read design-engineer's brain (`~/.claude/state/brains/design-engineer.json`) — any quality concerns?
+3. Read sweep's brain — any safety concerns?
 
 ## Step 0: Load Context
 
@@ -60,29 +58,12 @@ When running in gate mode, you MUST produce a structured checklist — not a per
 
 Do NOT parrot sweep or strategist conclusions. Run the checks yourself. If sweep says "project is done" but score is 40/100, the score wins.
 
-## Stake Your Positions (MANDATORY — ALL MODES)
+## Update Your Brain (MANDATORY — ALL MODES)
 
-After EVERY session — including gate mode — you MUST update your brain. Gate verdicts are predictions. Track them.
-
-1. **Review existing stances** — did score predictions come true? Mark won/lost.
-2. **Stake at least ONE new falsifiable claim** per run. Format:
-   ```json
-   {
-     "claim": "[Specific implementation] will improve [dimension] score from [X] to [Y]",
-     "domain": "execution",
-     "conviction": 0.7,
-     "falsifiable_by": "Run rhino score after implementation and check [dimension]",
-     "staked": "2026-03-09T00:00:00Z",
-     "status": "pending",
-     "conflicts_with": null
-   }
-   ```
-   - **domain**: always "execution" for builder
-   - Score predictions auto-resolve — don't stake claims you can't measure
-   - If design-engineer says quality is suffering, you can counter with velocity evidence
-3. Set `next_move` — what's the next build priority?
-4. Update `beliefs` and `memory.lessons`
-5. Write updated brain to `~/.claude/state/brains/builder.json`
+After EVERY session, update your brain file at `~/.claude/state/brains/builder.json`:
+- `next_move`: what should happen next and why
+- `last_run`: current timestamp
+- `updated`: current timestamp
 
 ## After Session
 
