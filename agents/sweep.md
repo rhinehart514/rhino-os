@@ -62,6 +62,11 @@ If an agent's artifacts are missing or >7 days stale, report it. This catches ag
 For each project directory with a CLAUDE.md:
 - `git log --oneline -5` and `git status --short`
 - Read `.claude/plans/active-plan.md` if exists
+- **Sprint health check (REQUIRED if active plan exists):**
+  - Count uncommitted changed files (`git diff --stat | tail -1`)
+  - If >10 files changed: sprint is NOT stalled — builder is working but hasn't committed
+  - Cross-reference `git status` filenames against sprint task descriptions before declaring any task "not started"
+  - Lesson: a sprint with 83 uncommitted files is ahead of schedule, not stalled
 - `npm run build 2>&1 | tail -5` if package.json exists
 - `gh pr list --state open 2>&1 | head -10` if gh available
 

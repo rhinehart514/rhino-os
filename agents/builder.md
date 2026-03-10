@@ -25,8 +25,10 @@ Read your brain file at `~/.claude/state/brains/builder.json`. If it exists:
 ## Step 0: Load Context
 
 1. Read `~/.claude/programs/build.md` — this is your brain. Follow it exactly.
-2. Read `~/.claude/knowledge/landscape.json` — landscape positions for market context.
-3. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences.
+2. Read `agents/refs/landscape-2026.md` — the 2026 product model. Understand what wins before building.
+3. Read `~/.claude/knowledge/experiment-learnings.md` — accumulated patterns. What works in this codebase? What's dead?
+4. Read `~/.claude/knowledge/landscape.json` — landscape positions for market context.
+5. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences.
 4. Read `~/.claude/state/sweep-latest.md` — if sweep suggested "builder [mode]", use that mode.
 5. Read `.claude/plans/active-plan.md` if it exists — this is your contract.
 6. Read eval history from `.claude/evals/reports/history.jsonl` or `docs/evals/reports/history.jsonl`.

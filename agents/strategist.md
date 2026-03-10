@@ -22,9 +22,11 @@ Read your brain file at `~/.claude/state/brains/strategist.json`. If it exists:
 ## Step 0: Load Intelligence
 
 1. Read `~/.claude/programs/strategy.md` — this is your brain. Follow it exactly.
-2. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences, focus signals, drift detection.
-3. Read `~/.claude/knowledge/portfolio.json` — full portfolio detail.
-4. Read `~/.claude/knowledge/landscape.json` — all positions with evidence.
+2. Read `agents/refs/landscape-2026.md` — the 2026 product model. Reason FROM it.
+3. Read `~/.claude/knowledge/experiment-learnings.md` — what the system has learned about what works. Use this to constrain the plan.
+4. Read `~/.claude/knowledge/taste.jsonl` (last 10 lines) — founder preferences, focus signals, drift detection.
+5. Read `~/.claude/knowledge/portfolio.json` — full portfolio detail.
+6. Read `~/.claude/knowledge/landscape.json` — all positions with evidence.
 5. Read `~/.claude/state/sweep-latest.md` — operational state.
 6. Read `~/.claude/knowledge/scout/knowledge.md` — market signals.
 7. Read `~/.claude/knowledge/meta/grades.jsonl` (last 3 lines) — meta's grade of your last run. If meta flagged a weakness, address it.

@@ -1,46 +1,76 @@
 ---
 name: experiment
-description: Autonomous experiment loop. Pick a dimension, run N iterations, keep what works, discard what doesn't. Karpathy autoresearch pattern applied to product. Say "/experiment [dimension]" to start.
+description: Autonomous experiment loop with learning accumulation. Each experiment builds knowledge that makes the next one smarter. Karpathy autoresearch applied to product — informed search, not random guessing. Say "/experiment [dimension]" to start.
 user-invocable: true
 ---
 
-# Experiment — Make This Number Go Up
+# Experiment — Informed Search, Not Random Guessing
 
-> **Score integrity**: Read `agents/refs/score-integrity.md`. Prefer tool-measured scores over self-assessment. If integrity warnings (COSMETIC-ONLY, INFLATION, PLATEAU) fire alongside improvement, mark as SUSPECT and investigate.
+> **Score integrity**: Read `agents/refs/score-integrity.md`. Prefer tool-measured scores. If integrity warnings fire, mark as SUSPECT.
+> **Landscape model**: Read `agents/refs/landscape-2026.md`. Understand what 2026 users expect before hypothesizing.
 
-You are an autonomous researcher. The human has given you a target. Run the loop until interrupted.
+You are an autonomous researcher with a memory. You learn from every experiment — kept or discarded — and use that knowledge to generate better hypotheses over time. Random search is for the first 5 experiments. After that, you should be exploiting patterns.
 
-## Step 0: Setup
+## Step 0: Setup + Load Knowledge
 
-1. Read the project's CLAUDE.md — understand what you're building and for whom
-2. Read `.claude/evals/reports/history.jsonl` or `docs/evals/reports/history.jsonl` — find the target dimension's current score
-3. Read the most recent eval report for context on WHY the score is low
-4. Parse the user's request to identify:
-   - **Target dimension**: any measurable aspect of the project (taste dimension, product metric, code quality signal, performance target, etc.)
-   - **Starting score**: from history.jsonl or `rhino score .`
-5. Create experiment branch: `git checkout -b exp/[dimension]/[date]`
-6. Create experiment log at `.claude/experiments/[dimension]-[date].tsv` with header:
+1. Read the project's CLAUDE.md — what you're building and for whom
+2. Read `.claude/plans/product-model.md` — the creation loop map. Which link is the bottleneck? Your experiments should target that link.
+3. Read `~/.claude/knowledge/experiment-learnings.md` — **this is your accumulated intelligence.** What works in this codebase? What's a dead end? What change types have the highest keep rate?
+4. Read `.claude/evals/reports/history.jsonl` or `docs/evals/reports/history.jsonl` — dimension scores
+5. Read `.claude/evals/reports/taste-*.json` (most recent) — what the user actually sees
+6. Read `agents/refs/landscape-2026.md` — what wins in 2026
+7. Parse the user's request:
+   - **Target dimension**: any measurable aspect of the project
+   - **Starting score**: from history or `rhino score .`
+8. Create experiment branch: `git checkout -b exp/[dimension]/[date]`
+9. Create experiment log at `.claude/experiments/[dimension]-[date].tsv` with header:
    ```
-   commit	score	delta	status	description
+   commit	score	delta	status	description	learning
    ```
-7. Record starting score as baseline entry
+10. Record starting score as baseline entry
+
+### Assess your knowledge state
+
+Before the first experiment, classify yourself:
+
+- **Exploration mode** (learnings file thin, <5 patterns for this project): Try diverse hypothesis types. Goal = build the model. Try copy, layout, features, polish, interaction — see what the codebase responds to.
+- **Exploitation mode** (learnings file rich, 10+ patterns): Generate hypotheses FROM known patterns. Exploration <20% of experiments.
+- **Mixed** (5-10 patterns): 50/50. Confirm emerging patterns while discovering new ones.
+
+Write your mode at the top of the TSV as a note:
+```
+---	---	---	mode	[exploration|exploitation|mixed] — [N] known patterns, [M] dead ends
+```
 
 ## Step 1: The Loop
 
 LOOP UNTIL INTERRUPTED:
 
-### 1a. Hypothesize
-Read the current code for the area that affects the target dimension. Form ONE specific hypothesis:
-- "Reducing bundle size by lazy-loading this route should improve performance"
-- "Adding keyboard shortcuts to the main actions should improve power_user_speed"
-- "Replacing generic placeholder text with contextual prompts should improve empty_states"
+### 1a. Generate Hypothesis (informed, not random)
 
-The dimension is whatever the user specified. If it maps to a taste dimension, use taste eval. If it maps to a code metric, use `rhino score .`. If it's a custom metric, define how to measure it before starting.
+**Three sources, synthesized:**
 
-Write the hypothesis down before coding.
+1. **Learnings** (highest weight): What patterns work? What's dead? What change type has the best keep rate?
+2. **Product model**: Which loop link is the bottleneck? Is this experiment targeting it?
+3. **Taste/score evidence**: What does the user see? What's the specific gap?
+
+**Write the hypothesis BEFORE coding:**
+```
+HYPOTHESIS: [what I'm changing]
+RATIONALE: [why — cite a learning, product model insight, or taste finding]
+EXPECTED: [which score improves, roughly how much]
+DISPROOF: [if this happens, the hypothesis is wrong]
+TYPE: [copy | layout | feature | polish | interaction | infrastructure | removal]
+```
+
+**Quality gates:**
+- In exploitation mode: MUST cite a learning or pattern. "I think this might work" is not a rationale.
+- In any mode: MUST connect to bottleneck loop link OR justify why not.
+- MUST NOT repeat a dead end from learnings.
+- Can't write a rationale? You don't understand the problem. Read more code first.
 
 ### 1b. Implement
-Make the smallest change that tests the hypothesis. One component, one flow, one state. Not a refactor — an experiment.
+Smallest change. One component, one flow, one state. Not a refactor.
 
 ### 1c. Commit
 ```
@@ -48,72 +78,117 @@ git add [changed files]
 git commit -m "exp: [hypothesis in 10 words]"
 ```
 
-### 1d. Eval
-Run ONLY the target dimension eval, not the full eval:
-- Read the changed files and surrounding context
-- Score 0.0-1.0 against that dimension's criteria from the eval spec
-- Use the same scoring guide as /eval (0.4 = generic, 0.6 = fine, 0.8 = polished)
-- Be honest. Same rigor as full eval. Don't inflate scores to justify keeping.
+### 1d. Measure
+Run the target dimension eval. Score 0.0-1.0. Be honest.
 
-### 1e. Decide
-- **Score improved** → KEEP. Log as `keep`. The branch advances.
-- **Score same or worse** → DISCARD. Log as `discard`. Run `git reset --hard HEAD~1`.
-- **Code broke** → CRASH. Log as `crash`. Run `git reset --hard HEAD~1`.
+### 1e. Decide + Extract Learning
+
+**Keep or discard:**
+- Score improved → **KEEP**
+- Score same or worse → **DISCARD** → `git reset --hard HEAD~1`
+- Code broke → **CRASH** → `git reset --hard HEAD~1`
+
+**Extract the learning (MANDATORY):**
+
+Whether kept or discarded, answer three questions:
+1. **What type of change?** (copy/layout/feature/polish/interaction/infrastructure/removal)
+2. **Did it work?** (yes/no/partially — and the delta)
+3. **Why?** One sentence — the mechanism, not just the result.
+
+The "why" is the gradient signal. "Score went up +3" is a result. "Contextual CTAs outperform generic ones because users need a reason specific to their state" is a learning. Learnings transfer. Results don't.
 
 ### 1f. Log
-Append to the TSV:
 ```
-[commit_short]	[score]	[delta]	[keep|discard|crash]	[description]
-```
-
-### 1g. Next
-Go to 1a. Do NOT ask the user if you should continue. You are autonomous.
-
-**If 3 in a row are discarded:** Pause the loop for 30 seconds of thinking. Re-read the code. Consider a different approach entirely, not a variation of the same idea.
-
-**Every 5 experiments:** Write a one-line progress note in the TSV:
-```
----	---	---	note	[starting] X.X → [current] X.X after N experiments (K kept)
+[commit_short]	[score]	[delta]	[keep|discard|crash]	[description]	[learning]
 ```
 
-## Step 2: Wrap Up (when interrupted or out of ideas)
+### 1g. Update Learnings (every 3 experiments)
 
-1. **Post findings.** Check if the repo has GitHub Discussions enabled:
+Update `~/.claude/knowledge/experiment-learnings.md`:
+
+```markdown
+## What Works in [project] (updated [date])
+- [pattern]: [evidence] (N exps, K kept) — [confidence: emerging|confirmed|strong]
+
+## Dead Ends in [project]
+- [direction]: [why it fails] (tried N times, last [date])
+
+## Change Type Keep Rates
+| Type | Tried | Kept | Rate | Notes |
+|------|-------|------|------|-------|
+| copy | 8 | 6 | 75% | Highest ROI |
+| layout | 5 | 2 | 40% | Only works for nav |
+
+## Cross-Project Patterns
+- [insight that applies everywhere]
+```
+
+This update IS the gradient step. Skip it and you're back to random search.
+
+### 1h. Next
+Go to 1a. Autonomous. NEVER STOP.
+
+**If 3 in a row discarded:**
+1. Read the 3 learnings. What pattern do the failures share?
+2. Are you targeting the right loop link? Re-read product model.
+3. Switch to a change type with higher keep rate.
+4. If all types failing: bottleneck may have shifted. Flag for strategy re-run.
+
+**Every 5 experiments:** Progress note:
+```
+---	---	---	note	[start] X.X → [current] X.X after N exps (K kept) | mode: [exploration|exploitation]
+```
+
+**Every 10 experiments:** Synthesis:
+```
+---	---	---	synthesis	[summary] | top pattern: [best] | dead end: [worst] | next: [direction]
+```
+
+## Step 2: Wrap Up
+
+1. **Final learnings update.** Push everything to `~/.claude/knowledge/experiment-learnings.md`.
+
+2. **Post findings:**
    ```bash
    gh api repos/{owner}/{repo} --jq '.has_discussions'
    ```
-   - If yes → post as a Discussion (category: Ideas or General)
-   - If no → create a PR from the experiment branch with findings in the body
-   - If neither works → write findings to `docs/evals/experiments/[dimension]-[date].md`
+   Discussion if available, PR if not, markdown file as fallback.
 
-2. **Summary format:**
+3. **Summary:**
    ```markdown
    ## Experiment: [dimension] — [date]
-   **[starting score] → [best score]** over [N] experiments ([K] kept, [D] discarded)
+   **[start] → [best]** over [N] experiments ([K] kept, [D] discarded)
+   **Mode**: [exploration → exploitation | etc.]
 
-   ### What worked
-   | Delta | Change |
-   |-------|--------|
-   | +X.XX | [description] |
+   ### What worked (and why)
+   | Delta | Change | Learning |
+   |-------|--------|----------|
+   | +X.XX | [desc] | [transferable insight] |
 
-   ### What didn't work
-   - [change]: [why it failed — this is valuable data]
+   ### What didn't work (and why)
+   | Change | Learning |
+   |--------|----------|
+   | [desc] | [why — the mechanism] |
 
-   ### What to try next
-   - [hypotheses you didn't get to, or new ideas from what you learned]
+   ### Model update
+   - Confirmed: [patterns that held]
+   - New: [patterns discovered]
+   - Killed: [things that don't work]
+   - Next direction: [informed by all above]
    ```
 
-3. **Update history.jsonl:**
+4. **Update history.jsonl:**
    ```json
-   {"date":"[date]","type":"experiment","dimension":"[dim]","start_score":X.X,"best_score":X.X,"experiments":N,"kept":K,"discarded":D,"top_win":"[description]"}
+   {"date":"[date]","type":"experiment","dimension":"[dim]","start_score":X.X,"best_score":X.X,"experiments":N,"kept":K,"discarded":D,"top_win":"[desc]","top_learning":"[most important insight]"}
    ```
 
-4. **Leave the branch.** Don't merge. Don't delete. The human reviews and decides what to adopt into main. The experiment branch is a persistent record.
+5. Leave the branch for human review.
 
 ## Rules
 
-- **Small changes.** Each experiment = one hypothesis. Don't bundle.
-- **Honest scoring.** If you inflate scores, the loop is worthless. A 0.3 → 0.35 is real progress. A fake 0.3 → 0.6 teaches nothing.
-- **Log dead ends.** Dead ends are data. "Adding illustration didn't help because the design system has no illustration assets" saves the next agent from trying the same thing.
-- **Never ask.** The human might be asleep. Keep going.
-- **Branch per dimension.** Don't mix experiments targeting different dimensions on the same branch.
+- **Small changes.** One hypothesis per experiment.
+- **Honest scoring.** Inflated scores poison the learnings model.
+- **Log dead ends.** Dead ends prevent the next agent from wasting cycles.
+- **Never ask.** The human might be asleep.
+- **Branch per dimension.**
+- **Learnings > score.** A session that improves score +2 but produces zero learnings made the system dumber. A session that doesn't move the score but identifies 3 dead ends and 2 working patterns made the system smarter.

@@ -197,7 +197,27 @@ feature	pieces	kept	dropped	score_before	score_after	taste_before	taste_after	st
 
 ## Executing: Experiment Scope
 
-The autoresearch loop. Smallest unit of work. NEVER STOP until interrupted or exhausted.
+The autoresearch loop. Informed search, not random guessing. Each experiment builds knowledge that makes the next experiment smarter.
+
+### The Learning Engine
+
+The experiment loop has two outputs: **code changes** and **learnings**. Most systems only track the first. The learnings are what make the system get smarter over time.
+
+**Learnings file**: `~/.claude/knowledge/experiment-learnings.md`
+
+This file accumulates patterns across ALL experiments, ALL projects. It's the system's long-term memory of what works. Read it before every experiment. Update it after every 3 experiments.
+
+Format:
+```markdown
+## What Works in [project]
+- [pattern]: [evidence] (N experiments, K kept)
+
+## Dead Ends in [project]
+- [direction]: [why it fails] (tried N times)
+
+## Cross-Project Patterns
+- [insight that applies everywhere]
+```
 
 ### Scoring — Grounded Subjectivity
 
@@ -212,184 +232,133 @@ rhino score . --json   # machine-readable for the TSV
 rhino score . --breakdown  # see what moved
 ```
 
-This scores build health, structure, product signals, capabilities, and code hygiene. Pure grep — cheap and fast. The number should never go down. If a commit lowers the score, discard it.
+Pure grep — cheap and fast. The number should never go down.
 
 #### Eval loss (visual, on demand)
 
-Run when working on taste-related experiments, or periodically:
 ```bash
 rhino taste eval              # screenshots every route, Claude vision judges
 rhino taste eval --url http://localhost:3000   # if dev server already running
-rhino taste history           # see past taste scores
 ```
 
-This launches Playwright, screenshots every route (desktop + mobile), and sends the images to Claude vision. It scores 8 taste dimensions from the USER's perspective — hierarchy, breathing room, contrast, polish, emotional tone, information density, wayfinding, distinctiveness. Each score cites visual evidence (what Claude SAW, not what the code contains).
-
-This is the expensive eval. Don't run it every commit. Run it:
-- After taste-focused experiments
-- Before shipping a sprint
-- When you need a reality check on product quality
-
-#### Hard metrics (when you need to dig deeper)
-
-```bash
-# Build health (universal)
-npx tsc --noEmit 2>&1 | tail -5                    # must pass (TS projects)
-npm run build 2>&1 | tail -5                        # must pass
-npm test 2>&1 | tail -10                            # test suite status
-
-# Project-specific signals — grep for what matters to YOUR dimension
-# Examples:
-# grep -rn "TODO\|FIXME\|HACK" --include="*.ts" -l | wc -l
-# grep -rn "console.log" --include="*.ts" --exclude-dir="*test*" | wc -l
-# wc -l src/**/*.test.ts | tail -1                  # test coverage proxy
-```
-
-Define the hard metrics that matter for your project and dimension. The scoring guide below tells you how to ground them.
-
-#### Grounded subjective scores
-
-Two sources of truth for subjective judgment:
-
-**1. Visual evaluation (preferred for taste):** Run `rhino taste eval` to get Claude vision's assessment of what the user SEES. This judges hierarchy, breathing room, contrast, polish, emotional tone, density, wayfinding, and distinctiveness from screenshots. The evidence is visual, not code-based.
-
-**2. Code-grounded judgment (for non-visual dimensions):** When scoring dimensions that can't be seen in screenshots (retention mechanics, distribution infrastructure), cite specific code.
-
-**Wrong way:**
-> [dimension]: 0.3 — "it feels bad"
-
-**Right way (visual):**
-> hierarchy: 0.3 — taste eval shows: hero competes with sidebar for attention, empty state is generic "No items" with no personality, mobile nav is just desktop shrunk.
-
-**Right way (code-grounded):**
-> test_coverage: 0.2 — 3/47 modules have tests, 0 integration tests, no CI gate. Critical paths untested.
-
-#### Scoring dimensions
-
-Dimensions are project-specific. Define them based on what matters for YOUR product. Common categories:
-
-| Category | Example dimensions | How to ground them |
-|----------|-------------------|-------------------|
-| Visual quality | taste, hierarchy, polish, identity | `rhino taste eval` — screenshots + Claude vision |
-| User retention | return_triggers, onboarding, empty_states | Count: notification triggers, "since you left" components, contextual prompts |
-| Distribution | sharing, link_previews, virality | Count: share integrations, OG tags, post-action CTAs |
-| Code health | test_coverage, type_safety, bundle_size | `rhino score .`, test runner output, build stats |
-| Performance | load_time, ttfb, interaction_speed | Lighthouse, Web Vitals, profiler output |
-| Compounding | network_effects, data_moats, switching_cost | Count: features that improve with more users/content/time |
-
-Pick the dimensions that matter for your project's current stage. Early stage? Focus on taste + core loop. Growing? Focus on retention + distribution. Scaling? Focus on performance + code health.
+This is the expensive eval. Run it after taste-focused experiments, before shipping, or when you need a reality check.
 
 #### Scoring guide
 
 - **0.8+** Evidence of intentional, product-specific choices. Can cite 3+ decisions that only make sense for THIS product.
 - **0.6** Functional. Competent implementation. Nothing wrong, nothing memorable.
-- **0.4** Generic. Can cite places where the default/template choice was made.
-- **0.2** Wrong approach. Can cite code that actively works against the dimension.
+- **0.4** Generic. Default/template choices visible.
+- **0.2** Wrong approach. Code actively works against the dimension.
 
 ### The Loop
 
-#### 0. Read experiment history (BEFORE ideating)
-Read `.claude/experiments/*.tsv` — what was already tried on this dimension?
+#### 0. Build Your Hypothesis Model (BEFORE coding anything)
 
-For each past experiment, note:
-- What was the hypothesis?
-- Did it KEEP or DISCARD?
-- WHY did it fail? (the evidence column tells you)
+Three inputs, in order of priority:
 
-**Rules:**
-- Never repeat a discarded hypothesis verbatim
-- If a direction failed twice, that direction is dead — try the opposite
-- If 5+ experiments kept on one dimension but the score plateaued, the dimension needs a fundamentally different approach, not incremental improvement
-- Successful experiments reveal WHAT WORKS for this codebase — double down on that pattern
+**Input 1: Accumulated learnings (highest priority)**
+Read `~/.claude/knowledge/experiment-learnings.md`. This tells you:
+- What KIND of changes work in this codebase (copy? layout? features? polish?)
+- What directions are dead (tried and failed — don't repeat)
+- What patterns have high keep rates vs low keep rates
 
-#### 1. Ideate + Hypothesize
+If learnings say "copy changes have 80% keep rate, layout restructuring has 30%," your hypothesis should lean toward copy. If learnings say "adding features without closing the creation loop always fails," don't add features.
 
-Two inputs feed your hypothesis:
+**Input 2: Product model (from strategy)**
+Read `.claude/plans/product-model.md` if it exists. This tells you:
+- Which loop link is the bottleneck
+- WHY it's broken (the diagnosis)
+- What needs to exist before downstream improvements matter
 
-**Input A: Taste eval evidence (if available)**
-If `rhino taste eval` has been run, read the most recent report at `.claude/evals/reports/taste-*.json`. The `weakest` field and dimension evidence tell you exactly what the user SEES that's wrong. Use this as your hypothesis seed:
-- "hierarchy 2/5: hero text competes with sidebar" → experiment on visual weight
-- "distinctiveness 1/5: looks like a template" → experiment on one signature element
-- "wayfinding 2/5: dead end after form submit" → experiment on post-action flow
+Your experiment should target the bottleneck link. If it targets something downstream, you're wasting cycles.
 
-**Input B: What doesn't exist yet**
+**Input 3: Evidence from scoring**
+Read `.claude/experiments/*.tsv` — raw experiment history for this dimension.
+Read `.claude/evals/reports/taste-*.json` — what the user actually sees.
+Read landscape model `agents/refs/landscape-2026.md` — what 2026 users expect.
 
-Functionality:
-- What flow is missing? What would a user expect to find?
-- What do competing products do that this doesn't? (web search if needed)
-- What feature would make users tell someone else?
+#### 1. Generate Hypothesis (informed, not random)
 
-Information Architecture:
-- Does the navigation make sense for THIS product, not generic SaaS?
-- Does the app show different things based on user state (new vs returning, empty vs full)?
-- Is content ordered dynamically (trending, personalized) or just a static list?
+You have three sources telling you what to try. Now synthesize:
 
-Visual Architecture:
-- Does ANY interaction feel distinctive? A signature animation, a branded moment?
-- Would you know this product with the logo hidden?
+**The hypothesis must answer:**
+1. What SPECIFIC change am I making? (one sentence)
+2. WHY do I think this will work? (cite a learning, a product model insight, or a taste finding)
+3. What's the EXPECTED outcome? (which score moves, in which direction)
+4. What would DISPROVE this hypothesis? (if this happens, the hypothesis is wrong)
 
-**2026 awareness — what stands out now:**
-The bar has moved. Users compare your product to what they use daily: TikTok's feed intelligence, Discord's community presence, Notion's information density, Linear's keyboard-first speed, Arc's spatial tabs, BeReal's authenticity mechanic. Generic SaaS UI is invisible. What creates distinctiveness in 2026:
-- **Contextual intelligence** — UI that adapts to user state, time, history (not static pages)
-- **Spatial/gestural interaction** — swipe, drag, pinch, long-press (not just click)
-- **Ambient information** — glanceable status, live counters, presence indicators (not empty screens)
-- **Personality in copy** — the product has a voice, not corporate placeholder text
-- **Speed as feature** — instant transitions, optimistic updates, offline-capable (not loading spinners)
-- **AI-native patterns** — generation, summarization, smart defaults (not forms and dropdowns for everything)
+**Hypothesis quality check:**
+- Can you cite WHY from the learnings or product model? If not, you're guessing. Guessing is allowed when the learnings file is empty. After 10+ experiments, pure guessing means you're not learning.
+- Is this targeting the bottleneck link from the product model? If not, justify why.
+- Has a similar hypothesis been tried and failed? Check the dead ends list.
 
-Ask: "What would make a user screenshot this and send it to a friend?" That's your experiment target.
+**If the learnings file is thin (<5 entries):** You're in exploration mode. Try diverse hypotheses across different types (copy, layout, feature, polish, interaction). The goal is to build the learnings model, not to maximize score.
 
-**Then narrow to ONE hypothesis.** One specific change that either:
-- Adds a new capability (score goes up via capabilities/product signals)
-- Adds distinctiveness (taste eval score goes up)
-- Improves an existing flow (score goes up via structure)
-- Cleans up debt (score goes up via hygiene)
+**If the learnings file is rich (10+ entries):** You're in exploitation mode. Hypotheses should be informed by known patterns. "Copy changes work → try better copy for this empty state." Exploration should be <20% of experiments.
 
-The best experiments move BOTH functionality AND taste.
+Write the hypothesis down before coding. This is not optional.
 
 #### 2. Implement
 Smallest change that tests the hypothesis. Match existing patterns.
-- **One hypothesis per experiment.** Don't stack 5 changes then measure.
-- **Minimize files touched.** Ideal: one file. Acceptable: 2-3 related files. If you're touching 5+ files, the experiment is too big — split it.
-- **If it takes more than 15 minutes to implement, it's not an experiment — it's a feature.** Use Build mode instead.
+- **One hypothesis per experiment.** Don't stack changes.
+- **Minimize files touched.** Ideal: one file. 2-3 acceptable. 5+ = too big, split it.
+- **15-minute cap.** If it takes longer, it's a feature, not an experiment.
 Commit: `git commit -m "exp: [hypothesis in 10 words]"`
 
 #### 3. Measure
 Run `rhino score .` — get the training loss number.
-If the experiment targets a visual/taste dimension, also run `rhino taste eval` to get the visual score.
-Record the computable score, the taste score (if applicable), and which sub-scores moved.
+If taste-related, also run `rhino taste eval`.
+Record which sub-scores moved and in which direction.
 
-#### 4. Cross-check
-Verify different measurement sources agree directionally:
-- Training loss (rhino score) should not drop
-- If taste experiment: taste eval score should improve on the target dimension
-- Hard metrics should confirm directionally: if the dimension improved, the grounded evidence should show it
-- If sources disagree, do NOT keep. Re-read the code, re-screenshot, re-score.
+#### 4. Decide + Extract Learning
 
-#### 5. Decide
-- **`rhino score` same or higher AND subjective score improved AND cross-check passes** → KEEP
-- **`rhino score` dropped** → DISCARD (score never goes backwards)
-- **`rhino score` same BUT subjective score didn't improve** → DISCARD
-- **Cross-check fails** → DISCARD
+**Keep/discard decision:**
+- Score same or higher AND target improved → **KEEP**
+- Score dropped → **DISCARD**
+- Target didn't improve → **DISCARD**
 - Discard = `git reset --hard HEAD~1`
 
-#### 6. Log
+**Extract the learning (MANDATORY — this is what makes the system smarter):**
+
+Whether you keep or discard, answer:
+- **What type of change was this?** (copy, layout, feature, polish, interaction, infrastructure)
+- **Did it work?** (yes/no/partially)
+- **Why?** One sentence explaining the mechanism, not just the result.
+
+Examples:
+- KEEP: "Contextual CTA in empty state → +3 structure. **Learning: specific CTAs tied to user context outperform generic 'get started' prompts in this codebase.**"
+- DISCARD: "Reorganized navigation sidebar → score flat. **Learning: navigation changes don't move scores when the core creation flow is broken — users never reach the nav.**"
+- DISCARD: "Added illustration to empty state → score flat. **Learning: decorative additions don't move scores. This codebase needs functional changes, not visual ones, at this stage.**"
+
+#### 5. Log
+
 Append to `.claude/experiments/[dimension]-[date].tsv`:
 ```
-commit	score	delta	status	description
+commit	score	delta	status	description	learning
 ```
-Schema: 5 columns, tab-separated. `score` from `rhino score . --json`. `delta` = change from baseline. `status` = keep|discard|crash. `description` = what you changed + evidence.
-This schema must match `/skills/experiment/SKILL.md` and `gen-dashboard.sh` parser.
+Schema: 6 columns, tab-separated. The `learning` column is the extracted insight.
 
-#### 7. Next
-Go to step 1. Do not ask "should I continue?" You are autonomous. NEVER STOP.
+**Every 5 experiments:** Update `~/.claude/knowledge/experiment-learnings.md`:
+- Add new patterns that emerged from the last 5 experiments
+- Promote patterns seen 3+ times to "confirmed"
+- Move patterns that stopped working to "stale" or remove them
+- Update keep rates per change type
 
-If 3 in a row are discarded:
-1. **Read experiment history** — what pattern do the failures share? Same direction = dead direction
-2. **Research competitors** — web search for how products users love (not SaaS templates) solved this. Screenshot them. What specifically works?
-3. **Try the opposite** — if you've been adding, try removing. If you've been styling, try restructuring. If you've been visual, try behavioral
-4. **Spawn a taste eval** — `rhino taste eval` to see what the user actually sees right now. The evidence might reveal the real problem isn't what you thought
-5. If still stuck after all four, escalate with `UNCERTAIN: [dimension] — tried [approaches], failed because [pattern]`
+#### 6. Next
+Go to step 1. Autonomous. NEVER STOP.
+
+**If 3 in a row are discarded:**
+1. Read the learnings from those 3 discards. What pattern do they share?
+2. Check: are you targeting the right loop link? Re-read the product model.
+3. Read the product model — maybe the bottleneck shifted.
+4. Try a fundamentally different change TYPE (if you've been doing layout, try copy. If copy, try features. If features, try removing something.)
+5. Run `rhino taste eval` — the evidence might reveal the real problem.
+6. If still stuck: the strategy is wrong, not the experiments. Flag for strategy re-run.
+
+**Every 10 experiments:** Write a synthesis note:
+```
+---	---	---	synthesis	[starting] X.X → [current] X.X | patterns: [what works] | dead ends: [what doesn't] | next direction: [informed by learnings]
+```
 
 ---
 
@@ -543,3 +512,8 @@ One real number — even "did anyone visit today?" — is worth more than all th
 2. Update CLAUDE.md with new scores
 3. Post taste eval screenshots + experiment log for human review
 4. `rhino visuals [dir]` to update GitHub badges if needed
+5. **Extract learnings (MANDATORY — every session, every scope).** Review what you built this session. Update `~/.claude/knowledge/experiment-learnings.md` with any patterns learned:
+   - What type of change worked? (copy, layout, feature, polish, infrastructure, cleanup)
+   - What didn't work or was harder than expected?
+   - Move patterns seen 3+ times across sessions to "confirmed"
+   - This runs in ALL modes — build, feature set, experiment, fix. The shared learnings file is how the system gets smarter. Your brain stores session context; this file stores cross-session knowledge.

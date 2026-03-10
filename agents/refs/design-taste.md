@@ -80,7 +80,18 @@ Subjective evaluation criteria for UI/UX. Not about correctness — about whethe
 - Modals with no close button or escape handler
 - Check that all pages are reachable from the main navigation
 
-### 8. Distinctiveness (is this memorable?)
+### 8. Scroll Experience (does scrolling reveal or exhaust?)
+- **5/5**: Each scroll reveals something new. Sections have rhythm. The page has a beginning, middle, and end.
+- **3/5**: Content flows but without surprise. Uniform sections that blur together.
+- **1/5**: Endless scroll with no landmarks. Or everything above the fold with nothing below.
+
+**How to check in code:**
+- Section count vs page length — long pages need visual breaks (bg color shifts, dividers, illustrations)
+- Is there a sticky nav or progress indicator for long pages?
+- Do sections alternate visual patterns (text-left/image-right, then reversed)?
+- Is there a clear ending (CTA, footer with value) vs just trailing off?
+
+### 9. Distinctiveness (is this memorable?)
 - **5/5**: You'd recognize this product in a lineup. It has a visual identity — not just a framework's defaults.
 - **3/5**: Competent but generic. Could be any product in this category.
 - **1/5**: Pure framework defaults. Looks like the Tailwind tutorial template.

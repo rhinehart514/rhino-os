@@ -30,11 +30,14 @@ For each project with both `rhino score` data and taste eval data:
 - Which score dimensions are most predictive of taste?
 - Propose weight adjustments to score.sh
 
-### 2. Experiment efficiency — is the loop generating good hypotheses?
+### 2. Experiment efficiency — is the loop learning?
 
 - Overall keep rate? (Target: >40%)
 - Which dimensions have the highest/lowest keep rate?
-- Are the same hypotheses failing across projects? (The program is teaching bad ideas)
+- **Is `~/.claude/knowledge/experiment-learnings.md` growing?** If experiments run but learnings don't accumulate, the learning engine is broken.
+- **Are hypotheses citing learnings?** In exploitation mode, hypotheses should reference known patterns. If they're still guessing after 10+ experiments, the agent isn't reading the learnings.
+- **Are dead ends being avoided?** Check if recent experiments repeat directions marked as dead ends. If so, the agent is ignoring the learnings file.
+- Is the product model (`product-model.md`) being used? Experiments should target the bottleneck loop link, not random dimensions.
 - After "3 discards in a row" recovery, does keep rate improve?
 
 ### 3. Rule effectiveness — do rules change behavior?

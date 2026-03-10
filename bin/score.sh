@@ -128,9 +128,17 @@ if [[ -f "package.json" ]]; then
     fi
 fi
 
+# Detect CLI/shell projects (like rhino-os itself)
+if [[ "$PROJECT_TYPE" == "unknown" ]]; then
+    if [[ -d "bin" ]] && ls bin/*.sh bin/*.mjs 2>/dev/null | head -1 > /dev/null 2>&1; then
+        PROJECT_TYPE="cli"
+    fi
+fi
+
 if [[ -d "apps/web/src" ]]; then SRC_DIR="apps/web/src"
 elif [[ -d "src" ]]; then SRC_DIR="src"
 elif [[ -d "app" ]]; then SRC_DIR="app"
+elif [[ "$PROJECT_TYPE" == "cli" ]]; then SRC_DIR="bin"
 fi
 
 COMP_EXT="tsx"
@@ -194,6 +202,56 @@ score_structure() {
     [[ -z "$SRC_DIR" ]] && echo "50" && return
 
     local score=100
+
+    # CLI projects: score structure differently than web projects
+    if [[ "$PROJECT_TYPE" == "cli" ]]; then
+        # Broken references: agent/program files referencing non-existent paths
+        local broken_refs=0
+        for f in agents/*.md programs/*.md; do
+            [[ ! -f "$f" ]] && continue
+            # Check for file path references that don't exist
+            while IFS= read -r ref; do
+                ref=$(echo "$ref" | sed 's/`//g' | xargs 2>/dev/null)
+                [[ -z "$ref" ]] && continue
+                # Only check refs that look like file paths (contain / or end with known extensions)
+                if [[ "$ref" == */* || "$ref" == *.sh || "$ref" == *.md || "$ref" == *.yml || "$ref" == *.json || "$ref" == *.mjs ]]; then
+                    # Expand ~ to $HOME
+                    local expanded="${ref/#\~/$HOME}"
+                    if [[ ! -e "$expanded" && ! -e "$ref" ]]; then
+                        broken_refs=$((broken_refs + 1))
+                    fi
+                fi
+            done < <(grep -oE '`[~./][^`]+`' "$f" 2>/dev/null | sed 's/`//g')
+        done
+        if [[ "$broken_refs" -gt 10 ]]; then score=$((score - 30))
+        elif [[ "$broken_refs" -gt 5 ]]; then score=$((score - 20))
+        elif [[ "$broken_refs" -gt 0 ]]; then score=$((score - 10))
+        fi
+
+        # Dead commands: functions/commands defined in bin/rhino but unreachable
+        local total_commands=0 documented_commands=0
+        if [[ -f "bin/rhino" ]]; then
+            total_commands=$(grep -cE '^\s+[a-z_-]+\)' bin/rhino 2>/dev/null || echo 0)
+            # Check if help text documents them
+            documented_commands=$(grep -cE '^\s+[a-z_-]+\s' bin/rhino 2>/dev/null | head -1 || echo 0)
+        fi
+
+        # Config coherence: does rhino.yml reference things that exist in code?
+        if [[ -f "config/rhino.yml" ]]; then
+            # Check if dimensions listed in config match what taste.mjs actually scores
+            local config_dims
+            config_dims=$(grep -A20 'dimensions:' config/rhino.yml 2>/dev/null | grep '^ *-' | wc -l | tr -d ' ')
+            if [[ "$config_dims" -eq 0 ]]; then
+                score=$((score - 10))
+            fi
+        fi
+
+        [[ "$score" -lt 0 ]] && score=0
+        echo "$score"
+        return
+    fi
+
+    # Web projects: original scoring logic
     # Read weights from config (these are divisors: dead_pct / weight)
     # Config stores as decimals (0.5, 0.33), we convert to integer divisors
     local dead_end_div=2    # default: dead_pct / 2
@@ -251,7 +309,7 @@ score_hygiene() {
 
     local score=100
 
-    # Helper: tiered penalty from config. Usage: tiered_penalty count "cfg.key" "50:-30 20:-20 5:-10"
+    # Helper: tiered penalty from config. Usage: tiered_penalty count "50:-30 20:-20 5:-10"
     # Thresholds checked from highest to lowest
     tiered_penalty() {
         local count=$1 defaults="$2"
@@ -265,6 +323,56 @@ score_hygiene() {
             fi
         done
     }
+
+    if [[ "$PROJECT_TYPE" == "cli" ]]; then
+        # CLI hygiene: check shell scripts and JS files in bin/
+
+        # TODO/FIXME/HACK in shell scripts and JS
+        local todo_count
+        todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
+        tiered_penalty "$todo_count" "20:-20 10:-10 3:-5"
+
+        # console.log/console.error in JS files (CLI tools should use structured output)
+        local console_count
+        console_count=$(grep -rn "console\.\(log\|warn\|error\)" --include="*.mjs" --include="*.js" "$SRC_DIR" 2>/dev/null | grep -v "// ok\|logger\|debug\|node_modules" | wc -l | tr -d ' ')
+        # CLI tools legitimately use console — higher thresholds than web
+        tiered_penalty "$console_count" "50:-20 30:-10 15:-5"
+
+        # Syntax errors in shell scripts
+        local syntax_errors=0
+        for f in "$SRC_DIR"/*.sh lib/*.sh; do
+            [[ ! -f "$f" ]] && continue
+            if ! bash -n "$f" 2>/dev/null; then
+                syntax_errors=$((syntax_errors + 1))
+            fi
+        done
+        tiered_penalty "$syntax_errors" "3:-30 1:-15"
+
+        # Syntax errors in JS/MJS files
+        for f in "$SRC_DIR"/*.mjs; do
+            [[ ! -f "$f" ]] && continue
+            if ! node --check "$f" 2>/dev/null; then
+                syntax_errors=$((syntax_errors + 1))
+            fi
+        done
+        tiered_penalty "$syntax_errors" "3:-30 1:-15"
+
+        # Hardcoded paths (should use config or variables)
+        local hardcoded_paths
+        hardcoded_paths=$(grep -rn "/Users/\|/home/" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "# ok\|example\|template\|node_modules" | wc -l | tr -d ' ')
+        tiered_penalty "$hardcoded_paths" "10:-20 5:-10 1:-5"
+
+        # Unreachable code after return/exit
+        local dead_code
+        dead_code=$(grep -rn -A1 "^\s*\(return\|exit\)" --include="*.sh" "$SRC_DIR" 2>/dev/null | grep -v "^--$\|return\|exit\|}\|esac\|fi\|done\|else\|#" | wc -l | tr -d ' ')
+        tiered_penalty "$dead_code" "10:-15 5:-10 2:-5"
+
+        [[ "$score" -lt 0 ]] && score=0
+        echo "$score"
+        return
+    fi
+
+    # Web projects: original hygiene scoring
 
     # `any` types — real type safety gap
     local any_count
@@ -369,6 +477,22 @@ if [[ $(wc -l < "$HISTORY_FILE" | tr -d ' ') -gt "$plateau_runs" ]]; then
     unique_scores=$(tail -"$plateau_runs" "$HISTORY_FILE" | cut -f3 | sort -u | wc -l | tr -d ' ')
     if [[ "$unique_scores" -eq 1 ]]; then
         INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}PLATEAU: structure score unchanged across last ${plateau_runs} runs. Might be stuck.\n"
+    fi
+fi
+
+# STAGE CEILING: flag scores exceeding ceiling for current stage
+if [[ -f ".claude/plans/active-plan.md" ]] || [[ -f "config/rhino.yml" ]]; then
+    # Detect stage from rhino.yml or default to mvp
+    local_stage=$(cfg project.stage "mvp")
+    ceiling_max=""
+    case "$local_stage" in
+        mvp)    ceiling_max=65 ;;
+        early)  ceiling_max=80 ;;
+        growth) ceiling_max=90 ;;
+        mature) ceiling_max=95 ;;
+    esac
+    if [[ -n "$ceiling_max" && "$local_min" -gt "$ceiling_max" ]]; then
+        INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}CEILING: score ${local_min} exceeds ${local_stage} stage ceiling (${ceiling_max}). Verify this isn't inflated.\n"
     fi
 fi
 

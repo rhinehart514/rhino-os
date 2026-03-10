@@ -49,19 +49,29 @@ Read your brain file at `~/.claude/state/brains/meta.json`.
 
 ```
 1. Self-heal: audit rhino-os code (syntax, broken refs, config drift)
-2. Grade every agent (A/B/C/D/F) on artifact production
-3. Check: did last cycle's fix improve the grade?
-4. If yes → reinforce. If no → revert.
-5. Identify the weakest agent OR broken code OR drifted config
-6. APPLY fix (agent .md, program .md, bin/ scripts, OR rhino.yml)
-7. Log to grades.jsonl
+2. Validate pending fixes: check if target agents ran since last fix. If yes, grade the result. If no, note "fix still untested."
+3. Grade every agent (A/B/C/D/F) on artifact production
+4. Check: did last cycle's fix improve the grade?
+5. If yes → reinforce. If no → revert.
+6. Sync stale brains: if an agent's brain contradicts a fix you applied, update the brain.
+7. Identify the weakest agent OR broken code OR drifted config
+8. APPLY fix (agent .md, program .md, bin/ scripts, OR rhino.yml) — BUT only if last fix is validated. No stacking untested fixes.
+9. Log to grades.jsonl
 ```
+
+### Fix Validation Rule
+After applying a fix, mark it `"status": "pending"` in grades.jsonl. Next cycle, check if the target agent ran (check logs, brain timestamps). If it ran, validate the fix and mark `"improved"`, `"flat"`, or `"worse"`. If it didn't run, note `"still_pending"` — do NOT apply a new fix until the pending one is tested.
+
+### Brain Sync Rule
+After applying a prompt fix, update the target agent's brain file to match. If you redirect scout away from SiteWright, update scout's brain `next_move` too. Stale brains override prompt changes on next run.
 
 You have Edit and Write tools. Don't propose — apply. The human reviews the git diff.
 
 ## Step -1: Check Artifact Failures
 
-Read `~/.claude/logs/artifact-failures.jsonl` FIRST. If it exists and has entries, these are agents that ran but failed to write required outputs. This is the highest-priority signal — it means a feedback loop is broken RIGHT NOW.
+Read `~/.claude/logs/artifact-failures.jsonl` FIRST. If the file doesn't exist, create it: `touch ~/.claude/logs/artifact-failures.jsonl` and log "Artifact failures file initialized (empty)" — this makes absence of failures explicit.
+
+If it exists and has entries, these are agents that ran but failed to write required outputs. This is the highest-priority signal — it means a feedback loop is broken RIGHT NOW.
 
 For each failure entry:
 1. Read that agent's log for the same date — find what went wrong
@@ -78,9 +88,14 @@ Before grading agents, check the system itself:
 3. `node --check bin/taste.mjs` — JS syntax errors?
 4. Broken symlinks: check `~/.claude/agents/*.md`, `~/.claude/programs/*.md`
 5. Config drift: does rhino.yml reference dimensions/agents that don't exist in code?
-6. Cross-reference: does score.sh history format match gen-dashboard.sh parser?
-7. Agent refs: do agent .md files reference files that exist?
+6. Taste dimension sync: do rhino.yml `taste.dimensions`, `agents/refs/design-taste.md`, and `bin/taste.mjs` all list the same dimensions in the same order?
+7. Cross-reference: does score.sh history format match gen-dashboard.sh parser?
+8. Agent refs: do agent .md files reference files that exist?
 
+Report EVERY check explicitly in your output:
+```
+Self-heal: [✓] syntax  [✓] JS  [✓] symlinks  [✓] config  [✓] history format  [✓] agent refs  [✗] broken: ...
+```
 If anything is broken, fix it FIRST. A broken system can't evaluate itself.
 Log the fix as `"fix_type": "self-heal"` in grades.jsonl.
 
