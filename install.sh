@@ -297,8 +297,6 @@ if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo "  NOTE: Add ~/bin to your PATH if not already present"
 fi
 
-# --- 10b. (MCP server and API server removed — agents use filesystem directly) ---
-
 # --- 11. LaunchAgents (macOS only) ---
 if [[ "$INSTALL_LAUNCHD" == "true" && "$(uname)" == "Darwin" ]]; then
     echo "Installing LaunchAgents..."

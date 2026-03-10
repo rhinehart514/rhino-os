@@ -5,22 +5,26 @@ Thumbs.db
 # Backups created by install.sh
 *.backup.*
 
-# Personal data (never commit)
-knowledge/money-scout/opportunities.md
-knowledge/money-scout/trends.md
-knowledge/money-scout/confidence-scores.md
-knowledge/money-scout/eval-history.md
-knowledge/money-scout/search-strategy.md
-knowledge/money-scout/acted-on.md
-knowledge/money-scout/drafts/
+# Personal knowledge data (never commit)
+knowledge/scout/opportunities.md
+knowledge/scout/trends.md
+knowledge/scout/confidence-scores.md
+knowledge/scout/eval-history.md
+knowledge/scout/search-strategy.md
+knowledge/scout/acted-on.md
+knowledge/scout/drafts/
+
+# Legacy agent name (keep for migrating users)
+knowledge/money-scout/
 
 # Eval reports (personal)
 evals/reports/
 
-# Node modules (MCP + API servers)
+# Node modules
 node_modules/
-src/mcp-server/node_modules/
-src/api-server/node_modules/
+
+# Playwright
+.playwright-mcp/
 
 # Local overrides
 *.local.*

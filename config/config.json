@@ -7,11 +7,6 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
-    },
-    "rhino-state": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["tsx", "$HOME/rhino-os/src/mcp-server/index.ts"]
     }
   }
 }

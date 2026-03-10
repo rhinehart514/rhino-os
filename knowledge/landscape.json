@@ -61,18 +61,6 @@
       ],
       "implications": "Build systems that capture and replicate the founder's taste/judgment. This is what scales a solo founder beyond their own attention bandwidth.",
       "updated": "2026-03-07T00:00:00Z"
-    },
-    {
-      "id": "campus-infrastructure-is-underserved-beca",
-      "position": "Campus infrastructure is underserved because incumbents sell to administrators, not students. Student-first tools have a distribution advantage.",
-      "confidence": "moderate",
-      "evidence": [
-        "Enterprise AI solutions target admin buyers (budgets, procurement)",
-        "Students adopt tools bottom-up via word-of-mouth, no procurement cycle",
-        "UB-specific: captive audience, known pain points, zero competition for AI-native campus tools"
-      ],
-      "implications": "HIVE's campus positioning is a real wedge if distribution is student-to-student, not admin-to-student.",
-      "updated": "2026-03-07T00:00:00Z"
     }
   ],
   "updated": "2026-03-07T00:00:00Z"

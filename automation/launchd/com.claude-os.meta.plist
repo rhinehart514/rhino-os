@@ -36,7 +36,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
-        <string>/Users/laneyfraass</string>
+        <string>$HOME</string>
         <key>PATH</key>
         <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/v22.0.0/bin</string>
     </dict>

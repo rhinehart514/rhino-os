@@ -232,7 +232,7 @@ jobs:
               body += `> Claude eval did not complete. Check workflow logs.\n\n`;
             }
 
-            body += `---\n_[rhino-os](https://github.com/laneyfraass/rhino-os) AI Eval · Tier 1 (deterministic) + Tier 2 (functional) + Tier 3 (ceiling)_`;
+            body += `---\n_[rhino-os](https://github.com/rhinehart514/rhino-os) AI Eval · Tier 1 (deterministic) + Tier 2 (functional) + Tier 3 (ceiling)_`;
 
             // Upsert comment
             const { data: comments } = await github.rest.issues.listComments({
