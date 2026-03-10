@@ -27,6 +27,7 @@ set -uo pipefail
 PROJECT_DIR="."
 OUTPUT_MODE="score"
 FORCE=false
+INTEGRITY_WARNINGS=""
 
 for arg in "$@"; do
     case $arg in
@@ -42,10 +43,13 @@ for arg in "$@"; do
     esac
 done
 
+# Resolve script dir before cd (so relative $0 still works)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 cd "$PROJECT_DIR"
 
 # --- Config ---
-source "$(dirname "$0")/lib/config.sh"
+source "$SCRIPT_DIR/lib/config.sh"
 
 # --- Spinner ---
 SPINNER_PID=""
@@ -338,6 +342,36 @@ printf "%s\t%s\t%s\t%s\t%s\n" \
     "$BUILD" "$STRUCTURE" "$HYGIENE" \
     "$PROJECT_TYPE" >> "$HISTORY_FILE"
 
+# --- Integrity checks ---
+# COSMETIC-ONLY: only hygiene moved, structure unchanged
+if [[ $(wc -l < "$HISTORY_FILE" | tr -d ' ') -ge 3 ]]; then
+    prev_structure=$(tail -2 "$HISTORY_FILE" | head -1 | cut -f3)
+    prev_hygiene=$(tail -2 "$HISTORY_FILE" | head -1 | cut -f4)
+    if [[ -n "$prev_structure" && "$prev_structure" =~ ^[0-9]+$ && -n "$prev_hygiene" && "$prev_hygiene" =~ ^[0-9]+$ ]]; then
+        struct_delta=$((STRUCTURE - prev_structure))
+        hygiene_delta=$((HYGIENE - prev_hygiene))
+        # Cosmetic-only: hygiene improved but structure didn't
+        if [[ "$hygiene_delta" -gt 5 && "$struct_delta" -le 0 ]]; then
+            INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}COSMETIC-ONLY: hygiene +${hygiene_delta} but structure ${struct_delta}. Cleanup without structural improvement.\n"
+        fi
+        # Inflation: single commit jumped too much
+        max_delta=$(cfg integrity.max_single_commit_delta 15)
+        total_delta=$(( (STRUCTURE - prev_structure) + (HYGIENE - prev_hygiene) ))
+        if [[ "$total_delta" -gt "$max_delta" ]]; then
+            INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}INFLATION: score jumped +${total_delta} in one run (max: ${max_delta}). Verify changes are real.\n"
+        fi
+    fi
+fi
+
+# PLATEAU: score unchanged across N runs
+plateau_runs=$(cfg integrity.plateau_experiments 5)
+if [[ $(wc -l < "$HISTORY_FILE" | tr -d ' ') -gt "$plateau_runs" ]]; then
+    unique_scores=$(tail -"$plateau_runs" "$HISTORY_FILE" | cut -f3 | sort -u | wc -l | tr -d ' ')
+    if [[ "$unique_scores" -eq 1 ]]; then
+        INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}PLATEAU: structure score unchanged across last ${plateau_runs} runs. Might be stuck.\n"
+    fi
+fi
+
 # --- Taste eval (product quality from last visual eval) ---
 TASTE_SCORE=""
 TASTE_FILE=""
@@ -356,10 +390,24 @@ if [[ -n "$TASTE_SCORE" && "$TASTE_SCORE" =~ ^[0-9]+$ ]]; then
     [[ "$TASTE_SCORE" -lt "$local_min" ]] && local_min=$TASTE_SCORE
 fi
 
+# --- Build integrity JSON array ---
+INTEGRITY_JSON="[]"
+if [[ -n "$INTEGRITY_WARNINGS" ]]; then
+    INTEGRITY_JSON="["
+    first=true
+    while IFS= read -r warn; do
+        [[ -z "$warn" ]] && continue
+        $first || INTEGRITY_JSON+=","
+        INTEGRITY_JSON+="\"$warn\""
+        first=false
+    done < <(printf '%b' "$INTEGRITY_WARNINGS")
+    INTEGRITY_JSON+="]"
+fi
+
 # --- Cache (AFTER taste read so taste score is included) ---
 mkdir -p "$CACHE_DIR"
 cat > "$CACHE_FILE" <<CEOF
-{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"taste":${TASTE_SCORE:-null},"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","cached_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"taste":${TASTE_SCORE:-null},"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON,"cached_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 CEOF
 
 # --- Trends ---
@@ -405,7 +453,7 @@ case "$OUTPUT_MODE" in
         ;;
     json)
         cat <<EOF
-{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"taste":${TASTE_SCORE:-null},"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR"}
+{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"taste":${TASTE_SCORE:-null},"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON}
 EOF
         ;;
     score)
@@ -453,6 +501,15 @@ EOF
         fi
 
         echo ""
+
+        # Integrity warnings
+        if [[ -n "$INTEGRITY_WARNINGS" ]]; then
+            echo -e "  \033[1;33m⚠ Integrity Warnings:\033[0m"
+            printf '%b' "$INTEGRITY_WARNINGS" | while IFS= read -r warn; do
+                [[ -n "$warn" ]] && echo -e "    \033[1;33m· $warn\033[0m"
+            done
+            echo ""
+        fi
 
         # Overall
         overall_color=$(dim_color "$local_min")

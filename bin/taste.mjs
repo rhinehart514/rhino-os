@@ -21,7 +21,7 @@
  */
 
 import { chromium } from "playwright";
-import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, appendFileSync, readdirSync, statSync, mkdirSync } from "fs";
 import { join, resolve } from "path";
 import { execSync, spawn } from "child_process";
 
@@ -93,6 +93,7 @@ let baseUrl = null;
 let port = null;
 let skipServer = false;
 let force = false;
+let featureFilter = null;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--json") outputMode = "json";
@@ -100,9 +101,17 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === "--port") port = parseInt(args[i + 1]), i++;
   else if (args[i] === "--url") baseUrl = args[i + 1], skipServer = true, i++;
   else if (args[i] === "--force") force = true;
+  else if (args[i] === "--feature") featureFilter = args[i + 1], i++;
   else if (args[i] === "--help" || args[i] === "-h") {
-    console.log(`Usage: node taste.mjs [project-dir] [--json] [--port 3000] [--url http://...] [--force]`);
+    console.log(`Usage: node taste.mjs [project-dir] [options]`);
     console.log(`\nEvaluates product taste by screenshotting every route and judging with Claude vision.`);
+    console.log(`\nOptions:`);
+    console.log(`  --json             Output JSON`);
+    console.log(`  --score            Output score only`);
+    console.log(`  --port <port>      Dev server port`);
+    console.log(`  --url <url>        Use running server (skip auto-start)`);
+    console.log(`  --force            Re-run even if recent eval exists`);
+    console.log(`  --feature <name>   Evaluate a single feature (requires .claude/features.yml)`);
     console.log(`\nRequires: claude CLI (OAuth), playwright (npx playwright install chromium)`);
     process.exit(0);
   }
@@ -136,6 +145,70 @@ function loadTasteConfig() {
           }
         }
         if (config.routes.length > 0) return config;
+      } catch {}
+    }
+  }
+  return null;
+}
+
+// --- Load features.yml config (feature-to-route mapping) ---
+function loadFeatures() {
+  const configPaths = [
+    join(projectDir, ".claude", "features.yml"),
+    join(projectDir, ".claude", "features.yaml"),
+  ];
+
+  for (const p of configPaths) {
+    if (existsSync(p)) {
+      try {
+        const content = readFileSync(p, "utf-8");
+        const features = {};
+        let currentFeature = null;
+        let inFeatures = false;
+        let inRoutes = false;
+        let featuresIndent = -1;
+        let featureIndent = -1;
+
+        for (const line of content.split("\n")) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("#") || !trimmed) continue;
+          const indent = line.length - line.trimStart().length;
+
+          if (trimmed === "features:") {
+            inFeatures = true;
+            featuresIndent = indent;
+            continue;
+          }
+
+          if (!inFeatures) continue;
+
+          // A key at features indent + 2 is a feature name
+          if (indent > featuresIndent && !trimmed.startsWith("-") && trimmed.endsWith(":") && !trimmed.startsWith("routes:")) {
+            currentFeature = trimmed.slice(0, -1).trim();
+            featureIndent = indent;
+            features[currentFeature] = { routes: [] };
+            inRoutes = false;
+            continue;
+          }
+
+          if (currentFeature && trimmed === "routes:") {
+            inRoutes = true;
+            continue;
+          }
+
+          // Back to a higher or same indent as features section — stop
+          if (indent <= featuresIndent && trimmed && !trimmed.startsWith("-")) {
+            inFeatures = false;
+            continue;
+          }
+
+          if (inRoutes && currentFeature && trimmed.startsWith("- ")) {
+            const val = trimmed.slice(2).trim().replace(/["']/g, "").replace(/#.*/, "").trim();
+            if (val) features[currentFeature].routes.push(val);
+          }
+        }
+
+        if (Object.keys(features).length > 0) return features;
       } catch {}
     }
   }
@@ -369,6 +442,36 @@ You are looking at screenshots of this application. Score each dimension 1-5 bas
    3 = Competent but I've seen this template before — it's every shadcn/tailwind app
    1 = Pure framework defaults — literally indistinguishable from a tutorial project
 
+## Research-Grounded Evaluation (CRITICAL)
+
+Before scoring, you must establish an EXTERNAL reference frame. You are not judging against your own sense of "good" — you are comparing against the best real products that solve similar problems.
+
+For each feature/route you evaluate:
+1. Identify what category this screen is (profile page, feed, creation tool, community hub, settings, etc.)
+2. Name the 2-3 BEST real products that have this same type of screen (e.g., profile → Discord, TikTok, BeReal; feed → TikTok, Instagram, Reddit; creation → Notion, Figma, Canva)
+3. Compare what you see against those specific products — not abstract "good design"
+4. Score based on how this holds up against those references
+
+## Slop Check (MANDATORY for every screen)
+
+For each route, answer: "Could this screen have been generated by prompting an AI with 'build me a [feature type] page'?"
+
+If YES → the DISTINCTIVENESS score is capped at 2/5 regardless of polish.
+
+What you are checking:
+- Generic card grids with rounded corners and shadows → slop
+- "Welcome back, [name]!" with a generic dashboard → slop
+- Settings page that looks like every other settings page → slop
+- A layout that could belong to ANY product if you hid the logo → slop
+
+What breaks the slop pattern:
+- A specific visual element that only makes sense for THIS product
+- Copy/microcopy with personality (not "Get started" / "No items yet")
+- An interaction pattern that serves THIS product's core loop
+- Information displayed in a way that is unique to this domain
+
+Cite the specific element that makes each screen NOT slop, or say "nothing — this is template energy."
+
 ## Rules
 - You are a USER, not a designer. Score based on your gut reaction, not design theory.
 - "I felt confused" beats "the visual hierarchy could be improved" — use first-person experience language.
@@ -377,6 +480,15 @@ You are looking at screenshots of this application. Score each dimension 1-5 bas
 - A score of 3 means "I wouldn't uninstall it but I wouldn't recommend it." 5 means "I'd show someone." 1 means "I'd close the tab."
 - Be brutally honest. Most AI-generated UIs score 2-3. Most MVPs score 2-3. Say so.
 - The product context tells you WHO this is for — judge whether the UI actually serves THOSE people, not abstract "users."
+
+## Score Integrity (CRITICAL)
+- Your scores are a diagnostic instrument, not a reward signal. Inflated scores are WORSE than harsh scores because they hide real problems.
+- DO NOT be generous. DO NOT give benefit of the doubt. DO NOT round up. If you're unsure between 2 and 3, pick 2.
+- A 5 on ANY dimension means this product is INDISTINGUISHABLE from the best consumer apps you use daily on that specific axis. This is extremely rare for any product, let alone an early-stage one.
+- A 4 means "genuinely good — I noticed something intentional and well-executed." Most products don't earn this on most dimensions.
+- Expected distribution for a typical product: mostly 2s and 3s, maybe one 4 if something is genuinely strong, 5s are exceptional.
+- If you give an overall score of 4+, you must justify why this product stands alongside Notion/Linear/Discord on EACH high-scoring dimension. If you can't, lower the score.
+- Previous scores should NOT anchor you. If a prior eval scored hierarchy 4/5 but the screenshots show confusion, score it honestly now. Scores can go DOWN.
 
 ## Output Format (strict JSON)
 {
@@ -389,7 +501,8 @@ You are looking at screenshots of this application. Score each dimension 1-5 bas
     "emotional_tone": { "score": <1-5>, "evidence": "<what you experienced>" },
     "information_density": { "score": <1-5>, "evidence": "<what you experienced>" },
     "wayfinding": { "score": <1-5>, "evidence": "<what you experienced>" },
-    "distinctiveness": { "score": <1-5>, "evidence": "<what you experienced>" }
+    "distinctiveness": { "score": <1-5>, "evidence": "<what you experienced>" },
+    "scroll_experience": { "score": <1-5>, "evidence": "<what you experienced scrolling through — section pacing, sticky headers, parallax, content reveal>" }
   },
   "strongest": "<which dimension and why — as a user>",
   "weakest": "<which dimension and the specific moment you felt it fail>",
@@ -428,7 +541,7 @@ async function evaluateWithClaude(screenshots, routes, screenshotDir) {
   const claudeArgs = ["-p", "--output-format", "text", "--allowedTools", "Read"];
 
   try {
-    const output = execSync(`claude ${claudeArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`, {
+    const output = execSync(`CLAUDECODE= claude ${claudeArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`, {
       encoding: "utf-8",
       input: prompt,
       maxBuffer: 10 * 1024 * 1024,
@@ -582,12 +695,34 @@ async function main() {
   if (existsSync(join(projectDir, "apps/web/src"))) srcDir = join(projectDir, "apps/web/src");
   else if (existsSync(join(projectDir, "src"))) srcDir = join(projectDir, "src");
 
-  // Detect routes
+  // Load features map (optional)
+  const features = loadFeatures();
+
+  // If --feature flag, validate it exists
+  if (featureFilter && features) {
+    if (!features[featureFilter]) {
+      console.error(`Error: feature "${featureFilter}" not found in .claude/features.yml`);
+      console.error(`Available features: ${Object.keys(features).join(", ")}`);
+      process.exit(1);
+    }
+  } else if (featureFilter && !features) {
+    console.error(`Error: --feature requires .claude/features.yml to exist`);
+    process.exit(1);
+  }
+
+  // Detect routes (feature-filtered or full)
   startSpinner("detecting routes...");
-  const routeConfig = detectRoutes(srcDir);
+  let routeConfig;
+  if (featureFilter && features) {
+    // Only screenshot routes for the specified feature
+    routeConfig = { routes: features[featureFilter].routes, mobileOnly: [] };
+  } else {
+    routeConfig = detectRoutes(srcDir);
+  }
   const { routes, mobileOnly } = routeConfig;
   const mobileCount = routes.filter(r => mobileOnly.includes(r)).length;
-  stopSpinner(`${routes.length} routes (${mobileCount} with mobile): ${routes.join(", ")}`);
+  const featureLabel = featureFilter ? ` [feature: ${featureFilter}]` : "";
+  stopSpinner(`${routes.length} routes (${mobileCount} with mobile)${featureLabel}: ${routes.join(", ")}`);
 
   // Start or connect to dev server
   let server = null;
@@ -646,11 +781,42 @@ async function main() {
       if (minDim) result.weakest_dimension = minDim;
     }
 
+    // Add feature info if features.yml exists
+    if (featureFilter) {
+      result.feature = featureFilter;
+    } else if (features && result.dimensions) {
+      // Group dimensions by feature — identify weakest dimension per feature based on its routes
+      result.features = {};
+      for (const [fname, fdata] of Object.entries(features)) {
+        let minScore = 6, minDim = "";
+        for (const [dim, ddata] of Object.entries(result.dimensions)) {
+          if (ddata.score < minScore) { minScore = ddata.score; minDim = dim; }
+        }
+        result.features[fname] = { routes: fdata.routes, weakest_dimension: minDim };
+      }
+    }
+
     // Save result
     mkdirSync(reportDir, { recursive: true });
     const reportPath = join(reportDir, `taste-${new Date().toISOString().slice(0, 10)}.json`);
     writeFileSync(reportPath, JSON.stringify(result, null, 2));
     console.error(`\n  ${GREEN}Report saved: ${reportPath}${NC}\n`);
+
+    // Append to taste history TSV for trend tracking
+    const historyPath = join(projectDir, ".claude", "evals", "taste-history.tsv");
+    const historyDir = join(projectDir, ".claude", "evals");
+    mkdirSync(historyDir, { recursive: true });
+    if (!existsSync(historyPath)) {
+      writeFileSync(historyPath, "timestamp\toverall\tweakest_dimension\tone_thing\tfeature\n");
+    }
+    const historyLine = [
+      new Date().toISOString(),
+      result.overall || "",
+      result.weakest_dimension || "",
+      (result.one_thing || "").replace(/\t/g, " ").replace(/\n/g, " "),
+      featureFilter || "all",
+    ].join("\t") + "\n";
+    appendFileSync(historyPath, historyLine);
 
     // Output
     switch (outputMode) {

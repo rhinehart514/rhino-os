@@ -32,16 +32,17 @@ scoring:
     empty_state_weight: 0.33    # multiply missing-CTA % by this
 
   hygiene:
-    any_types: { 50: -30, 20: -20, 5: -10 }
-    console_logs: { 30: -25, 15: -15, 5: -5 }
-    todos: { 30: -20, 15: -10, 5: -5 }
-    large_imports: { threshold: 15, 10: -15, 5: -10 }
-    lint_overrides: { 20: -15, 10: -10, 3: -5 }
+    # Hardcoded tiered penalties in score.sh (edit score.sh to change):
+    # any_types:     >50: -30, >20: -20, >5: -10
+    # console_logs:  >30: -25, >15: -15, >5: -5
+    # todos:         >30: -20, >15: -10, >5: -5
+    # large_imports: >10: -15, >5: -10
+    # lint_overrides: >20: -15, >10: -10, >3: -5
 
 # ── Taste (taste.mjs) ──────────────────────────────
 taste:
   max_routes: 8               # routes to screenshot
-  max_screenshots: 12         # total screenshots (routes + mobile)
+  max_screenshots: 24         # total screenshots (routes + mobile + scroll depths)
   cache_ttl: 7200             # seconds (2 hours)
   stale_warning_days: 7       # flag in score output after this
 
@@ -71,7 +72,7 @@ taste:
       - profile
       - settings
 
-  dimensions:                 # the 8 taste dimensions (rubric)
+  dimensions:                 # the 9 taste dimensions (rubric)
     - hierarchy
     - breathing_room
     - contrast
@@ -80,6 +81,7 @@ taste:
     - information_density
     - wayfinding
     - distinctiveness
+    - scroll_experience
 
 # ── Knowledge & Decay ──────────────────────────────
 knowledge:
@@ -99,12 +101,33 @@ context:
 
 # ── Agent Brains ──────────────────────────────────
 brains:
-  stance_expiry_days: 30          # expire pending stances after this
-  max_active_stances: 5           # cap per agent
-  credibility_half_life_days: 30  # older stances count less
-  min_stances_for_credibility: 3  # calibration period (lowered from 5 for faster divergence)
-  conflict_escalation_days: 7     # escalate unresolved conflicts after this
-  auto_resolve_score_claims: true # meta auto-resolves score predictions
+  # Simplified: agents store next_move, no credibility/stances
+  # Each agent writes ~/.claude/state/brains/{agent}.json
+  # Contains: next_move, bias_awareness, last_run, updated
+
+# ── Score Integrity ───────────────────────────────
+# Scores exist to reflect reality, not to be maximized.
+# If a score exceeds the ceiling for its stage, flag it as suspicious.
+# "Get to 100" is not a valid goal. "Improve the weakest dimension" is.
+integrity:
+  # Expected ranges per project stage. Exceeding ceiling = suspicious.
+  stage_ceilings:
+    mvp:
+      score: [30, 65]
+      taste: [1.5, 3.0]
+    early:
+      score: [45, 80]
+      taste: [2.0, 3.5]
+    growth:
+      score: [60, 90]
+      taste: [3.0, 4.0]
+    mature:
+      score: [70, 95]
+      taste: [3.5, 4.5]
+
+  cosmetic_only_warning: true
+  max_single_commit_delta: 15
+  plateau_experiments: 5
 
 # ── Experiment Discipline ──────────────────────────
 experiments:
