@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>rhino-os v5 — Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #e5e5e5; font-family: 'SF Mono', 'Fira Code', monospace; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .subtitle { font-size: 12px; color: #555; margin-bottom: 40px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 24px; }
+  .card h2 { font-size: 13px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .full { grid-column: 1 / -1; }
+
+  .tier { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; padding: 14px; border-radius: 8px; }
+  .tier-1 { background: #0d1f0d; border: 1px solid #1a3a1a; }
+  .tier-2 { background: #0d1a2e; border: 1px solid #1a2e4a; }
+  .tier-3 { background: #1f1a0d; border: 1px solid #3a2e1a; }
+  .tier-num { font-size: 22px; font-weight: 800; min-width: 32px; }
+  .t1 { color: #4ade80; } .t2 { color: #60a5fa; } .t3 { color: #fbbf24; }
+  .tier-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .tier-desc { font-size: 11px; color: #666; line-height: 1.5; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-top: 6px; font-weight: 600; }
+  .badge-green { background: #0d3d1f; color: #4ade80; }
+  .badge-blue { background: #0d1f3d; color: #60a5fa; }
+  .badge-yellow { background: #3d2d0d; color: #fbbf24; }
+
+  .flow { display: flex; flex-direction: column; }
+  .flow-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px 14px; margin-bottom: 4px; }
+  .flow-box .label { font-size: 12px; font-weight: 600; color: #e5e5e5; }
+  .flow-box .sub { font-size: 10px; color: #555; margin-top: 2px; }
+  .flow-connector { width: 2px; background: #1e1e1e; height: 12px; margin-left: 20px; }
+  .highlight { border-color: #4ade80 !important; }
+  .highlight .label { color: #4ade80 !important; }
+
+  .compare { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .compare th { text-align: left; padding: 8px 12px; color: #555; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e1e1e; }
+  .compare td { padding: 9px 12px; border-bottom: 1px solid #141414; }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare td:first-child { color: #888; }
+  .yes { color: #4ade80; } .no { color: #ef4444; } .partial { color: #fbbf24; }
+
+  .score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .score-label { font-size: 11px; color: #888; width: 140px; flex-shrink: 0; }
+  .score-bar-bg { flex: 1; height: 6px; background: #1e1e1e; border-radius: 3px; overflow: hidden; }
+  .score-bar { height: 100%; border-radius: 3px; }
+  .score-val { font-size: 11px; color: #555; width: 30px; text-align: right; }
+  .bar-green { background: #4ade80; } .bar-yellow { background: #fbbf24; } .bar-red { background: #ef4444; }
+
+  .lifecycle { display: flex; gap: 12px; }
+  .lc-stage { flex: 1; padding: 12px; border-radius: 8px; }
+  .lc-active { background: #0d1a2e; border: 1px solid #1a2e4a; }
+  .lc-valid { background: #0d1f0d; border: 1px solid #1a3a1a; }
+  .lc-killed { background: #1f0d0d; border: 1px solid #3a1a1a; }
+  .lc-title { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+  .lc-active .lc-title { color: #60a5fa; }
+  .lc-valid .lc-title { color: #4ade80; }
+  .lc-killed .lc-title { color: #ef4444; }
+  .lc-item { font-size: 10px; color: #666; margin-bottom: 4px; }
+
+  .section-label { font-size: 10px; color: #333; text-transform: uppercase; letter-spacing: 2px; margin: 32px 0 16px; }
+
+  .sprint-box { padding: 14px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; }
+  .sprint-num { font-size: 10px; font-weight: 700; margin-bottom: 8px; }
+  .sprint-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; color: #e5e5e5; }
+  .sprint-items { font-size: 10px; color: #555; line-height: 1.6; }
+
+  .corpus-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px; align-items: center; }
+  .corpus-step { padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; margin-bottom: 8px; text-align: center; }
+  .corpus-step strong { display: block; font-size: 12px; color: #e5e5e5; margin-bottom: 2px; }
+  .corpus-step span { font-size: 10px; color: #555; }
+  .corpus-arrow { text-align: center; color: #333; font-size: 14px; margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<h1>rhino-os v5 — Architecture</h1>
+<p class="subtitle">March 12, 2026 · Research & Vision</p>
+
+<div class="section-label">Eval System</div>
+
+<div class="grid">
+  <div class="card full">
+    <h2>Three-Tier Eval Architecture — Ungameable by Design</h2>
+    <div class="tier tier-1">
+      <div class="tier-num t1">1</div>
+      <div>
+        <div class="tier-title">Computed — Fully Mechanical (0 LLM)</div>
+        <div class="tier-desc">Color contrast (WCAG formula) · Font hierarchy (CSS computed) · Click target sizes (min 44×44px) · Element density (per viewport) · Whitespace ratio · CLS score (Playwright native) · Route graph depth</div>
+        <span class="badge badge-green">UNGAMEABLE — pure math, no model in the loop</span>
+      </div>
+    </div>
+    <div class="tier tier-2">
+      <div class="tier-num t2">2</div>
+      <div>
+        <div class="tier-title">Behavioral — Blind Agent Task Completion (val_bpb equivalent)</div>
+        <div class="tier-desc">Playwright launches app as fresh user · Blind LLM (zero app context) attempts primary task · Metric: pass/fail + time + click count · The app must actually work for a naive user</div>
+        <span class="badge badge-blue">HARD TO GAME — external agent, real task, binary outcome</span>
+      </div>
+    </div>
+    <div class="tier tier-3">
+      <div class="tier-num t3">3</div>
+      <div>
+        <div class="tier-title">Corpus Comparison — Anchored LLM Gap Analysis</div>
+        <div class="tier-desc">Show Claude: current output + 3-5 corpus examples · Ask for specific gap analysis, not rating · Multi-model consensus required (Claude + GPT-4V + Gemini) · ELO ranking not absolute score · Gaming 3 models simultaneously is effectively impossible</div>
+        <span class="badge badge-yellow">RESISTANT — consensus + real examples as anchor</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label">Karpathy Parallel</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>autoresearch (ML research)</h2>
+    <div class="flow">
+      <div class="flow-box"><div class="label">program.md</div><div class="sub">you edit the research org, not the code</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">modify train.py (1 file only)</div><div class="sub">agent edits, you don't touch it</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">train for exactly 5 minutes</div><div class="sub">fixed budget, comparable across experiments</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box highlight"><div class="label">val_bpb — external math</div><div class="sub">cannot be gamed, lower = better, period</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">keep / discard (mechanical)</div><div class="sub">score up → keep, no human judgment</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">~100 experiments overnight</div><div class="sub">scale is the entire point</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>rhino-os (product dev)</h2>
+    <div class="flow">
+      <div class="flow-box"><div class="label">programs/ + beliefs.yml</div><div class="sub">you write strategy and beliefs, not code</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">modify 1 file per experiment</div><div class="sub">agent edits codebase, diffs stay reviewable</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">score.sh in 2 seconds</div><div class="sub">fast eval, structural + hygiene, always runs</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box highlight"><div class="label">Tier 1 + Tier 2 + beliefs evals</div><div class="sub">ungameable mechanical eval suite</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">keep / discard (mechanical)</div><div class="sub">all evals pass → keep, any fail → git reset</div></div>
+      <div class="flow-connector"></div>
+      <div class="flow-box"><div class="label">/go — no iteration cap</div><div class="sub">plateau threshold stops the loop, not a number</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label">Beliefs System</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Belief → Eval Lifecycle</h2>
+    <div class="lifecycle">
+      <div class="lc-stage lc-active">
+        <div class="lc-title">● ACTIVE</div>
+        <div class="lc-item">Hypothesis created</div>
+        <div class="lc-item">Eval auto-generated</div>
+        <div class="lc-item">Runs every build</div>
+        <div class="lc-item">Evidence accumulates</div>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:center;gap:20px;font-size:14px;color:#333;padding:0 4px">
+        <span>↗</span>
+        <span>↘</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <div class="lc-stage lc-valid">
+          <div class="lc-title">✓ VALIDATED</div>
+          <div class="lc-item">Eval locked permanently</div>
+          <div class="lc-item">Belief confirmed by data</div>
+          <div class="lc-item">Never removed</div>
+        </div>
+        <div class="lc-stage lc-killed">
+          <div class="lc-title">✗ KILLED</div>
+          <div class="lc-item">Eval removed</div>
+          <div class="lc-item">Belief was wrong</div>
+          <div class="lc-item">Dead end logged</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:#0a0a0a;border-radius:6px;font-size:10px;color:#555;line-height:1.6">
+      <span style="color:#888">beliefs.yml</span> = the product's intellectual history<br>
+      Evals are living beliefs — as you learn, they evolve.<br>
+      The eval file IS the hypothesis tracker.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>OpenClaw → rhino-os Mapping</h2>
+    <table class="compare">
+      <tr><th>OpenClaw concept</th><th>rhino-os equivalent</th><th></th></tr>
+      <tr><td>SOUL.md</td><td>config/rules/identity.md</td><td class="yes">✓ exists</td></tr>
+      <tr><td>USER.md</td><td>config/rules/product-brief.md</td><td class="yes">✓ exists</td></tr>
+      <tr><td>MEMORY.md</td><td>.claude/brains/ (living memory)</td><td class="partial">~ partial</td></tr>
+      <tr><td>Skills</td><td>skills/ (SKILL.md)</td><td class="yes">✓ exists</td></tr>
+      <tr><td>Session boot</td><td>session_start.sh rewrite</td><td class="no">✗ missing</td></tr>
+      <tr><td>Heartbeats</td><td>post_build hook</td><td class="no">✗ missing</td></tr>
+      <tr><td>Proactive voice</td><td>cofounder speaks unprompted</td><td class="no">✗ missing</td></tr>
+      <tr><td>Autonomous loop</td><td>/go uncapped + plateau stop</td><td class="no">✗ missing</td></tr>
+      <tr><td>Programs evolve</td><td>agent proposes programs/ edits</td><td class="no">✗ missing</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section-label">Corpus System — The Moat</div>
+
+<div class="card full">
+  <h2>AI-Discovered Corpus — Autoresearch Applied to Taste</h2>
+  <div class="corpus-grid">
+    <div>
+      <div class="corpus-step"><strong>Search Reputation Signals</strong><span>Awwwards SOTD · Product Hunt #1 · Designer Twitter · Design teardowns</span></div>
+      <div class="corpus-arrow">↓</div>
+      <div class="corpus-step"><strong>Screenshot 20 Candidates</strong><span>Per category, automated via Playwright</span></div>
+      <div class="corpus-arrow">↓</div>
+      <div class="corpus-step"><strong>Multi-Model Consensus Score</strong><span>Claude + GPT-4V + Gemini · Must agree within ±0.5</span></div>
+      <div class="corpus-arrow">↓</div>
+      <div class="corpus-step"><strong>Admit or Evict</strong><span>Score > 8.0 AND variance &lt; 0.5 → ADMIT · Controversial → REJECT</span></div>
+    </div>
+
+    <div style="text-align:center;padding:0 16px">
+      <div style="font-size:48px;color:#222">⟳</div>
+      <div style="font-size:10px;color:#333;margin-top:8px">/go --corpus<br>runs overnight</div>
+      <div style="margin-top:24px;font-size:10px;color:#333;line-height:1.8">
+        Stale entries<br>evicted weekly<br>↓<br>Corpus stays<br>fresh automatically
+      </div>
+    </div>
+
+    <div>
+      <div style="padding:16px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;margin-bottom:12px">
+        <div style="font-size:10px;color:#888;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px">Corpus coverage grows over time</div>
+        <div class="score-row"><div class="score-label">ui/saas</div><div class="score-bar-bg"><div class="score-bar bar-green" style="width:75%"></div></div><div class="score-val">15</div></div>
+        <div class="score-row"><div class="score-label">copy/landing</div><div class="score-bar-bg"><div class="score-bar bar-green" style="width:55%"></div></div><div class="score-val">11</div></div>
+        <div class="score-row"><div class="score-label">developer/tools</div><div class="score-bar-bg"><div class="score-bar bar-yellow" style="width:40%"></div></div><div class="score-val">8</div></div>
+        <div class="score-row"><div class="score-label">mobile/onboarding</div><div class="score-bar-bg"><div class="score-bar bar-red" style="width:15%"></div></div><div class="score-val">3</div></div>
+        <div class="score-row"><div class="score-label">code/patterns</div><div class="score-bar-bg"><div class="score-bar bar-red" style="width:10%"></div></div><div class="score-val">2</div></div>
+      </div>
+      <div style="padding:14px;background:#0d1a0d;border:1px solid #1a3a1a;border-radius:8px">
+        <div style="font-size:10px;color:#4ade80;font-weight:700;margin-bottom:8px">Community packs — the network effect</div>
+        <div style="font-size:10px;color:#555;margin-bottom:3px">rhino corpus add fintech-ui</div>
+        <div style="font-size:10px;color:#555;margin-bottom:3px">rhino corpus add dev-tools-copy</div>
+        <div style="font-size:10px;color:#555;margin-bottom:8px">rhino corpus add mobile-consumer</div>
+        <div style="font-size:10px;color:#444;font-style:italic">More users → more corpus loops → better taste<br>→ better evals → better output → more users</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label">Build Roadmap</div>
+
+<div class="card full">
+  <h2>Sprint Sequence — Ordered by Leverage</h2>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+    <div class="sprint-box">
+      <div class="sprint-num" style="color:#4ade80">SPRINT 1 — 1-2 days</div>
+      <div class="sprint-title">OpenClaw Boot</div>
+      <div class="sprint-items">
+        Rewrite session_start.sh<br>
+        Add /next skill (20 lines)<br>
+        .claude/brains/ as MEMORY.md<br>
+        Remove /go iteration cap<br>
+        Add plateau stop condition
+      </div>
+    </div>
+    <div class="sprint-box">
+      <div class="sprint-num" style="color:#60a5fa">SPRINT 2 — 2-3 days</div>
+      <div class="sprint-title">Tier 1 Evals</div>
+      <div class="sprint-items">
+        DOM check runner<br>
+        Route graph eval<br>
+        Content eval (jargon, level)<br>
+        beliefs.yml schema + parser<br>
+        Integrate into score output
+      </div>
+    </div>
+    <div class="sprint-box">
+      <div class="sprint-num" style="color:#fbbf24">SPRINT 3 — 3-5 days</div>
+      <div class="sprint-title">Tier 2 — val_bpb</div>
+      <div class="sprint-items">
+        Playwright task script<br>
+        Blind agent persona prompt<br>
+        Pass/fail + time + clicks<br>
+        Integrate into eval suite<br>
+        Mechanical keep/discard
+      </div>
+    </div>
+    <div class="sprint-box">
+      <div class="sprint-num" style="color:#f472b6">SPRINT 4 — 1 week</div>
+      <div class="sprint-title">Corpus System</div>
+      <div class="sprint-items">
+        Corpus schema + storage<br>
+        /research --corpus mode<br>
+        Reputation signal search<br>
+        Multi-model scorer<br>
+        /go --corpus overnight loop
+      </div>
+    </div>
+    <div class="sprint-box">
+      <div class="sprint-num" style="color:#a78bfa">SPRINT 5 — ongoing</div>
+      <div class="sprint-title">Community Layer</div>
+      <div class="sprint-items">
+        rhino corpus publish<br>
+        Pack voting mechanism<br>
+        Community registry<br>
+        Network effect compounds<br>
+        The moat builds itself
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label">The Defensible Position</div>
+
+<div class="card full">
+  <h2>Why This Can't Be Cloned</h2>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+    <div style="padding:16px;background:#0d1f0d;border:1px solid #1a3a1a;border-radius:8px">
+      <div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px">The Corpus</div>
+      <div style="font-size:11px;color:#555;line-height:1.6">Community-maintained · AI-curated · Consensus-validated · Domain-specific · Gets better with time</div>
+    </div>
+    <div style="padding:16px;background:#0d1a2e;border:1px solid #1a2e4a;border-radius:8px">
+      <div style="font-size:12px;font-weight:700;color:#60a5fa;margin-bottom:8px">Beliefs System</div>
+      <div style="font-size:11px;color:#555;line-height:1.6">Your product's soul in code · Enforced mechanically · Evolves with hypotheses · Intellectual history in git</div>
+    </div>
+    <div style="padding:16px;background:#1f1a0d;border:1px solid #3a2e1a;border-radius:8px">
+      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:8px">Compounding Memory</div>
+      <div style="font-size:11px;color:#555;line-height:1.6">Hypotheses grow per session · Experiment learnings stack · Programs evolve with data · The cofounder gets smarter</div>
+    </div>
+    <div style="padding:16px;background:#1f0d1f;border:1px solid #3a1a3a;border-radius:8px">
+      <div style="font-size:12px;font-weight:700;color:#f472b6;margin-bottom:8px">Karpathy Loop</div>
+      <div style="font-size:11px;color:#555;line-height:1.6">Runs overnight unattended · Scales with compute · Finds improvements you'd miss · Human programs the org</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

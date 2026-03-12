@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# rhino — CLI for rhino-os (measurement tools only)
-# Skills (/build, /strategy, etc.) handle agent orchestration.
-# CLI handles: score, taste, bench, status, init, install, config, visuals, dashboard.
+# rhino — CLI for rhino-os v5
+# Measurement tools: score, taste, status, setup, config
+# Agent work happens in Claude Code via skills: /plan, /build, /research, /status, /setup, /go
 
-VERSION="3.0.0"
+VERSION="5.0.0"
 _RHINO_SOURCE="${BASH_SOURCE[0]}"
 while [[ -L "$_RHINO_SOURCE" ]]; do
     _RHINO_SOURCE="$(readlink "$_RHINO_SOURCE")"
 done
 RHINO_DIR="$(cd "$(dirname "$_RHINO_SOURCE")/.." && pwd)"
-CLAUDE_DIR="$HOME/.claude"
-LOG_DIR="$CLAUDE_DIR/logs"
-STATE_DIR="$CLAUDE_DIR/state"
-KNOWLEDGE_DIR="$CLAUDE_DIR/knowledge"
-
-mkdir -p "$LOG_DIR" "$STATE_DIR"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -27,27 +21,19 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-# --- Config reader (rhino.yml) ---
+# --- Config reader ---
 source "$RHINO_DIR/bin/lib/config.sh"
 
-# --- Brain system (persistent agent identity) ---
-source "$RHINO_DIR/bin/lib/brains.sh"
-
-# --- Workspace registry ---
-source "$RHINO_DIR/bin/lib/workspace.sh"
-
 # ============================================================
-# SCORE — structural quality (delegates to score.sh)
+# SCORE
 # ============================================================
-
 cmd_score() {
     "$RHINO_DIR/bin/score.sh" "${@:-.}"
 }
 
 # ============================================================
-# TASTE — visual quality eval (delegates to taste.mjs)
+# TASTE
 # ============================================================
-
 cmd_taste() {
     local args=("$@")
     if [[ ${#args[@]} -eq 0 ]]; then
@@ -57,127 +43,110 @@ cmd_taste() {
 }
 
 # ============================================================
-# BENCH — benchmark card (like Claude model benchmarks)
+# STATUS
 # ============================================================
-
-cmd_bench() {
-    local json_out
-    json_out=$("$RHINO_DIR/tests/run.sh" --json 2>/dev/null) || true
-
-    local total_pct pass fail total date_str
-    total_pct=$(echo "$json_out" | jq -r '.pct')
-    pass=$(echo "$json_out" | jq -r '.pass')
-    fail=$(echo "$json_out" | jq -r '.fail')
-    total=$(echo "$json_out" | jq -r '.total')
-    date_str=$(date +%Y-%m-%d)
-
-    echo ""
-    echo -e "${BOLD}  rhino-os ${VERSION} benchmarks${NC}  ${DIM}${date_str}${NC}"
-    echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-
-    echo "$json_out" | jq -r '.tiers[] | "\(.tier)|\(.pct)|\(.pass)|\(.total)"' | while IFS='|' read -r tier pct tier_pass tier_total; do
-        local color="$GREEN"
-        [[ "$pct" -lt 90 ]] && color="$YELLOW"
-        [[ "$pct" -lt 70 ]] && color="$RED"
-        printf "  %-28s ${color}%5s%%${NC}  ${DIM}%s/%s${NC}\n" "$tier" "$pct" "$tier_pass" "$tier_total"
-    done
-
-    echo ""
-    echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-    local overall_color="$GREEN"
-    [[ "$total_pct" -lt 90 ]] && overall_color="$YELLOW"
-    [[ "$total_pct" -lt 70 ]] && overall_color="$RED"
-
-    printf "  %-28s ${overall_color}%5s%%${NC}  ${DIM}%s/%s${NC}\n" "Overall" "$total_pct" "$pass" "$total"
-    echo ""
-
-    if [[ "$fail" -gt 0 ]]; then
-        echo -e "  ${DIM}Failures:${NC}"
-        echo "$json_out" | jq -r '.failed_tests[]' 2>/dev/null | while read -r ft; do
-            echo -e "  ${RED}✗${NC} $ft"
-        done
-        echo ""
-    fi
-
-    if [[ "$total_pct" -eq 100 ]]; then
-        echo -e "  ${YELLOW}All tests passing. Are the tests hard enough?${NC}"
-        echo ""
-    fi
-}
-
-# ============================================================
-# STATUS — system state (delegates to /status skill for full view)
-# ============================================================
-
 cmd_status() {
-    echo -e "${BOLD}=== rhino status ===${NC}"
+    echo -e "${BOLD}rhino-os v${VERSION}${NC}"
     echo ""
 
-    # Health checks
-    if command -v claude &> /dev/null; then
+    # Claude CLI check
+    if command -v claude &>/dev/null; then
         echo -e "${GREEN}[OK]${NC} claude CLI"
     else
         echo -e "${RED}[FAIL]${NC} claude CLI not found"
     fi
 
-    # Workspace
-    if [[ -f "$STATE_DIR/workspace.json" ]] && command -v jq &>/dev/null; then
-        local proj_count focus
-        proj_count=$(jq '.projects | length' "$STATE_DIR/workspace.json" 2>/dev/null || echo "0")
-        focus=$(jq -r '.focus // "none"' "$STATE_DIR/workspace.json" 2>/dev/null)
-        echo -e "${GREEN}[OK]${NC} Workspace: ${proj_count} projects, focus: ${focus}"
+    # Product map
+    if [[ -f ".claude/product-map.yml" ]]; then
+        echo -e "${GREEN}[OK]${NC} Product map exists"
     else
-        echo -e "${DIM}[--]${NC} No workspace (run /setup)"
+        echo -e "${DIM}[--]${NC} No product map (run /setup)"
     fi
 
-    # Symlinks
-    local symlink_ok=0 symlink_broken=0
-    for agent in "$CLAUDE_DIR"/agents/*.md; do
-        [[ ! -L "$agent" ]] && continue
-        if [[ -e "$agent" ]]; then ((symlink_ok++)); else ((symlink_broken++)); fi
+    # Rules files
+    local rules_count=0
+    for f in .claude/rules/identity.md .claude/rules/product-brief.md .claude/rules/hypotheses.md; do
+        [[ -f "$f" ]] && ((rules_count++))
     done
-    if [[ "$symlink_broken" -gt 0 ]]; then
-        echo -e "${YELLOW}[WARN]${NC} ${symlink_broken} broken agent symlinks"
-    elif [[ "$symlink_ok" -gt 0 ]]; then
-        echo -e "${GREEN}[OK]${NC} ${symlink_ok} agent symlinks"
+    echo -e "${GREEN}[OK]${NC} Rules: ${rules_count}/3 files"
+
+    # Last score
+    if [[ -f ".claude/cache/score-cache.json" ]] && command -v jq &>/dev/null; then
+        local score warnings
+        score=$(jq -r '.total // "?"' .claude/cache/score-cache.json 2>/dev/null)
+        warnings=$(jq -r '.integrity_warnings // [] | join(", ")' .claude/cache/score-cache.json 2>/dev/null)
+        local msg="Score: $score"
+        [[ -n "$warnings" ]] && msg="$msg  ${YELLOW}$warnings${NC}"
+        echo -e "$msg"
     fi
 
-    # Sweep state
-    echo ""
-    local sweep_file="$STATE_DIR/sweep-latest.md"
-    if [[ -f "$sweep_file" ]]; then
-        local sweep_age
-        sweep_age=$(( ( $(date +%s) - $(stat -f %m "$sweep_file" 2>/dev/null || stat -c %Y "$sweep_file" 2>/dev/null) ) / 3600 ))
-        echo -e "${GREEN}Sweep:${NC} last run ${sweep_age}h ago"
-    else
-        echo -e "${YELLOW}Sweep:${NC} no state file"
-    fi
-
-    # Agent council summary
-    echo ""
-    if [[ -d "$STATE_DIR/brains" ]] && command -v jq &>/dev/null; then
-        echo -e "${BOLD}Council:${NC}"
-        for bf in "$STATE_DIR/brains"/*.json; do
-            [[ ! -f "$bf" ]] && continue
-            local ba baction
-            ba=$(jq -r '.agent // ""' "$bf" 2>/dev/null)
-            baction=$(jq -r '.next_move // "" | if type == "object" then .action // "" else . end' "$bf" 2>/dev/null || true)
-            if [[ -n "$baction" && "$baction" != "null" && "$baction" != "" ]]; then
-                echo -e "  ${DIM}${ba}:${NC} ${baction}"
-            fi
-        done
+    # Active plan
+    if [[ -f ".claude/plans/active-plan.md" ]]; then
+        local total done title
+        title=$(head -5 .claude/plans/active-plan.md | grep -m1 '^#' | sed 's/^#* *//' || echo "")
+        total=$(grep -c '^\- \[' .claude/plans/active-plan.md 2>/dev/null || echo 0)
+        done=$(grep -c '^\- \[x\]' .claude/plans/active-plan.md 2>/dev/null || echo 0)
+        echo ""
+        echo -e "Sprint: ${BOLD}$title${NC} ($done/$total tasks)"
     fi
 
     echo ""
-    echo -e "${DIM}For full dashboard, use /status in Claude Code${NC}"
+    echo -e "${DIM}Use /status in Claude Code for the full co-founder briefing${NC}"
 }
 
 # ============================================================
-# CONFIG — show current configuration
+# SETUP
 # ============================================================
+cmd_setup() {
+    local project_dir="${1:-.}"
+    cd "$project_dir"
+    echo -e "${BOLD}=== rhino setup: $(basename "$(pwd)") ===${NC}"
+    echo ""
 
+    # Create directories
+    mkdir -p .claude/{rules,plans,experiments,cache,scores,evals,brains}
+    mkdir -p knowledge
+    echo -e "  ${GREEN}created${NC} .claude/ structure"
+
+    # Copy brains templates
+    for f in longterm.md daily.md experiment-log.md hypothesis-log.md; do
+        if [[ ! -f ".claude/brains/$f" && -f "$RHINO_DIR/config/brains/$f" ]]; then
+            cp "$RHINO_DIR/config/brains/$f" ".claude/brains/$f"
+        fi
+    done
+    echo -e "  ${GREEN}created${NC} .claude/brains/ templates"
+
+    # Copy beliefs template
+    if [[ ! -f ".claude/evals/beliefs.yml" && -f "$RHINO_DIR/config/evals/beliefs.yml" ]]; then
+        cp "$RHINO_DIR/config/evals/beliefs.yml" ".claude/evals/beliefs.yml"
+        echo -e "  ${GREEN}created${NC} .claude/evals/beliefs.yml"
+    fi
+
+    # Copy rule templates
+    for f in identity.md product-brief.md hypotheses.md; do
+        if [[ ! -f ".claude/rules/$f" ]]; then
+            cp "$RHINO_DIR/config/rules/$f" ".claude/rules/$f"
+            echo -e "  ${GREEN}created${NC} .claude/rules/$f"
+        else
+            echo -e "  ${DIM}[skip]${NC} .claude/rules/$f (exists)"
+        fi
+    done
+
+    # Run baseline score
+    echo ""
+    echo -e "${BLUE}Running baseline score...${NC}"
+    local baseline_score score_num
+    baseline_score=$("$RHINO_DIR/bin/score.sh" . --json 2>/dev/null || echo '{"score":0}')
+    score_num=$(echo "$baseline_score" | grep -o '"score":[0-9]*' | grep -o '[0-9]*')
+    echo -e "  ${BOLD}Baseline: ${score_num:-0}/100${NC}"
+
+    echo ""
+    echo -e "${BOLD}Done.${NC} For full interactive onboarding, run ${BLUE}/setup${NC} in Claude Code."
+}
+
+# ============================================================
+# CONFIG
+# ============================================================
 cmd_config() {
     echo -e "${BOLD}=== rhino config ===${NC}"
     echo -e "${DIM}Source: $RHINO_DIR/config/rhino.yml${NC}"
@@ -189,268 +158,105 @@ cmd_config() {
     fi
 
     echo -e "${BOLD}Scoring:${NC}"
-    printf "  cache: %ss  build gate: %s  taste stale: %sd\n" \
+    printf "  cache: %ss  build gate: %s\n" \
         "$(cfg scoring.cache_ttl 300)" \
-        "$(cfg scoring.build.gate_threshold 70)" \
-        "$(cfg taste.stale_warning_days 7)"
-    echo ""
+        "$(cfg scoring.build.gate_threshold 70)"
 
     echo -e "${BOLD}Taste:${NC}"
     printf "  routes: %s  screenshots: %s  cache: %ss\n" \
         "$(cfg taste.max_routes 8)" \
-        "$(cfg taste.max_screenshots 12)" \
+        "$(cfg taste.max_screenshots 24)" \
         "$(cfg taste.cache_ttl 7200)"
-    echo ""
 
     echo -e "${BOLD}Experiments:${NC}"
-    printf "  keep rate: >%s  exploration: >%s  moonshot: every %s\n" \
-        "$(cfg experiments.keep_rate_target 0.40)" \
-        "$(cfg experiments.exploration_floor 0.30)" \
-        "$(cfg experiments.moonshot_every_n 5)"
-    echo ""
+    printf "  moonshot: every %s  max files: %s\n" \
+        "$(cfg experiments.moonshot_every_n 5)" \
+        "$(cfg experiments.max_files_per_experiment 5)"
 
     echo -e "${BOLD}Integrity:${NC}"
-    printf "  max delta: %s  plateau: %s exps  cosmetic warn: %s\n" \
+    printf "  max delta: %s  plateau: %s exps\n" \
         "$(cfg integrity.max_single_commit_delta 15)" \
-        "$(cfg integrity.plateau_experiments 5)" \
-        "$(cfg integrity.cosmetic_only_warning true)"
-    echo ""
-
-    echo -e "${DIM}Edit: $RHINO_DIR/config/rhino.yml${NC}"
+        "$(cfg integrity.plateau_experiments 5)"
 }
 
 # ============================================================
-# INIT — bootstrap a project (thin wrapper, /setup skill is primary)
+# EVAL
 # ============================================================
-
-cmd_init() {
-    local project_dir="${1:-.}"
-    cd "$project_dir"
-    local project_name
-    project_name=$(basename "$(pwd)")
-
-    echo -e "${BOLD}=== rhino init: $project_name ===${NC}"
-    echo ""
-
-    # Create directories
-    mkdir -p .claude/{plans,experiments,evals/reports,scores,cache,state}
-    echo -e "  ${GREEN}created${NC} .claude/ structure"
-
-    # Create project CLAUDE.md from template if missing
-    if [[ ! -f "CLAUDE.md" ]]; then
-        if [[ -f "$RHINO_DIR/config/CLAUDE.md" ]]; then
-            cp "$RHINO_DIR/config/CLAUDE.md" CLAUDE.md
-            echo -e "  ${GREEN}created${NC} CLAUDE.md from template"
-        fi
-    else
-        echo -e "  ${DIM}CLAUDE.md already exists${NC}"
+cmd_eval() {
+    local eval_script="$RHINO_DIR/bin/eval.sh"
+    if [[ ! -f "$eval_script" ]]; then
+        echo -e "${RED}eval.sh not found at $eval_script${NC}"
+        exit 1
     fi
-
-    # Create features.yml stub if missing
-    if [[ ! -f ".claude/features.yml" ]]; then
-        cat > .claude/features.yml << 'FEATEOF'
-# Map features to routes for targeted taste evaluation
-# Usage: /taste --feature <name>
-#
-# Example:
-# dashboard:
-#   routes:
-#     - /dashboard
-#     - /dashboard/settings
-FEATEOF
-        echo -e "  ${GREEN}created${NC} .claude/features.yml stub"
-    fi
-
-    # Run baseline score
-    echo ""
-    echo -e "${BLUE}Running baseline score...${NC}"
-    local baseline_score score_num
-    baseline_score=$("$RHINO_DIR/bin/score.sh" . --json 2>/dev/null || echo '{"score":0}')
-    score_num=$(echo "$baseline_score" | grep -o '"score":[0-9]*' | grep -o '[0-9]*')
-    echo -e "  ${BOLD}Baseline: ${score_num:-0}/100${NC}"
-    echo "$baseline_score" > .claude/experiments/baseline.json
-
-    # Register in workspace
-    ws_register "$(pwd)" "mvp" "guided" "balanced"
-    echo -e "  ${GREEN}registered${NC} in workspace.json"
-
-    echo ""
-    echo -e "${BOLD}Done.${NC} For full interactive onboarding, run ${BLUE}/setup${NC} in Claude Code."
-    echo -e "${DIM}Next: run /strategy to plan your first sprint${NC}"
+    bash "$eval_script" "${@:-.}"
 }
 
 # ============================================================
-# INSTALL — run install.sh
+# CORPUS
 # ============================================================
-
-cmd_install() {
-    bash "$RHINO_DIR/install.sh" "$@"
-}
-
-# ============================================================
-# VISUALS — generate SVG badges (kept from original)
-# ============================================================
-
-cmd_visuals() {
-    local project_dir="${1:-.}"
-    local history_file=""
-    for hf in "$project_dir/.claude/evals/reports/history.jsonl" "$project_dir/docs/evals/reports/history.jsonl"; do
-        [[ -f "$hf" ]] && history_file="$hf" && break
-    done
-
-    if [[ -z "$history_file" ]]; then
-        echo -e "${YELLOW}No eval history found. Run /eval first.${NC}"
-        return 1
-    fi
-
-    local output_dir
-    output_dir="$(dirname "$history_file")"
-    mkdir -p "$output_dir/badges"
-
-    # Compute stats from history
-    local total ship fixes blocked ceiling_avg ship_rate
-    total=$(wc -l < "$history_file" | tr -d ' ')
-    ship=$(grep -c '"READY"' "$history_file" 2>/dev/null || echo "0")
-    fixes=$(grep -c '"READY WITH FIXES"' "$history_file" 2>/dev/null || echo "0")
-    blocked=$(grep -c '"NOT READY"\|"BLOCKED"' "$history_file" 2>/dev/null || echo "0")
-    ceiling_avg=$(grep -o '"ceiling":[0-9.]*' "$history_file" | grep -o '[0-9.]*' | awk '{ sum+=$1; n++ } END { if(n>0) printf "%.2f", sum/n; else print "0" }')
-    ship_rate=$(( total > 0 ? (ship + fixes) * 100 / total : 0 ))
-
-    # Generate SVGs
-    _badge() {
-        local label="$1" value="$2" color="$3" file="$4"
-        local label_width=$(( ${#label} * 7 + 10 ))
-        local value_width=$(( ${#value} * 7 + 10 ))
-        local total_width=$(( label_width + value_width ))
-        cat > "$file" << SVGEOF
-<svg xmlns="http://www.w3.org/2000/svg" width="${total_width}" height="20" role="img">
-  <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
-  <clipPath id="r"><rect width="${total_width}" height="20" rx="3" fill="#fff"/></clipPath>
-  <g clip-path="url(#r)">
-    <rect width="${label_width}" height="20" fill="#555"/>
-    <rect x="${label_width}" width="${value_width}" height="20" fill="${color}"/>
-    <rect width="${total_width}" height="20" fill="url(#s)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="11">
-    <text x="$(( label_width / 2 ))" y="14">${label}</text>
-    <text x="$(( label_width + value_width / 2 ))" y="14">${value}</text>
-  </g>
-</svg>
-SVGEOF
-    }
-
-    local sr_color="#4c1"
-    [[ "$ship_rate" -lt 70 ]] && sr_color="#dfb317"
-    [[ "$ship_rate" -lt 50 ]] && sr_color="#e05d44"
-
-    local ca_color="#4c1"
-    local ca_int=${ceiling_avg%%.*}
-    ca_int=${ca_int:-0}
-    (( ca_int < 70 )) && ca_color="#dfb317" || true
-    (( ca_int < 50 )) && ca_color="#e05d44" || true
-
-    _badge "ship rate" "${ship_rate}%" "$sr_color" "$output_dir/ship-rate.svg"
-    _badge "ceiling" "${ceiling_avg}" "$ca_color" "$output_dir/ceiling-avg.svg"
-    _badge "evals" "${total}" "#007ec6" "$output_dir/total-evals.svg"
-
-    echo -e "${GREEN}Generated:${NC}"
-    echo "  $output_dir/ship-rate.svg"
-    echo "  $output_dir/ceiling-avg.svg"
-    echo "  $output_dir/total-evals.svg"
-}
-
-# ============================================================
-# DASHBOARD — score + experiments + evals (kept from original)
-# ============================================================
-
-cmd_dashboard() {
-    local project_dir="${1:-.}"
-    local format="terminal"
-    for arg in "$@"; do
-        [[ "$arg" == "--html" ]] && format="html"
-        [[ "$arg" == "--json" ]] && format="json"
-    done
-
-    echo -e "${BOLD}=== rhino dashboard ===${NC}"
-    echo ""
-
-    # Score section
-    echo -e "${BOLD}Score:${NC}"
-    "$RHINO_DIR/bin/score.sh" "${project_dir:-.}" 2>/dev/null || echo "  (no score available)"
-    echo ""
-
-    # Experiment section
-    local exp_dir=""
-    for ed in "$project_dir/.claude/experiments" "$project_dir/docs/experiments"; do
-        [[ -d "$ed" ]] && exp_dir="$ed" && break
-    done
-    if [[ -n "$exp_dir" ]]; then
-        echo -e "${BOLD}Experiments:${NC}"
-        for tsv in "$exp_dir"/*.tsv; do
-            [[ -f "$tsv" ]] || continue
-            local ename ekept etotal
-            ename=$(basename "$tsv" .tsv)
-            ekept=$(grep -c 'keep' "$tsv" 2>/dev/null || echo "0")
-            etotal=$(tail -n +2 "$tsv" | grep -cv '^---\|^$' 2>/dev/null || echo "0")
-            echo "  $ename: $ekept/$etotal kept"
-        done
-        echo ""
-    fi
-
-    # Eval section
-    local history_file=""
-    for hf in "$project_dir/.claude/evals/reports/history.jsonl" "$project_dir/docs/evals/reports/history.jsonl"; do
-        [[ -f "$hf" ]] && history_file="$hf" && break
-    done
-    if [[ -n "$history_file" ]]; then
-        echo -e "${BOLD}Evals:${NC}"
-        tail -5 "$history_file" | while IFS= read -r line; do
-            local ev_date ev_feature ev_verdict
-            ev_date=$(echo "$line" | jq -r '.date // ""' 2>/dev/null)
-            ev_feature=$(echo "$line" | jq -r '.feature // ""' 2>/dev/null)
-            ev_verdict=$(echo "$line" | jq -r '.verdict // ""' 2>/dev/null)
-            echo "  $ev_date $ev_feature: $ev_verdict"
-        done
-    fi
+cmd_corpus() {
+    local action="${1:-list}"
+    case "$action" in
+        list)
+            echo -e "${BOLD}=== rhino corpus ===${NC}"
+            echo ""
+            local corpus_dir="$RHINO_DIR/corpus"
+            if [[ ! -d "$corpus_dir" ]]; then
+                echo -e "${DIM}No corpus directory found${NC}"
+                return
+            fi
+            for category in ui/saas ui/consumer ui/developer copy/landing copy/onboarding code/patterns; do
+                local dir="$corpus_dir/$category"
+                if [[ -d "$dir" ]]; then
+                    local count
+                    count=$(find "$dir" -type f -not -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
+                    echo -e "  ${BOLD}$category${NC}: $count examples"
+                fi
+            done
+            echo ""
+            echo -e "${DIM}Use /corpus update [category] in Claude Code to discover new examples${NC}"
+            ;;
+        add|update)
+            echo -e "${YELLOW}Corpus $action runs inside Claude Code.${NC}"
+            echo "Use: /corpus $action ${2:-[category]}"
+            ;;
+        *)
+            echo -e "${RED}Unknown corpus action: $action${NC}"
+            echo "Usage: rhino corpus [list|add|update]"
+            ;;
+    esac
 }
 
 # ============================================================
 # HELP
 # ============================================================
-
 cmd_help() {
-    echo -e "${BOLD}rhino${NC} v${VERSION}"
+    echo -e "${BOLD}rhino${NC} v${VERSION} — cofounder, not tool"
     echo ""
     echo -e "${BOLD}Usage:${NC} rhino <command> [args...]"
     echo ""
-    echo -e "${BOLD}Measure:${NC}  ${DIM}(no Claude calls)${NC}"
+    echo -e "${BOLD}Measure:${NC}"
     echo "  score [dir]        Structural lint score"
     echo "  taste [dir]        Visual product eval (Claude vision)"
-    echo "  bench              Benchmark card — tier scores"
-    echo "  dashboard [dir]    Score + experiments + evals"
+    echo "  eval [dir]         Run belief evals (Tier 1)"
     echo ""
     echo -e "${BOLD}System:${NC}"
-    echo "  status             System health overview"
-    echo "  config             Show configuration (rhino.yml)"
+    echo "  status             Quick health overview"
+    echo "  config             Show configuration"
     echo "  setup [dir]        Bootstrap a project"
+    echo "  corpus [action]    Manage taste corpus (list|add|update)"
     echo "  install [--check]  Install/update rhino-os"
-    echo "  visuals [dir]      Generate SVG badges for GitHub"
     echo ""
     echo -e "${BOLD}Skills (use in Claude Code):${NC}"
-    echo "  /strategy          What should we build?"
-    echo "  /build             Execute the plan"
-    echo "  /experiment [dim]  Autonomous experiment loop"
-    echo "  /eval              Ship-readiness check"
-    echo "  /design            UI/UX audit"
-    echo "  /sweep             Daily triage"
-    echo "  /scout             Landscape intelligence"
-    echo "  /go                Autonomous build loop"
-    echo "  /meta              Self-improvement"
-    echo "  /status            Full system dashboard"
+    echo "  /plan              Morning — what to work on today"
+    echo "  /build             Execute the plan, score every change"
+    echo "  /research          When stuck — taste, market, ideas, evals"
+    echo "  /eval              Run belief evals + /eval --add"
+    echo "  /corpus            Manage taste corpus"
+    echo "  /next              Show next task (zero ceremony)"
+    echo "  /status            Full co-founder briefing"
     echo "  /setup             Interactive project onboarding"
-    echo ""
-    echo -e "${BOLD}The Loop:${NC}"
-    echo -e "  ${DIM}/strategy → /build (change → score → keep/discard) → /eval → /strategy${NC}"
+    echo "  /go                Autonomous loop (NEVER STOP)"
     echo ""
     echo -e "${BOLD}Config:${NC} $RHINO_DIR/config/rhino.yml"
 }
@@ -458,36 +264,19 @@ cmd_help() {
 # ============================================================
 # MAIN
 # ============================================================
-
 case "${1:-help}" in
-    # Measure
     score)      shift; cmd_score "$@" ;;
     taste)      shift; cmd_taste "$@" ;;
-    bench|benchmarks) shift; cmd_bench "$@" ;;
-    dashboard|dash) shift; cmd_dashboard "$@" ;;
-    # System
+    eval)       shift; cmd_eval "$@" ;;
     status)     cmd_status ;;
     config)     cmd_config ;;
-    setup)      shift; cmd_init "$@" ;;
-    install)    shift; cmd_install "$@" ;;
-    visuals)    shift; cmd_visuals "$@" ;;
-    # Help
+    setup)      shift; cmd_setup "$@" ;;
+    corpus)     shift; cmd_corpus "$@" ;;
+    install)    shift; bash "$RHINO_DIR/install.sh" "$@" ;;
     help|--help|-h) cmd_help ;;
     version|--version|-v) echo "rhino v${VERSION}" ;;
     *)
         echo -e "${RED}Unknown command: $1${NC}"
-        echo ""
-        echo "Agent commands have moved to Claude Code skills:"
-        echo "  rhino build    → /build"
-        echo "  rhino strategy → /strategy"
-        echo "  rhino sweep    → /sweep"
-        echo "  rhino scout    → /scout"
-        echo "  rhino go       → /go"
-        echo "  rhino meta     → /meta"
-        echo "  rhino design   → /design"
-        echo "  rhino council  → /council"
-        echo "  rhino docs     → /docs"
-        echo ""
         echo "Run 'rhino help' for available commands."
         exit 1
         ;;

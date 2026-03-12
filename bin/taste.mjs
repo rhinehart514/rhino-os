@@ -99,6 +99,7 @@ let skipServer = false;
 let force = false;
 let featureFilter = null;
 let researchFirst = false;
+let openScreenshots = false;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--json") outputMode = "json";
@@ -108,6 +109,7 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === "--force") force = true;
   else if (args[i] === "--feature") featureFilter = args[i + 1], i++;
   else if (args[i] === "--research") researchFirst = true;
+  else if (args[i] === "--open") openScreenshots = true;
   else if (args[i] === "--help" || args[i] === "-h") {
     console.log(`Usage: node taste.mjs [project-dir] [options]`);
     console.log(`\nEvaluates product taste by screenshotting every route and judging with Claude vision.`);
@@ -119,6 +121,7 @@ for (let i = 0; i < args.length; i++) {
     console.log(`  --force            Re-run even if recent eval exists`);
     console.log(`  --feature <name>   Evaluate a single feature (requires .claude/features.yml)`);
     console.log(`  --research         Remind to run /research-taste before eval for grounded scoring`);
+    console.log(`  --open             Open screenshots in Preview after capture (see what Claude sees)`);
     console.log(`\nAuth: Add an 'auth' section to .claude/taste.yml with cookies and/or localStorage`);
     console.log(`  to screenshot authenticated routes (dashboard, profile, settings, etc.)`);
     console.log(`\nRequires: claude CLI (OAuth), playwright (npx playwright install chromium)`);
@@ -961,6 +964,17 @@ async function main() {
     startSpinner("evaluating with Claude vision (this takes ~30s)...");
     const result = await evaluateWithClaude(screenshots, routes, screenshotDir);
     stopSpinner("evaluation complete");
+
+    // Open screenshots for founder to see (--open flag or TASTE_OPEN env)
+    if (openScreenshots || process.env.TASTE_OPEN === "1") {
+      try {
+        const pngs = readdirSync(screenshotDir).filter(f => f.endsWith(".png")).map(f => join(screenshotDir, f));
+        if (pngs.length > 0) {
+          execSync(`open ${pngs.map(p => `"${p}"`).join(" ")}`, { stdio: "ignore" });
+          console.error(`\n  ${GREEN}Opened ${pngs.length} screenshots in Preview — see what Claude sees${NC}`);
+        }
+      } catch { /* non-fatal — Preview might not be available */ }
+    }
 
     // --- Integrity checks on evaluator output ---
     // taste.mjs must validate its own output, just like score.sh does.

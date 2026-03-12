@@ -1,71 +1,35 @@
-# rhino.yml — All tunable parameters in one place.
-# Meta reads this, tunes it, tracks what changed.
-# Every component reads from here. No more magic numbers.
-
-# ── IA Audit (ia-audit.sh) ────────────────────────────
-ia_audit:
-  # Thresholds for structure score penalty
-  # ia_issues = orphans + dead_ends + empty_no_cta
-  high_threshold: 10      # issues > this → -25 structure
-  medium_threshold: 5     # issues > this → -15 structure
-  low_threshold: 0        # issues > this → -5 structure
+# rhino.yml — Tunable parameters for score.sh and taste.mjs.
+# Keep this minimal. Most behavior lives in programs/ and skills/.
 
 # ── Scoring (score.sh) ─────────────────────────────
 scoring:
-  cache_ttl: 300          # seconds before score cache expires
-
+  cache_ttl: 300
   build:
     ts_error_penalty: -30
-    stale_build_penalty: -10    # build older than 1 day
+    stale_build_penalty: -10
     build_fail_penalty: -50
-    gate_threshold: 70          # score >= this to pass
-
+    gate_threshold: 70
   structure:
-    dead_end_weight: 0.5        # multiply dead-end % by this
-    empty_state_weight: 0.33    # multiply missing-CTA % by this
-
-  hygiene:
-    # Hardcoded tiered penalties in score.sh (edit score.sh to change):
-    # any_types:     >50: -30, >20: -20, >5: -10
-    # console_logs:  >30: -25, >15: -15, >5: -5
-    # todos:         >30: -20, >15: -10, >5: -5
-    # large_imports: >10: -15, >5: -10
-    # lint_overrides: >20: -15, >10: -10, >3: -5
+    dead_end_weight: 0.5
+    empty_state_weight: 0.33
+  # Hygiene penalties are hardcoded tiers in score.sh
 
 # ── Taste (taste.mjs) ──────────────────────────────
 taste:
-  max_routes: 8               # routes to screenshot
-  max_screenshots: 24         # total screenshots (routes + mobile + scroll depths)
-  cache_ttl: 7200             # seconds (2 hours)
-  stale_warning_days: 7       # flag in score output after this
-
+  max_routes: 8
+  max_screenshots: 24
+  cache_ttl: 7200
+  stale_warning_days: 7
   viewports:
     desktop: { width: 1440, height: 900 }
     mobile: { width: 390, height: 844 }
-
   timeouts:
-    page_load: 30000          # ms — playwright goto timeout
-    post_load_wait: 1000      # ms — wait after page load
-    eval_timeout: 180000      # ms — claude vision timeout
-    port_check: 5000          # ms — dev server check
-    server_startup: 3000      # ms — per-attempt fetch timeout for dev server readiness
-
-  context:
-    taste_lines: 20           # lines from taste.jsonl
-    product_lines: 80         # lines from CLAUDE.md
-    priority_keywords:        # routes matching these get priority
-      - create
-      - new
-      - enter
-      - login
-      - sign
-      - onboard
-      - home
-      - dashboard
-      - profile
-      - settings
-
-  dimensions:                 # the 11 taste dimensions (rubric)
+    page_load: 30000
+    post_load_wait: 1000
+    eval_timeout: 180000
+    port_check: 5000
+    server_startup: 3000
+  dimensions:
     - hierarchy
     - breathing_room
     - contrast
@@ -78,115 +42,52 @@ taste:
     - layout_coherence
     - information_architecture
 
-# ── Taste Knowledge (research-taste) ────────────────
-taste_knowledge:
-  freshness_ttl_days: 14          # re-research dimension after this many days
-  research_depth: standard        # high-yield / standard / thorough
-  max_sources_per_dimension: 5    # cap URLs fetched per dimension
-  exemplar_products:              # products to compare against (override per project)
-    - Linear
-    - Notion
-    - Discord
-    - Arc
-    - Figma
-  founder_taste_auto_capture: true  # capture taste statements from commits
-
-# ── Knowledge & Decay ──────────────────────────────
-knowledge:
-  position_decay_days: 60      # downgrade confidence after this
-  knowledge_stale_days: 90     # mark entries stale after this
-  log_retention_days: 30       # archive logs after this
-  grade_archive_months: 6      # archive grades.jsonl after this
-  max_knowledge_lines: 200     # prune scout/knowledge.md beyond this
-  max_search_strategy_lines: 80
-
-# ── Context Window ─────────────────────────────────
-context:
-  taste_lines: 10              # lines agents read from taste.jsonl
-  meta_grade_lines: 3          # lines agents read from grades.jsonl
-  recent_commits: 5            # git log depth for sweep
-  recent_prs: 10               # PR list depth for sweep
-
-# ── Agent Brains ──────────────────────────────────
-brains:
-  # Simplified: agents store next_move, no credibility/stances
-  # Each agent writes ~/.claude/state/brains/{agent}.json
-  # Contains: next_move, bias_awareness, last_run, updated
-
-# ── Score Integrity ───────────────────────────────
-# Scores exist to reflect reality, not to be maximized.
-# If a score exceeds the ceiling for its stage, flag it as suspicious.
-# "Get to 100" is not a valid goal. "Improve the weakest dimension" is.
+# ── Score Integrity ──────────────────────────────────
 integrity:
-  # Expected ranges per project stage. Exceeding ceiling = suspicious.
   stage_ceilings:
-    mvp:
-      score: [30, 65]
-      taste: [1.5, 3.0]
-    early:
-      score: [45, 80]
-      taste: [2.0, 3.5]
-    growth:
-      score: [60, 90]
-      taste: [3.0, 4.0]
-    mature:
-      score: [70, 95]
-      taste: [3.5, 4.5]
-
+    mvp: { score: [30, 65], taste: [1.5, 3.0] }
+    early: { score: [45, 80], taste: [2.0, 3.5] }
+    growth: { score: [60, 90], taste: [3.0, 4.0] }
+    mature: { score: [70, 95], taste: [3.5, 4.5] }
   cosmetic_only_warning: true
   max_single_commit_delta: 15
   plateau_experiments: 5
 
-# ── Experiment Discipline ──────────────────────────
+# ── Experiments ──────────────────────────────────────
 experiments:
-  keep_rate_target: 0.40       # meta flags below this
-  discard_rate_floor: 0.25     # flag if discard rate drops below this (too safe)
-  min_keep_delta: 0.02         # score must improve by at least this to count as keep
-  min_files_per_experiment: 1  # at least 1 real file changed
-  max_files_per_experiment: 5  # scope discipline (raised from 3)
-  feature_set_size: [3, 7]     # min, max coordinated changes
-  sprint_tasks: [3, 7]         # min, max tasks per sprint
-  alpha_rate_target: 0.50      # % of scout positions that should be non-obvious
-  exploration_floor: 0.30      # minimum 30% exploration even in exploitation mode
-  moonshot_every_n: 5          # every Nth experiment must be high-risk (>50% expected failure)
-  streak_before_pivot: 5       # discards in a row before switching strategy (was 3)
+  keep_rate_target: 0.40
+  discard_rate_floor: 0.25
+  moonshot_every_n: 5
+  max_files_per_experiment: 5
+  sprint_tasks: [3, 7]
 
-# ── Context Documents (rhino docs) ────────────────────
-docs:
-  budget_per_doc: 0.75          # USD per doc generation subagent
-  refresh_interval: 5           # auto-refresh every N builds (in rhino go)
-  trigger_platform: "page\\.tsx|route\\.ts|endpoint|controller|handler|api"
-  trigger_architecture: "schema|model|migration|prisma|drizzle|api|types"
-  trigger_styleguide: "tailwind|css|theme|color|font|style|globals"
-
-# ── Continuous Build (rhino go) ──────────────────────
+# ── Go (autonomous loop) ────────────────────────────
 go:
-  max_iterations: 10            # stop after N iterations
-  plateau_threshold: 3          # consecutive flat scores before stopping
-  taste_every_n: 3              # run taste eval every N iterations
+  plateau_threshold: 3
+  taste_every_n: 3
 
-# ── Hooks ────────────────────────────────────────────
-hooks:
-  # Per-edit quality checks (PostToolUse on Edit/Write)
-  post_edit_quality: true       # typecheck, console.log, secrets detection
-  # Thinking nudge (PostToolUse on Edit/Write)
-  thinking_nudge: true          # nudges after N edits without predictions
-  thinking_nudge_edits: 3       # edits before first nudge
-  thinking_nudge_block_edits: 5 # edits before blocking message (if 0 predictions today)
-  thinking_knowledge_edits: 20  # edits before knowledge model nudge
-  # Prediction check (Stop hook)
-  check_predictions: true       # logs thinking health at session end
-  # Cost tracking (Stop hook)
-  track_cost: true              # session cost summary to cost-history.tsv
-  # Pattern extraction (Stop hook)
-  extract_patterns: true        # mine session traces for recurring patterns
-  # Compaction guidance threshold
-  compaction_warning_tools: 50  # warn about compaction after this many tool calls
+# ── Evals ────────────────────────────────────────────
+evals:
+  tier1_on_every_build: true
+  tier2_on_demand: true          # behavioral eval — requires dev server
+  block_on_failure: true         # hard fail on "block" severity beliefs
+  warn_threshold: 3              # N consecutive warns before escalating
 
-# ── Thinking ────────────────────────────────────────
-thinking:
-  prediction_accuracy_target: [50, 70]   # ideal calibration range (%)
-  prediction_too_safe: 90                # above this = not learning
-  prediction_broken_model: 30            # below this = model is wrong
-  model_update_required_on_wrong: true   # wrong prediction without model_update = waste
-  unknown_territory_explore_rate: 0.30   # 30% of experiments should target unknowns
+# ── Corpus ───────────────────────────────────────────
+corpus:
+  staleness_days: 90             # evict examples older than this
+  min_consensus_score: 8.0       # minimum average score across models
+  max_score_variance: 0.5        # maximum variance between models
+  update_every_n_iterations: 5   # update corpus every N /go iterations (--corpus flag)
+  categories:
+    - ui/saas
+    - ui/consumer
+    - ui/developer
+    - copy/landing
+    - copy/onboarding
+    - code/patterns
+
+# ── Memory ───────────────────────────────────────────
+memory:
+  session_summary_on_compact: true   # write summary to brains/daily.md on compact
+  longterm_review_every_n_days: 7    # remind to review/update longterm.md

@@ -1,108 +1,98 @@
 ---
 name: research
-description: When you're stuck. Researches taste dimensions, market landscape, or any topic. Synthesizes findings into actionable knowledge. Say "/research [topic]" to dig in.
+description: "When you're stuck. Researches taste dimensions, market landscape, ideas, or eval engineering. Say /research [topic] to dig in."
 user-invocable: true
+argument-hint: "[topic / ideas / eval [concept]]"
 ---
 
 # Research — When You're Stuck
 
-Your when-stuck command. Routes to the right research mode automatically.
+## Research Budget Rule
+
+Every research session has a budget (default 30 minutes). When the budget is reached OR the session ends, output MUST include:
+
+### Research Output (required)
+```
+Hypothesis: [specific, testable belief about users/product/market]
+Evidence: [what was found — links, data, quotes, observations]
+Confidence: low / medium / high
+Build implication: [exactly what to build, deprioritize, or not build as a result]
+Time spent: [N min]
+```
+
+If this template cannot be filled, research produced no value. Say so explicitly.
+Research without a hypothesis is reading, not research.
+
+## Input
+
+Arguments: $ARGUMENTS
 
 ## Setup
 
-1. **Read workspace**: `~/.claude/state/workspace.json` — project context
-2. **Read experiment learnings**: `~/.claude/knowledge/experiment-learnings.md` — what's already known
-3. **Read taste knowledge index**: `~/.claude/knowledge/taste-knowledge/_index.md` — which dimensions are researched
+1. Read `~/.claude/knowledge/experiment-learnings.md` — what's already known
+2. Read `.claude/rules/hypotheses.md` — current beliefs
 
-## Execute
+## Route the Request
 
-### Step 0: Route the Request
+| Input | Mode |
+|-------|------|
+| `/research` (no args) | Auto-detect weakest taste dimension or current blocker |
+| `/research [taste dimension]` | Taste research for that dimension |
+| `/research [market topic]` | Market/landscape research |
+| `/research ideas` | Ideation — brainstorm options across build/messaging/landscape |
+| `/research eval [concept]` | Eval engineering — convert subjective concept to measurable eval |
+| `/research [question]` | General research — WebSearch + synthesize |
 
-Parse the input to determine research mode:
+Taste dimension names: `hierarchy`, `breathing_room`, `contrast`, `polish`, `emotional_tone`, `information_density`, `wayfinding`, `distinctiveness`, `scroll_experience`, `layout_coherence`, `information_architecture`
 
-| Input | Mode | What happens |
-|-------|------|-------------|
-| `/research` (no args) | Auto-detect | Check weakest taste dimension or current blocker → route to appropriate mode |
-| `/research hierarchy` (taste dimension name) | Taste research | Research that taste dimension's patterns, exemplars, anti-patterns |
-| `/research stale` | Taste refresh | Re-research dimensions older than 14 days |
-| `/research [market topic]` | Market research | Scout-style landscape scan on that topic |
-| `/research ideas` or `/research brainstorm` | Ideation | Product model + landscape + WebSearch → brainstorm options |
-| `/research [any question]` | General research | WebSearch + synthesize findings |
+## Mode: Taste Research
 
-**Taste dimension names** (triggers taste mode):
-`hierarchy`, `breathing_room`, `contrast`, `polish`, `emotional_tone`, `information_density`, `wayfinding`, `distinctiveness`, `scroll_experience`, `layout_coherence`, `information_architecture`
+1. WebSearch for patterns, exemplars, anti-patterns for the dimension
+2. WebFetch top 3-5 results, extract specific mechanisms
+3. Synthesize -> write to `~/.claude/knowledge/taste-knowledge/{dimension}.md`
 
-### Mode: Taste Research
+## Mode: Market Research
 
-Execute the research-taste logic inline (from `skills/_internal/research-taste/SKILL.md`):
-
-1. Read taste definitions from `agents/refs/design-taste.md`
-2. Read freshness index — skip if researched within 14 days (unless `--force`)
-3. Read founder preferences from `~/.claude/knowledge/founder-taste.md`
-4. **WebSearch** for patterns, exemplars, anti-patterns
-5. **WebFetch** top 3-5 results, extract specific mechanisms
-6. **Synthesize** → write to `~/.claude/knowledge/taste-knowledge/{dimension}.md`
-7. **Update index** → `~/.claude/knowledge/taste-knowledge/_index.md`
-
-### Mode: Market Research
-
-Execute scout logic inline (from `skills/_internal/scout/SKILL.md`):
-
-1. Read current landscape positions from `~/.claude/knowledge/landscape.json`
-2. Read landscape model from `agents/refs/landscape-2026.md`
-3. **WebSearch** for the topic — competitors, trends, evidence
-4. **WebFetch** top results, extract positions (opinionated statements, not trends)
-5. **Synthesize** → update `~/.claude/knowledge/landscape.json` and `agents/refs/landscape-2026.md`
-6. Required: "What I Didn't Find" section (min 5 items)
-
-### Mode: General Research
-
-1. **WebSearch** for the question/topic
-2. **WebFetch** top 3-5 results
-3. **Synthesize** findings into actionable knowledge
+1. WebSearch for the topic — competitors, trends, evidence
+2. WebFetch top results, extract opinionated positions (not trends)
+3. Synthesize findings into actionable knowledge
 4. Write to `~/.claude/knowledge/research/{topic-slug}.md`
-5. Surface the key insight: "Here's what I found and what it means for your project"
 
-### Mode: Ideation
+## Mode: Eval Engineering
 
-When triggered by `/research ideas` or `/research brainstorm`:
+Convert subjective concept into a runnable eval:
 
-1. Read product model (`.claude/plans/product-model.md`) — identify weak loop links
-2. Read landscape model (`agents/refs/landscape-2026.md`) — what wins in 2026, use the Position → Strategic Direction Map as generators
-3. Read product-eval reports (`.claude/evals/reports/product-eval-*.md`) — competitive gaps, identity gaps
-4. **WebSearch** for products solving similar problems — focus on three angles:
-   - **Product patterns**: how do similar products solve the weak link?
-   - **Messaging patterns**: how do successful products in this category position themselves? What pitch makes people try it?
-   - **Distribution patterns**: how do products with similar constraints (solo founder, niche, campus) actually get users?
-5. Synthesize into three sections:
-   - "Build patterns: how others solved [weak link]"
-   - "Messaging patterns: how others framed this"
-   - "Distribution patterns: how others got this in front of people"
-6. Write to `~/.claude/knowledge/research/ideation-[date].md`
-7. Read `.claude/plans/milestones.md` — append promising ideas to `## Ideas (not commitments)` section
-   - Format: `- [idea] — [layer: build/messaging/landscape] — [which loop link] (from research)`
+1. WebSearch for measurement methods (validated scales, heuristic frameworks, design principles)
+2. Extract: what it measures, how, what the output looks like, can an LLM assess it from code?
+3. Write eval to `~/.claude/knowledge/evals/{topic-slug}.md`
+4. Register in `~/.claude/knowledge/evals/_index.md`
 
-### Auto-detect Logic (no args)
+## Mode: Ideation
 
-1. Check current sprint plan — is there a blocker mentioned?
-2. Check taste eval — is there a weakest dimension that hasn't been researched?
-3. Check builder brain — did builder flag something it doesn't know?
-4. Pick the highest-leverage research target based on these signals
+1. Read product-map.yml — identify weak pyramid layers and loop links
+2. Read hypotheses.md — current beliefs to challenge
+3. WebSearch for products solving similar problems
+4. Generate 5 options across build / messaging / landscape layers
+5. Write to `~/.claude/knowledge/research/ideation-[date].md`
+
+## Mode: General Research
+
+1. WebSearch for the question/topic
+2. WebFetch top 3-5 results
+3. Synthesize into actionable knowledge
+4. Write to `~/.claude/knowledge/research/{topic-slug}.md`
 
 ## Output
 
 Always ends with:
+
 ```
 ## Research Complete
 
 **Topic**: [what was researched]
 **Key finding**: [one actionable insight]
 **Saved to**: [file path]
-**Next step**: [what to do with this knowledge — usually "run /build"]
+**Next step**: [what to do with this — usually "run /build"]
 ```
 
-## Teardown
-
-1. **Update scout brain** (if market research ran): `~/.claude/state/brains/scout.json`
-2. **Update taste knowledge index** (if taste research ran)
-3. Log to predictions.tsv if a prediction was made about research quality
+Update `.claude/rules/hypotheses.md` if research validates or kills a hypothesis.

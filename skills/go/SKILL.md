@@ -1,115 +1,83 @@
 ---
 name: go
-description: Autonomous build loop. Runs plan→build→review→repeat until plateau or manual stop. Walk away and let it work. Say "/go" to start the loop.
+description: "Karpathy NEVER STOP mode. Plan -> build -> measure -> repeat. Eats through the backlog until done or plateau."
 user-invocable: true
+argument-hint: "[--corpus]"
 ---
 
 # Go — Autonomous Build Loop
 
-You are running the continuous build loop inline. Plan → build → review → repeat.
+Plan -> build -> measure -> repeat. NEVER STOP. Eats through the product backlog.
 
 ## Setup
 
-1. **Check autonomy**: Read `~/.claude/state/workspace.json` for this project's autonomy level.
-   - `manual` → refuse. Say: "Autonomous loop requires guided or autonomous mode. Run /setup to change."
-   - `guided` → run, but pause at major decisions (strategy pivots, discard decisions)
-   - `autonomous` → run fully autonomous
-
-2. **Read your brain**: `~/.claude/state/brains/builder.json` — what's your next_move?
-3. **Read experiment learnings**: `~/.claude/knowledge/experiment-learnings.md`
-4. **Read go config from rhino.yml** (or use defaults):
-   - `go.max_iterations`: 10
-   - `go.plateau_threshold`: 3 consecutive flat scores before stopping
-   - `go.taste_every_n`: 3 (run taste eval every N iterations)
-
-5. **Read milestones**: `.claude/plans/milestones.md` — current milestone + DoD for stop condition
-6. **Load or create go state**: `.claude/state/go-state.json`
-   ```json
-   {
-     "iteration": 0,
-     "last_score": null,
-     "last_taste": null,
-     "focus": "",
-     "scores": [],
-     "started": "[ISO timestamp]",
-     "last_updated": "[ISO timestamp]",
-     "status": "running"
-   }
-   ```
+1. Read `.claude/product-todo.md` — the full backlog. This is what "done" looks like.
+2. Read `.claude/plans/active-plan.md` — existing sprint?
+3. Read `~/.claude/knowledge/experiment-learnings.md`
+4. Read `.claude/rules/hypotheses.md`
+5. Config: plateau_threshold=3 (from rhino.yml `go.plateau_threshold`), taste_every_n=3
 
 ## The Loop
 
-For each iteration (up to max_iterations):
+No iteration cap. Runs until a stop condition is hit.
 
-### 1. Plan (iteration 1 or plan completed)
-- If no `.claude/plans/active-plan.md` exists → run plan logic inline:
-  - Read `~/.claude/programs/strategy.md` and execute
-  - Read `.claude/plans/review-gaps.md` if it exists (from previous /review)
-- If plan exists with remaining tasks → continue
+### 1. Plan (if no active plan or plan complete)
+- Execute `programs/strategy.md` inline
+- Strategy picks next items from product-todo.md targeting the bottleneck
+- Create Tasks via TaskCreate for cross-session tracking
+- Produces new sprint at `.claude/plans/active-plan.md`
 
 ### 2. Build Next Task
-- Read the active plan, find the next uncompleted task
-- Execute it (read and execute `~/.claude/programs/build.md` with task context)
-- After each task: run score
-  ```bash
-  $RHINO_DIR/bin/score.sh . --json
-  ```
-  (Find RHINO_DIR from environment or default paths)
+- Find next uncompleted task in active-plan.md
+- Execute via `programs/build.md`
+- Run `rhino score .` after each task
+- On completion: check off in active-plan.md, product-todo.md, and TaskUpdate
+- Run `hooks/post_build.sh` if available (scores + evals)
 
-### 3. Score + Milestone Check
-- Record score in go-state.json
-- If score dropped → revert with `git reset --hard HEAD~1`, log as discard
-- If score flat for `plateau_threshold` consecutive iterations → **STOP**
-- If all sprint tasks done → check milestone DoD in `.claude/plans/milestones.md`:
-  - Check off any newly-met criteria
-  - If ALL DoD met → mark milestone shipped, **STOP** (milestone complete)
+### 3. Measure
+- Score dropped -> revert (`git reset --hard HEAD~1`), log as discard
+- Score flat for plateau_threshold consecutive tasks -> **STOP** (plateau detected)
+- Every taste_every_n iterations -> run `rhino taste`
 
-### 4. Review (every N iterations or plan complete)
-- Every `taste_every_n` iterations, run review logic inline:
-  - Run `$RHINO_DIR/bin/score.sh . --json` for structural score
-  - Run `$RHINO_DIR/bin/taste.mjs` for visual eval (if UI exists)
-  - Extract gaps, write to `.claude/plans/review-gaps.md`
-- If plan is complete → run full review, then generate new plan from gaps
+### 4. Corpus Update (if `--corpus` flag)
+- Every 5 iterations (configurable via `corpus.update_every_n_iterations` in rhino.yml)
+- Run `/corpus update` for the next category in rotation
+- Categories rotate: ui/saas -> ui/consumer -> ui/developer -> copy/landing -> copy/onboarding -> code/patterns
 
-### 5. Commit
-- If autonomy is `autonomous` → auto-commit with conventional message
-- If autonomy is `guided` → present changes and commit with `/smart-commit`
+### 5. Review (when plan complete)
+- Run `rhino score .` + `rhino taste` (if applicable)
+- Extract gaps -> add new items to product-todo.md if discovered
+- Write to `.claude/plans/review-gaps.md`
+- Generate new plan from backlog -> continue loop
 
 ### 6. Update State
-- Update `.claude/state/go-state.json` with iteration count, scores, focus
-- Update brain: `~/.claude/state/brains/builder.json` with next_move
+- Update `.claude/rules/product-brief.md` with scores + backlog progress
+- Update `.claude/rules/hypotheses.md` if experiments validated/killed beliefs
+- Log to `.claude/brains/experiment-log.md`
+- Commit changes
 
 ## Stop Conditions
-- **Milestone complete** — all DoD criteria in `milestones.md` are checked off
-- Max iterations reached
-- Plateau detected (N flat scores)
-- Score dropped to RED territory (below stage ceiling floor)
+
+- **Backlog complete** — all items in product-todo.md checked off -> product is DONE
+- **Plateau detected** — plateau_threshold consecutive tasks with no score improvement
+- Score dropped below stage floor
 - User interrupts
 
 ## After Stopping
-1. Update go-state.json with `"status": "stopped"`
-2. Run final review (score + taste + gap extraction)
-3. Check milestone DoD in `.claude/plans/milestones.md` — update any newly-met criteria
-4. Write `.claude/plans/review-gaps.md` for next session's `/plan`
-5. Print summary:
-   - If milestone completed:
-     ```
-     Milestone shipped: [name]
-     [N iterations, X tasks completed]
-     Score: [start] → [end]
-     Taste: [start] → [end] (if ran)
 
-     Run /plan --brainstorm to decide what's next.
-     ```
-   - Otherwise:
-     ```
-     Go loop: [N] iterations
-     Milestone: [name] — [X/Y done criteria]
-     Score: [start] → [end] (delta: [+/-X])
-     Taste: [start] → [end] (if ran)
-     Tasks completed: [N]
-     Experiments: [kept]/[total]
+Print summary:
+```
+Go loop: [N] iterations
+Backlog: [X/Y] done ([Z%] of product)
+Score: [start] -> [end] (delta: [+/-X])
+Taste: [start] -> [end] (if ran)
+Tasks completed: [N]
+Plateau: [yes/no — if yes, what was flat]
 
-     Tomorrow: run /plan to pick up where this left off.
-     ```
-6. Update brain with next_move for when loop resumes
+[If backlog complete]: Product backlog is 100% complete! Review with /status.
+[If plateau]: Score plateaued at [N] for [threshold] consecutive tasks. Consider:
+  - /research to find new approaches
+  - /plan --brainstorm for divergent ideas
+  - /eval to check if beliefs are holding
+[Otherwise]: Run /plan to pick up where this left off. [Y] items remaining.
+```

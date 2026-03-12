@@ -1,221 +1,224 @@
 ---
 name: setup
-description: Onboard any project into rhino-os. Detects project type, creates .claude/ structure, sets autonomy and experimentation levels, registers in workspace. Say "/setup" in any project.
+description: "Onboard any project. Scans codebase, generates product-brief, pyramid, master backlog, rules files, and knowledge stubs."
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Setup — Project Onboarding
 
-You are onboarding this project into rhino-os. Follow these steps exactly.
-
 ## Step 1: Detect Project Type
 
-Check for these files in the current directory to determine project type:
-- `package.json` → check for `next`, `react`, `vue`, `svelte` in dependencies → **Next.js / React / Vue / Svelte / Node**
-- `pyproject.toml` or `setup.py` or `requirements.txt` → **Python**
-- `Cargo.toml` → **Rust**
-- `go.mod` → **Go**
-- `Gemfile` → **Ruby**
-- None of the above → **Plain**
+Check for: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Gemfile`.
+Read package.json to identify framework (Next.js, React, Vue, etc.).
 
-Read `package.json` if it exists to identify the framework more precisely.
+## Step 2: Create Project Structure
 
-## Step 2: Create .claude/ Structure
-
-Create these directories:
 ```
-.claude/plans/
-.claude/experiments/
-.claude/evals/reports/
-.claude/scores/
-.claude/cache/
-.claude/state/
+.claude/
+  rules/          # copied from rhino-os config/rules/
+    identity.md
+    product-brief.md
+    hypotheses.md
+  plans/
+  experiments/
+  cache/
+knowledge/
+  decisions.md
+  killed.md
+  experiment-learnings.md
+  founder-voice.tsv
+.claude/product-map.yml
+.claude/product-todo.md
 ```
 
-## Step 3: Copy CLAUDE.md Template
+## Step 3: Copy Rule Files
 
-Read `$RHINO_DIR/config/CLAUDE.md` (or `~/.claude/agents/../config/CLAUDE.md` — find it via the rhino-os install).
+Copy from `$RHINO_DIR/config/rules/` to `.claude/rules/`:
+- `identity.md` — customize with project identity
+- `product-brief.md` — will be populated by discovery
+- `hypotheses.md` — empty template, grows over time
 
-If a `CLAUDE.md` already exists in the project root, ask the user if they want to merge or replace. If no CLAUDE.md exists, copy the template.
+## Step 4: Ask Configuration (3 questions)
 
-After copying, tell the user: "Fill in the `# Who I Am` and `# The Goal` sections with your project's identity."
-
-## Step 4: Ask Configuration Questions
-
-Ask these three questions (use the AskUserQuestion tool or ask inline):
-
-### 4a. Autonomy Level
-"What autonomy level for this project?"
-- **manual** — I approve everything. No auto-commits, no sub-agents.
-- **guided** — I set direction, agent executes. Auto-commits via /smart-commit. (recommended)
-- **autonomous** — Full loop. /go runs strategy→build→score→repeat with minimal supervision.
-
-Default: `guided`
-
-### 4b. Experimentation Level
-"How aggressive should experiments be?"
-- **conservative** — Mostly exploit known patterns. Small, safe changes.
-- **balanced** — Mix of known patterns and exploration. (recommended)
-- **aggressive** — Prefer unknown territory. Bigger swings, higher discard rate expected.
-
-Default: `balanced`
-
-### 4c. Project Stage
+### Stage
 "What stage is this project?"
-- **mvp** — Pre-launch, still finding product-market fit
-- **early** — Launched, early users, iterating fast
-- **growth** — Product-market fit found, scaling
-- **mature** — Established, optimizing
+- **mvp** — pre-launch, finding product-market fit (default)
+- **early** — launched, early users
+- **growth** — PMF found, scaling
+- **mature** — established, optimizing
 
-Default: `mvp`
+### Autonomy
+"What autonomy level?"
+- **manual** — I approve everything
+- **guided** — I set direction, you execute (default)
+- **autonomous** — full loop with /go
 
-## Step 5: Scan for Features
+### Experimentation
+"How aggressive should experiments be?"
+- **conservative** — mostly exploit known patterns
+- **balanced** — mix of known and exploration (default)
+- **aggressive** — prefer unknown territory
 
-Look for routes/pages to auto-detect features:
-- **Next.js**: `app/*/page.tsx` or `pages/*.tsx`
-- **React Router**: grep for `<Route` patterns
-- **Python/Flask/Django**: grep for route decorators
-- **Plain**: ask the user what the main features are
+## Step 5: Product Discovery
 
-Present the detected features and ask: "Are these the main features? Add or remove any."
+Scan the codebase to build the product pyramid:
 
-## Step 6: Generate features.yml
+1. Find all routes/pages/screens
+2. For each: assess completion % and quality %
+3. Classify into pyramid layers:
+   - **Functional**: core features that do the job
+   - **Emotional**: UX, onboarding, polish, feedback
+   - **Ecological**: sharing, discovery, growth, retention
+4. Write `.claude/product-map.yml`:
 
-Write `.claude/features.yml`:
 ```yaml
-# Features — maps feature names to routes/entry points
-# Used by taste eval for feature-specific scoring
-
-features:
-  feature-name:
-    routes:
-      - /path
-      - /other-path
-    description: What this feature does
+pyramid:
+  functional:
+    - feature: "[name]"
+      completion: [0-100]
+      quality: [0-100]
+      routes: ["/path"]
+      gaps: ["specific gap"]
+  emotional:
+    - feature: "[name]"
+      ...
+  ecological:
+    - feature: "[name]"
+      ...
+updated: "[ISO date]"
 ```
 
-## Step 7: Run Baseline Score
+5. Present to founder: "Does this map look right?"
 
-Run: `Bash("$RHINO_DIR/bin/score.sh" . --json)` (find RHINO_DIR from the installed rhino binary or environment).
+## Step 6: Generate Master Product Backlog
 
-If score.sh isn't available, skip with a note: "Install rhino CLI tools with ./install.sh to enable scoring."
+This is the big one. Generate `.claude/product-todo.md` — the COMPLETE list of everything needed to ship this product. This is not a sprint. This is the whole picture.
 
-## Step 7b: Generate Learning Agenda
+For every feature in product-map.yml, for every gap, generate concrete TODOs. Organize by pyramid layer. Be exhaustive — the goal is "what does DONE look like?"
 
-Generate `.claude/plans/learning-agenda.md` — the day-1 curriculum that ensures the first experiments are deliberate, not random.
-
-The agenda is stage-aware:
-- **mvp** → exploration-heavy: "learn what users want" — unknowns about user behavior, creation flow, value prop
-- **early** → validation-heavy: "confirm the loop" — unknowns about retention triggers, sharing mechanics, engagement patterns
-- **growth** → optimization-heavy: "find the ceiling" — unknowns about scaling bottlenecks, conversion funnels, feature ceiling
-
-Write:
 ```markdown
-# Learning Agenda — [project-name]
+# Product Backlog — [project-name]
 
-Stage: [stage] | Generated: [date]
+Generated: [date] | Stage: [stage]
+Progress: [X/Y] items complete ([Z%])
 
-## What We Don't Know
-The 3 highest-information-value unknowns for this project, based on type + stage:
-1. [unknown] — why this matters, what we'd do differently if we knew
-2. [unknown] — why this matters, what we'd do differently if we knew
-3. [unknown] — why this matters, what we'd do differently if we knew
+## Functional — Does It Work?
 
-## First 3 Experiments
-Deliberate exploration targeting the unknowns above (not random building):
-1. [experiment targeting unknown 1] — hypothesis, expected learning
-2. [experiment targeting unknown 2] — hypothesis, expected learning
-3. [experiment targeting unknown 3] — hypothesis, expected learning
+### [Feature: e.g. "User Authentication"]
+Completion: [X%] | Quality: [X%]
+- [ ] [concrete task — e.g. "Add email verification flow"]
+- [ ] [concrete task — e.g. "Handle password reset"]
+- [ ] [concrete task — e.g. "Add OAuth with Google"]
+- [x] [already done — e.g. "Basic login/register forms"]
 
-## What To Read First
-- `agents/refs/thinking.md` — the thinking protocol
-- `~/.claude/knowledge/experiment-learnings.md` — cross-project learnings
-- `agents/refs/landscape-2026.md` — what wins in 2026
+### [Feature: e.g. "Content Creation"]
+Completion: [X%] | Quality: [X%]
+- [ ] [task]
+- [ ] [task]
 
-## Graduation Criteria
-- [ ] 3+ predictions logged to predictions.tsv
-- [ ] 3+ experiment learnings recorded for this project
-- [ ] At least 2 of the 3 unknowns above reduced (moved to Known or Uncertain)
+## Emotional — Does It Feel Good?
+
+### [Feature: e.g. "Onboarding"]
+Completion: [X%] | Quality: [X%]
+- [ ] [task — e.g. "Add welcome walkthrough for new users"]
+- [ ] [task — e.g. "Empty state guidance on dashboard"]
+- [ ] [task — e.g. "Loading states on all async actions"]
+
+### [Feature: e.g. "Visual Polish"]
+- [ ] [task — e.g. "Consistent spacing system"]
+- [ ] [task — e.g. "Hover/focus states on all interactive elements"]
+- [ ] [task — e.g. "Transitions between page navigations"]
+
+## Ecological — Does It Grow?
+
+### [Feature: e.g. "Sharing"]
+Completion: [X%] | Quality: [X%]
+- [ ] [task — e.g. "Share button on content pages"]
+- [ ] [task — e.g. "Share preview cards (Open Graph)"]
+- [ ] [task — e.g. "Copy-link with success feedback"]
+
+### [Feature: e.g. "Return Triggers"]
+- [ ] [task — e.g. "Email notification for new activity"]
+- [ ] [task — e.g. "Push notification opt-in"]
+
+## Infrastructure (non-user-facing but required)
+
+- [ ] [task — e.g. "Error monitoring (Sentry)"]
+- [ ] [task — e.g. "Analytics tracking"]
+- [ ] [task — e.g. "Deploy pipeline"]
 ```
 
-When graduation criteria are all checked off and a real plan exists in `.claude/plans/active-plan.md`, the agenda stops showing in session context.
+**Rules for generating the backlog:**
+1. Every gap in product-map.yml becomes at least one TODO
+2. Every feature with completion < 100% gets TODOs for missing pieces
+3. Every feature with quality < 50% gets TODOs for quality gaps
+4. Include infrastructure items that block shipping
+5. Mark already-completed items as `[x]` so progress is visible
+6. Be SPECIFIC — "improve onboarding" is not a TODO. "Add welcome modal with 3-step product tour" is.
+7. Err on the side of too many items. This is the exhaustive picture.
+8. Ask the founder: "What am I missing? What else needs to happen before this ships?"
 
-## Step 7c: Generate First Milestone
-
-Generate `.claude/plans/milestones.md` — the progress container that flows between all skills.
-
-The first milestone is stage-aware:
-- **mvp** → "Ship v0.1" — DoD: core loop works, one user completes flow, deployable
-- **early** → "Close the loop" — DoD: creation + sharing + return all work
-- **growth** → "Scale [weakest link]" — DoD: based on bottleneck analysis
-- **mature** → "Optimize [metric]" — DoD: measurable improvement target
-
-Write:
-```markdown
-# Milestones — [project-name]
-
-## Current: [stage-appropriate milestone name]
-Target: [what "done" looks like — 1 sentence, user-visible]
-Started: [date]
-Progress: 0/[N] done criteria met
-
-### Definition of Done
-- [ ] [concrete, testable criterion]
-- [ ] [concrete, testable criterion]
-- [ ] [concrete, testable criterion]
-
-### Sprints
-
-## Shipped
-
-## Ideas (not commitments)
+**After generating**, print the summary:
+```
+Product backlog: X items across Y features
+  Functional: A/B done
+  Emotional:  C/D done
+  Ecological: E/F done
+  Infrastructure: G/H done
 ```
 
-Tell the founder: "Edit the milestone and Definition of Done — the point is having a container, not prescribing the destination."
+## Step 7: Generate Product Brief
 
-## Step 8: Register in Workspace
+Populate `.claude/rules/product-brief.md` from discovery results:
+- Product name and one-line description
+- Pyramid state with percentages
+- Backlog progress (X/Y items, Z%)
+- Baseline score
+- Empty hypotheses (will grow)
 
-Run workspace registration. Source the workspace helper and register:
+## Step 8: Generate Knowledge Stubs
+
+### decisions.md
+Scan git log for architectural commits. Seed with discoverable decisions.
+Tell founder: "Add any major decisions I missed."
+
+### killed.md
+Ask: "Has anything been tried and killed?"
+If new project, write empty template.
+
+### experiment-learnings.md
+Create with Known/Uncertain/Unknown/Dead Ends sections (all empty).
+
+### founder-voice.tsv
+Create with header: `date	statement	feature	quality_dimension	action_taken`
+
+## Step 9: Run Baseline Score
+
 ```bash
-source "$RHINO_DIR/bin/lib/workspace.sh"
-ws_register "$(pwd)" "[stage]" "[autonomy]" "[experimentation]"
+rhino score . --json
 ```
 
-Or write directly to `~/.claude/state/workspace.json` using the schema:
-```json
-{
-  "projects": {
-    "[project-name]": {
-      "path": "[absolute-path]",
-      "stage": "[stage]",
-      "autonomy": "[autonomy]",
-      "experimentation": "[experimentation]",
-      "features": ["[feature1]", "[feature2]"],
-      "last_score": null,
-      "last_taste": null,
-      "active": true
-    }
-  },
-  "focus": "[project-name]",
-  "updated": "[ISO timestamp]"
-}
-```
+Record in product-brief.md.
 
-If workspace.json already exists, merge (don't overwrite other projects).
-
-## Step 9: Print Next Steps
+## Step 10: Print Summary
 
 ```
 Project onboarded: [name]
-  Type: [detected type]
-  Stage: [stage]
-  Autonomy: [level]
-  Experimentation: [level]
-  Features: [count] detected
-  Baseline score: [score or "pending"]
+  Type: [detected]  Stage: [stage]  Autonomy: [level]
+  Features: [count] across [pyramid layers]
+  Readiness: [%] ([completion%] built, [quality%] quality)
+  Backlog: [X] items ([Y] done, [Z] remaining)
+  Baseline score: [score]
 
-Next steps:
-  1. Fill in CLAUDE.md identity and goal sections
-  2. Run /experiment to start learning (learning agenda generated)
-  3. Graduate the agenda, then run /strategy for your first sprint
+Files created:
+  .claude/rules/identity.md
+  .claude/rules/product-brief.md
+  .claude/rules/hypotheses.md
+  .claude/product-map.yml
+  .claude/product-todo.md          <- THE FULL PICTURE
+  knowledge/decisions.md
+  knowledge/killed.md
+
+Next: run /plan to get today's tasks.
 ```

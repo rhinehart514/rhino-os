@@ -1,0 +1,43 @@
+# beliefs.yml — Your product's soul, enforced mechanically
+#
+# Each belief is a hypothesis about what makes your product great.
+# Beliefs are tested on every build. Failing a "block" severity stops the commit.
+#
+# Lifecycle:
+#   Active hypothesis -> eval runs
+#   Validated -> eval locked permanently
+#   Killed -> eval removed
+#
+# Types: dom_check, playwright_task, corpus_compare, content_check, route_graph
+# Severity: block (stops build) | warn (flags but continues)
+
+beliefs: []
+
+# Example beliefs (uncomment and customize):
+#
+# - id: single-cta
+#   belief: "Users bounce when overwhelmed. One CTA above the fold, always."
+#   type: dom_check
+#   check: "hero contains exactly 1 interactive element"
+#   severity: block
+#
+# - id: no-jargon
+#   belief: "No user needs a glossary to read our homepage"
+#   type: content_check
+#   forbidden: ["utilize", "leverage", "synergy", "paradigm", "ecosystem"]
+#   reading_level_max: 8
+#   severity: warn
+#
+# - id: onboarding-speed
+#   belief: "If signup takes more than 90 seconds, we lose them"
+#   type: playwright_task
+#   scenario: "new user completes signup and first action"
+#   threshold_seconds: 90
+#   severity: warn
+#
+# - id: two-click-rule
+#   belief: "Power users reach any core feature in 2 clicks"
+#   type: route_graph
+#   max_depth: 2
+#   from: "/"
+#   severity: block
