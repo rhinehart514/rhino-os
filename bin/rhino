@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# rhino — CLI for rhino-os v5
-# Measurement tools: score, taste, status, setup, config
-# Agent work happens in Claude Code via skills: /plan, /build, /research, /status, /setup, /go
+# rhino — CLI for rhino-os v6
+# Measurement tools: score, taste, eval, status, config
 
-VERSION="5.0.0"
+VERSION="6.0.0"
 _RHINO_SOURCE="${BASH_SOURCE[0]}"
 while [[ -L "$_RHINO_SOURCE" ]]; do
     _RHINO_SOURCE="$(readlink "$_RHINO_SOURCE")"
@@ -16,7 +15,6 @@ RHINO_DIR="$(cd "$(dirname "$_RHINO_SOURCE")/.." && pwd)"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -56,19 +54,12 @@ cmd_status() {
         echo -e "${RED}[FAIL]${NC} claude CLI not found"
     fi
 
-    # Product map
-    if [[ -f ".claude/product-map.yml" ]]; then
-        echo -e "${GREEN}[OK]${NC} Product map exists"
-    else
-        echo -e "${DIM}[--]${NC} No product map (run /setup)"
-    fi
-
-    # Rules files
-    local rules_count=0
-    for f in .claude/rules/identity.md .claude/rules/product-brief.md .claude/rules/hypotheses.md; do
-        [[ -f "$f" ]] && ((rules_count++))
+    # Mind files
+    local mind_count=0
+    for f in "$RHINO_DIR"/mind/*.md; do
+        [[ -f "$f" ]] && ((mind_count++))
     done
-    echo -e "${GREEN}[OK]${NC} Rules: ${rules_count}/3 files"
+    echo -e "${GREEN}[OK]${NC} Mind: ${mind_count} files"
 
     # Last score
     if [[ -f ".claude/cache/score-cache.json" ]] && command -v jq &>/dev/null; then
@@ -91,57 +82,6 @@ cmd_status() {
     fi
 
     echo ""
-    echo -e "${DIM}Use /status in Claude Code for the full co-founder briefing${NC}"
-}
-
-# ============================================================
-# SETUP
-# ============================================================
-cmd_setup() {
-    local project_dir="${1:-.}"
-    cd "$project_dir"
-    echo -e "${BOLD}=== rhino setup: $(basename "$(pwd)") ===${NC}"
-    echo ""
-
-    # Create directories
-    mkdir -p .claude/{rules,plans,experiments,cache,scores,evals,brains}
-    mkdir -p knowledge
-    echo -e "  ${GREEN}created${NC} .claude/ structure"
-
-    # Copy brains templates
-    for f in longterm.md daily.md experiment-log.md hypothesis-log.md; do
-        if [[ ! -f ".claude/brains/$f" && -f "$RHINO_DIR/config/brains/$f" ]]; then
-            cp "$RHINO_DIR/config/brains/$f" ".claude/brains/$f"
-        fi
-    done
-    echo -e "  ${GREEN}created${NC} .claude/brains/ templates"
-
-    # Copy beliefs template
-    if [[ ! -f ".claude/evals/beliefs.yml" && -f "$RHINO_DIR/config/evals/beliefs.yml" ]]; then
-        cp "$RHINO_DIR/config/evals/beliefs.yml" ".claude/evals/beliefs.yml"
-        echo -e "  ${GREEN}created${NC} .claude/evals/beliefs.yml"
-    fi
-
-    # Copy rule templates
-    for f in identity.md product-brief.md hypotheses.md; do
-        if [[ ! -f ".claude/rules/$f" ]]; then
-            cp "$RHINO_DIR/config/rules/$f" ".claude/rules/$f"
-            echo -e "  ${GREEN}created${NC} .claude/rules/$f"
-        else
-            echo -e "  ${DIM}[skip]${NC} .claude/rules/$f (exists)"
-        fi
-    done
-
-    # Run baseline score
-    echo ""
-    echo -e "${BLUE}Running baseline score...${NC}"
-    local baseline_score score_num
-    baseline_score=$("$RHINO_DIR/bin/score.sh" . --json 2>/dev/null || echo '{"score":0}')
-    score_num=$(echo "$baseline_score" | grep -o '"score":[0-9]*' | grep -o '[0-9]*')
-    echo -e "  ${BOLD}Baseline: ${score_num:-0}/100${NC}"
-
-    echo ""
-    echo -e "${BOLD}Done.${NC} For full interactive onboarding, run ${BLUE}/setup${NC} in Claude Code."
 }
 
 # ============================================================
@@ -192,71 +132,22 @@ cmd_eval() {
 }
 
 # ============================================================
-# CORPUS
-# ============================================================
-cmd_corpus() {
-    local action="${1:-list}"
-    case "$action" in
-        list)
-            echo -e "${BOLD}=== rhino corpus ===${NC}"
-            echo ""
-            local corpus_dir="$RHINO_DIR/corpus"
-            if [[ ! -d "$corpus_dir" ]]; then
-                echo -e "${DIM}No corpus directory found${NC}"
-                return
-            fi
-            for category in ui/saas ui/consumer ui/developer copy/landing copy/onboarding code/patterns; do
-                local dir="$corpus_dir/$category"
-                if [[ -d "$dir" ]]; then
-                    local count
-                    count=$(find "$dir" -type f -not -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
-                    echo -e "  ${BOLD}$category${NC}: $count examples"
-                fi
-            done
-            echo ""
-            echo -e "${DIM}Use /corpus update [category] in Claude Code to discover new examples${NC}"
-            ;;
-        add|update)
-            echo -e "${YELLOW}Corpus $action runs inside Claude Code.${NC}"
-            echo "Use: /corpus $action ${2:-[category]}"
-            ;;
-        *)
-            echo -e "${RED}Unknown corpus action: $action${NC}"
-            echo "Usage: rhino corpus [list|add|update]"
-            ;;
-    esac
-}
-
-# ============================================================
 # HELP
 # ============================================================
 cmd_help() {
-    echo -e "${BOLD}rhino${NC} v${VERSION} — cofounder, not tool"
+    echo -e "${BOLD}rhino${NC} v${VERSION} — eyes, not rails"
     echo ""
     echo -e "${BOLD}Usage:${NC} rhino <command> [args...]"
     echo ""
     echo -e "${BOLD}Measure:${NC}"
     echo "  score [dir]        Structural lint score"
-    echo "  taste [dir]        Visual product eval (Claude vision)"
-    echo "  eval [dir]         Run belief evals (Tier 1)"
+    echo "  taste [dir]        Visual product eval (Claude Vision)"
+    echo "  eval [dir]         Run belief evals"
     echo ""
     echo -e "${BOLD}System:${NC}"
-    echo "  status             Quick health overview"
+    echo "  status             Health overview"
     echo "  config             Show configuration"
-    echo "  setup [dir]        Bootstrap a project"
-    echo "  corpus [action]    Manage taste corpus (list|add|update)"
     echo "  install [--check]  Install/update rhino-os"
-    echo ""
-    echo -e "${BOLD}Skills (use in Claude Code):${NC}"
-    echo "  /plan              Morning — what to work on today"
-    echo "  /build             Execute the plan, score every change"
-    echo "  /research          When stuck — taste, market, ideas, evals"
-    echo "  /eval              Run belief evals + /eval --add"
-    echo "  /corpus            Manage taste corpus"
-    echo "  /next              Show next task (zero ceremony)"
-    echo "  /status            Full co-founder briefing"
-    echo "  /setup             Interactive project onboarding"
-    echo "  /go                Autonomous loop (NEVER STOP)"
     echo ""
     echo -e "${BOLD}Config:${NC} $RHINO_DIR/config/rhino.yml"
 }
@@ -270,8 +161,6 @@ case "${1:-help}" in
     eval)       shift; cmd_eval "$@" ;;
     status)     cmd_status ;;
     config)     cmd_config ;;
-    setup)      shift; cmd_setup "$@" ;;
-    corpus)     shift; cmd_corpus "$@" ;;
     install)    shift; bash "$RHINO_DIR/install.sh" "$@" ;;
     help|--help|-h) cmd_help ;;
     version|--version|-v) echo "rhino v${VERSION}" ;;

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "$schema": "https://json-schema.store/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Read",
@@ -22,24 +22,13 @@
         ]
       }
     ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/pre_compact.sh"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/post_edit_quality.sh"
+            "command": "~/.claude/hooks/post_edit.sh"
           }
         ]
       }

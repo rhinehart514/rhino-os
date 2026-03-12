@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# install.sh — One-command setup for rhino-os v5.
+# install.sh — One-command setup for rhino-os v6.
 # Idempotent — safe to re-run.
 #
 # Usage:
@@ -20,7 +20,6 @@ for arg in "$@"; do
 done
 
 GREEN='\033[0;32m'
-BLUE='\033[0;34m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -37,15 +36,12 @@ skip() {
     echo -e "  ${DIM}[skip]${NC} $1 (exists)"
 }
 
-echo -e "${BOLD}Setting up rhino-os v5...${NC}"
+echo -e "${BOLD}Setting up rhino-os v6...${NC}"
 echo ""
 
 # --- 1. Create directories ---
 for dir in \
     "$CLAUDE_DIR/knowledge" \
-    "$CLAUDE_DIR/logs" \
-    "$CLAUDE_DIR/programs" \
-    "$CLAUDE_DIR/commands" \
     "$CLAUDE_DIR/hooks" \
     "$CLAUDE_DIR/plans"; do
     if [[ ! -d "$dir" ]]; then
@@ -54,59 +50,36 @@ for dir in \
     fi
 done
 
-# --- 2. Symlink programs ---
+# --- 2. Symlink mind/ files to rules ---
 echo ""
-echo -e "${BOLD}Programs:${NC}"
-for prog in "$RHINO_DIR"/programs/*.md; do
-    [[ ! -f "$prog" ]] && continue
-    name="$(basename "$prog")"
-    target="$CLAUDE_DIR/programs/$name"
-    if [[ -L "$target" && "$(readlink "$target")" == "$prog" ]]; then
-        skip "programs/$name"
+echo -e "${BOLD}Mind (always-loaded rules):${NC}"
+
+# Clean up old rule files
+for old_rule in identity.md product-brief.md hypotheses.md self-review.md; do
+    old_file="$CLAUDE_DIR/rules/$old_rule"
+    if [[ -L "$old_file" || -f "$old_file" ]]; then
+        $DRY_RUN || rm -f "$old_file"
+    fi
+done
+
+$DRY_RUN || mkdir -p "$CLAUDE_DIR/rules"
+for mind_file in identity.md thinking.md standards.md; do
+    src="$RHINO_DIR/mind/$mind_file"
+    target="$CLAUDE_DIR/rules/$mind_file"
+    if [[ -L "$target" && "$(readlink "$target")" == "$src" ]]; then
+        skip "rules/$mind_file"
     else
-        $DRY_RUN || ln -sf "$prog" "$target"
-        action "programs/$name"
+        $DRY_RUN || ln -sf "$src" "$target"
+        action "rules/$mind_file"
     fi
 done
 
-# --- 3. Symlink skills as commands ---
-echo ""
-echo -e "${BOLD}Skills:${NC}"
-
-# Clean up old commands that no longer exist
-for old_cmd in strategy sweep todofocus experiment design score taste eval product-eval scout research-taste init product-2026 council meta smart-commit docs review; do
-    old_cmd_file="$CLAUDE_DIR/commands/$old_cmd/SKILL.md"
-    if [[ -L "$old_cmd_file" || -f "$old_cmd_file" ]]; then
-        $DRY_RUN || rm -f "$old_cmd_file"
-        $DRY_RUN || rmdir "$CLAUDE_DIR/commands/$old_cmd" 2>/dev/null || true
-        action "removed old command: $old_cmd"
-    fi
-done
-
-for skill_dir in "$RHINO_DIR"/skills/*/; do
-    [[ ! -d "$skill_dir" ]] && continue
-    skill_name="$(basename "$skill_dir")"
-    skill_file="$skill_dir/SKILL.md"
-    [[ ! -f "$skill_file" ]] && continue
-
-    cmd_dir="$CLAUDE_DIR/commands/$skill_name"
-    cmd_file="$cmd_dir/SKILL.md"
-
-    if [[ -L "$cmd_file" && "$(readlink "$cmd_file")" == "$skill_file" ]]; then
-        skip "commands/$skill_name"
-    else
-        $DRY_RUN || mkdir -p "$cmd_dir"
-        $DRY_RUN || ln -sf "$skill_file" "$cmd_file"
-        action "commands/$skill_name"
-    fi
-done
-
-# --- 4. Symlink hooks ---
+# --- 3. Symlink hooks ---
 echo ""
 echo -e "${BOLD}Hooks:${NC}"
 
-# Clean up old hooks that no longer exist
-for old_hook in autonomy_gate.sh capture_knowledge.sh check_predictions.sh enforce_ideation_readonly.sh extract_patterns.sh session_context.sh thinking_nudge.sh track_cost.sh track_usage.sh; do
+# Clean up old hooks
+for old_hook in pre_compact.sh post_build.sh post_edit_quality.sh autonomy_gate.sh capture_knowledge.sh check_predictions.sh enforce_ideation_readonly.sh extract_patterns.sh session_context.sh thinking_nudge.sh track_cost.sh track_usage.sh; do
     old_hook_file="$CLAUDE_DIR/hooks/$old_hook"
     if [[ -L "$old_hook_file" ]]; then
         $DRY_RUN || rm -f "$old_hook_file"
@@ -127,9 +100,9 @@ for hook in "$RHINO_DIR"/hooks/*.sh; do
     fi
 done
 
-# --- 5. Symlink bin tools ---
+# --- 4. Symlink CLI ---
 echo ""
-echo -e "${BOLD}CLI tools:${NC}"
+echo -e "${BOLD}CLI:${NC}"
 LOCAL_BIN="$HOME/bin"
 $DRY_RUN || mkdir -p "$LOCAL_BIN"
 
@@ -153,7 +126,7 @@ else
     action "~/bin/rhino"
 fi
 
-# --- 6. Merge settings.json ---
+# --- 5. Merge settings.json ---
 echo ""
 echo -e "${BOLD}Settings:${NC}"
 SETTINGS_SRC="$RHINO_DIR/config/settings.json"
@@ -161,21 +134,20 @@ SETTINGS_DEST="$CLAUDE_DIR/settings.json"
 
 if [[ -f "$SETTINGS_DEST" ]]; then
     if command -v jq &>/dev/null; then
-        # Replace hooks section entirely with source (clean slate for v5)
         $DRY_RUN || {
             tmp="$(mktemp)"
             jq -s '.[0] * {hooks: .[1].hooks}' "$SETTINGS_DEST" "$SETTINGS_SRC" > "$tmp" && mv "$tmp" "$SETTINGS_DEST"
         }
-        action "settings.json (hooks updated to v5)"
+        action "settings.json (hooks updated to v6)"
     else
-        echo -e "  ${YELLOW}[warn]${NC} jq not found — copy config/settings.json manually"
+        echo -e "  [warn] jq not found — copy config/settings.json manually"
     fi
 else
     $DRY_RUN || cp "$SETTINGS_SRC" "$SETTINGS_DEST"
     action "settings.json (copied)"
 fi
 
-# --- 7. Set RHINO_DIR in shell profile ---
+# --- 6. Set RHINO_DIR in shell profile ---
 echo ""
 echo -e "${BOLD}Environment:${NC}"
 PROFILE=""
@@ -199,6 +171,5 @@ echo ""
 if $DRY_RUN; then
     echo -e "${BOLD}Dry run complete.${NC} Run without --check to apply."
 else
-    echo -e "${BOLD}Done.${NC} Open any project and run ${BLUE}/setup${NC} to onboard it."
-    echo -e "${DIM}Reload your shell: source $PROFILE${NC}"
+    echo -e "${BOLD}Done.${NC} Reload your shell: source $PROFILE"
 fi
