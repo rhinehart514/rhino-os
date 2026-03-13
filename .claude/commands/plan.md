@@ -64,6 +64,44 @@ Cold start only fires once. After bootstrap, all subsequent sessions have state 
 10. **Strategy freshness** — check product-model.md modification date (`stat -f %Sm -t %Y-%m-%d .claude/plans/product-model.md` on macOS). Flag stale if >3 days old OR if it references concepts/files that no longer exist in the codebase.
 11. **Failing assertions** — run `rhino eval .` and check beliefs.yml (in `lens/product/eval/` or `config/evals/`). Failing `block` severity assertions are the highest-priority signal — they mean the product doesn't meet its own definition of done.
 12. **Agent health** — check `agent-experiments.tsv` for unresolved experiments. Read `agent.tunable` from `config/rhino.yml` to know current operating parameters.
+13. **Codebase model** — read or create `.claude/state/codebase-model.md`. See Step 1.5.
+14. **Product playbook** — read `~/.claude/knowledge/product-playbook.md` for cross-project patterns relevant to the current bottleneck.
+
+## Step 1.5: Codebase model
+
+Read `.claude/state/codebase-model.md`. If it doesn't exist or is stale (>3 days old or major commits since last update):
+
+1. Spend 2 minutes exploring the codebase: entry points, framework, key patterns, directory structure
+2. Write or update `.claude/state/codebase-model.md`:
+
+```markdown
+# Codebase Model — [project name]
+Updated: [date]
+
+## What This Product Does
+[1-2 sentences: value prop, who it's for]
+
+## Architecture
+- Framework: [e.g. Next.js 14, App Router]
+- Key patterns: [e.g. server components, Supabase auth, Tailwind]
+- Entry points: [e.g. app/page.tsx, app/api/]
+
+## User Flows
+1. [Flow name]: [entry → steps → outcome]
+2. ...
+
+## Value Delivery Points
+Where the user actually gets value (not just features):
+- [specific moment/screen/interaction]
+
+## Technical Debt & Risks
+- [what's fragile, what blocks progress]
+
+## Conventions
+- [naming, file structure, testing patterns, PR process]
+```
+
+If it exists and is fresh (<3 days, no major commits since update): use as-is. The model persists across sessions — no need to rebuild every time.
 
 ## Step 2: Session recap
 

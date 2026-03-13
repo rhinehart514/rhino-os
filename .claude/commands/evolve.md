@@ -104,10 +104,93 @@ The mechanical rule:
 - **Log everything**: Every change, every revert, every grade goes in agent-experiments.tsv.
 - **Founder override**: The founder can always say "revert" and it happens immediately, no questions.
 
+## Skill creation mode
+
+Beyond tuning parameters, `/evolve` can create new capabilities when it detects a gap.
+
+### Detecting capability gaps
+
+Gaps come from three sources:
+1. **`/retro` findings**: Step 3.6 logs capability gaps. If 3+ sessions show the same gap, it's real.
+2. **Repeated manual patterns**: you notice yourself doing the same multi-step process across sessions without a skill for it.
+3. **Founder request**: "I wish there was a /competitive-analysis command."
+
+### The sandbox → test → promote pipeline
+
+```
+1. IDENTIFY GAP — evidence of repeated need (retro logs, manual patterns, founder request)
+2. DRAFT — write skill to .claude/experiments/skills/[name].md
+3. TEST — run the skill on a real task, evaluate output quality
+4. PROPOSE — present to founder with test output: "Promote to .claude/commands/?"
+5. PROMOTE — founder approves → move to .claude/commands/[name].md
+```
+
+### Step 1: Identify the gap
+
+```
+Gap: [what capability is missing]
+Evidence: [3+ sessions or founder request]
+Value: [what changes for the user if this skill exists]
+```
+
+### Step 2: Draft the skill
+
+Write to `.claude/experiments/skills/[name].md` using this template:
+
+```markdown
+---
+description: "[what this skill does]"
+gap: "[what repeated need this fills]"
+evidence: "[sessions/tasks where this was needed]"
+status: sandbox
+---
+
+# /[skill-name]
+
+[Full skill instructions following the pattern of existing .claude/commands/ files]
+
+$ARGUMENTS
+```
+
+Follow the conventions of existing commands:
+- System awareness section (how this skill relates to others)
+- Clear steps with parallel reads where possible
+- "What you never do" section
+- "If something breaks" section
+- Arguments section
+
+**Limit**: max `agent.tunable.max_sandbox_skills` (default 5) active sandbox skills. If at limit, discard the least-evidenced one before creating new.
+
+### Step 3: Test
+
+Run the drafted skill on a real task. Evaluate:
+- Did it produce useful output?
+- Did it follow the system's conventions (predict, cite evidence, update model)?
+- Would the founder want this to run again?
+
+### Step 4: Propose
+
+Present to the founder:
+```
+New skill: /[name]
+Gap it fills: [one sentence]
+Test run: [summary of test output]
+Recommendation: promote to .claude/commands/ / iterate / discard
+```
+
+The founder decides. Promotion = move to `.claude/commands/[name].md`. The `.claude/commands/` gate remains — agent cannot promote without approval.
+
+### Step 5: Promote or iterate
+
+- **Promote**: move file from `.claude/experiments/skills/` to `.claude/commands/`. Update the skill's `status` to `promoted`.
+- **Iterate**: keep in sandbox, refine based on feedback.
+- **Discard**: delete from sandbox. Log as dead end if the concept was fundamentally wrong.
+
 ## Arguments
 
 - `$ARGUMENTS` empty → full evolve loop (diagnose → propose → apply)
-- `$ARGUMENTS` = "status" → show current agent experiment status without proposing
+- `$ARGUMENTS` = "skill" → skill creation mode (identify gap → draft → test → propose)
+- `$ARGUMENTS` = "status" → show current agent experiment status + sandbox skills without proposing
 - `$ARGUMENTS` = "revert" → immediately revert active experiment and log as discarded
 - `$ARGUMENTS` = "history" → show all past agent experiments and their outcomes
 

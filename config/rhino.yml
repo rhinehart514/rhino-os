@@ -66,11 +66,14 @@ experiments:
   moonshot_every_n: 5
   max_files_per_experiment: 5
   sprint_tasks: [3, 7]
+  simplicity_bias: 20          # net lines added threshold for complexity flag
+  marginal_gain_threshold: 2   # score points below which gain is "marginal"
 
 # ── Go (autonomous loop) ────────────────────────────
 go:
   plateau_threshold: 3
   worktrees_enabled: false
+  crash_retry_limit: 3      # consecutive crashes before stopping loop
   # taste_every_n moved to lens/product/config/rhino-product.yml
 
 # ── Evals ────────────────────────────────────────────
@@ -93,6 +96,8 @@ agent:
     plateau_threshold: 3                         # consecutive no-improvement before pivot
     taste_frequency: 3                           # run taste every Nth experiment
     unknown_exploration_ratio: 0.20              # fraction of experiments in unknown territory
+    skill_sandbox_dir: .claude/experiments/skills  # agent can write here freely
+    max_sandbox_skills: 5                          # limit active skill experiments
 
   # Founder-gated (requires confirmation to change)
   gated:

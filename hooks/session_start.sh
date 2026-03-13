@@ -170,6 +170,27 @@ SIGNALS=""
 [[ -n "$PRED_DISPLAY" ]] && SIGNALS="${SIGNALS:+$SIGNALS · }$PRED_DISPLAY"
 [[ -n "$SIGNALS" ]] && echo -e "  ${C_DIM}signals${C_NC}  ${SIGNALS}"
 
+# --- Experiment results stats ---
+RESULTS_TSV="$PROJECT_DIR/.claude/experiments/results.tsv"
+if [[ -f "$RESULTS_TSV" ]]; then
+    EXP_TOTAL=$(tail -n +2 "$RESULTS_TSV" | wc -l | tr -d ' ')
+    if [[ "$EXP_TOTAL" -gt 0 ]]; then
+        EXP_KEPT=$(tail -n +2 "$RESULTS_TSV" | awk -F'\t' '$7 == "kept"' | wc -l | tr -d ' ')
+        EXP_DISCARDED=$(tail -n +2 "$RESULTS_TSV" | awk -F'\t' '$7 == "discarded"' | wc -l | tr -d ' ')
+        EXP_CRASHED=$(tail -n +2 "$RESULTS_TSV" | awk -F'\t' '$7 == "crashed"' | wc -l | tr -d ' ')
+        EXP_DECIDABLE=$((EXP_KEPT + EXP_DISCARDED))
+        EXP_KEEP_RATE=""
+        if [[ "$EXP_DECIDABLE" -gt 0 ]]; then
+            EXP_KEEP_RATE=" · $(( EXP_KEPT * 100 / EXP_DECIDABLE ))% kept"
+        fi
+        EXP_LINE="Experiments: ${EXP_TOTAL} total${EXP_KEEP_RATE}"
+        if [[ "$EXP_CRASHED" -gt 0 ]]; then
+            EXP_LINE="${EXP_LINE} · ${C_RED}${EXP_CRASHED} crashed${C_NC}"
+        fi
+        echo -e "  ${C_DIM}experiments${C_NC}  ${EXP_LINE}"
+    fi
+fi
+
 echo ""
 
 # Alerts (integrity, strategy, ungraded)

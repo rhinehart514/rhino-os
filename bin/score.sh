@@ -560,6 +560,19 @@ if [[ -d ".claude/experiments" ]]; then
     fi
 fi
 
+# CRASH RATE: check results.tsv for high crash rate
+RESULTS_TSV=".claude/experiments/results.tsv"
+if [[ -f "$RESULTS_TSV" ]]; then
+    results_total=$(tail -n +2 "$RESULTS_TSV" | wc -l | tr -d ' ')
+    if [[ "$results_total" -ge 10 ]]; then
+        results_crashed=$(tail -n +2 "$RESULTS_TSV" | awk -F'\t' '$7 == "crashed"' | wc -l | tr -d ' ')
+        crash_pct=$((results_crashed * 100 / results_total))
+        if [[ "$crash_pct" -gt 30 ]]; then
+            INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}HIGH_CRASH_RATE: ${results_crashed}/${results_total} experiments crashed (${crash_pct}%). Something systemic may be wrong.\n"
+        fi
+    fi
+fi
+
 # --- Taste eval (product quality from last visual eval) ---
 TASTE_SCORE=""
 TASTE_FILE=""

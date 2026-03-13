@@ -98,9 +98,37 @@ Specific changes to make to experiment-learnings.md:
 One sentence: "Next week, the highest-leverage move is [X] because [Y]."
 This feeds directly into next week's /plan.
 
+### 3.5. Product pattern extraction
+
+After analyzing code-level learnings, zoom out: **what did we learn about product development itself?** Not "3-tier opacity works" (code pattern) but "pre-seeded content beats empty states" (product pattern).
+
+For each session/week:
+1. Read `~/.claude/knowledge/product-playbook.md`
+2. Ask: "Did any experiment this week teach us something about onboarding, retention, distribution, UX, measurement, or product strategy — not just about this codebase?"
+3. If yes: update the relevant section in product-playbook.md (add to Known/Uncertain/Unknown with evidence)
+4. If a code pattern from experiment-learnings.md generalizes across projects, add the generalized version to product-playbook.md
+
+Examples of product-level learnings:
+- "Campus-specific copy works" (code) → "Domain-specific copy outperforms generic copy in vertical products" (product)
+- "Score plateau after 5 experiments" (code) → "Diminishing returns on polish without new value delivery" (product)
+
+### 3.6. Capability gap detection
+
+Review the session/week: were there tasks where you had to improvise because no skill existed? Repeated manual patterns that could be automated?
+
+For each gap found:
+```
+Gap: [what capability was missing]
+Evidence: [which tasks required improvisation]
+Frequency: [how many times this session/recently]
+```
+
+Log gaps for `/evolve` to address. If 3+ sessions show the same gap, flag it prominently: "Repeated capability gap: [X]. Consider `/evolve` to create a skill for this."
+
 ### 4. Write the artifacts
 
 Update `~/.claude/knowledge/experiment-learnings.md` with any model changes identified above.
+Update `~/.claude/knowledge/product-playbook.md` with any product-level patterns from Step 3.5.
 
 Append to `.claude/retros/[date].md`:
 ```markdown

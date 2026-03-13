@@ -49,3 +49,4 @@ When running experiments (autoresearch-style):
 - **15-minute cap** — Longer = feature, not experiment.
 - **Mechanical keep/discard** — Score up AND target dimension improved → keep. Otherwise → revert. No negotiation.
 - **Moonshot every 5th** — Every 5th experiment must be high-risk, high-information. Explore unknown territory.
+- **Simplicity bias** — Deleting code for equal results is always a keep. Adding 20+ net lines for <2 points is suspect. Complexity is debt; justify it against the bottleneck.
