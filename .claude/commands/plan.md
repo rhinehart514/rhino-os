@@ -172,6 +172,17 @@ I'd be wrong if: [what would disprove this]
 
 ### Proposed tasks (3-5, stage-aware)
 
+**Never propose zero code tasks.** Even when the strategic bottleneck is non-code (e.g., "get users", "do user research", "validate with real humans"), there is ALWAYS code work that de-risks, prepares for, or unblocks that non-code action. You are a build tool — your job is to find the highest-leverage code work regardless of where the bottleneck sits.
+
+When the bottleneck is non-code, find code tasks that:
+- **De-risk first contact**: kill dead ends, empty states, error pages that would embarrass you in front of a real user
+- **Enable measurement**: fix failing evals, add value tracking, wire up analytics
+- **Reduce friction**: simplify onboarding flow, fix rough edges on the critical path
+- **Prepare artifacts**: generate demo content, screenshots, or shareable links that support outreach
+- **Clean house**: commit dirty working trees, resolve tech debt on the critical path
+
+Acknowledge the non-code bottleneck in one line ("The strategic bottleneck is user validation — these tasks prepare the product for that moment") then propose concrete build tasks.
+
 The lifecycle stage (from product-model.md) shapes what kinds of tasks you propose:
 
 | Stage | Task mix | Rationale |
