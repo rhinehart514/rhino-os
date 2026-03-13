@@ -71,7 +71,7 @@ done
 
 if [[ -n "$SRC_DIRS" ]]; then
     # 2. Hygiene — console.log count
-    CONSOLE_COUNT=$(grep -r 'console\.log' $SRC_DIRS 2>/dev/null | grep -v node_modules | grep -v '.test.' | grep -v '.spec.' | wc -l | tr -d ' ')
+    CONSOLE_COUNT=$(grep -r 'console\.log' $SRC_DIRS 2>/dev/null | grep -v node_modules | grep -v '.test.' | grep -v '.spec.' | wc -l | tr -d ' ' || true)
     if [[ "$CONSOLE_COUNT" -eq 0 ]]; then
         check_pass "no-console-log" "0 console.log in source dirs"
     elif [[ "$CONSOLE_COUNT" -le 5 ]]; then
@@ -81,7 +81,7 @@ if [[ -n "$SRC_DIRS" ]]; then
     fi
 
     # 3. Hygiene — TODO count
-    TODO_COUNT=$(grep -r 'TODO\|FIXME\|HACK\|XXX' $SRC_DIRS 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ')
+    TODO_COUNT=$(grep -r 'TODO\|FIXME\|HACK\|XXX' $SRC_DIRS 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ' || true)
     if [[ "$TODO_COUNT" -eq 0 ]]; then
         check_pass "no-todos" "0 TODO/FIXME in source dirs"
     elif [[ "$TODO_COUNT" -le 5 ]]; then
@@ -91,7 +91,7 @@ if [[ -n "$SRC_DIRS" ]]; then
     fi
 
     # 4. Hygiene — any types (TypeScript)
-    ANY_COUNT=$(grep -r ': any\b\|as any\b' $SRC_DIRS 2>/dev/null | grep -v node_modules | grep -v '.test.' | grep -v '.spec.' | grep -v '.d.ts' | wc -l | tr -d ' ')
+    ANY_COUNT=$(grep -r ': any\b\|as any\b' $SRC_DIRS 2>/dev/null | grep -v node_modules | grep -v '.test.' | grep -v '.spec.' | grep -v '.d.ts' | wc -l | tr -d ' ' || true)
     if [[ "$ANY_COUNT" -eq 0 ]]; then
         check_pass "no-any-types" "0 'any' types in source dirs"
     elif [[ "$ANY_COUNT" -le 3 ]]; then
@@ -233,7 +233,7 @@ run_copy_eval() {
 run_self_eval() {
     if [[ "$SELF_RAN" != "true" ]]; then
         SELF_RAN=true
-        SELF_RESULTS=$(bash "$RHINO_DIR/bin/self.sh" --eval 2>/dev/null) || SELF_RESULTS=""
+        SELF_RESULTS=$(bash "$RHINO_DIR/bin/self.sh" --eval 2>/dev/null) || true
     fi
 }
 
@@ -457,7 +457,7 @@ done
 if [[ -f "$BELIEFS_FILE" && "$FAIL" -gt 0 ]]; then
     # Count beliefs with severity: block that were checked and failed
     # For now, any FAIL with block_on_failure config = non-zero exit
-    BLOCK_ON=$(grep -c 'block_on_failure: true' config/rhino.yml 2>/dev/null || echo "0")
+    BLOCK_ON=$(grep -c 'block_on_failure: true' config/rhino.yml 2>/dev/null) || BLOCK_ON=0
     if [[ "$BLOCK_ON" -gt 0 ]]; then
         BLOCK_FAILS=$FAIL
     fi
