@@ -278,9 +278,9 @@ score_structure() {
         # Dead commands: functions/commands defined in bin/rhino but unreachable
         local total_commands=0 documented_commands=0
         if [[ -f "bin/rhino" ]]; then
-            total_commands=$(grep -cE '^\s+[a-z_-]+\)' bin/rhino 2>/dev/null || echo 0)
+            total_commands=$(grep -cE '^\s+[a-z_-]+\)' bin/rhino 2>/dev/null) || total_commands=0
             # Check if help text documents them
-            documented_commands=$(grep -cE '^\s+[a-z_-]+\s' bin/rhino 2>/dev/null | head -1 || echo 0)
+            documented_commands=$(grep -cE '^\s+[a-z_-]+\s' bin/rhino 2>/dev/null | head -1) || documented_commands=0
         fi
 
         # Config coherence: does rhino.yml reference things that exist in code?
@@ -528,8 +528,8 @@ if [[ -d ".claude/experiments" ]]; then
 
     for tsv in .claude/experiments/*.tsv; do
         [[ -f "$tsv" ]] || continue
-        kept=$(grep -c 'keep' "$tsv" 2>/dev/null || echo 0)
-        discarded=$(grep -c 'discard' "$tsv" 2>/dev/null || echo 0)
+        kept=$(grep -c 'keep' "$tsv" 2>/dev/null) || kept=0
+        discarded=$(grep -c 'discard' "$tsv" 2>/dev/null) || discarded=0
         total_kept=$((total_kept + kept))
         total_discarded=$((total_discarded + discarded))
         total_experiments=$((total_experiments + kept + discarded))
@@ -551,7 +551,7 @@ if [[ -d ".claude/experiments" ]]; then
         # NO_MOONSHOTS: last N experiments all kept = no risk-taking
         if [[ -f "$CACHE_DIR/.exp_recent" ]]; then
             recent_total=$(wc -l < "$CACHE_DIR/.exp_recent" | tr -d ' ')
-            recent_discards=$(grep -c 'discard' "$CACHE_DIR/.exp_recent" 2>/dev/null || echo 0)
+            recent_discards=$(grep -c 'discard' "$CACHE_DIR/.exp_recent" 2>/dev/null) || recent_discards=0
             if [[ "$recent_total" -ge "$exp_moonshot_n" && "$recent_discards" -eq 0 ]]; then
                 INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}NO_MOONSHOTS: last ${recent_total} experiments all kept. Every ${exp_moonshot_n}th experiment should be high-risk. Try something that might fail.\n"
             fi
