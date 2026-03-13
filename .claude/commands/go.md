@@ -28,13 +28,13 @@ Read `mind/voice.md` and follow it. Use iteration pulse format (predict/build/me
 
 ## Compaction recovery
 If you have no memory of prior iterations (compaction hit mid-loop):
-1. Read `.claude/plans/active-plan.md` — checked `[x]` tasks are done, unchecked `[ ]` remain
+1. Read `.claude/plans/plan.yml` — tasks with `status: done` are complete, `status: todo` remain. Fallback: `.claude/plans/active-plan.md` (checked `[x]` = done, `[ ]` = remaining)
 2. Read `.claude/cache/score-cache.json` — last known score is your baseline
-3. Count checked tasks to reconstruct iteration count
-4. Resume from the next unchecked task — no need to re-read state you already consumed
+3. Count done tasks to reconstruct iteration count
+4. Resume from the next todo task — no need to re-read state you already consumed
 
 ## Freshness check
-Before starting the loop, check if `.claude/plans/active-plan.md` was last modified >24h ago (`stat -f %m .claude/plans/active-plan.md` on macOS). If stale, warn: "Plan is >24h old — context may have shifted. Consider running /plan to refresh." Proceed anyway (don't block), but note the staleness.
+Before starting the loop, check if `.claude/plans/plan.yml` (or `.claude/plans/active-plan.md`) was last modified >24h ago (`stat -f %m` on macOS). If stale, warn: "Plan is >24h old — context may have shifted. Consider running /plan to refresh." Proceed anyway (don't block), but note the staleness.
 
 ## The loop
 
@@ -60,15 +60,15 @@ This is Karpathy's "never stop training" — when the loss plateaus on known dat
 ## Each iteration
 
 ### 1. Pick the task
-Read `.claude/plans/active-plan.md`. Take the next unchecked task. If no plan exists, run the /plan logic first (read state, find bottleneck, write plan).
+Read `.claude/plans/plan.yml` — find the next task with `status: todo`. Use `rhino plan next` for a quick view. If no plan exists, run the /plan logic first (read state, find bottleneck, write plan). Fallback: if plan.yml is missing, read `.claude/plans/active-plan.md` and take the next unchecked `[ ]` task.
 
-**Dead-end check**: Before starting, read the "Dead Ends" section of `~/.claude/knowledge/experiment-learnings.md`. If the task's approach matches a known dead end, skip the task — log "Skipped: matches dead end '[entry]'" and move to the next unchecked task.
+**Dead-end check**: Before starting, read the "Dead Ends" section of `~/.claude/knowledge/experiment-learnings.md`. If the task's approach matches a known dead end, skip the task — log "Skipped: matches dead end '[entry]'" and move to the next task.
 
-Tasks use a rich format — read and use all fields:
-- **Accept**: criteria that define "done" — verify these before marking `[x]`
-- **Touch**: scoped file paths — limit changes to these unless the task requires otherwise
-- **Touch** may say `/research [topic]` — this means run the /research skill inline before building
-- **Don't**: explicit boundaries — respect these even if it seems helpful to cross them
+Tasks in plan.yml have typed fields — read and use all of them:
+- **accept**: criteria that define "done" — verify these before marking complete
+- **touch**: scoped file paths — limit changes to these unless the task requires otherwise
+- **touch** may say `/research [topic]` — this means run the /research skill inline before building
+- **dont**: explicit boundaries — respect these even if it seems helpful to cross them
 
 Also update the Claude Code task status (TaskUpdate → in_progress) if tasks were created by /plan.
 
@@ -144,10 +144,10 @@ If the prediction was wrong:
 2. Update `~/.claude/knowledge/experiment-learnings.md` — move patterns between Known/Uncertain/Unknown/Dead Ends as evidence warrants.
 
 ### 6. Check off and continue
-Before marking `[x]`:
-1. Verify the task's `Accept` criteria are met. If any criterion fails, fix it before checking off.
+Before marking done:
+1. Verify the task's `accept` criteria are met. If any criterion fails, fix it before marking complete.
 2. If the task was generated from a failing assertion (beliefs.yml), run `rhino eval .` to verify the assertion now passes. If it still fails, the task is NOT done — keep iterating.
-3. Mark `[x]` in active-plan.md and update the Claude Code task (TaskUpdate → completed). Pick the next one. Loop.
+3. Mark task complete: run `rhino plan done <task-id>` (updates plan.yml). Fallback: mark `[x]` in active-plan.md. Also update the Claude Code task (TaskUpdate → completed). Pick the next one. Loop.
 
 ### Mid-loop research detour
 If during a build task you hit an unknown that blocks progress (not in experiment-learnings.md, no relevant predictions):
@@ -251,7 +251,7 @@ Crash recovery is automatic. Don't ask for permission to retry trivial errors. D
 
 ## If something breaks
 - **`rhino score .` fails**: check if the project builds (`npm run build` or equivalent). If build is broken, fix the build first — that's now your task. If score.sh itself errors, log the error and continue without scoring (but do NOT skip the revert check — use git diff size as a proxy).
-- **active-plan.md missing**: run /plan logic inline (read state, find bottleneck, write plan). Do not improvise tasks.
+- **plan.yml AND active-plan.md missing**: run /plan logic inline (read state, find bottleneck, write plan). Do not improvise tasks.
 - **Dirty git state** (uncommitted changes from outside the loop): stash with `git stash` before starting. Do not build on top of unknown changes.
 - **experiment-learnings.md missing**: create it with empty sections (Known, Uncertain, Unknown, Dead Ends) and continue. First predictions will declare "No prior evidence — exploring."
 

@@ -126,18 +126,16 @@ Output one line: "Calibration: X/10 correct — [assessment]."
 
 ## Step 7: Write artifacts
 
-Update `.claude/plans/product-model.md`:
-- Detected stage + signals
-- Loop scores with evidence
-- Bottleneck diagnosis
-- Comparison to previous bottleneck
+Update `.claude/plans/strategy.yml` (structured YAML — preferred) or legacy `.claude/plans/product-model.md` + `.claude/plans/learning-agenda.md`:
 
-Update `.claude/plans/learning-agenda.md`:
-- Stage + date
-- 3 unknowns (evolved from previous)
-- First experiments for each
-- Graduation criteria
-- What to read first (updated if stage changed)
+strategy.yml contains:
+- `meta.stage` + `meta.stage_definition`
+- `bottleneck.name` + `bottleneck.description` + `bottleneck.evidence`
+- `loop.install/setup/first_loop/value/return` scores (1-3) with `_notes` fields
+- `unknowns[]` — 3 items with `id`, `question`, `first_experiment`, `graduation`, `priority`
+- `graduation.from/to/criteria[]`
+
+If legacy files exist and strategy.yml doesn't, migrate the content to YAML format.
 
 ## Step 8: Recommend (exactly one)
 
@@ -150,14 +148,14 @@ One recommendation. One sentence. Then stop.
 
 ## What /strategy never does
 
-- Write active-plan.md (that's /plan)
+- Write plan.yml (that's /plan)
 - Propose specific tasks (strategy sets direction, /plan sets tasks)
 - Inflate scores — no node gets 3 without evidence
 - Keep more or fewer than 3 unknowns
 - Skip the stage detection — the stage determines everything else
 
 ## If something breaks
-- **product-model.md missing**: this is a first strategy run. Create it from scratch using the stage detection + loop scoring. Note "First strategy assessment" in the artifact.
+- **strategy.yml missing** (or legacy product-model.md): this is a first strategy run. Create strategy.yml from scratch using the stage detection + loop scoring.
 - **predictions.tsv empty or missing**: skip calibration check (Step 6). Note "No predictions yet — calibration requires data."
 - **experiment-learnings.md missing**: create with empty sections. All territory is unknown — learning agenda should reflect this.
 

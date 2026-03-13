@@ -46,7 +46,7 @@ Before reading state, check if the knowledge infrastructure exists:
      ```
      date	prediction	evidence	result	correct	model_update
      ```
-   - Create `.claude/plans/active-plan.md` (empty plan)
+   - Create `.claude/plans/plan.yml` (empty plan) and `.claude/plans/todos.yml` (empty backlog)
    - Run `rhino score .` to establish a baseline score
    - Note: this is a first session — skip session recap in Step 2
 3. If it exists, proceed normally
@@ -56,15 +56,15 @@ Cold start only fires once. After bootstrap, all subsequent sessions have state 
 ## Step 1: Read state (do all in parallel)
 
 1. **Scores** — run `rhino score .` and check `.claude/cache/score-cache.json`
-2. **Active plan** — read `.claude/plans/active-plan.md` (if it exists)
+2. **Active plan** — read `.claude/plans/plan.yml` (preferred) or `.claude/plans/active-plan.md` (legacy fallback)
 3. **Knowledge model** — read `~/.claude/knowledge/experiment-learnings.md`
 4. **Prediction history** — read `~/.claude/knowledge/predictions.tsv` (last 20 rows)
 5. **Git state** — `git log --oneline -10` and `git diff --stat`
 6. **Gaps** — read `.claude/evals/review-gaps.md` (if it exists)
 7. **Memory** — check `.claude/projects/-Users-laneyfraass-rhino-os/memory/MEMORY.md`
-8. **Product model** — read `.claude/plans/product-model.md` (FirstLoop bottleneck diagnosis)
-9. **Learning agenda** — read `.claude/plans/learning-agenda.md` (3 critical unknowns)
-10. **Strategy freshness** — check product-model.md modification date (`stat -f %Sm -t %Y-%m-%d .claude/plans/product-model.md` on macOS). Flag stale if >3 days old OR if it references concepts/files that no longer exist in the codebase.
+8. **Strategy** — read `.claude/plans/strategy.yml` (structured: stage, bottleneck, loop scores, unknowns). Fallback: `.claude/plans/product-model.md` + `.claude/plans/learning-agenda.md`
+9. **Todos** — read `.claude/plans/todos.yml` for persistent backlog items (or `rhino todo` for formatted view)
+10. **Strategy freshness** — check strategy.yml modification date (`stat -f %Sm -t %Y-%m-%d .claude/plans/strategy.yml` on macOS). Flag stale if >3 days old OR if it references concepts/files that no longer exist in the codebase.
 11. **Failing assertions** — run `rhino eval .` and check beliefs.yml (in `lens/product/eval/` or `config/evals/`). Failing `block` severity assertions are the highest-priority signal — they mean the product doesn't meet its own definition of done.
 12. **Agent health** — check `agent-experiments.tsv` for unresolved experiments. Read `agent.tunable` from `config/rhino.yml` to know current operating parameters.
 13. **Codebase model** — read or create `.claude/state/codebase-model.md`. See Step 1.5.
@@ -211,30 +211,38 @@ The `Value:` field replaces `Why:`. Every task must articulate what changes for 
 
 Mark each as exploitation (known patterns) or exploration (unknown territory).
 
-After writing active-plan.md, also create Claude Code tasks (TaskCreate) for each item so progress is tracked in the session.
+After writing plan.yml, also create Claude Code tasks (TaskCreate) for each item so progress is tracked in the session. Move any backlog items discovered during planning to `.claude/plans/todos.yml`.
 
 If `$ARGUMENTS` contains "brainstorm" or "diverge": skip the bottleneck analysis. Instead, read the knowledge model's "Unknown Territory" section and propose 5 high-information experiments — things that would teach the most about what works, even if they're risky. Still use the rich task format.
 
 ## Step 5: Write the plan
 
-Create or update `.claude/plans/active-plan.md` with:
+Create or update `.claude/plans/plan.yml` with:
 
-```markdown
-# [Sprint name — descriptive, not a date]
+```yaml
+meta:
+  name: "[Sprint name — descriptive, not a date]"
+  bottleneck: "[one line]"
+  prediction: "[one line]"
+  value_target: "[which value signal from rhino.yml]"
+  created: [date]
+  updated: [date]
 
-Bottleneck: [one line]
-Prediction: [one line]
-Value target: [which value signal from rhino.yml does this sprint move?]
+tasks:
+  - id: [kebab-case-id]
+    title: "[task title]"
+    status: todo
+    type: build  # build | research | explore
+    value: "[what changes for the user]"
+    accept: "[2-3 testable criteria]"
+    touch: "[file paths]"
+    dont: "[boundaries]"
 
-- [ ] **Task title**
-  Value: what changes for the user
-  Accept: 2-3 testable criteria (assertion IDs when available)
-  Touch: file paths
-  Don't: boundaries
-
-- [ ] **Task title**
-  ...
+  - id: [next-task]
+    ...
 ```
+
+Also update `.claude/plans/strategy.yml` if the bottleneck or stage changed. Move backlog items to `.claude/plans/todos.yml`.
 
 ## Handoff
 
@@ -255,7 +263,7 @@ One recommendation. The founder decides.
 
 ## If something breaks
 - **`rhino score .` fails**: note the failure in the recap and proceed with git log + predictions.tsv for bottleneck diagnosis. Score is helpful, not required.
-- **product-model.md or learning-agenda.md missing**: treat as a cold strategy state. Run /strategy inline (Step 2.5 path) to create them before proceeding.
+- **strategy.yml missing** (or legacy product-model.md / learning-agenda.md): treat as a cold strategy state. Run /strategy inline (Step 2.5 path) to create strategy.yml before proceeding.
 - **predictions.tsv empty or missing**: first session vibes — skip accuracy check, rely on code/git state for bottleneck diagnosis.
 
 $ARGUMENTS
