@@ -203,6 +203,42 @@ score_structure() {
 
     local score=100
 
+    # --- Universal structure checks (all project types) ---
+
+    # Large files: >500 lines suggests missing decomposition
+    local large_files=0
+    while IFS= read -r f; do
+        [[ ! -f "$f" ]] && continue
+        local lines
+        lines=$(wc -l < "$f" 2>/dev/null | tr -d ' ')
+        [[ "$lines" -gt 500 ]] && large_files=$((large_files + 1))
+    done < <(find "$SRC_DIR" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.py" \) ! -path "*/node_modules/*" ! -path "*/.next/*" ! -name "*.d.ts" ! -name "*.min.*" 2>/dev/null)
+    if [[ "$large_files" -gt 10 ]]; then score=$((score - 15))
+    elif [[ "$large_files" -gt 5 ]]; then score=$((score - 10))
+    elif [[ "$large_files" -gt 2 ]]; then score=$((score - 5))
+    fi
+
+    # Deep nesting: files nested >5 levels deep suggest poor organization
+    local deep_files=0
+    deep_files=$(find "$SRC_DIR" -mindepth 6 -type f ! -path "*/node_modules/*" ! -path "*/.next/*" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$deep_files" -gt 20 ]]; then score=$((score - 10))
+    elif [[ "$deep_files" -gt 5 ]]; then score=$((score - 5))
+    fi
+
+    # Test presence: no tests at all is a structural gap
+    local has_tests=0
+    if find . -maxdepth 4 -type f \( -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" \) ! -path "*/node_modules/*" 2>/dev/null | head -1 | grep -q .; then
+        has_tests=1
+    elif [[ -d "tests" ]] || [[ -d "test" ]] || [[ -d "__tests__" ]]; then
+        # Has test directory — check if it has actual test files
+        if find tests test __tests__ -type f 2>/dev/null | head -1 | grep -q .; then
+            has_tests=1
+        fi
+    fi
+    if [[ "$has_tests" -eq 0 ]]; then
+        score=$((score - 10))
+    fi
+
     # CLI projects: score structure differently than web projects
     if [[ "$PROJECT_TYPE" == "cli" ]]; then
         # Broken references: agent/program files referencing non-existent paths
@@ -328,8 +364,25 @@ score_hygiene() {
 
     local score=100
 
+    # Measure codebase size for density-based scoring
+    # Small projects (<500 lines) get stricter thresholds via a multiplier
+    local total_src_lines=0
+    total_src_lines=$(find "$SRC_DIR" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.py" \) ! -path "*/node_modules/*" ! -path "*/.next/*" 2>/dev/null -exec cat {} + 2>/dev/null | wc -l | tr -d ' ')
+    [[ "$total_src_lines" -eq 0 ]] && total_src_lines=1
+
+    # Density multiplier: penalties are more severe for smaller codebases
+    # CLI projects opt out — console output and TODOs in scripts are structurally different
+    # <200 lines → 3x penalty, <1000 → 2x, <5000 → 1.5x, ≥5000 → 1x
+    local density_mult=100  # stored as percentage to avoid floats
+    if [[ "$PROJECT_TYPE" != "cli" ]]; then
+        if [[ "$total_src_lines" -lt 200 ]]; then density_mult=300
+        elif [[ "$total_src_lines" -lt 1000 ]]; then density_mult=200
+        elif [[ "$total_src_lines" -lt 5000 ]]; then density_mult=150
+        fi
+    fi
+
     # Helper: tiered penalty from config. Usage: tiered_penalty count "50:-30 20:-20 5:-10"
-    # Thresholds checked from highest to lowest
+    # Thresholds checked from highest to lowest. Penalty scaled by density_mult.
     tiered_penalty() {
         local count=$1 defaults="$2"
         local pair threshold penalty
@@ -337,7 +390,12 @@ score_hygiene() {
             threshold="${pair%%:*}"
             penalty="${pair#*:}"
             if [[ "$count" -gt "$threshold" ]]; then
-                score=$((score + penalty))
+                # Scale penalty by density multiplier (negative * positive / 100 stays negative)
+                local scaled=$(( penalty * density_mult / 100 ))
+                # Cap: never deduct more than 3x the base penalty
+                local cap=$(( penalty * 3 ))
+                [[ "$scaled" -lt "$cap" ]] && scaled="$cap"
+                score=$((score + scaled))
                 return
             fi
         done
@@ -396,17 +454,17 @@ score_hygiene() {
     # `any` types — real type safety gap
     local any_count
     any_count=$(grep -rn ": any\b" --include="*.ts" --include="*.tsx" "$SRC_DIR" 2>/dev/null | grep -v "node_modules\|\.d\.ts" | wc -l | tr -d ' ')
-    tiered_penalty "$any_count" "50:-30 20:-20 5:-10"
+    tiered_penalty "$any_count" "50:-30 20:-20 5:-10 1:-3"
 
     # console.log in production code
     local console_count
     console_count=$(grep -rn "console\.\(log\|warn\|error\)" --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | grep -v "node_modules\|test\|spec\|__test__\|logger" | wc -l | tr -d ' ')
-    tiered_penalty "$console_count" "30:-25 15:-15 5:-5"
+    tiered_penalty "$console_count" "30:-25 15:-15 5:-5 1:-3"
 
     # Unfinished work markers
     local todo_count
     todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-    tiered_penalty "$todo_count" "30:-20 15:-10 5:-5"
+    tiered_penalty "$todo_count" "30:-20 15:-10 5:-5 1:-3"
 
     # Unused imports (rough signal — files with 10+ imports are suspicious)
     local large_import_files
@@ -417,7 +475,7 @@ score_hygiene() {
     # Disabled lint rules — eslint-disable, @ts-ignore, @ts-expect-error
     local lint_overrides
     lint_overrides=$(grep -rn "eslint-disable\|@ts-ignore\|@ts-expect-error\|@ts-nocheck" --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-    tiered_penalty "$lint_overrides" "20:-15 10:-10 3:-5"
+    tiered_penalty "$lint_overrides" "20:-15 10:-10 3:-5 1:-3"
 
     [[ "$score" -lt 0 ]] && score=0
     echo "$score"

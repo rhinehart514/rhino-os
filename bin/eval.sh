@@ -354,7 +354,7 @@ process_belief() {
 
 # === beliefs.yml checks ===
 
-BELIEFS_FILE=".claude/evals/beliefs.yml"
+BELIEFS_FILE="config/evals/beliefs.yml"
 if [[ -f "$BELIEFS_FILE" ]]; then
     belief_id=""
     belief_type=""
@@ -437,7 +437,7 @@ fi
 
 # Exit code — block severity failures return non-zero
 BLOCK_FAILS=0
-BELIEFS_FILE=".claude/evals/beliefs.yml"
+BELIEFS_FILE="config/evals/beliefs.yml"
 if [[ -f "$BELIEFS_FILE" && "$FAIL" -gt 0 ]]; then
     # Count beliefs with severity: block that were checked and failed
     # For now, any FAIL with block_on_failure config = non-zero exit

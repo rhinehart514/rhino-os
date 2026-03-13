@@ -1,6 +1,10 @@
 # rhino.yml — Tunable parameters for rhino-os.
 # Keep this minimal. Most behavior lives in mind/ and .claude/commands/.
 
+# ── Project ─────────────────────────────────────────
+project:
+  stage: early  # mvp → early → growth → mature. Controls score ceiling warnings.
+
 # ── Value Definition ───────────────────────────────
 # The founder defines what value means. Everything else serves this.
 # /assert reads this to generate assertions. /plan reads this to prioritize.
@@ -119,6 +123,34 @@ corpus:
     - copy/landing
     - copy/onboarding
     - code/patterns
+
+# ── Agent (self-improvement) ─────────────────────────
+# Parameters the agent can tune via /evolve experiments.
+# Principles (identity, predict→act→measure, value>craft>health) are FIXED.
+# Procedures (these numbers) are VARIABLE.
+agent:
+  # Tunable thresholds (agent can change autonomously)
+  tunable:
+    prediction_accuracy_target: [0.50, 0.70]   # calibration sweet spot
+    moonshot_frequency: 5                        # every Nth experiment is high-risk
+    experiment_time_cap_minutes: 15              # max minutes per experiment
+    plateau_threshold: 3                         # consecutive no-improvement before pivot
+    taste_frequency: 3                           # run taste every Nth experiment
+    unknown_exploration_ratio: 0.20              # fraction of experiments in unknown territory
+
+  # Founder-gated (requires confirmation to change)
+  gated:
+    - mind/*.md                                  # principles
+    - .claude/commands/*.md                      # command procedures
+    - bin/score.sh                               # eval harness
+    - bin/taste.mjs                              # eval harness
+    - bin/eval.sh                                # eval harness
+
+  # Experiment discipline
+  experiments:
+    max_concurrent: 1                            # one param at a time
+    min_sessions_before_revert: 3                # run new value for 3 sessions before judging
+    log_file: agent-experiments.tsv              # created at runtime in project root
 
 # ── Self ─────────────────────────────────────────────
 self:

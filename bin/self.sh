@@ -12,25 +12,38 @@ RHINO_DIR="$(cd "$(dirname "$_SELF_SOURCE")/.." && pwd)"
 
 source "$RHINO_DIR/bin/lib/config.sh"
 
+# --- Colors ---
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
 PASS=0
 WARN=0
 FAIL=0
 TOP_ISSUE=""
 
-# --- Check functions (match eval.sh format) ---
+# --- Check functions ---
 
 check_pass() {
     local name="$1"
     local desc="$2"
-    [[ "$EVAL_MODE" != "true" ]] && echo "  [PASS] $name    $desc"
+    if [[ "$EVAL_MODE" != "true" ]]; then
+        printf "  ${GREEN}✓${NC} %-22s ${DIM}%s${NC}\n" "$name" "$desc"
+    fi
     PASS=$((PASS + 1))
 }
 
 check_warn() {
     local name="$1"
     local desc="$2"
-    [[ "$EVAL_MODE" != "true" ]] && echo "  [WARN] $name    $desc"
+    if [[ "$EVAL_MODE" != "true" ]]; then
+        printf "  ${YELLOW}⚠${NC} %-22s ${YELLOW}%s${NC}\n" "$name" "$desc"
+    fi
     WARN=$((WARN + 1))
     [[ -z "$TOP_ISSUE" ]] && TOP_ISSUE="$desc" || true
 }
@@ -38,7 +51,9 @@ check_warn() {
 check_fail() {
     local name="$1"
     local desc="$2"
-    [[ "$EVAL_MODE" != "true" ]] && echo "  [FAIL] $name    $desc"
+    if [[ "$EVAL_MODE" != "true" ]]; then
+        printf "  ${RED}✗${NC} %-22s ${RED}%s${NC}\n" "$name" "$desc"
+    fi
     FAIL=$((FAIL + 1))
     [[ -z "$TOP_ISSUE" ]] && TOP_ISSUE="$desc" || true
 }
@@ -50,7 +65,8 @@ for arg in "$@"; do
 done
 
 if [[ "$EVAL_MODE" != "true" ]]; then
-    echo "rhino self — system diagnostic $TIMESTAMP"
+    echo ""
+    echo -e "  ${CYAN}◆${NC} ${BOLD}rhino self${NC}  ${DIM}${TIMESTAMP}${NC}"
     echo ""
 fi
 
@@ -287,12 +303,15 @@ fi
 
 # === Summary ===
 echo ""
-echo "$PASS passed | $WARN warned | $FAIL failed"
+SUMMARY="  ${GREEN}${PASS} passed${NC}"
+[[ "$WARN" -gt 0 ]] && SUMMARY="${SUMMARY} ${DIM}·${NC} ${YELLOW}${WARN} warning${NC}"
+[[ "$FAIL" -gt 0 ]] && SUMMARY="${SUMMARY} ${DIM}·${NC} ${RED}${FAIL} failed${NC}"
+echo -e "$SUMMARY"
 
 if [[ -n "$TOP_ISSUE" ]]; then
-    echo ""
-    echo "Top issue: $TOP_ISSUE"
+    echo -e "  ${DIM}→${NC} $TOP_ISSUE"
 fi
+echo ""
 
 [[ "$FAIL" -gt 0 ]] && exit 1
 exit 0

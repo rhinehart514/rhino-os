@@ -100,14 +100,16 @@ fi
 
 # --- Prediction accuracy (last 10) ---
 PRED_DISPLAY=""
+UNGRADED_COUNT=0
 PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
 if [[ -f "$PRED_FILE" ]]; then
     PRED_COUNT=$(tail -n +2 "$PRED_FILE" | wc -l | tr -d ' ')
     if (( PRED_COUNT > 0 )); then
-        # Count correct predictions in last 10
-        CORRECT=$(tail -n +2 "$PRED_FILE" | tail -10 | awk -F'\t' '$5 == "yes" { c++ } END { print c+0 }')
-        RECENT=$(tail -n +2 "$PRED_FILE" | tail -10 | wc -l | tr -d ' ')
-        FILLED=$(tail -n +2 "$PRED_FILE" | tail -10 | awk -F'\t' '$5 != "" { c++ } END { print c+0 }')
+        # Count correct predictions (column 6) in last 10
+        CORRECT=$(tail -n +2 "$PRED_FILE" | tail -10 | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
+        FILLED=$(tail -n +2 "$PRED_FILE" | tail -10 | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
+        # Count all ungraded (column 6 empty)
+        UNGRADED_COUNT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "" { c++ } END { print c+0 }')
         if (( FILLED > 0 )); then
             PRED_DISPLAY="Predictions: ${CORRECT}/${FILLED} correct"
         else
@@ -116,31 +118,66 @@ if [[ -f "$PRED_FILE" ]]; then
     fi
 fi
 
-# === Output ===
-echo ""
-echo "rhino-os booted"
-echo ""
-
-LINE1="Project: ${PROJECT_NAME}"
-[[ -n "$SCORE_DISPLAY" ]] && LINE1="$LINE1 | $SCORE_DISPLAY"
-echo "$LINE1"
-
-if [[ -n "$PLAN_FILE" && "$TASKS_REMAINING" -gt 0 ]]; then
-    PLAN_LINE="Active plan: $TASKS_REMAINING tasks remaining"
-    [[ -n "$PLAN_STALE" ]] && PLAN_LINE="$PLAN_LINE $PLAN_STALE"
-    echo "$PLAN_LINE"
-    [[ -n "$NEXT_TASK" ]] && echo "-> NEXT: $NEXT_TASK"
-elif [[ -z "$SCORE_DISPLAY" ]]; then
-    echo "No score yet — run: rhino score ."
+# --- Agent experiment status ---
+AGENT_EXP_DISPLAY=""
+AGENT_EXP_FILE="$PROJECT_DIR/agent-experiments.tsv"
+if [[ -f "$AGENT_EXP_FILE" ]]; then
+    # Find rows with empty result column (column 6)
+    UNRESOLVED=$(tail -n +2 "$AGENT_EXP_FILE" | awk -F'\t' '$6 == "" { print $2 " (" $3 "→" $4 ")" }' | tail -1)
+    if [[ -n "$UNRESOLVED" ]]; then
+        AGENT_EXP_DISPLAY="Agent experiment: ${UNRESOLVED} — ungraded"
+    fi
 fi
 
-# Alerts line (integrity + strategy + predictions)
-ALERTS=""
-[[ -n "$INTEGRITY_WARNINGS" ]] && ALERTS="INTEGRITY: $(echo "$INTEGRITY_WARNINGS" | head -1)"
-[[ -n "$STRATEGY_STALE" ]] && ALERTS="${ALERTS:+$ALERTS | }$STRATEGY_STALE"
-[[ -n "$ASSERT_DISPLAY" ]] && ALERTS="${ALERTS:+$ALERTS | }$ASSERT_DISPLAY"
-[[ -n "$PRED_DISPLAY" ]] && ALERTS="${ALERTS:+$ALERTS | }$PRED_DISPLAY"
-[[ -n "$ALERTS" ]] && echo "$ALERTS"
+# === Output ===
+# Colors
+C_BOLD='\033[1m'
+C_DIM='\033[2m'
+C_GREEN='\033[0;32m'
+C_YELLOW='\033[1;33m'
+C_RED='\033[0;31m'
+C_CYAN='\033[0;36m'
+C_NC='\033[0m'
+
+echo ""
+echo -e "  ${C_CYAN}◆${C_NC} ${C_BOLD}rhino-os${C_NC}"
+echo ""
+
+# Project + score line
+if [[ -n "$SCORE_DISPLAY" ]]; then
+    echo -e "  ${C_DIM}project${C_NC}  ${PROJECT_NAME}"
+    # Parse score components for formatted display
+    echo -e "  ${C_DIM}score${C_NC}    ${C_BOLD}${TOTAL}/100${C_NC}  ${C_DIM}build ${BUILD} · struct ${STRUCT} · hygiene ${HYGIENE}${C_NC}"
+else
+    echo -e "  ${C_DIM}project${C_NC}  ${PROJECT_NAME}"
+    echo -e "  ${C_DIM}score${C_NC}    ${C_DIM}none yet — run:${C_NC} rhino score ."
+fi
+
+# Plan
+if [[ -n "$PLAN_FILE" && "$TASKS_REMAINING" -gt 0 ]]; then
+    PLAN_LINE="  ${C_DIM}plan${C_NC}     ${TASKS_REMAINING} tasks remaining"
+    [[ -n "$PLAN_STALE" ]] && PLAN_LINE="${PLAN_LINE}  ${C_YELLOW}${PLAN_STALE}${C_NC}"
+    echo -e "$PLAN_LINE"
+    [[ -n "$NEXT_TASK" ]] && echo -e "  ${C_DIM}next${C_NC}     ${C_GREEN}▸${C_NC} ${NEXT_TASK}"
+fi
+
+# Signals line (assertions + predictions)
+SIGNALS=""
+[[ -n "$ASSERT_DISPLAY" ]] && SIGNALS="${ASSERT_DISPLAY}"
+[[ -n "$PRED_DISPLAY" ]] && SIGNALS="${SIGNALS:+$SIGNALS · }$PRED_DISPLAY"
+[[ -n "$SIGNALS" ]] && echo -e "  ${C_DIM}signals${C_NC}  ${SIGNALS}"
+
+echo ""
+
+# Alerts (integrity, strategy, ungraded)
+if [[ -n "$INTEGRITY_WARNINGS" ]]; then
+    echo -e "  ${C_YELLOW}⚠${C_NC} ${C_YELLOW}$(echo "$INTEGRITY_WARNINGS" | head -1)${C_NC}"
+fi
+[[ -n "$STRATEGY_STALE" ]] && echo -e "  ${C_YELLOW}⚠${C_NC} ${STRATEGY_STALE}"
+if (( UNGRADED_COUNT > 0 )); then
+    echo -e "  ${C_RED}●${C_NC} ${UNGRADED_COUNT} ungraded prediction(s) — grade before starting new work"
+fi
+[[ -n "$AGENT_EXP_DISPLAY" ]] && echo -e "  ${C_YELLOW}⚙${C_NC} ${AGENT_EXP_DISPLAY}"
 
 # --- Self-awareness recommendation (first match wins) ---
 SELF_REC=""
@@ -207,6 +244,7 @@ fi
 # 5. Knowledge model stale?
 if [[ -z "$SELF_REC" ]]; then
     KN_STALE=$(cfg self.knowledge_stale_days 14)
+    LEARNINGS="$HOME/.claude/knowledge/experiment-learnings.md"
     if [[ -f "$LEARNINGS" ]]; then
         if [[ "$(uname)" == "Darwin" ]]; then
             KN_MTIME=$(stat -f %m "$LEARNINGS" 2>/dev/null || echo 0)
@@ -220,13 +258,13 @@ if [[ -z "$SELF_REC" ]]; then
     fi
 fi
 
-[[ -n "$SELF_REC" ]] && echo "$SELF_REC"
+[[ -n "$SELF_REC" ]] && echo -e "  ${C_DIM}⚙${C_NC} ${SELF_REC#\[self\] }"
 
 # --- Compaction recovery ---
 if [[ "$SESSION_TYPE" == "compact" ]]; then
     echo ""
-    echo "Context compacted. Re-read:"
-    echo "  1. mind/thinking.md"
-    echo "  2. ~/.claude/knowledge/experiment-learnings.md"
-    echo "  3. .claude/plans/active-plan.md"
+    echo -e "  ${C_YELLOW}↻${C_NC} ${C_BOLD}Context compacted.${C_NC} Re-read:"
+    echo -e "    ${C_DIM}1.${C_NC} mind/thinking.md"
+    echo -e "    ${C_DIM}2.${C_NC} ~/.claude/knowledge/experiment-learnings.md"
+    echo -e "    ${C_DIM}3.${C_NC} .claude/plans/active-plan.md"
 fi

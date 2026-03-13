@@ -1,37 +1,23 @@
-# Corpus — Top 0.1% Examples
+# Corpus — Coming Soon
 
-The corpus is a curated database of exceptional work used to calibrate rhino-os evals. It sets the quality bar.
+The corpus will be a curated collection of exceptional UI, copy, and code
+used to calibrate rhino-os taste evals. It does not exist yet.
 
-## What's Here
+## What It Will Be
 
-```
-corpus/
-  ui/
-    saas/        Linear, Vercel, Stripe, Raycast
-    consumer/    Duolingo, Superhuman, Arc
-    developer/   Warp, GitHub, Railway
-  copy/
-    landing/     Stripe, Basecamp, 37signals
-    onboarding/  Duolingo, Notion, Figma first-run
-  code/
-    patterns/    Exemplary readability and structure
-```
+Top 0.1% examples across three categories:
 
-## How Examples Are Added
+- **ui/** — Screenshots and patterns from best-in-class products (Linear, Stripe, Arc, etc.)
+- **copy/** — Landing pages, onboarding flows, and microcopy worth studying
+- **code/** — Exemplary readability and structure
 
-1. **AI discovery** — `/corpus update [category]` searches reputation signals (Awwwards, Product Hunt, designer consensus) and admits exceptional examples via multi-model consensus
-2. **Manual** — `/corpus add [url or description]` for specific examples you've found
+## Why It Matters
 
-## Admission Criteria
+`rhino taste` evaluates visual quality against an internal rubric. The corpus
+will give that rubric concrete anchors — real examples of what a 5/5 looks like
+in each dimension.
 
-- Multi-model consensus score >= 8.0 (average across Claude, GPT-4V, Gemini)
-- Score variance < 0.5 (controversial != exceptional)
-- "Good" or "above average" -> rejected. Only genuinely exceptional work is admitted.
+## Status
 
-## Contributing a Community Pack
-
-1. Curate examples in your category
-2. Run `/corpus update` to validate quality
-3. Publish as a pack for the community
-
-The corpus compounds. More users running discovery loops = better taste database = better output for everyone.
+Empty. No examples have been added yet. When populated, admission criteria and
+tooling will be documented here.

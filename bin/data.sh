@@ -277,7 +277,8 @@ print_beliefs() {
 # ============================================================
 # MAIN
 # ============================================================
-echo -e "${BOLD}=== rhino data ===${NC}"
+echo ""
+echo -e "  ${CYAN}◆${NC} ${BOLD}rhino data${NC}"
 echo ""
 
 print_scores

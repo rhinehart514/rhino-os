@@ -20,23 +20,25 @@ for arg in "$@"; do
 done
 
 GREEN='\033[0;32m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
 action() {
     if $DRY_RUN; then
-        echo -e "  ${DIM}[dry-run]${NC} $1"
+        echo -e "    ${DIM}[dry-run]${NC} $1"
     else
-        echo -e "  ${GREEN}✓${NC} $1"
+        echo -e "    ${GREEN}✓${NC} $1"
     fi
 }
 
 skip() {
-    echo -e "  ${DIM}[skip]${NC} $1 (exists)"
+    echo -e "    ${DIM}· $1 (exists)${NC}"
 }
 
-echo -e "${BOLD}Setting up rhino-os v6...${NC}"
+echo ""
+echo -e "  ${CYAN}◆${NC} ${BOLD}rhino-os install${NC}"
 echo ""
 
 # --- 1. Create directories ---
@@ -52,7 +54,7 @@ done
 
 # --- 2. Symlink mind/ files to rules ---
 echo ""
-echo -e "${BOLD}Mind (always-loaded rules):${NC}"
+echo -e "  ${BOLD}Mind${NC}"
 
 # Clean up old rule files
 for old_rule in identity.md product-brief.md hypotheses.md self-review.md; do
@@ -76,7 +78,7 @@ done
 
 # --- 3. Symlink hooks ---
 echo ""
-echo -e "${BOLD}Hooks:${NC}"
+echo -e "  ${BOLD}Hooks${NC}"
 
 # Clean up old hooks
 for old_hook in pre_compact.sh post_build.sh post_edit_quality.sh autonomy_gate.sh capture_knowledge.sh check_predictions.sh enforce_ideation_readonly.sh extract_patterns.sh session_context.sh thinking_nudge.sh track_cost.sh track_usage.sh; do
@@ -102,7 +104,7 @@ done
 
 # --- 4. Symlink CLI ---
 echo ""
-echo -e "${BOLD}CLI:${NC}"
+echo -e "  ${BOLD}CLI${NC}"
 LOCAL_BIN="$HOME/bin"
 $DRY_RUN || mkdir -p "$LOCAL_BIN"
 
@@ -128,7 +130,7 @@ fi
 
 # --- 5. Merge settings.json ---
 echo ""
-echo -e "${BOLD}Settings:${NC}"
+echo -e "  ${BOLD}Settings${NC}"
 SETTINGS_SRC="$RHINO_DIR/config/settings.json"
 SETTINGS_DEST="$CLAUDE_DIR/settings.json"
 
@@ -149,7 +151,7 @@ fi
 
 # --- 6. Set RHINO_DIR in shell profile ---
 echo ""
-echo -e "${BOLD}Environment:${NC}"
+echo -e "  ${BOLD}Environment${NC}"
 PROFILE=""
 if [[ -f "$HOME/.zshrc" ]]; then
     PROFILE="$HOME/.zshrc"
@@ -169,7 +171,8 @@ fi
 # --- Done ---
 echo ""
 if $DRY_RUN; then
-    echo -e "${BOLD}Dry run complete.${NC} Run without --check to apply."
+    echo -e "  ${DIM}Dry run complete. Run without --check to apply.${NC}"
 else
-    echo -e "${BOLD}Done.${NC} Reload your shell: source $PROFILE"
+    echo -e "  ${GREEN}✓${NC} ${BOLD}Done.${NC} Reload your shell: ${DIM}source $PROFILE${NC}"
 fi
+echo ""

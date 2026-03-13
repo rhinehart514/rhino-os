@@ -15,6 +15,7 @@ RHINO_DIR="$(cd "$(dirname "$_RHINO_SOURCE")/.." && pwd)"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -44,14 +45,15 @@ cmd_taste() {
 # STATUS
 # ============================================================
 cmd_status() {
-    echo -e "${BOLD}rhino-os v${VERSION}${NC}"
+    echo ""
+    echo -e "  ${CYAN}◆${NC} ${BOLD}rhino-os${NC} ${DIM}v${VERSION}${NC}"
     echo ""
 
     # Claude CLI check
     if command -v claude &>/dev/null; then
-        echo -e "${GREEN}[OK]${NC} claude CLI"
+        echo -e "  ${GREEN}✓${NC} Claude CLI"
     else
-        echo -e "${RED}[FAIL]${NC} claude CLI not found"
+        echo -e "  ${RED}✗${NC} Claude CLI not found"
     fi
 
     # Mind files
@@ -59,26 +61,39 @@ cmd_status() {
     for f in "$RHINO_DIR"/mind/*.md; do
         [[ -f "$f" ]] && ((mind_count++))
     done
-    echo -e "${GREEN}[OK]${NC} Mind: ${mind_count} files"
+    echo -e "  ${GREEN}✓${NC} Mind: ${mind_count} files loaded"
+
+    # Measurement stack
+    local stack_ok=true
+    for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/bin/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
+        [[ ! -f "$tool" ]] && stack_ok=false
+    done
+    if $stack_ok; then
+        echo -e "  ${GREEN}✓${NC} Measurement: score, taste, eval"
+    else
+        echo -e "  ${RED}✗${NC} Measurement stack incomplete"
+    fi
 
     # Last score
     if [[ -f ".claude/cache/score-cache.json" ]] && command -v jq &>/dev/null; then
-        local score warnings
+        local score warnings build struct hygiene
         score=$(jq -r '.total // "?"' .claude/cache/score-cache.json 2>/dev/null)
+        build=$(jq -r '.build // "?"' .claude/cache/score-cache.json 2>/dev/null)
+        struct=$(jq -r '.structure // "?"' .claude/cache/score-cache.json 2>/dev/null)
+        hygiene=$(jq -r '.hygiene // "?"' .claude/cache/score-cache.json 2>/dev/null)
         warnings=$(jq -r '.integrity_warnings // [] | join(", ")' .claude/cache/score-cache.json 2>/dev/null)
-        local msg="Score: $score"
-        [[ -n "$warnings" ]] && msg="$msg  ${YELLOW}$warnings${NC}"
-        echo -e "$msg"
+        echo ""
+        echo -e "  ${DIM}score${NC}    ${BOLD}${score}/100${NC}  ${DIM}build ${build} · struct ${struct} · hygiene ${hygiene}${NC}"
+        [[ -n "$warnings" ]] && echo -e "           ${YELLOW}⚠ ${warnings}${NC}"
     fi
 
     # Active plan
     if [[ -f ".claude/plans/active-plan.md" ]]; then
-        local total done title
+        local total done_count title
         title=$(head -5 .claude/plans/active-plan.md | grep -m1 '^#' | sed 's/^#* *//' || echo "")
         total=$(grep -c '^\- \[' .claude/plans/active-plan.md 2>/dev/null || echo 0)
-        done=$(grep -c '^\- \[x\]' .claude/plans/active-plan.md 2>/dev/null || echo 0)
-        echo ""
-        echo -e "Sprint: ${BOLD}$title${NC} ($done/$total tasks)"
+        done_count=$(grep -c '^\- \[x\]' .claude/plans/active-plan.md 2>/dev/null || echo 0)
+        echo -e "  ${DIM}plan${NC}     ${BOLD}${title}${NC} ${DIM}(${done_count}/${total})${NC}"
     fi
 
     echo ""
@@ -88,35 +103,33 @@ cmd_status() {
 # CONFIG
 # ============================================================
 cmd_config() {
-    echo -e "${BOLD}=== rhino config ===${NC}"
-    echo -e "${DIM}Source: $RHINO_DIR/config/rhino.yml${NC}"
+    echo ""
+    echo -e "  ${CYAN}◆${NC} ${BOLD}rhino config${NC}"
+    echo -e "  ${DIM}$RHINO_DIR/config/rhino.yml${NC}"
     echo ""
 
     if [[ ! -f "$RHINO_DIR/config/rhino.yml" ]]; then
-        echo -e "${RED}No rhino.yml found${NC}"
+        echo -e "  ${RED}✗${NC} rhino.yml not found"
         return 1
     fi
 
-    echo -e "${BOLD}Scoring:${NC}"
-    printf "  cache: %ss  build gate: %s\n" \
-        "$(cfg scoring.cache_ttl 300)" \
-        "$(cfg scoring.build.gate_threshold 70)"
-
-    echo -e "${BOLD}Taste:${NC}"
-    printf "  routes: %s  screenshots: %s  cache: %ss\n" \
-        "$(cfg taste.max_routes 8)" \
-        "$(cfg taste.max_screenshots 24)" \
-        "$(cfg taste.cache_ttl 7200)"
-
-    echo -e "${BOLD}Experiments:${NC}"
-    printf "  moonshot: every %s  max files: %s\n" \
-        "$(cfg experiments.moonshot_every_n 5)" \
-        "$(cfg experiments.max_files_per_experiment 5)"
-
-    echo -e "${BOLD}Integrity:${NC}"
-    printf "  max delta: %s  plateau: %s exps\n" \
-        "$(cfg integrity.max_single_commit_delta 15)" \
-        "$(cfg integrity.plateau_experiments 5)"
+    echo -e "  ${BOLD}Scoring${NC}"
+    printf "    cache         %ss\n" "$(cfg scoring.cache_ttl 300)"
+    printf "    build gate    %s\n" "$(cfg scoring.build.gate_threshold 70)"
+    echo ""
+    echo -e "  ${BOLD}Taste${NC}"
+    printf "    max routes    %s\n" "$(cfg taste.max_routes 8)"
+    printf "    screenshots   %s\n" "$(cfg taste.max_screenshots 24)"
+    printf "    cache         %ss\n" "$(cfg taste.cache_ttl 7200)"
+    echo ""
+    echo -e "  ${BOLD}Experiments${NC}"
+    printf "    moonshot      every %s\n" "$(cfg experiments.moonshot_every_n 5)"
+    printf "    max files     %s\n" "$(cfg experiments.max_files_per_experiment 5)"
+    echo ""
+    echo -e "  ${BOLD}Integrity${NC}"
+    printf "    max delta     %s pts/commit\n" "$(cfg integrity.max_single_commit_delta 15)"
+    printf "    plateau       %s experiments\n" "$(cfg integrity.plateau_experiments 5)"
+    echo ""
 }
 
 # ============================================================
@@ -131,11 +144,13 @@ cmd_data() {
 # ============================================================
 cmd_go() {
     if ! command -v claude &>/dev/null; then
-        echo -e "${RED}claude CLI not found. Install: https://docs.anthropic.com/en/docs/claude-code${NC}"
+        echo -e "  ${RED}✗${NC} Claude CLI not found"
         exit 1
     fi
-    echo -e "${BOLD}Starting autonomous build loop...${NC}"
-    echo -e "${DIM}Running: claude /go $*${NC}"
+    echo ""
+    echo -e "  ${CYAN}◆${NC} ${BOLD}rhino go${NC}"
+    echo -e "  ${DIM}Starting autonomous build loop...${NC}"
+    echo ""
     claude "/go $*"
 }
 
@@ -143,11 +158,13 @@ cmd_go() {
 # BENCH (benchmark card — score + taste snapshot)
 # ============================================================
 cmd_bench() {
-    echo -e "${BOLD}=== rhino benchmark ===${NC}"
+    echo ""
+    echo -e "  ${CYAN}◆${NC} ${BOLD}rhino bench${NC}"
     echo ""
     cmd_score "${@:-.}"
     echo ""
-    echo -e "${DIM}For visual eval, run: rhino taste${NC}"
+    echo -e "  ${DIM}For visual eval: rhino taste${NC}"
+    echo ""
 }
 
 # ============================================================
@@ -173,27 +190,28 @@ cmd_eval() {
 # HELP
 # ============================================================
 cmd_help() {
-    echo -e "${BOLD}rhino${NC} v${VERSION} — eyes, not rails"
     echo ""
-    echo -e "${BOLD}Usage:${NC} rhino <command> [args...]"
+    echo -e "  ${CYAN}◆${NC} ${BOLD}rhino${NC} ${DIM}v${VERSION}${NC}"
+    echo -e "  ${DIM}eyes, not rails${NC}"
     echo ""
-    echo -e "${BOLD}Measure:${NC}"
-    echo "  score [dir]        Structural lint score"
-    echo "  taste [dir]        Visual product eval (Claude Vision)"
-    echo "  eval [dir]         Run belief evals"
-    echo "  bench [dir]        Benchmark card (score snapshot)"
-    echo "  data [dir]         Visualize learning data"
+    echo -e "  ${BOLD}Usage${NC}  rhino <command> [args...]"
     echo ""
-    echo -e "${BOLD}Build:${NC}"
-    echo "  go [args]          Autonomous build loop (via Claude Code)"
+    echo -e "  ${BOLD}Measure${NC}"
+    echo -e "    score [dir]     ${DIM}Structural lint score${NC}"
+    echo -e "    taste [dir]     ${DIM}Visual product eval (Claude Vision)${NC}"
+    echo -e "    eval [dir]      ${DIM}Run belief evals${NC}"
+    echo -e "    bench [dir]     ${DIM}Benchmark card${NC}"
+    echo -e "    data [dir]      ${DIM}Learning data visualization${NC}"
     echo ""
-    echo -e "${BOLD}System:${NC}"
-    echo "  status             Health overview"
-    echo "  self               System self-diagnostic"
-    echo "  config             Show configuration"
-    echo "  install [--check]  Install/update rhino-os"
+    echo -e "  ${BOLD}Build${NC}"
+    echo -e "    go [args]       ${DIM}Autonomous build loop${NC}"
     echo ""
-    echo -e "${BOLD}Config:${NC} $RHINO_DIR/config/rhino.yml"
+    echo -e "  ${BOLD}System${NC}"
+    echo -e "    status          ${DIM}Health overview${NC}"
+    echo -e "    self            ${DIM}Self-diagnostic${NC}"
+    echo -e "    config          ${DIM}Show configuration${NC}"
+    echo -e "    install         ${DIM}Install / update${NC}"
+    echo ""
 }
 
 # ============================================================
@@ -210,6 +228,7 @@ case "${1:-help}" in
     status)     cmd_status ;;
     config)     cmd_config ;;
     install)    shift; bash "$RHINO_DIR/install.sh" "$@" ;;
+    uninstall)  shift; bash "$RHINO_DIR/uninstall.sh" "$@" ;;
     help|--help|-h) cmd_help ;;
     version|--version|-v) echo "rhino v${VERSION}" ;;
     *)
