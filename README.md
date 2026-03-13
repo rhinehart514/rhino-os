@@ -102,7 +102,7 @@ rhino-os learns across sessions. Here's what accumulates:
 
 **Knowledge model** (`~/.claude/knowledge/experiment-learnings.md`) — Known patterns, uncertain patterns, unknown territory, dead ends. This is the causal model of what makes your product better.
 
-**Beliefs** (`config/evals/beliefs.yml`) — Product assertions checked mechanically. "The dashboard loads in under 3 seconds" is a belief that gets enforced.
+**Beliefs** (`lens/product/eval/beliefs.yml`) — Product assertions checked mechanically. "The dashboard loads in under 3 seconds" is a belief that gets enforced.
 
 You don't need to understand any of this to start. Run `/plan`, follow its lead. The system reveals itself as you use it.
 
@@ -163,17 +163,21 @@ rhino-os/
   mind/                    identity + reasoning (always loaded)
   bin/
     rhino                  CLI entrypoint
-    score.sh               structural lint (~780 lines)
-    taste.mjs              visual eval (~1140 lines)
-    eval.sh                belief eval runner (~450 lines)
+    score.sh               structural lint (base engine)
+    eval.sh                belief eval runner
     self.sh                self-diagnostic
     data.sh                learning data visualization
   .claude/commands/        slash commands (plan, go, strategy, etc.)
   config/
-    rhino.yml              all tunables
-    evals/beliefs.yml      product assertions
+    rhino.yml              base tunables
   hooks/                   session start boot card
-  corpus/                  taste reference database (coming soon)
+  lens/product/            product development lens
+    eval/taste.mjs         visual eval via Claude Vision
+    eval/beliefs.yml       product assertions
+    scoring/               web-specific score extensions
+    mind/                  UX checklist, product measurement
+    commands/              assert, critique, ship, evolve
+    corpus/                taste reference database
   docs/                    vision docs + screenshots
 ```
 

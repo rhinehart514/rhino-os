@@ -65,7 +65,7 @@ for old_rule in identity.md product-brief.md hypotheses.md self-review.md; do
 done
 
 $DRY_RUN || mkdir -p "$CLAUDE_DIR/rules"
-for mind_file in identity.md thinking.md standards.md; do
+for mind_file in identity.md thinking.md standards.md self.md; do
     src="$RHINO_DIR/mind/$mind_file"
     target="$CLAUDE_DIR/rules/$mind_file"
     if [[ -L "$target" && "$(readlink "$target")" == "$src" ]]; then
@@ -74,6 +74,22 @@ for mind_file in identity.md thinking.md standards.md; do
         $DRY_RUN || ln -sf "$src" "$target"
         action "rules/$mind_file"
     fi
+done
+
+# Symlink lens mind files
+for lens_dir in "$RHINO_DIR"/lens/*/mind; do
+    [[ ! -d "$lens_dir" ]] && continue
+    for lens_mind in "$lens_dir"/*.md; do
+        [[ ! -f "$lens_mind" ]] && continue
+        name="$(basename "$lens_mind")"
+        target="$CLAUDE_DIR/rules/$name"
+        if [[ -L "$target" && "$(readlink "$target")" == "$lens_mind" ]]; then
+            skip "rules/$name (lens)"
+        else
+            $DRY_RUN || ln -sf "$lens_mind" "$target"
+            action "rules/$name (lens)"
+        fi
+    done
 done
 
 # --- 3. Symlink hooks ---
@@ -108,7 +124,7 @@ echo -e "  ${BOLD}CLI${NC}"
 LOCAL_BIN="$HOME/bin"
 $DRY_RUN || mkdir -p "$LOCAL_BIN"
 
-for tool in score.sh taste.mjs; do
+for tool in score.sh; do
     src="$RHINO_DIR/bin/$tool"
     [[ ! -f "$src" ]] && continue
     dest="$LOCAL_BIN/$tool"
@@ -120,6 +136,18 @@ for tool in score.sh taste.mjs; do
     fi
 done
 
+# taste.mjs lives in lens now
+taste_src="$RHINO_DIR/lens/product/eval/taste.mjs"
+if [[ -f "$taste_src" ]]; then
+    taste_dest="$LOCAL_BIN/taste.mjs"
+    if [[ -L "$taste_dest" && "$(readlink "$taste_dest")" == "$taste_src" ]]; then
+        skip "~/bin/taste.mjs (lens)"
+    else
+        $DRY_RUN || ln -sf "$taste_src" "$taste_dest"
+        action "~/bin/taste.mjs (lens)"
+    fi
+fi
+
 rhino_dest="$LOCAL_BIN/rhino"
 if [[ -L "$rhino_dest" && "$(readlink "$rhino_dest")" == "$RHINO_DIR/bin/rhino" ]]; then
     skip "~/bin/rhino"
@@ -128,7 +156,25 @@ else
     action "~/bin/rhino"
 fi
 
-# --- 5. Merge settings.json ---
+# --- 5. Symlink lens commands ---
+echo ""
+echo -e "  ${BOLD}Lens commands${NC}"
+for lens_cmd_dir in "$RHINO_DIR"/lens/*/commands; do
+    [[ ! -d "$lens_cmd_dir" ]] && continue
+    for cmd_file in "$lens_cmd_dir"/*.md; do
+        [[ ! -f "$cmd_file" ]] && continue
+        name="$(basename "$cmd_file")"
+        target="$RHINO_DIR/.claude/commands/$name"
+        if [[ -L "$target" && "$(readlink "$target")" == "$cmd_file" ]]; then
+            skip "commands/$name (lens)"
+        else
+            $DRY_RUN || ln -sf "$cmd_file" "$target"
+            action "commands/$name (lens)"
+        fi
+    done
+done
+
+# --- 6. Merge settings.json ---
 echo ""
 echo -e "  ${BOLD}Settings${NC}"
 SETTINGS_SRC="$RHINO_DIR/config/settings.json"
@@ -149,7 +195,7 @@ else
     action "settings.json (copied)"
 fi
 
-# --- 6. Set RHINO_DIR in shell profile ---
+# --- 7. Set RHINO_DIR in shell profile ---
 echo ""
 echo -e "  ${BOLD}Environment${NC}"
 PROFILE=""

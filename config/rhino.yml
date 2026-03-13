@@ -45,38 +45,8 @@ scoring:
     stale_build_penalty: -10
     build_fail_penalty: -50
     gate_threshold: 70
-  structure:
-    dead_end_weight: 0.5
-    empty_state_weight: 0.33
   # Hygiene penalties are hardcoded tiers in score.sh
-
-# ── Taste (taste.mjs) ──────────────────────────────
-taste:
-  max_routes: 8
-  max_screenshots: 24
-  cache_ttl: 7200
-  stale_warning_days: 7
-  viewports:
-    desktop: { width: 1440, height: 900 }
-    mobile: { width: 390, height: 844 }
-  timeouts:
-    page_load: 30000
-    post_load_wait: 1000
-    eval_timeout: 180000
-    port_check: 5000
-    server_startup: 3000
-  dimensions:
-    - hierarchy
-    - breathing_room
-    - contrast
-    - polish
-    - emotional_tone
-    - information_density
-    - wayfinding
-    - distinctiveness
-    - scroll_experience
-    - layout_coherence
-    - information_architecture
+  # Product-specific structure weights in lens/product/config/rhino-product.yml
 
 # ── Score Integrity ──────────────────────────────────
 integrity:
@@ -100,8 +70,8 @@ experiments:
 # ── Go (autonomous loop) ────────────────────────────
 go:
   plateau_threshold: 3
-  taste_every_n: 3
   worktrees_enabled: false
+  # taste_every_n moved to lens/product/config/rhino-product.yml
 
 # ── Evals ────────────────────────────────────────────
 evals:
@@ -109,20 +79,6 @@ evals:
   tier2_on_demand: true          # behavioral eval — requires dev server
   block_on_failure: true         # hard fail on "block" severity beliefs
   warn_threshold: 3              # N consecutive warns before escalating
-
-# ── Corpus ───────────────────────────────────────────
-corpus:
-  staleness_days: 90             # evict examples older than this
-  min_consensus_score: 8.0       # minimum average score across models
-  max_score_variance: 0.5        # maximum variance between models
-  update_every_n_iterations: 5   # update corpus every N /go iterations (--corpus flag)
-  categories:
-    - ui/saas
-    - ui/consumer
-    - ui/developer
-    - copy/landing
-    - copy/onboarding
-    - code/patterns
 
 # ── Agent (self-improvement) ─────────────────────────
 # Parameters the agent can tune via /evolve experiments.
@@ -143,7 +99,7 @@ agent:
     - mind/*.md                                  # principles
     - .claude/commands/*.md                      # command procedures
     - bin/score.sh                               # eval harness
-    - bin/taste.mjs                              # eval harness
+    - lens/product/eval/taste.mjs                 # eval harness
     - bin/eval.sh                                # eval harness
 
   # Experiment discipline

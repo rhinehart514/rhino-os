@@ -135,7 +135,7 @@ fi
 # 3. measurement-stack — score.sh, taste.mjs, eval.sh exist + executable
 # ============================================================
 STACK_MISSING=0
-for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/bin/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
+for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/lens/product/eval/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
     if [[ ! -f "$tool" ]]; then
         STACK_MISSING=$((STACK_MISSING + 1))
     elif [[ ! -x "$tool" && "$tool" != *.mjs ]]; then
@@ -252,11 +252,17 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     check_fail "config-coherence" "rhino.yml not found"
 else
     MISSING_SECTIONS=0
-    for section in value scoring taste integrity experiments self; do
+    # Base config required sections (taste moved to lens config)
+    for section in value scoring integrity experiments self; do
         if ! grep -q "^${section}:" "$CONFIG_FILE" 2>/dev/null; then
             MISSING_SECTIONS=$((MISSING_SECTIONS + 1))
         fi
     done
+    # Check lens config for taste section if lens is present
+    LENS_CONFIG="$RHINO_DIR/lens/product/config/rhino-product.yml"
+    if [[ -f "$LENS_CONFIG" ]] && ! grep -q "^taste:" "$LENS_CONFIG" 2>/dev/null; then
+        MISSING_SECTIONS=$((MISSING_SECTIONS + 1))
+    fi
     if [[ "$MISSING_SECTIONS" -gt 0 ]]; then
         check_warn "config-coherence" "$MISSING_SECTIONS required section(s) missing from rhino.yml"
     else

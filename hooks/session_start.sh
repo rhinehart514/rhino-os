@@ -31,7 +31,7 @@ SCORE_DISPLAY=""
 INTEGRITY_WARNINGS=""
 SCORE_CACHE="$PROJECT_DIR/.claude/cache/score-cache.json"
 if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
-    TOTAL=$(jq -r '.total // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
+    TOTAL=$(jq -r '.score // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
     BUILD=$(jq -r '.build // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
     STRUCT=$(jq -r '.structure // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
     HYGIENE=$(jq -r '.hygiene // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
@@ -90,7 +90,10 @@ fi
 
 # --- Assertion status (value signal) ---
 ASSERT_DISPLAY=""
-BELIEFS_FILE="$PROJECT_DIR/config/evals/beliefs.yml"
+BELIEFS_FILE=""
+for _bf in "$PROJECT_DIR/lens/product/eval/beliefs.yml" "$PROJECT_DIR/config/evals/beliefs.yml"; do
+    [[ -f "$_bf" ]] && BELIEFS_FILE="$_bf" && break
+done
 if [[ -f "$BELIEFS_FILE" ]]; then
     TOTAL_BELIEFS=$(grep -c '^\s*- id:' "$BELIEFS_FILE" 2>/dev/null || echo "0")
     if (( TOTAL_BELIEFS > 0 )); then

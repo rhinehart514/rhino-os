@@ -51,6 +51,11 @@ cd "$PROJECT_DIR"
 # --- Config ---
 source "$SCRIPT_DIR/lib/config.sh"
 
+# --- Lens extensions ---
+RHINO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+LENS_SCORE="$RHINO_ROOT/lens/product/scoring/score-product.sh"
+[[ -f "$LENS_SCORE" ]] && source "$LENS_SCORE"
+
 # --- Spinner ---
 SPINNER_PID=""
 spin() {
@@ -130,7 +135,7 @@ fi
 
 # Detect CLI/shell projects (like rhino-os itself)
 if [[ "$PROJECT_TYPE" == "unknown" ]]; then
-    if [[ -d "bin" ]] && ls bin/*.sh bin/*.mjs 2>/dev/null | head -1 > /dev/null 2>&1; then
+    if [[ -d "bin" ]] && find bin -maxdepth 1 \( -name "*.sh" -o -name "*.mjs" \) -print -quit 2>/dev/null | grep -q .; then
         PROJECT_TYPE="cli"
     fi
 fi
@@ -280,9 +285,9 @@ score_structure() {
 
         # Config coherence: does rhino.yml reference things that exist in code?
         if [[ -f "config/rhino.yml" ]]; then
-            # Check if dimensions listed in config match what taste.mjs actually scores
+            # Check if dimensions listed in config (base or lens) match what taste.mjs scores
             local config_dims
-            config_dims=$(grep -A20 'dimensions:' config/rhino.yml 2>/dev/null | grep '^ *-' | wc -l | tr -d ' ')
+            config_dims=$(grep -A20 'dimensions:' config/rhino.yml lens/product/config/rhino-product.yml 2>/dev/null | grep '^ *-' | wc -l | tr -d ' ')
             if [[ "$config_dims" -eq 0 ]]; then
                 score=$((score - 10))
             fi
@@ -293,61 +298,9 @@ score_structure() {
         return
     fi
 
-    # Web projects: original scoring logic
-    # Read weights from config (these are divisors: dead_pct / weight)
-    # Config stores as decimals (0.5, 0.33), we convert to integer divisors
-    local dead_end_div=2    # default: dead_pct / 2
-    local empty_div=3       # default: missing_pct / 3
-    local de_cfg=$(cfg scoring.structure.dead_end_weight "")
-    local es_cfg=$(cfg scoring.structure.empty_state_weight "")
-    # Convert 0.5 → 2, 0.33 → 3 (invert for use as divisor)
-    [[ "$de_cfg" == "0.5" ]] && dead_end_div=2
-    [[ "$de_cfg" == "0.25" ]] && dead_end_div=4
-    [[ "$de_cfg" == "1" ]] && dead_end_div=1
-    [[ "$es_cfg" == "0.33" ]] && empty_div=3
-    [[ "$es_cfg" == "0.5" ]] && empty_div=2
-    [[ "$es_cfg" == "0.25" ]] && empty_div=4
-
-    # Pages with no outbound navigation = dead ends
-    local total_pages
-    total_pages=$(find "$SRC_DIR" -name "page.$COMP_EXT" -o -name "index.$COMP_EXT" 2>/dev/null | wc -l | tr -d ' ')
-    [[ "$total_pages" -eq 0 ]] && total_pages=1
-
-    local dead_ends=0
-    dead_ends=$(find "$SRC_DIR" -name "page.$COMP_EXT" 2>/dev/null | while read -r f; do
-        if ! grep -ql "Link\|href\|router\|navigate\|onClick" "$f" 2>/dev/null; then
-            echo "$f"
-        fi
-    done | wc -l | tr -d ' ')
-
-    if [[ "$dead_ends" -gt 0 ]]; then
-        local dead_pct=$((dead_ends * 100 / total_pages))
-        score=$((score - dead_pct / dead_end_div))
-    fi
-
-    # Empty states without guidance
-    local empty_states
-    empty_states=$(grep -rn "empty\|no.*yet\|nothing.*here\|get started" --include="*.$COMP_EXT" "$SRC_DIR" -l 2>/dev/null | wc -l | tr -d ' ')
-    local empty_with_cta
-    empty_with_cta=$(grep -rn "empty\|no.*yet\|nothing.*here\|get started" --include="*.$COMP_EXT" "$SRC_DIR" -l 2>/dev/null | xargs grep -l "Link\|button\|onClick\|href" 2>/dev/null | wc -l | tr -d ' ')
-
-    if [[ "$empty_states" -gt 0 ]]; then
-        local cta_pct=$((empty_with_cta * 100 / empty_states))
-        local missing_pct=$((100 - cta_pct))
-        score=$((score - missing_pct / empty_div))
-    fi
-
-    # IA audit: penalize orphan routes, dead ends, empty states without CTAs
-    if [[ -x "$SCRIPT_DIR/ia-audit.sh" ]]; then
-        ia_json=$("$SCRIPT_DIR/ia-audit.sh" . --json 2>/dev/null || echo '{}')
-        ia_orphans=$(echo "$ia_json" | grep -o '"orphan_count":[0-9]*' | grep -o '[0-9]*' || echo "0")
-        ia_dead=$(echo "$ia_json" | grep -o '"dead_end_count":[0-9]*' | grep -o '[0-9]*' || echo "0")
-        ia_empty=$(echo "$ia_json" | grep -o '"empty_no_cta_count":[0-9]*' | grep -o '[0-9]*' || echo "0")
-        ia_issues=$((ia_orphans + ia_dead + ia_empty))
-        if [[ "$ia_issues" -gt 10 ]]; then score=$((score - 25))
-        elif [[ "$ia_issues" -gt 5 ]]; then score=$((score - 15))
-        elif [[ "$ia_issues" -gt 0 ]]; then score=$((score - 5))
-        fi
+    # Product lens: web-specific structure checks (dead ends, empty states, IA audit)
+    if type -t score_structure_product &>/dev/null; then
+        score=$(score_structure_product "$score" "$SRC_DIR" "$PROJECT_TYPE" "$COMP_EXT")
     fi
 
     [[ "$score" -lt 0 ]] && score=0
@@ -449,33 +402,10 @@ score_hygiene() {
         return
     fi
 
-    # Web projects: original hygiene scoring
-
-    # `any` types — real type safety gap
-    local any_count
-    any_count=$(grep -rn ": any\b" --include="*.ts" --include="*.tsx" "$SRC_DIR" 2>/dev/null | grep -v "node_modules\|\.d\.ts" | wc -l | tr -d ' ')
-    tiered_penalty "$any_count" "50:-30 20:-20 5:-10 1:-3"
-
-    # console.log in production code
-    local console_count
-    console_count=$(grep -rn "console\.\(log\|warn\|error\)" --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | grep -v "node_modules\|test\|spec\|__test__\|logger" | wc -l | tr -d ' ')
-    tiered_penalty "$console_count" "30:-25 15:-15 5:-5 1:-3"
-
-    # Unfinished work markers
-    local todo_count
-    todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-    tiered_penalty "$todo_count" "30:-20 15:-10 5:-5 1:-3"
-
-    # Unused imports (rough signal — files with 10+ imports are suspicious)
-    local large_import_files
-    large_import_files=$(grep -rn "^import " --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | \
-        awk -F: '{print $1}' | sort | uniq -c | sort -rn | awk '$1 > 15 {count++} END {print count+0}')
-    tiered_penalty "$large_import_files" "10:-15 5:-10"
-
-    # Disabled lint rules — eslint-disable, @ts-ignore, @ts-expect-error
-    local lint_overrides
-    lint_overrides=$(grep -rn "eslint-disable\|@ts-ignore\|@ts-expect-error\|@ts-nocheck" --include="*.ts" --include="*.$COMP_EXT" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-    tiered_penalty "$lint_overrides" "20:-15 10:-10 3:-5 1:-3"
+    # Product lens: web-specific hygiene checks (any types, console.log, lint overrides)
+    if type -t score_hygiene_product &>/dev/null; then
+        score=$(score_hygiene_product "$score" "$SRC_DIR" "$PROJECT_TYPE" "$COMP_EXT" "$density_mult")
+    fi
 
     [[ "$score" -lt 0 ]] && score=0
     echo "$score"

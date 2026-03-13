@@ -22,6 +22,7 @@ evals/reports/
 
 # Node modules
 node_modules/
+package-lock.json
 
 # Playwright
 .playwright-mcp/

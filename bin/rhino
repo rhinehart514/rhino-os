@@ -38,7 +38,13 @@ cmd_taste() {
     if [[ ${#args[@]} -eq 0 ]]; then
         args=(".")
     fi
-    node "$RHINO_DIR/bin/taste.mjs" "${args[@]}"
+    local taste_script="$RHINO_DIR/lens/product/eval/taste.mjs"
+    [[ ! -f "$taste_script" ]] && taste_script="$RHINO_DIR/bin/taste.mjs"
+    if [[ ! -f "$taste_script" ]]; then
+        echo "taste.mjs not found — product lens not installed" >&2
+        exit 1
+    fi
+    node "$taste_script" "${args[@]}"
 }
 
 # ============================================================
@@ -65,7 +71,7 @@ cmd_status() {
 
     # Measurement stack
     local stack_ok=true
-    for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/bin/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
+    for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/lens/product/eval/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
         [[ ! -f "$tool" ]] && stack_ok=false
     done
     if $stack_ok; then
@@ -77,7 +83,7 @@ cmd_status() {
     # Last score
     if [[ -f ".claude/cache/score-cache.json" ]] && command -v jq &>/dev/null; then
         local score warnings build struct hygiene
-        score=$(jq -r '.total // "?"' .claude/cache/score-cache.json 2>/dev/null)
+        score=$(jq -r '.score // "?"' .claude/cache/score-cache.json 2>/dev/null)
         build=$(jq -r '.build // "?"' .claude/cache/score-cache.json 2>/dev/null)
         struct=$(jq -r '.structure // "?"' .claude/cache/score-cache.json 2>/dev/null)
         hygiene=$(jq -r '.hygiene // "?"' .claude/cache/score-cache.json 2>/dev/null)

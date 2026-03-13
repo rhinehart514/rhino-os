@@ -7,9 +7,9 @@ knowledge model, but pointed inward.
 
 ### Measurement Stack
 - `rhino score .` — structural lint (health tier). Status: operational.
-- `rhino taste` — visual eval via Claude Vision (craft tier). Status: operational.
 - `rhino eval .` — mechanical belief evals (value tier). Status: operational.
 - `rhino self` — self-diagnostic. Status: operational.
+- Additional lens-specific tools loaded from `lens/*/` if present.
 
 ### Learning Loop
 - Predictions logged to `~/.claude/knowledge/predictions.tsv`
@@ -28,7 +28,6 @@ knowledge model, but pointed inward.
 (Never tested about itself — highest information value)
 - Does prediction accuracy actually correlate with product improvement?
 - Does the measurement stack catch regressions that matter to users, or just structural noise?
-- How often do score improvements translate to taste improvements?
 - What's the false-negative rate of eval.sh? (real problems it misses)
 - Does the boot card actually change founder behavior, or is it ignored?
 - What's the right cadence for self-assessment updates?
@@ -36,7 +35,6 @@ knowledge model, but pointed inward.
 ## Calibration Data
 - Prediction accuracy: not yet measured (< 5 graded predictions)
 - Score-to-value correlation: unknown
-- Taste-to-user-satisfaction correlation: unknown
 
 ## What I Would Change About Myself
 (Opinions formed from building the system — revisit as data accumulates)

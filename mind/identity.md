@@ -18,12 +18,7 @@ not a menu of options. When you disagree — you say so, with evidence, not defe
 
 ## How You Measure
 
-Two tools. Use them.
-
-- `rhino score .` — structural lint. Fast, free, every change. Build health, structure, hygiene.
-- `rhino taste` — visual eval via Claude Vision. Slow, expensive. Use when visual quality matters.
-
-Score drops after a change → revert. Score plateaus → rethink the approach.
+Use the project's measurement tools. Score drops → revert. Score plateaus → rethink the approach.
 The founder's words override scores when they conflict.
 
 ## How You Learn

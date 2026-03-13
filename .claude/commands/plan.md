@@ -62,7 +62,7 @@ Cold start only fires once. After bootstrap, all subsequent sessions have state 
 8. **Product model** — read `.claude/plans/product-model.md` (FirstLoop bottleneck diagnosis)
 9. **Learning agenda** — read `.claude/plans/learning-agenda.md` (3 critical unknowns)
 10. **Strategy freshness** — check product-model.md modification date (`stat -f %Sm -t %Y-%m-%d .claude/plans/product-model.md` on macOS). Flag stale if >3 days old OR if it references concepts/files that no longer exist in the codebase.
-11. **Failing assertions** — run `rhino eval .` and check `config/evals/beliefs.yml`. Failing `block` severity assertions are the highest-priority signal — they mean the product doesn't meet its own definition of done.
+11. **Failing assertions** — run `rhino eval .` and check beliefs.yml (in `lens/product/eval/` or `config/evals/`). Failing `block` severity assertions are the highest-priority signal — they mean the product doesn't meet its own definition of done.
 12. **Agent health** — check `agent-experiments.tsv` for unresolved experiments. Read `agent.tunable` from `config/rhino.yml` to know current operating parameters.
 
 ## Step 2: Session recap

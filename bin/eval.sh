@@ -208,7 +208,11 @@ run_dom_eval() {
     if [[ "$DOM_RAN" != "true" ]]; then
         DOM_RAN=true
         if [[ -n "$EVAL_URL" ]]; then
-            DOM_RESULTS=$(node "$RHINO_DIR/bin/dom-eval.mjs" --url "$EVAL_URL" --eval 2>/dev/null) || DOM_RESULTS=""
+            local dom_script="$RHINO_DIR/lens/product/eval/dom-eval.mjs"
+            [[ ! -f "$dom_script" ]] && dom_script="$RHINO_DIR/bin/dom-eval.mjs"
+            if [[ -f "$dom_script" ]]; then
+                DOM_RESULTS=$(node "$dom_script" --url "$EVAL_URL" --eval 2>/dev/null) || DOM_RESULTS=""
+            fi
         fi
     fi
 }
@@ -217,7 +221,11 @@ run_copy_eval() {
     if [[ "$COPY_RAN" != "true" ]]; then
         COPY_RAN=true
         if [[ -n "$EVAL_URL" ]]; then
-            COPY_RESULTS=$(node "$RHINO_DIR/bin/copy-eval.mjs" --url "$EVAL_URL" --eval 2>/dev/null) || COPY_RESULTS=""
+            local copy_script="$RHINO_DIR/lens/product/eval/copy-eval.mjs"
+            [[ ! -f "$copy_script" ]] && copy_script="$RHINO_DIR/bin/copy-eval.mjs"
+            if [[ -f "$copy_script" ]]; then
+                COPY_RESULTS=$(node "$copy_script" --url "$EVAL_URL" --eval 2>/dev/null) || COPY_RESULTS=""
+            fi
         fi
     fi
 }
@@ -332,7 +340,9 @@ process_belief() {
             if [[ -n "$EVAL_URL" && -n "$belief_scenario" ]]; then
                 local threshold="${belief_threshold:-180}"
                 local blind_result
-                blind_result=$(node "$RHINO_DIR/bin/blind-eval.mjs" --url "$EVAL_URL" --task "$belief_scenario" --timeout "$threshold" --eval 2>/dev/null) || blind_result=""
+                local blind_script="$RHINO_DIR/lens/product/eval/blind-eval.mjs"
+                [[ ! -f "$blind_script" ]] && blind_script="$RHINO_DIR/bin/blind-eval.mjs"
+                blind_result=$(node "$blind_script" --url "$EVAL_URL" --task "$belief_scenario" --timeout "$threshold" --eval 2>/dev/null) || blind_result=""
                 if [[ -n "$blind_result" && -n "$belief_metric" ]]; then
                     local result=$(echo "$blind_result" | grep "^${belief_metric}:" | head -1)
                     local status=$(echo "$result" | cut -d: -f2)
@@ -354,7 +364,10 @@ process_belief() {
 
 # === beliefs.yml checks ===
 
-BELIEFS_FILE="config/evals/beliefs.yml"
+BELIEFS_FILE=""
+for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
+    [[ -f "$bf" ]] && BELIEFS_FILE="$bf" && break
+done
 if [[ -f "$BELIEFS_FILE" ]]; then
     belief_id=""
     belief_type=""
@@ -437,7 +450,10 @@ fi
 
 # Exit code — block severity failures return non-zero
 BLOCK_FAILS=0
-BELIEFS_FILE="config/evals/beliefs.yml"
+BELIEFS_FILE=""
+for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
+    [[ -f "$bf" ]] && BELIEFS_FILE="$bf" && break
+done
 if [[ -f "$BELIEFS_FILE" && "$FAIL" -gt 0 ]]; then
     # Count beliefs with severity: block that were checked and failed
     # For now, any FAIL with block_on_failure config = non-zero exit

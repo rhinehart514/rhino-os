@@ -252,8 +252,12 @@ print_experiments() {
 print_beliefs() {
     local beliefs_file
     # Try project-local first, then rhino-os default
-    if [[ -f "config/evals/beliefs.yml" ]]; then
+    if [[ -f "lens/product/eval/beliefs.yml" ]]; then
+        beliefs_file="lens/product/eval/beliefs.yml"
+    elif [[ -f "config/evals/beliefs.yml" ]]; then
         beliefs_file="config/evals/beliefs.yml"
+    elif [[ -f "$RHINO_DIR/lens/product/eval/beliefs.yml" ]]; then
+        beliefs_file="$RHINO_DIR/lens/product/eval/beliefs.yml"
     elif [[ -f "$RHINO_DIR/config/evals/beliefs.yml" ]]; then
         beliefs_file="$RHINO_DIR/config/evals/beliefs.yml"
     else

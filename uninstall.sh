@@ -66,8 +66,12 @@ echo ""
 
 # --- 1. Remove mind/ symlinks from rules ---
 echo -e "  ${BOLD}Mind${NC}"
-for mind_file in identity.md thinking.md standards.md; do
+for mind_file in identity.md thinking.md standards.md self.md; do
     remove_if_ours "$CLAUDE_DIR/rules/$mind_file" "rules/$mind_file"
+done
+# Remove lens mind symlinks
+for lens_mind in product-eyes.md product-standards.md product-self.md; do
+    remove_if_ours "$CLAUDE_DIR/rules/$lens_mind" "rules/$lens_mind (lens)"
 done
 
 # --- 2. Remove hook symlinks ---
@@ -83,7 +87,14 @@ else
     skip "hooks/ directory (does not exist)"
 fi
 
-# --- 3. Remove CLI symlinks ---
+# --- 3. Remove lens command symlinks ---
+echo ""
+echo -e "  ${BOLD}Lens commands${NC}"
+for cmd in critique.md ship.md assert.md evolve.md; do
+    remove_if_ours "$RHINO_DIR/.claude/commands/$cmd" "commands/$cmd (lens)"
+done
+
+# --- 4. Remove CLI symlinks ---
 echo ""
 echo -e "  ${BOLD}CLI${NC}"
 LOCAL_BIN="$HOME/bin"
@@ -91,7 +102,7 @@ for tool in rhino score.sh taste.mjs; do
     remove_if_ours "$LOCAL_BIN/$tool" "~/bin/$tool"
 done
 
-# --- 4. Remove RHINO_DIR from shell profile ---
+# --- 5. Remove RHINO_DIR from shell profile ---
 echo ""
 echo -e "  ${BOLD}Environment${NC}"
 PROFILE=""
@@ -112,7 +123,7 @@ else
     skip "no shell profile found"
 fi
 
-# --- 5. Preserve user data ---
+# --- 6. Preserve user data ---
 echo ""
 echo -e "  ${BOLD}Your data${NC}"
 if [[ -d "$CLAUDE_DIR/knowledge" ]]; then

@@ -8,15 +8,17 @@
 
 _RHINO_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 _RHINO_CONFIG_FILE="$_RHINO_CONFIG_DIR/config/rhino.yml"
+_RHINO_LENS_CONFIG="$_RHINO_CONFIG_DIR/lens/product/config/rhino-product.yml"
 
-# Read a dotted key from rhino.yml.
-# Usage: cfg "agents.budgets.scout" "default_value"
-cfg() {
-    local key="$1"
-    local default="${2:-}"
-    if [[ ! -f "$_RHINO_CONFIG_FILE" ]]; then
+# Read a dotted key from a YAML file.
+# Usage: _cfg_from_file "file.yml" "key.path" "default"
+_cfg_from_file() {
+    local file="$1"
+    local key="$2"
+    local default="${3:-}"
+    if [[ ! -f "$file" ]]; then
         echo "$default"
-        return
+        return 1
     fi
 
     local OLD_IFS="$IFS"
@@ -66,10 +68,31 @@ cfg() {
                     else
                         echo "$yval"
                     fi
-                    return
+                    return 0
                 fi
             fi
         fi
-    done < "$_RHINO_CONFIG_FILE"
+    done < "$file"
     echo "$default"
+    return 1
+}
+
+# Read a dotted key. Checks lens config first, then base config.
+# Usage: cfg "scoring.cache_ttl" "300"
+cfg() {
+    local key="$1"
+    local default="${2:-}"
+
+    # Try lens config first (overrides base)
+    if [[ -f "$_RHINO_LENS_CONFIG" ]]; then
+        local lens_val
+        lens_val=$(_cfg_from_file "$_RHINO_LENS_CONFIG" "$key" "")
+        if [[ $? -eq 0 && -n "$lens_val" ]]; then
+            echo "$lens_val"
+            return
+        fi
+    fi
+
+    # Fall back to base config
+    _cfg_from_file "$_RHINO_CONFIG_FILE" "$key" "$default"
 }
