@@ -87,12 +87,18 @@ else
     skip "hooks/ directory (does not exist)"
 fi
 
-# --- 3. Remove lens command symlinks ---
+# --- 3. Remove command symlinks from global ---
 echo ""
-echo -e "  ${BOLD}Lens commands${NC}"
-for cmd in critique.md ship.md assert.md evolve.md; do
-    remove_if_ours "$RHINO_DIR/.claude/commands/$cmd" "commands/$cmd (lens)"
-done
+echo -e "  ${BOLD}Commands${NC}"
+if [[ -d "$CLAUDE_DIR/commands" ]]; then
+    for cmd_file in "$CLAUDE_DIR/commands"/*.md; do
+        [[ ! -e "$cmd_file" ]] && continue
+        name="$(basename "$cmd_file")"
+        remove_if_ours "$cmd_file" "commands/$name"
+    done
+else
+    skip "commands/ directory (does not exist)"
+fi
 
 # --- 4. Remove CLI symlinks ---
 echo ""

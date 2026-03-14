@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# install.sh — One-command setup for rhino-os v6.
+# install.sh — One-command setup for rhino-os v7.
 # Idempotent — safe to re-run.
 #
 # Usage:
@@ -156,15 +156,30 @@ else
     action "~/bin/rhino"
 fi
 
-# --- 5. Symlink lens commands ---
+# --- 5. Symlink commands globally ---
 echo ""
-echo -e "  ${BOLD}Lens commands${NC}"
+echo -e "  ${BOLD}Commands${NC}"
+$DRY_RUN || mkdir -p "$CLAUDE_DIR/commands"
+
+# Clean up stale command symlinks (deleted commands)
+for cmd_link in "$CLAUDE_DIR/commands"/*.md; do
+    [[ ! -L "$cmd_link" ]] && continue
+    link_target="$(readlink "$cmd_link")"
+    if [[ "$link_target" == "$RHINO_DIR"* && ! -f "$link_target" ]]; then
+        $DRY_RUN || rm -f "$cmd_link"
+        action "removed stale commands/$(basename "$cmd_link")"
+    fi
+done
+
+# Lens commands first (lower priority)
 for lens_cmd_dir in "$RHINO_DIR"/lens/*/commands; do
     [[ ! -d "$lens_cmd_dir" ]] && continue
     for cmd_file in "$lens_cmd_dir"/*.md; do
         [[ ! -f "$cmd_file" ]] && continue
         name="$(basename "$cmd_file")"
-        target="$RHINO_DIR/.claude/commands/$name"
+        # Skip if core command with same name exists (core wins)
+        [[ -f "$RHINO_DIR/.claude/commands/$name" ]] && continue
+        target="$CLAUDE_DIR/commands/$name"
         if [[ -L "$target" && "$(readlink "$target")" == "$cmd_file" ]]; then
             skip "commands/$name (lens)"
         else
@@ -172,6 +187,20 @@ for lens_cmd_dir in "$RHINO_DIR"/lens/*/commands; do
             action "commands/$name (lens)"
         fi
     done
+done
+
+# Core commands last (higher priority — overwrite lens if same name)
+for cmd_file in "$RHINO_DIR"/.claude/commands/*.md; do
+    [[ ! -f "$cmd_file" ]] && continue
+    [[ -L "$cmd_file" ]] && continue
+    name="$(basename "$cmd_file")"
+    target="$CLAUDE_DIR/commands/$name"
+    if [[ -L "$target" && "$(readlink "$target")" == "$cmd_file" ]]; then
+        skip "commands/$name"
+    else
+        $DRY_RUN || ln -sf "$cmd_file" "$target"
+        action "commands/$name"
+    fi
 done
 
 # --- 6. Merge settings.json ---
