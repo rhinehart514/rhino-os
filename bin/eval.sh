@@ -4,7 +4,25 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="${1:-.}"
+# --- Recursion guard ---
+RHINO_EVAL_DEPTH="${RHINO_EVAL_DEPTH:-0}"
+if [[ "$RHINO_EVAL_DEPTH" -ge 2 ]]; then
+    echo ""  # safe fallback — empty = no assertions
+    exit 0
+fi
+export RHINO_EVAL_DEPTH=$((RHINO_EVAL_DEPTH + 1))
+
+# --- Parse args ---
+SCORE_MODE=false
+POSITIONAL=""
+for arg in "$@"; do
+    case "$arg" in
+        --score) SCORE_MODE=true ;;
+        *) POSITIONAL="$arg" ;;
+    esac
+done
+
+PROJECT_ROOT="${POSITIONAL:-.}"
 cd "$PROJECT_ROOT"
 
 PROJECT_NAME=$(basename "$(pwd)")
@@ -20,14 +38,14 @@ SCORE_PENALTY=0
 check_pass() {
     local name="$1"
     local desc="$2"
-    echo "  [PASS] $name    $desc    PASS"
+    [[ "$SCORE_MODE" != "true" ]] && echo "  [PASS] $name    $desc    PASS"
     PASS=$((PASS + 1))
 }
 
 check_warn() {
     local name="$1"
     local desc="$2"
-    echo "  [WARN] $name    $desc    WARN"
+    [[ "$SCORE_MODE" != "true" ]] && echo "  [WARN] $name    $desc    WARN"
     WARN=$((WARN + 1))
 }
 
@@ -36,19 +54,30 @@ check_fail() {
     local desc="$2"
     local severity="${3:-warn}"
     local penalty="${4:-0}"
-    if [[ "$severity" == "block" ]]; then
-        echo "  [FAIL] $name    $desc    FAIL [block]"
-    else
-        echo "  [FAIL] $name    $desc    FAIL [warn]"
+    if [[ "$SCORE_MODE" != "true" ]]; then
+        if [[ "$severity" == "block" ]]; then
+            echo "  [FAIL] $name    $desc    FAIL [block]"
+        else
+            echo "  [FAIL] $name    $desc    FAIL [warn]"
+        fi
     fi
     FAIL=$((FAIL + 1))
     SCORE_PENALTY=$((SCORE_PENALTY + penalty))
 }
 
-echo "rhino eval — $PROJECT_NAME $TIMESTAMP"
-echo ""
+if [[ "$SCORE_MODE" != "true" ]]; then
+    echo "rhino eval — $PROJECT_NAME $TIMESTAMP"
+    echo ""
+fi
 
-# === Default checks (always run) ===
+# Detect source directories (needed by both default checks and beliefs.yml)
+SRC_DIRS=""
+for d in src app pages source; do
+    [[ -d "$d" ]] && SRC_DIRS="$SRC_DIRS $d"
+done
+
+# === Default checks (skip in --score mode — score only counts beliefs.yml assertions) ===
+if [[ "$SCORE_MODE" != "true" ]]; then
 
 # 1. Build check — project identity
 if [[ -f "package.json" ]]; then
@@ -62,12 +91,6 @@ elif [[ -f "go.mod" ]]; then
 else
     check_warn "project-id" "no standard project file found"
 fi
-
-# Detect source directories (check all common patterns)
-SRC_DIRS=""
-for d in src app pages source; do
-    [[ -d "$d" ]] && SRC_DIRS="$SRC_DIRS $d"
-done
 
 if [[ -n "$SRC_DIRS" ]]; then
     # 2. Hygiene — console.log count
@@ -115,10 +138,13 @@ if [[ -n "$SRC_DIRS" ]]; then
     fi
 fi
 
-# === file_check beliefs (mechanical file existence/content) ===
+fi  # end SCORE_MODE != true (default checks)
 
-# These are hardcoded checks matching file_check belief IDs.
-# Each checks file existence or grep patterns — no YAML parsing needed.
+# === file_check beliefs (mechanical file existence/content) ===
+# These are rhino-os infrastructure checks — skip in --score mode
+# so that assertion pass rate only reflects project-specific beliefs.
+
+if [[ "$SCORE_MODE" != "true" ]]; then
 
 # value-hypothesis-exists
 if [[ -f "config/rhino.yml" ]] && grep -q '^value:' "config/rhino.yml" 2>/dev/null; then
@@ -177,12 +203,15 @@ else
     check_fail "mind-files-loaded" "$MIND_MISSING mind file(s) not in ~/.claude/rules/" "block" 5
 fi
 
+fi  # end SCORE_MODE != true
+
 # === URL detection for DOM/copy/playwright checks ===
+# Skip port scanning in --score mode (not needed for score computation)
 
 EVAL_URL="${EVAL_URL:-}"
-if [[ -z "$EVAL_URL" ]]; then
+if [[ -z "$EVAL_URL" && "$SCORE_MODE" != "true" ]]; then
     for port in 3000 3001 5173 8080 4321 4000; do
-        if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port" 2>/dev/null | grep -qE "^(200|301|302|304)"; then
+        if curl -s --connect-timeout 1 -o /dev/null -w "%{http_code}" "http://localhost:$port" 2>/dev/null | grep -qE "^(200|301|302|304)"; then
             EVAL_URL="http://localhost:$port"
             break
         fi
@@ -439,6 +468,18 @@ if [[ -f "$BELIEFS_FILE" ]]; then
 
     # Process last belief
     process_belief
+fi
+
+# === --score mode: output single integer ===
+if [[ "$SCORE_MODE" == "true" ]]; then
+    TOTAL=$((PASS + WARN + FAIL))
+    if [[ "$TOTAL" -eq 0 ]]; then
+        # No assertions planted — output empty string (not 100)
+        echo ""
+    else
+        echo $(( (PASS * 100 + WARN * 50) / TOTAL ))
+    fi
+    exit 0
 fi
 
 # === Summary ===

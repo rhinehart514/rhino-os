@@ -106,6 +106,32 @@ RC=$?
 [[ "$RC" -eq 0 ]] && pass "eval.sh exits 0 on clean project" || fail "eval.sh exits 0 on clean project (got $RC)"
 teardown_temp
 
+# ── --score mode ────────────────────────────────────────
+
+echo "-- Score mode --"
+
+# Score on rhino-os itself (has beliefs.yml)
+cd "$RHINO_DIR"
+SCORE=$(bash "$RHINO_DIR/bin/eval.sh" . --score 2>&1)
+echo "$SCORE" | grep -qE '^[0-9]+$' && pass "--score outputs integer on project with beliefs" || fail "--score outputs integer (got: $SCORE)"
+
+# Score on project without beliefs = empty
+setup_temp
+echo '{"name":"test"}' > package.json
+git add -A && git commit -q -m "init"
+SCORE=$(bash "$RHINO_DIR/bin/eval.sh" . --score 2>&1)
+[[ -z "$SCORE" || "$SCORE" == "" ]] && pass "--score outputs empty when no beliefs" || fail "--score outputs empty when no beliefs (got: $SCORE)"
+teardown_temp
+
+# Score mode skips default checks (no output noise)
+cd "$RHINO_DIR"
+SCORE_OUT=$(bash "$RHINO_DIR/bin/eval.sh" . --score 2>&1)
+echo "$SCORE_OUT" | grep -qv '\[PASS\]' && pass "--score suppresses check output" || fail "--score suppresses check output"
+
+# Recursion guard
+GUARDED=$(RHINO_EVAL_DEPTH=5 bash "$RHINO_DIR/bin/eval.sh" . --score 2>&1)
+[[ -z "$GUARDED" || "$GUARDED" == "" ]] && pass "recursion guard returns empty" || fail "recursion guard returns empty (got: $GUARDED)"
+
 # ── Results ─────────────────────────────────────────────
 
 echo ""

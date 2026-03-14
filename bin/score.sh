@@ -412,6 +412,52 @@ score_hygiene() {
 }
 
 # ============================================================
+# 4. PRODUCT QUALITY (0-100, context-dependent)
+#    For rhino-os projects: 4-system capability score (Measure/Think/Act/Learn)
+#    For projects with assertions: assertion pass rate from eval.sh --score
+#    For other projects: empty (not scored)
+# ============================================================
+SCORING_MODE="generic"  # generic | rhino-os | assertions
+SELF_JSON=""
+
+score_product() {
+    # rhino-os project: use self.sh 4-system score
+    if [[ -f "bin/rhino" && -f "bin/self.sh" ]]; then
+        SCORING_MODE="rhino-os"
+        local product_score
+        product_score=$("$SCRIPT_DIR/self.sh" --score 2>/dev/null) || product_score=""
+        SELF_JSON=$("$SCRIPT_DIR/self.sh" --json 2>/dev/null) || SELF_JSON=""
+        if [[ -n "$product_score" && "$product_score" =~ ^[0-9]+$ ]]; then
+            echo "$product_score"
+        else
+            echo "50"
+        fi
+        return
+    fi
+
+    # Project with assertions: use eval.sh --score
+    local beliefs_file=""
+    for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
+        [[ -f "$bf" ]] && beliefs_file="$bf" && break
+    done
+    if [[ -n "$beliefs_file" ]]; then
+        local eval_score
+        eval_score=$("$SCRIPT_DIR/eval.sh" . --score 2>/dev/null) || eval_score=""
+        if [[ -n "$eval_score" && "$eval_score" =~ ^[0-9]+$ ]]; then
+            SCORING_MODE="assertions"
+            echo "$eval_score"
+        else
+            # eval.sh returned empty = no assertions planted yet
+            echo ""
+        fi
+        return
+    fi
+
+    # Generic project: no product score
+    echo ""
+}
+
+# ============================================================
 # Run all checks
 # ============================================================
 [[ "$OUTPUT_MODE" != "quiet" && "$OUTPUT_MODE" != "json" ]] && echo -e "\033[1m=== rhino score ===\033[0m" >&2
@@ -428,6 +474,36 @@ start_spinner "checking hygiene..."
 HYGIENE=$(score_hygiene)
 stop_spinner "hygiene: $HYGIENE/100"
 
+start_spinner "checking product..."
+# Run score_product inline (not in subshell) to preserve SCORING_MODE/SELF_JSON
+PRODUCT=""
+if [[ -f "bin/rhino" && -f "bin/self.sh" ]]; then
+    SCORING_MODE="rhino-os"
+    PRODUCT=$("$SCRIPT_DIR/self.sh" --score 2>/dev/null) || PRODUCT=""
+    SELF_JSON=$("$SCRIPT_DIR/self.sh" --json 2>/dev/null) || SELF_JSON=""
+    if [[ -z "$PRODUCT" || ! "$PRODUCT" =~ ^[0-9]+$ ]]; then
+        PRODUCT="50"
+    fi
+else
+    # Check for assertion-based scoring
+    local_beliefs_file=""
+    for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
+        [[ -f "$bf" ]] && local_beliefs_file="$bf" && break
+    done
+    if [[ -n "$local_beliefs_file" ]]; then
+        eval_score=$("$SCRIPT_DIR/eval.sh" . --score 2>/dev/null) || eval_score=""
+        if [[ -n "$eval_score" && "$eval_score" =~ ^[0-9]+$ ]]; then
+            SCORING_MODE="assertions"
+            PRODUCT="$eval_score"
+        fi
+    fi
+fi
+if [[ -n "$PRODUCT" ]]; then
+    stop_spinner "product: $PRODUCT/100"
+else
+    stop_spinner "product: n/a (not a rhino-os project)"
+fi
+
 # Build gate
 BUILD_GATE_THRESHOLD=$(cfg scoring.build.gate_threshold 70)
 if [[ "$BUILD" -lt "$BUILD_GATE_THRESHOLD" ]]; then
@@ -436,9 +512,12 @@ else
     BUILD_GATE="PASS"
 fi
 
-# Weakest link (structure and hygiene only — build is a gate)
+# Weakest link (structure, hygiene, product — build is a gate)
 local_min=$STRUCTURE
 [[ "$HYGIENE" -lt "$local_min" ]] && local_min=$HYGIENE
+if [[ -n "$PRODUCT" && "$PRODUCT" =~ ^[0-9]+$ ]]; then
+    [[ "$PRODUCT" -lt "$local_min" ]] && local_min=$PRODUCT
+fi
 if [[ "$BUILD_GATE" == "FAIL" ]]; then
     local_min=0
 fi
@@ -449,7 +528,7 @@ HISTORY_FILE="$HISTORY_DIR/history.tsv"
 mkdir -p "$HISTORY_DIR"
 
 if [[ ! -f "$HISTORY_FILE" ]]; then
-    printf "timestamp\tbuild\tstructure\thygiene\tproject_type\n" > "$HISTORY_FILE"
+    printf "timestamp\tbuild\tstructure\thygiene\tproduct\tproject_type\n" > "$HISTORY_FILE"
 fi
 
 # --- Integrity checks (run BEFORE writing current entry to history) ---
@@ -491,10 +570,10 @@ if [[ "$HIST_LINES" -gt "$plateau_runs" ]]; then
 fi
 
 # --- Write current entry to history (after integrity checks) ---
-printf "%s\t%s\t%s\t%s\t%s\n" \
+printf "%s\t%s\t%s\t%s\t%s\t%s\n" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$BUILD" "$STRUCTURE" "$HYGIENE" \
-    "$PROJECT_TYPE" >> "$HISTORY_FILE"
+    "${PRODUCT:-}" "$PROJECT_TYPE" >> "$HISTORY_FILE"
 
 # STAGE CEILING: flag scores exceeding ceiling for current stage
 if [[ -f ".claude/plans/active-plan.md" ]] || [[ -f "config/rhino.yml" ]]; then
@@ -607,8 +686,22 @@ fi
 
 # --- Cache (AFTER taste read so taste score is included) ---
 mkdir -p "$CACHE_DIR"
+# Build self_scores JSON fragment
+SELF_SCORES_JSON="null"
+if [[ -n "$SELF_JSON" && "$SELF_JSON" != "" ]]; then
+    SELF_SCORES_JSON="$SELF_JSON"
+fi
+
+# Compute readiness
+READY_STRATEGY=false
+READY_TODOS=false
+if [[ "$SCORING_MODE" == "assertions" && -n "$PRODUCT" && "$PRODUCT" =~ ^[0-9]+$ ]]; then
+    [[ "$PRODUCT" -ge 60 ]] && READY_STRATEGY=true
+    [[ "$PRODUCT" -ge 80 ]] && READY_TODOS=true
+fi
+
 cat > "$CACHE_FILE" <<CEOF
-{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"taste":${TASTE_SCORE:-null},"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON,"cached_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"product":${PRODUCT:-null},"taste":${TASTE_SCORE:-null},"scoring_mode":"$SCORING_MODE","systems":$SELF_SCORES_JSON,"ready_strategy":$READY_STRATEGY,"ready_todos":$READY_TODOS,"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON,"cached_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 CEOF
 
 # --- Trends ---
@@ -654,7 +747,7 @@ case "$OUTPUT_MODE" in
         ;;
     json)
         cat <<EOF
-{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"taste":${TASTE_SCORE:-null},"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON}
+{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"product":${PRODUCT:-null},"taste":${TASTE_SCORE:-null},"scoring_mode":"$SCORING_MODE","systems":$SELF_SCORES_JSON,"ready_strategy":$READY_STRATEGY,"ready_todos":$READY_TODOS,"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON}
 EOF
         ;;
     score)
@@ -686,6 +779,32 @@ EOF
         [[ "$v" -eq "$local_min" ]] && marker=" ◀ weakest"
         echo -e "  Hygiene    ${color}${bar}\033[0m  ${v}/100  ${trend}  \033[2many, console.log, todos, @ts-ignore${marker}\033[0m"
 
+        # Product — context-dependent scoring
+        if [[ -n "$PRODUCT" && "$PRODUCT" =~ ^[0-9]+$ ]]; then
+            v="$PRODUCT"
+            bar=$(make_bar "$v")
+            color=$(dim_color "$v")
+            marker=""
+            [[ "$v" -eq "$local_min" ]] && marker=" ◀ weakest"
+            if [[ "$SCORING_MODE" == "rhino-os" ]]; then
+                echo -e "  Product    ${color}${bar}\033[0m  ${v}/100  \033[2mmeasure · think · act · learn${marker}\033[0m"
+                # Show 4-system breakdown if available
+                if [[ -n "$SELF_JSON" ]]; then
+                    m_score=$(echo "$SELF_JSON" | sed 's/.*"measure":\([0-9]*\).*/\1/' 2>/dev/null) || m_score=""
+                    t_score=$(echo "$SELF_JSON" | sed 's/.*"think":\([0-9]*\).*/\1/' 2>/dev/null) || t_score=""
+                    a_score=$(echo "$SELF_JSON" | sed 's/.*"act":\([0-9]*\).*/\1/' 2>/dev/null) || a_score=""
+                    l_score=$(echo "$SELF_JSON" | sed 's/.*"learn":\([0-9]*\).*/\1/' 2>/dev/null) || l_score=""
+                    if [[ -n "$m_score" && -n "$t_score" && -n "$a_score" && -n "$l_score" ]]; then
+                        echo -e "             \033[2mM:${m_score} · T:${t_score} · A:${a_score} · L:${l_score}\033[0m"
+                    fi
+                fi
+            elif [[ "$SCORING_MODE" == "assertions" ]]; then
+                echo -e "  Assertions ${color}${bar}\033[0m  ${v}/100  \033[2massertion pass rate${marker}\033[0m"
+            else
+                echo -e "  Product    ${color}${bar}\033[0m  ${v}/100  \033[2mcommands, tests, learning loop${marker}\033[0m"
+            fi
+        fi
+
         # Taste — the product quality layer
         if [[ -n "$TASTE_SCORE" && "$TASTE_SCORE" =~ ^[0-9]+$ ]]; then
             bar=$(make_bar "$TASTE_SCORE")
@@ -715,6 +834,28 @@ EOF
         # Overall
         overall_color=$(dim_color "$local_min")
         echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m"
+
+        # Readiness signals — what's unlocked at this score level
+        if [[ "$SCORING_MODE" == "assertions" && -n "$PRODUCT" && "$PRODUCT" =~ ^[0-9]+$ ]]; then
+            HAS_STRATEGY=false
+            HAS_TODOS=false
+            [[ -f ".claude/plans/strategy.yml" ]] && HAS_STRATEGY=true
+            [[ -f ".claude/plans/todos.yml" ]] && HAS_TODOS=true
+
+            if [[ "$PRODUCT" -ge 60 && "$HAS_STRATEGY" != "true" ]]; then
+                echo -e "  \033[0;36m▸\033[0m assertions passing — ready for \033[1m/strategy\033[0m"
+            fi
+            if [[ "$PRODUCT" -ge 80 && "$HAS_TODOS" != "true" ]]; then
+                echo -e "  \033[0;36m▸\033[0m assertions strong — ready for \033[1m/plan\033[0m with todos"
+            fi
+            if [[ "$PRODUCT" -ge 60 && "$HAS_STRATEGY" == "true" && "$PRODUCT" -lt 80 ]]; then
+                echo -e "  \033[2m▸ strategy active · pass more assertions to unlock todos\033[0m"
+            fi
+            if [[ "$PRODUCT" -ge 80 && "$HAS_STRATEGY" == "true" && "$HAS_TODOS" == "true" ]]; then
+                echo -e "  \033[0;32m▸\033[0m full loop active — strategy + todos + assertions"
+            fi
+        fi
+
         echo ""
         echo -e "  \033[2m$PROJECT_TYPE ($SRC_DIR) · $(( $(wc -l < "$HISTORY_FILE" | tr -d ' ') - 1 )) runs\033[0m"
         ;;

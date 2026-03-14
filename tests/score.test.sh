@@ -181,6 +181,63 @@ SCORE=$(run_score)
 check "rhino-os self-score is numeric" "echo '$SCORE' | grep -qE '^[0-9]+$'"
 check "rhino-os self-score is >= 80" "[ '$SCORE' -ge 80 ]"
 
+# ── Scoring mode detection ─────────────────────────────
+
+echo "-- Scoring mode --"
+
+# rhino-os project → scoring_mode: rhino-os
+cd "$RHINO_DIR"
+JSON=$(bash "$RHINO_DIR/bin/score.sh" . --force --json 2>&1)
+echo "$JSON" | grep -q '"scoring_mode":"rhino-os"' && check "rhino-os project detects rhino-os mode" "true" || check "rhino-os project detects rhino-os mode" "false"
+echo "$JSON" | grep -q '"systems":{' && check "rhino-os JSON includes system scores" "true" || check "rhino-os JSON includes system scores" "false"
+
+# Project with beliefs.yml → scoring_mode: assertions
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p src config/evals
+echo 'export const x = 1;' > src/index.ts
+cat > config/evals/beliefs.yml << 'BEOF'
+- id: test-assertion
+  type: content_check
+  belief: "No TODOs"
+  forbidden: ["FIXME"]
+BEOF
+git add -A && git commit -q -m "init"
+JSON=$(bash "$RHINO_DIR/bin/score.sh" . --force --json 2>&1)
+echo "$JSON" | grep -q '"scoring_mode":"assertions"' && check "beliefs project detects assertions mode" "true" || check "beliefs project detects assertions mode" "false"
+teardown_temp
+
+# Plain project → scoring_mode: generic
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p src
+echo 'export const x = 1;' > src/index.ts
+git add -A && git commit -q -m "init"
+JSON=$(bash "$RHINO_DIR/bin/score.sh" . --force --json 2>&1)
+echo "$JSON" | grep -q '"scoring_mode":"generic"' && check "plain project detects generic mode" "true" || check "plain project detects generic mode" "false"
+teardown_temp
+
+# ── Readiness signals ─────────────────────────────────
+
+echo "-- Readiness --"
+
+# Assertions at 100% → ready_strategy: true, ready_todos: true
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p src config/evals
+echo 'export const x = 1;' > src/index.ts
+cat > config/evals/beliefs.yml << 'BEOF'
+- id: clean-code
+  type: content_check
+  belief: "No FIXME"
+  forbidden: ["FIXME_MARKER_UNLIKELY"]
+BEOF
+git add -A && git commit -q -m "init"
+JSON=$(bash "$RHINO_DIR/bin/score.sh" . --force --json 2>&1)
+echo "$JSON" | grep -q '"ready_strategy":true' && check "100% assertions → ready_strategy true" "true" || check "100% assertions → ready_strategy true" "false"
+echo "$JSON" | grep -q '"ready_todos":true' && check "100% assertions → ready_todos true" "true" || check "100% assertions → ready_todos true" "false"
+teardown_temp
+
 # ── Results ─────────────────────────────────────────────
 
 echo ""

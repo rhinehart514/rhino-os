@@ -53,6 +53,26 @@ Before reading state, check if the knowledge infrastructure exists:
 
 Cold start only fires once. After bootstrap, all subsequent sessions have state to read.
 
+## Step 0.5: New project detection
+
+After cold start check, detect if this is a NEW PROJECT that rhino-os is being applied to:
+
+**Detection**: `~/.claude/knowledge/experiment-learnings.md` exists (rhino-os is installed) BUT `.claude/plans/strategy.yml` does NOT exist in the current project directory.
+
+When detected:
+1. **Read the codebase** (2-3 min): entry points, framework, README, package.json/pyproject.toml, directory structure. Understand what this project IS.
+2. **Form a value hypothesis**: one sentence — "This project's value is [X] for [Y user]." Write to `.claude/plans/strategy.yml` under a `value:` key.
+3. **Plant 5 initial assertions** in `config/evals/beliefs.yml`:
+   - 2 value assertions (does it do what it claims?)
+   - 2 craft assertions (can someone use it?)
+   - 1 health assertion (does it build/run?)
+   - Use only types eval.sh can run mechanically (`file_check`, `content_check`). No `dom_check`/`playwright_task` unless a dev server is detected running.
+4. **Bootstrap strategy.yml**: stage, bottleneck, 3 unknowns.
+5. **Run `rhino eval .`** to get baseline assertion pass rate.
+6. **Continue to Step 1** with state now available.
+
+Skip this step if `.claude/plans/strategy.yml` already exists (returning to an existing project).
+
 ## Step 1: Read state (do all in parallel)
 
 1. **Scores** — run `rhino score .` and check `.claude/cache/score-cache.json`
