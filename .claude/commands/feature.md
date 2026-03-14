@@ -13,11 +13,15 @@ Parse `$ARGUMENTS` and route:
 ### No arguments → list all features
 Run `rhino feature` to show all features with pass rates. Then give one opinion: "**[worst feature]** needs attention — `/plan [feature]` to work on it."
 
-### Feature name → show status + suggest next action
-Run `rhino feature [name]`. Then:
-- If all passing: "**[feature]** is green. Nothing broken."
-- If some failing: list failing assertions. "Run `/go [feature]` to fix, or `/feature [feature] research` to dig deeper."
-- If no assertions: "**[feature]** has no assertions. Let's define what it must do."
+### Feature name(s) → show status + suggest next action
+One or more names: `/feature auth`, `/feature auth scoring cli`.
+
+For each, run `rhino feature [name]`. Then:
+- All passing: "**[feature]** is green."
+- Some failing: list failing assertions. "Run `/go [features]` to fix."
+- No assertions: "Let's define what **[feature]** must do."
+
+Multiple features → show all, identify weakest.
 
 ### `detect` → find features in the codebase
 Run `rhino feature detect`. Show what was found. For unasserted features: "Run `/feature new [name]` to define it."

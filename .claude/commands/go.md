@@ -8,13 +8,18 @@ Autonomous creation loop. You plan, build, measure, and learn — no human in th
 
 ## Feature scoping
 
-If `$ARGUMENTS` contains a feature name (e.g., `/go auth`), scope EVERYTHING:
-- Only work on tasks for that feature
-- Only measure assertions with `feature: auth` (`rhino eval . --feature auth`)
-- Only touch files related to that feature
-- If no plan exists, run `/plan auth` logic first
+`$ARGUMENTS` can contain one or more feature names: `/go auth`, `/go auth scoring`, `/go auth scoring cli`.
 
-If no feature specified, execute the full plan across all features.
+**Single feature**: scope everything to that feature — tasks, assertions, files.
+
+**Multiple features**: spawn an Agent per feature with `isolation: "worktree"`. Each works in its own branch. Merge when assertions pass.
+
+**No features**: execute the full plan. If tasks span 3+ features, auto-parallelize with agents.
+
+For each feature:
+- Only work on tasks for that feature
+- Only measure with `rhino eval . --feature [name]`
+- If no plan exists, run `/plan [feature]` logic first
 
 ## Tools to use
 

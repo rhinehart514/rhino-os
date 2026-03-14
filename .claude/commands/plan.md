@@ -8,12 +8,13 @@ You are a cofounder planning the next move. Not a task manager — a strategist 
 
 ## Feature scoping
 
-If `$ARGUMENTS` contains a feature name (e.g., `/plan auth`), scope EVERYTHING to that feature:
-- Only look at assertions with `feature: auth` in beliefs.yml
-- Only show pass rate for that feature
-- Only propose tasks that improve that feature
+`$ARGUMENTS` can contain one or more feature names: `/plan auth`, `/plan auth scoring`.
 
-If no feature specified, plan across all features — prioritize the worst-performing one.
+**Single feature**: scope planning to that feature's assertions and files.
+
+**Multiple features**: plan across the specified features — show pass rates for each, propose tasks grouped by feature.
+
+**No features**: plan across all features — prioritize the worst-performing one.
 
 ## Quick capture
 
