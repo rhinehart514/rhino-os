@@ -58,8 +58,11 @@ cmd_taste() {
     if [[ ${#args[@]} -eq 0 ]]; then
         args=(".")
     fi
-    local taste_script="$RHINO_DIR/lens/product/eval/taste.mjs"
-    [[ ! -f "$taste_script" ]] && taste_script="$RHINO_DIR/bin/taste.mjs"
+    local taste_script=""
+    for _ts in "$RHINO_DIR"/lens/*/eval/taste.mjs; do
+        [[ -f "$_ts" ]] && taste_script="$_ts" && break
+    done
+    [[ -z "$taste_script" ]] && taste_script="$RHINO_DIR/bin/taste.mjs"
     if [[ ! -f "$taste_script" ]]; then
         echo "taste.mjs not found — product lens not installed" >&2
         exit 1
@@ -91,9 +94,28 @@ cmd_status() {
 
     # Measurement stack
     local stack_ok=true
-    for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/lens/product/eval/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
+    # Check measurement stack — taste.mjs searched across lenses
+    local _taste_found=false
+    for _ts in "$RHINO_DIR"/lens/*/eval/taste.mjs; do
+        [[ -f "$_ts" ]] && _taste_found=true && break
+    done
+    for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/bin/eval.sh"; do
         [[ ! -f "$tool" ]] && stack_ok=false
     done
+    [[ "$_taste_found" == "false" ]] && stack_ok=false
+
+    # Installed lenses
+    local _lens_names=()
+    for _lyml in "$RHINO_DIR"/lens/*/lens.yml; do
+        [[ -f "$_lyml" ]] || continue
+        local _lname
+        _lname=$(grep '^name:' "$_lyml" 2>/dev/null | head -1 | sed 's/^name:[[:space:]]*//')
+        [[ -n "$_lname" ]] && _lens_names+=("$_lname")
+    done
+    if [[ ${#_lens_names[@]} -gt 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} Lenses: ${_lens_names[*]}"
+    fi
+
     if $stack_ok; then
         echo -e "  ${GREEN}✓${NC} Measurement: score, taste, eval"
     else
@@ -120,13 +142,14 @@ cmd_status() {
         [[ -n "$warnings" ]] && echo -e "           ${YELLOW}⚠ ${warnings}${NC}"
     fi
 
-    # Active plan
-    if [[ -f ".claude/plans/active-plan.md" ]]; then
-        local total done_count title
-        title=$(head -5 .claude/plans/active-plan.md | grep -m1 '^#' | sed 's/^#* *//' || echo "")
-        total=$(grep -c '^\- \[' .claude/plans/active-plan.md 2>/dev/null || echo 0)
-        done_count=$(grep -c '^\- \[x\]' .claude/plans/active-plan.md 2>/dev/null || echo 0)
-        echo -e "  ${DIM}plan${NC}     ${BOLD}${title}${NC} ${DIM}(${done_count}/${total})${NC}"
+    # Active plan (plan.yml)
+    if [[ -f ".claude/plans/plan.yml" ]]; then
+        local task_count=0 next_task=""
+        task_count=$(grep -cE '^\s+-\s' .claude/plans/plan.yml 2>/dev/null || echo 0)
+        next_task=$(grep -A1 'tasks:' .claude/plans/plan.yml 2>/dev/null | tail -1 | sed 's/^\s*- *//' | head -c 60 || echo "")
+        if [[ -n "$next_task" ]]; then
+            echo -e "  ${DIM}plan${NC}     ${task_count} tasks ${DIM}· ▸ ${next_task}${NC}"
+        fi
     fi
 
     echo ""
@@ -291,12 +314,19 @@ cmd_help() {
     echo -e "    todo            ${DIM}Backlog (show|add|done|edit|tag|promote|active|feature|all)${NC}"
     echo -e "    test            ${DIM}Run test suites${NC}"
     echo ""
+    echo -e "  ${BOLD}Skills${NC}"
+    echo -e "    skill list      ${DIM}Show installed lenses${NC}"
+    echo -e "    skill install   ${DIM}Install a lens from git${NC}"
+    echo -e "    skill remove    ${DIM}Remove a lens${NC}"
+    echo -e "    skill info      ${DIM}Show lens details${NC}"
+    echo ""
     echo -e "  ${BOLD}System${NC}"
     echo -e "    init            ${DIM}Bootstrap rhino-os into any repo${NC}"
     echo -e "    status          ${DIM}Health overview${NC}"
     echo -e "    self            ${DIM}Self-diagnostic${NC}"
     echo -e "    bench           ${DIM}Calibration check${NC}"
     echo -e "    config          ${DIM}Show configuration${NC}"
+    echo -e "    serve           ${DIM}HTTP adapter (localhost:7100)${NC}"
     echo ""
     echo -e "  ${BOLD}In Claude Code${NC}"
     echo -e "    ${DIM}/eval [feature]    Is my product good?${NC}"
@@ -323,6 +353,8 @@ case "${1:-help}" in
     test)       shift; cmd_test "$@" ;;
     status)     cmd_status ;;
     config)     cmd_config ;;
+    skill)      shift; bash "$RHINO_DIR/bin/skill.sh" "$@" ;;
+    serve)      shift; require_dep "node" "rhino serve"; node "$RHINO_DIR/bin/serve.mjs" "$@" ;;
     init)       shift; bash "$RHINO_DIR/bin/init.sh" "$@" ;;
     install)    shift; bash "$RHINO_DIR/install.sh" "$@" ;;
     uninstall)  shift; bash "$RHINO_DIR/uninstall.sh" "$@" ;;

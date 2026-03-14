@@ -101,13 +101,18 @@ CURRENT_SYSTEM="measure"
 
 # measurement-stack (8 pts): score.sh, eval.sh, taste.mjs exist
 STACK_MISSING=0
-for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/lens/product/eval/taste.mjs" "$RHINO_DIR/bin/eval.sh"; do
+_taste_found=false
+for _ts in "$RHINO_DIR"/lens/*/eval/taste.mjs; do
+    [[ -f "$_ts" ]] && _taste_found=true && break
+done
+for tool in "$RHINO_DIR/bin/score.sh" "$RHINO_DIR/bin/eval.sh"; do
     if [[ ! -f "$tool" ]]; then
         STACK_MISSING=$((STACK_MISSING + 1))
     elif [[ ! -x "$tool" && "$tool" != *.mjs ]]; then
         STACK_MISSING=$((STACK_MISSING + 1))
     fi
 done
+[[ "$_taste_found" == "false" ]] && STACK_MISSING=$((STACK_MISSING + 1))
 if [[ "$STACK_MISSING" -eq 0 ]]; then
     check_pass "measurement-stack" "score.sh, taste.mjs, eval.sh all present" 8
 else
@@ -182,7 +187,10 @@ for mf in "${MIND_FILES[@]}"; do
     if [[ ! -f "$RHINO_DIR/mind/$mf" ]]; then
         MIND_MISSING=$((MIND_MISSING + 1))
     fi
-    if [[ ! -L "$HOME/.claude/rules/$mf" ]] || [[ ! -f "$HOME/.claude/rules/$mf" ]]; then
+    # Check project-local first, fall back to global
+    RULES_CHECK_DIR="$PWD/.claude/rules"
+    [[ ! -d "$RULES_CHECK_DIR" ]] && RULES_CHECK_DIR="$HOME/.claude/rules"
+    if [[ ! -L "$RULES_CHECK_DIR/$mf" ]] || [[ ! -f "$RULES_CHECK_DIR/$mf" ]]; then
         MIND_UNLINKED=$((MIND_UNLINKED + 1))
     fi
 done
@@ -191,7 +199,7 @@ if [[ "$MIND_MISSING" -eq 0 && "$MIND_UNLINKED" -eq 0 ]]; then
 elif [[ "$MIND_MISSING" -gt 0 ]]; then
     check_fail "mind-integrity" "$MIND_MISSING mind file(s) missing from mind/" 6
 else
-    check_fail "mind-integrity" "$MIND_UNLINKED mind file(s) not symlinked in ~/.claude/rules/" 6
+    check_fail "mind-integrity" "$MIND_UNLINKED mind file(s) not symlinked in rules/" 6
 fi
 
 # strategy-ready (6 pts): strategy.yml has stage + bottleneck
@@ -259,8 +267,8 @@ fi
 CURRENT_SYSTEM="act"
 
 # commands-depth (6 pts): slash commands are substantive, not stubs
-CMD_DIR="$HOME/.claude/commands"
-[[ ! -d "$CMD_DIR" ]] && CMD_DIR=".claude/commands"
+CMD_DIR=".claude/commands"
+[[ ! -d "$CMD_DIR" ]] && CMD_DIR="$HOME/.claude/commands"
 if [[ -d "$CMD_DIR" ]]; then
     STUB_COUNT=0
     CMD_COUNT=0
@@ -285,26 +293,40 @@ fi
 
 # hook-health (6 pts): hooks resolve and are executable
 HOOK_TIMEOUT_MS=$(cfg self.hook_timeout_ms 200)
-HOOKS_DIR="$HOME/.claude/hooks"
 HOOKS_BROKEN=0
 HOOKS_CHECKED=0
 
-if [[ -d "$HOOKS_DIR" ]]; then
-    for hook in "$HOOKS_DIR"/*.sh; do
-        [[ ! -f "$hook" ]] && continue
+if [[ -f "$PWD/.claude/settings.json" ]] && command -v jq &>/dev/null; then
+    # Project-local: parse settings.json for hook commands
+    while IFS= read -r hook_cmd; do
+        [[ -z "$hook_cmd" ]] && continue
         HOOKS_CHECKED=$((HOOKS_CHECKED + 1))
-        if [[ -L "$hook" ]]; then
-            target=$(readlink "$hook" 2>/dev/null)
-            if [[ ! -f "$target" ]]; then
+        if [[ ! -f "$hook_cmd" ]]; then
+            HOOKS_BROKEN=$((HOOKS_BROKEN + 1))
+        elif [[ ! -x "$hook_cmd" ]]; then
+            HOOKS_BROKEN=$((HOOKS_BROKEN + 1))
+        fi
+    done < <(jq -r '.. | .command? // empty' "$PWD/.claude/settings.json" 2>/dev/null)
+else
+    # Fall back to global hooks dir (legacy install)
+    HOOKS_DIR="$HOME/.claude/hooks"
+    if [[ -d "$HOOKS_DIR" ]]; then
+        for hook in "$HOOKS_DIR"/*.sh; do
+            [[ ! -f "$hook" ]] && continue
+            HOOKS_CHECKED=$((HOOKS_CHECKED + 1))
+            if [[ -L "$hook" ]]; then
+                target=$(readlink "$hook" 2>/dev/null)
+                if [[ ! -f "$target" ]]; then
+                    HOOKS_BROKEN=$((HOOKS_BROKEN + 1))
+                    continue
+                fi
+            fi
+            if [[ ! -x "$hook" ]]; then
                 HOOKS_BROKEN=$((HOOKS_BROKEN + 1))
                 continue
             fi
-        fi
-        if [[ ! -x "$hook" ]]; then
-            HOOKS_BROKEN=$((HOOKS_BROKEN + 1))
-            continue
-        fi
-    done
+        done
+    fi
 fi
 
 if [[ "$HOOKS_CHECKED" -eq 0 ]]; then
@@ -326,10 +348,13 @@ else
             MISSING_SECTIONS=$((MISSING_SECTIONS + 1))
         fi
     done
-    LENS_CONFIG="$RHINO_DIR/lens/product/config/rhino-product.yml"
-    if [[ -f "$LENS_CONFIG" ]] && ! grep -q "^taste:" "$LENS_CONFIG" 2>/dev/null; then
-        MISSING_SECTIONS=$((MISSING_SECTIONS + 1))
-    fi
+    # Check all lens configs for required sections
+    for _lcf in "$RHINO_DIR"/lens/*/config/rhino-*.yml; do
+        [[ -f "$_lcf" ]] || continue
+        if ! grep -q "^taste:" "$_lcf" 2>/dev/null; then
+            MISSING_SECTIONS=$((MISSING_SECTIONS + 1))
+        fi
+    done
     if [[ "$MISSING_SECTIONS" -gt 0 ]]; then
         check_warn "config-coherence" "$MISSING_SECTIONS required section(s) missing from rhino.yml" 3 6
     else

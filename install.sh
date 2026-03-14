@@ -43,84 +43,17 @@ echo ""
 
 # --- 1. Create directories ---
 for dir in \
-    "$CLAUDE_DIR/knowledge" \
-    "$CLAUDE_DIR/hooks" \
-    "$CLAUDE_DIR/plans"; do
+    "$CLAUDE_DIR/knowledge"; do
     if [[ ! -d "$dir" ]]; then
         $DRY_RUN || mkdir -p "$dir"
         action "mkdir $dir"
     fi
 done
 
-# --- 2. Symlink mind/ files to rules ---
-echo ""
-echo -e "  ${BOLD}Mind${NC}"
-
-# Clean up old rule files
-for old_rule in identity.md product-brief.md hypotheses.md self-review.md; do
-    old_file="$CLAUDE_DIR/rules/$old_rule"
-    if [[ -L "$old_file" || -f "$old_file" ]]; then
-        $DRY_RUN || rm -f "$old_file"
-    fi
-done
-
-$DRY_RUN || mkdir -p "$CLAUDE_DIR/rules"
-for mind_file in identity.md thinking.md standards.md self.md; do
-    src="$RHINO_DIR/mind/$mind_file"
-    target="$CLAUDE_DIR/rules/$mind_file"
-    if [[ -L "$target" && "$(readlink "$target")" == "$src" ]]; then
-        skip "rules/$mind_file"
-    else
-        $DRY_RUN || ln -sf "$src" "$target"
-        action "rules/$mind_file"
-    fi
-done
-
-# Symlink lens mind files
-for lens_dir in "$RHINO_DIR"/lens/*/mind; do
-    [[ ! -d "$lens_dir" ]] && continue
-    for lens_mind in "$lens_dir"/*.md; do
-        [[ ! -f "$lens_mind" ]] && continue
-        name="$(basename "$lens_mind")"
-        target="$CLAUDE_DIR/rules/$name"
-        if [[ -L "$target" && "$(readlink "$target")" == "$lens_mind" ]]; then
-            skip "rules/$name (lens)"
-        else
-            $DRY_RUN || ln -sf "$lens_mind" "$target"
-            action "rules/$name (lens)"
-        fi
-    done
-done
-
-# --- 3. Symlink hooks ---
-echo ""
-echo -e "  ${BOLD}Hooks${NC}"
-
-# Clean up old hooks
-for old_hook in pre_compact.sh post_build.sh post_edit_quality.sh autonomy_gate.sh capture_knowledge.sh check_predictions.sh enforce_ideation_readonly.sh extract_patterns.sh session_context.sh thinking_nudge.sh track_cost.sh track_usage.sh; do
-    old_hook_file="$CLAUDE_DIR/hooks/$old_hook"
-    if [[ -L "$old_hook_file" ]]; then
-        $DRY_RUN || rm -f "$old_hook_file"
-        action "removed old hook: $old_hook"
-    fi
-done
-
-for hook in "$RHINO_DIR"/hooks/*.sh; do
-    [[ ! -f "$hook" ]] && continue
-    name="$(basename "$hook")"
-    target="$CLAUDE_DIR/hooks/$name"
-    if [[ -L "$target" && "$(readlink "$target")" == "$hook" ]]; then
-        skip "hooks/$name"
-    else
-        $DRY_RUN || ln -sf "$hook" "$target"
-        $DRY_RUN || chmod +x "$hook"
-        action "hooks/$name"
-    fi
-done
-
-# --- 4. Symlink CLI ---
+# --- 2. Symlink CLI ---
 echo ""
 echo -e "  ${BOLD}CLI${NC}"
+echo ""
 LOCAL_BIN="$HOME/bin"
 $DRY_RUN || mkdir -p "$LOCAL_BIN"
 
@@ -156,75 +89,7 @@ else
     action "~/bin/rhino"
 fi
 
-# --- 5. Symlink commands globally ---
-echo ""
-echo -e "  ${BOLD}Commands${NC}"
-$DRY_RUN || mkdir -p "$CLAUDE_DIR/commands"
-
-# Clean up stale command symlinks (deleted commands)
-for cmd_link in "$CLAUDE_DIR/commands"/*.md; do
-    [[ ! -L "$cmd_link" ]] && continue
-    link_target="$(readlink "$cmd_link")"
-    if [[ "$link_target" == "$RHINO_DIR"* && ! -f "$link_target" ]]; then
-        $DRY_RUN || rm -f "$cmd_link"
-        action "removed stale commands/$(basename "$cmd_link")"
-    fi
-done
-
-# Lens commands first (lower priority)
-for lens_cmd_dir in "$RHINO_DIR"/lens/*/commands; do
-    [[ ! -d "$lens_cmd_dir" ]] && continue
-    for cmd_file in "$lens_cmd_dir"/*.md; do
-        [[ ! -f "$cmd_file" ]] && continue
-        name="$(basename "$cmd_file")"
-        # Skip if core command with same name exists (core wins)
-        [[ -f "$RHINO_DIR/.claude/commands/$name" ]] && continue
-        target="$CLAUDE_DIR/commands/$name"
-        if [[ -L "$target" && "$(readlink "$target")" == "$cmd_file" ]]; then
-            skip "commands/$name (lens)"
-        else
-            $DRY_RUN || ln -sf "$cmd_file" "$target"
-            action "commands/$name (lens)"
-        fi
-    done
-done
-
-# Core commands last (higher priority — overwrite lens if same name)
-for cmd_file in "$RHINO_DIR"/.claude/commands/*.md; do
-    [[ ! -f "$cmd_file" ]] && continue
-    [[ -L "$cmd_file" ]] && continue
-    name="$(basename "$cmd_file")"
-    target="$CLAUDE_DIR/commands/$name"
-    if [[ -L "$target" && "$(readlink "$target")" == "$cmd_file" ]]; then
-        skip "commands/$name"
-    else
-        $DRY_RUN || ln -sf "$cmd_file" "$target"
-        action "commands/$name"
-    fi
-done
-
-# --- 6. Merge settings.json ---
-echo ""
-echo -e "  ${BOLD}Settings${NC}"
-SETTINGS_SRC="$RHINO_DIR/config/settings.json"
-SETTINGS_DEST="$CLAUDE_DIR/settings.json"
-
-if [[ -f "$SETTINGS_DEST" ]]; then
-    if command -v jq &>/dev/null; then
-        $DRY_RUN || {
-            tmp="$(mktemp)"
-            jq -s '.[0] * {hooks: .[1].hooks}' "$SETTINGS_DEST" "$SETTINGS_SRC" > "$tmp" && mv "$tmp" "$SETTINGS_DEST"
-        }
-        action "settings.json (hooks updated to v6)"
-    else
-        echo -e "  [warn] jq not found — copy config/settings.json manually"
-    fi
-else
-    $DRY_RUN || cp "$SETTINGS_SRC" "$SETTINGS_DEST"
-    action "settings.json (copied)"
-fi
-
-# --- 7. Set RHINO_DIR in shell profile ---
+# --- 3. Set RHINO_DIR in shell profile ---
 echo ""
 echo -e "  ${BOLD}Environment${NC}"
 PROFILE=""
@@ -249,5 +114,7 @@ if $DRY_RUN; then
     echo -e "  ${DIM}Dry run complete. Run without --check to apply.${NC}"
 else
     echo -e "  ${GREEN}✓${NC} ${BOLD}Done.${NC} Reload your shell: ${DIM}source $PROFILE${NC}"
+    echo ""
+    echo -e "  ${DIM}Run${NC} ${BOLD}rhino init${NC} ${DIM}in each project to set up hooks and commands.${NC}"
 fi
 echo ""

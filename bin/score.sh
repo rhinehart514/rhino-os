@@ -78,8 +78,10 @@ source "$SCRIPT_DIR/lib/config.sh"
 
 # --- Lens extensions ---
 RHINO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-LENS_SCORE="$RHINO_ROOT/lens/product/scoring/score-product.sh"
-[[ -f "$LENS_SCORE" ]] && source "$LENS_SCORE"
+# Source all lens scoring extensions
+for _lens_score in "$RHINO_ROOT"/lens/*/scoring/score-*.sh; do
+    [[ -f "$_lens_score" ]] && source "$_lens_score"
+done
 
 # --- Spinner ---
 SPINNER_PID=""
@@ -311,7 +313,7 @@ score_structure() {
         if [[ -f "config/rhino.yml" ]]; then
             # Check if dimensions listed in config (base or lens) match what taste.mjs scores
             local config_dims
-            config_dims=$(grep -h -A20 'dimensions:' config/rhino.yml lens/product/config/rhino-product.yml 2>/dev/null | grep '^ *-' | wc -l | tr -d ' ')
+            config_dims=$(grep -h -A20 'dimensions:' config/rhino.yml lens/*/config/rhino-*.yml 2>/dev/null | grep '^ *-' | wc -l | tr -d ' ')
             if [[ "$config_dims" -eq 0 ]]; then
                 score=$((score - 10))
             fi
@@ -322,10 +324,10 @@ score_structure() {
         return
     fi
 
-    # Product lens: web-specific structure checks (dead ends, empty states, IA audit)
-    if type -t score_structure_product &>/dev/null; then
-        score=$(score_structure_product "$score" "$SRC_DIR" "$PROJECT_TYPE" "$COMP_EXT")
-    fi
+    # Lens structure checks (dynamic discovery)
+    for _fn in $(compgen -A function | grep '^score_structure_'); do
+        score=$("$_fn" "$score" "$SRC_DIR" "$PROJECT_TYPE" "$COMP_EXT")
+    done
 
     [[ "$score" -lt 0 ]] && score=0
     echo "$score"
@@ -426,10 +428,10 @@ score_hygiene() {
         return
     fi
 
-    # Product lens: web-specific hygiene checks (any types, console.log, lint overrides)
-    if type -t score_hygiene_product &>/dev/null; then
-        score=$(score_hygiene_product "$score" "$SRC_DIR" "$PROJECT_TYPE" "$COMP_EXT" "$density_mult")
-    fi
+    # Lens hygiene checks (dynamic discovery)
+    for _fn in $(compgen -A function | grep '^score_hygiene_'); do
+        score=$("$_fn" "$score" "$SRC_DIR" "$PROJECT_TYPE" "$COMP_EXT" "$density_mult")
+    done
 
     [[ "$score" -lt 0 ]] && score=0
     echo "$score"
@@ -473,7 +475,7 @@ score_completion() {
 
     # beliefs.yml exists (10 pts)
     local beliefs_file=""
-    for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
+    for bf in lens/*/eval/beliefs.yml "config/evals/beliefs.yml"; do
         [[ -f "$bf" ]] && beliefs_file="$bf" && break
     done
     [[ -n "$beliefs_file" ]] && points=$((points + 10))

@@ -8,7 +8,12 @@
 
 _RHINO_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 _RHINO_CONFIG_FILE="$_RHINO_CONFIG_DIR/config/rhino.yml"
-_RHINO_LENS_CONFIG="$_RHINO_CONFIG_DIR/lens/product/config/rhino-product.yml"
+
+# Discover all lens configs (glob into array, last match wins in cfg())
+_RHINO_LENS_CONFIGS=()
+for _lc in "$_RHINO_CONFIG_DIR"/lens/*/config/rhino-*.yml; do
+    [[ -f "$_lc" ]] && _RHINO_LENS_CONFIGS+=("$_lc")
+done
 
 # Read a dotted key from a YAML file.
 # Usage: _cfg_from_file "file.yml" "key.path" "default"
@@ -77,20 +82,26 @@ _cfg_from_file() {
     return 1
 }
 
-# Read a dotted key. Checks lens config first, then base config.
+# Read a dotted key. Checks all lens configs (last match wins), then base config.
 # Usage: cfg "scoring.cache_ttl" "300"
 cfg() {
     local key="$1"
     local default="${2:-}"
 
-    # Try lens config first (overrides base)
-    if [[ -f "$_RHINO_LENS_CONFIG" ]]; then
-        local lens_val
-        lens_val=$(_cfg_from_file "$_RHINO_LENS_CONFIG" "$key" "")
-        if [[ $? -eq 0 && -n "$lens_val" ]]; then
-            echo "$lens_val"
-            return
+    # Try lens configs (iterate all, last match wins)
+    local lens_val="" found=false
+    for _lcf in "${_RHINO_LENS_CONFIGS[@]}"; do
+        [[ ! -f "$_lcf" ]] && continue
+        local _v
+        _v=$(_cfg_from_file "$_lcf" "$key" "")
+        if [[ $? -eq 0 && -n "$_v" ]]; then
+            lens_val="$_v"
+            found=true
         fi
+    done
+    if [[ "$found" == "true" ]]; then
+        echo "$lens_val"
+        return
     fi
 
     # Fall back to base config

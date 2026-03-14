@@ -74,7 +74,7 @@ rhino-os boots automatically. Run `rhino score .` to get your first score. It'll
 
 **Next steps:**
 1. Add `value.hypothesis` to `config/rhino.yml` (what does your product deliver?)
-2. Run `/assert` to plant assertions (what must be true?)
+2. Run `/eval` to see what's passing and what's not
 3. Run `/go` to build toward passing them
 
 **Requirements:** [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) with OAuth. macOS or Linux. Node 18+ for visual eval.
@@ -108,8 +108,9 @@ Every command accepts a feature name. Work on what you want, scoped to the part 
 | `/plan auth` | Same, but scoped to the auth feature. |
 | `/go` | Build it. Autonomous — keeps what passes, reverts what doesn't. |
 | `/go auth` | Build just auth. Only touches auth assertions and files. |
-| `/assert` | Define what must be true. Plants assertions. |
-| `/assert auth` | Define what auth must do. |
+| `/eval` | Run assertions. See what's passing, what's failing. |
+| `/eval auth` | Evaluate just auth. |
+| `/feature` | List features with pass rates. |
 | `/ship` | Commit, push, deploy, verify. |
 
 **Terminal:**
@@ -156,24 +157,26 @@ One number. Measures what matters.
 ```
   rhino v7.0.0
 
+  Measure
+    eval [dir]      Run assertions — the one command
+    taste [dir]     Visual eval (Claude Vision, expensive)
+    score [dir]     Score for scripts/CI (--quiet for number)
+
   Features
-    feature [name]  List features or view one
+    feature         List all features with pass rates
+    feature <name>  View one feature's assertions
     feature detect  Auto-detect features from codebase
 
-  Measure
-    score [dir]     Value score (assertion pass rate + per-feature)
-    taste [dir]     Visual product eval (Claude Vision)
-    eval [dir]      Run assertions (detailed output)
-    self            Self-diagnostic
-
   Build
-    go [args]       Autonomous build loop
+    plan            View/manage build plan
+    todo            Backlog (show|add|done|edit|tag|promote)
     test            Run test suites
-    plan            View/manage plan tasks
-    todo            Persistent backlog
 
   System
+    init            Bootstrap rhino-os into any repo
     status          Health overview
+    self            Self-diagnostic
+    bench           Calibration check
     config          Show configuration
 ```
 
@@ -187,17 +190,21 @@ rhino-os/
     identity.md            cofounder behavior
     thinking.md            predict -> measure -> update model
     standards.md           what quality means (value > craft > health)
+    self.md                self-model (capabilities, weaknesses, calibration)
   bin/
     rhino                  CLI entrypoint
     score.sh               THE score (assertion pass rate, health gate)
     eval.sh                assertion runner
     self.sh                4-system self-diagnostic
-    taste.mjs              visual eval via Claude Vision
-  .claude/commands/        slash commands (plan, go, assert, etc.)
+    bench.sh               calibration check against fixture repos
+    init.sh                bootstrap rhino-os into any repo
+  .claude/commands/        slash commands (plan, go, eval, feature, etc.)
   config/
     rhino.yml              tunables + value hypothesis + signals
   hooks/
-    session_start.sh       boot card
+    session_start.sh       boot card on session start
+    post_skill.sh          plan file validation after skill writes
+    post_edit.sh           write-time quality checks
   lens/product/            product development lens
     eval/beliefs.yml       product assertions
     eval/taste.mjs         visual eval engine

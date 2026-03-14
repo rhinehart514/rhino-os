@@ -63,20 +63,51 @@ GENERATIVE_SCORES=""
 GENERATIVE_COUNT=0
 GENERATIVE_SUM=0
 
+# --- Colors ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+SEP="  ${DIM}⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯${NC}"
+
+print_score_bar() {
+    local score=${1:-0}
+    local filled=$(( (score + 2) / 5 ))
+    [[ $filled -gt 20 ]] && filled=20
+    local empty=$((20 - filled))
+    local color="$RED"
+    [[ $score -ge 50 ]] && color="$YELLOW"
+    [[ $score -ge 80 ]] && color="$GREEN"
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+    local trail=""
+    for ((i=0; i<empty; i++)); do trail="${trail}░"; done
+    printf "${color}${bar}${DIM}${trail}${NC}"
+}
+
+# Result accumulation arrays
+BELIEF_PASSES=()
+BELIEF_WARNS=()
+BELIEF_FAILS=()
+GENERATIVE_DISPLAY=()
+
 # --- Check functions ---
 
 check_pass() {
     local name="$1"
     local desc="$2"
-    [[ "$SCORE_MODE" != "true" ]] && echo "  [PASS] $name    $desc    PASS"
     PASS=$((PASS + 1))
+    BELIEF_PASSES+=("${name}|${desc}")
 }
 
 check_warn() {
     local name="$1"
     local desc="$2"
-    [[ "$SCORE_MODE" != "true" ]] && echo "  [WARN] $name    $desc    WARN"
     WARN=$((WARN + 1))
+    BELIEF_WARNS+=("${name}|${desc}")
 }
 
 check_fail() {
@@ -84,27 +115,19 @@ check_fail() {
     local desc="$2"
     local severity="${3:-warn}"
     local penalty="${4:-0}"
-    if [[ "$SCORE_MODE" != "true" ]]; then
-        if [[ "$severity" == "block" ]]; then
-            echo "  [FAIL] $name    $desc    FAIL [block]"
-        else
-            echo "  [FAIL] $name    $desc    FAIL [warn]"
-        fi
-    fi
     FAIL=$((FAIL + 1))
     SCORE_PENALTY=$((SCORE_PENALTY + penalty))
+    if [[ "$severity" == "block" ]]; then
+        BELIEF_FAILS+=("${name}|${desc}|block")
+    else
+        BELIEF_FAILS+=("${name}|${desc}|warn")
+    fi
 }
 
-# Early feature detection for header logic
+# Early feature detection
 HAS_FEATURES=false
 if [[ -f "config/rhino.yml" ]] && grep -q '^features:' "config/rhino.yml" 2>/dev/null; then
     HAS_FEATURES=true
-fi
-
-# Print header if generative eval didn't already
-if [[ "$SCORE_MODE" != "true" && "$HAS_FEATURES" != true ]]; then
-    echo "rhino eval — $PROJECT_NAME $TIMESTAMP"
-    echo ""
 fi
 
 # Detect source directories (needed by both default checks and beliefs.yml)
@@ -275,8 +298,11 @@ run_dom_eval() {
     if [[ "$DOM_RAN" != "true" ]]; then
         DOM_RAN=true
         if [[ -n "$EVAL_URL" ]]; then
-            local dom_script="$RHINO_DIR/lens/product/eval/dom-eval.mjs"
-            [[ ! -f "$dom_script" ]] && dom_script="$RHINO_DIR/bin/dom-eval.mjs"
+            local dom_script=""
+            for _ds in "$RHINO_DIR"/lens/*/eval/dom-eval.mjs; do
+                [[ -f "$_ds" ]] && dom_script="$_ds" && break
+            done
+            [[ -z "$dom_script" ]] && dom_script="$RHINO_DIR/bin/dom-eval.mjs"
             if [[ -f "$dom_script" ]]; then
                 DOM_RESULTS=$(node "$dom_script" --url "$EVAL_URL" --eval 2>/dev/null) || DOM_RESULTS=""
             fi
@@ -288,8 +314,11 @@ run_copy_eval() {
     if [[ "$COPY_RAN" != "true" ]]; then
         COPY_RAN=true
         if [[ -n "$EVAL_URL" ]]; then
-            local copy_script="$RHINO_DIR/lens/product/eval/copy-eval.mjs"
-            [[ ! -f "$copy_script" ]] && copy_script="$RHINO_DIR/bin/copy-eval.mjs"
+            local copy_script=""
+            for _cs in "$RHINO_DIR"/lens/*/eval/copy-eval.mjs; do
+                [[ -f "$_cs" ]] && copy_script="$_cs" && break
+            done
+            [[ -z "$copy_script" ]] && copy_script="$RHINO_DIR/bin/copy-eval.mjs"
             if [[ -f "$copy_script" ]]; then
                 COPY_RESULTS=$(node "$copy_script" --url "$EVAL_URL" --eval 2>/dev/null) || COPY_RESULTS=""
             fi
@@ -607,15 +636,9 @@ run_generative_eval() {
         GENERATIVE_COUNT=$((GENERATIVE_COUNT + 1))
         GENERATIVE_SUM=$((GENERATIVE_SUM + feat_score))
 
-        # Display output (non-score mode only)
+        # Accumulate for display
         if [[ "$SCORE_MODE" != "true" ]]; then
-            if [[ "$feat_score" -ge 80 ]]; then
-                echo "  [${feat_score}] $feat_name    delivers: $delivers"
-            elif [[ "$feat_score" -ge 40 ]]; then
-                echo "  [${feat_score}] $feat_name    partial: $gaps"
-            else
-                echo "  [${feat_score}] $feat_name    missing: $gaps"
-            fi
+            GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}")
         fi
 
         # Build cache entry
@@ -636,10 +659,7 @@ run_generative_eval() {
 # Score mode uses cached results if available, skips otherwise.
 # This keeps `rhino score .` fast and free (no LLM calls).
 if [[ "$HAS_FEATURES" == true && "$SCORE_MODE" != "true" && "$NO_GENERATIVE" != "true" ]]; then
-    echo "  generative eval (Claude judges feature claims)"
-    echo ""
     run_generative_eval
-    echo ""
 elif [[ "$HAS_FEATURES" == true && "$SCORE_MODE" == "true" ]]; then
     # In --score mode: read cached generative scores as numbers, don't call Claude
     if [[ -f "$EVAL_CACHE_FILE" ]] && command -v jq &>/dev/null; then
@@ -1094,8 +1114,11 @@ ${review_context}"
             if [[ -n "$EVAL_URL" && -n "$belief_scenario" ]]; then
                 local threshold="${belief_threshold:-180}"
                 local blind_result
-                local blind_script="$RHINO_DIR/lens/product/eval/blind-eval.mjs"
-                [[ ! -f "$blind_script" ]] && blind_script="$RHINO_DIR/bin/blind-eval.mjs"
+                local blind_script=""
+                for _bs in "$RHINO_DIR"/lens/*/eval/blind-eval.mjs; do
+                    [[ -f "$_bs" ]] && blind_script="$_bs" && break
+                done
+                [[ -z "$blind_script" ]] && blind_script="$RHINO_DIR/bin/blind-eval.mjs"
                 blind_result=$(node "$blind_script" --url "$EVAL_URL" --task "$belief_scenario" --timeout "$threshold" --eval 2>/dev/null) || blind_result=""
                 if [[ -n "$blind_result" && -n "$belief_metric" ]]; then
                     local result=$(echo "$blind_result" | grep "^${belief_metric}:" | head -1)
@@ -1125,7 +1148,7 @@ ${review_context}"
 # === beliefs.yml checks ===
 
 BELIEFS_FILE=""
-for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
+for bf in lens/*/eval/beliefs.yml "config/evals/beliefs.yml"; do
     [[ -f "$bf" ]] && BELIEFS_FILE="$bf" && break
 done
 if [[ -f "$BELIEFS_FILE" ]]; then
@@ -1354,28 +1377,107 @@ if [[ "$SCORE_MODE" == "true" ]]; then
     exit 0
 fi
 
-# === Summary ===
-echo ""
-if [[ "$GENERATIVE_COUNT" -gt 0 ]]; then
-    _gen_avg=$((GENERATIVE_SUM / GENERATIVE_COUNT))
-    echo "generative: ${GENERATIVE_COUNT} features, avg ${_gen_avg}/100"
-fi
-if [[ "$((PASS + WARN + FAIL))" -gt 0 ]]; then
-    echo "beliefs: $PASS passed | $WARN warned | $FAIL failed"
-fi
-if [[ "$SCORE_PENALTY" -gt 0 ]]; then
-    echo "Score impact: -${SCORE_PENALTY} pts from failures"
+# === Display (voice.md format) ===
+if [[ "$SCORE_MODE" != "true" ]]; then
+    # Compute blended score for display
+    BELIEFS_TOTAL=$((PASS + WARN + FAIL))
+    _display_score=""
+    _total_weight=$((BELIEFS_TOTAL + GENERATIVE_COUNT))
+    if [[ "$_total_weight" -gt 0 ]]; then
+        _beliefs_points=0
+        [[ "$BELIEFS_TOTAL" -gt 0 ]] && _beliefs_points=$(( PASS * 100 + WARN * 50 ))
+        _display_score=$(( (_beliefs_points + GENERATIVE_SUM) / _total_weight ))
+    fi
+
+    echo ""
+    echo -e "$SEP"
+
+    # Score bar at top
+    if [[ -n "$_display_score" ]]; then
+        SCORE_BAR=$(print_score_bar "$_display_score")
+        echo -e "  ${DIM}eval${NC}  ${BOLD}${_display_score}/100${NC}  ${SCORE_BAR}"
+        # Sub-line: feature count + belief count
+        _sub_parts=""
+        [[ "$GENERATIVE_COUNT" -gt 0 ]] && _sub_parts="${GENERATIVE_COUNT} features"
+        if [[ "$BELIEFS_TOTAL" -gt 0 ]]; then
+            [[ -n "$_sub_parts" ]] && _sub_parts="${_sub_parts}  ${DIM}·${NC}  "
+            _sub_parts="${_sub_parts}${PASS}/${BELIEFS_TOTAL} beliefs"
+        fi
+        [[ -n "$_sub_parts" ]] && echo -e "        $_sub_parts"
+    fi
+
+    echo -e "$SEP"
+    echo ""
+
+    # Features section (sorted by score descending)
+    if [[ ${#GENERATIVE_DISPLAY[@]} -gt 0 ]]; then
+        echo -e "  ${BOLD}features${NC}"
+        # Sort by score descending
+        printf '%s\n' "${GENERATIVE_DISPLAY[@]}" | sort -t'|' -k2 -rn | while IFS='|' read -r _fname _fscore _fdelivers _fgaps; do
+            # Icon and color
+            if [[ "$_fscore" -ge 80 ]]; then
+                _icon="${GREEN}✓${NC}"
+                _score_color="${GREEN}"
+            elif [[ "$_fscore" -ge 40 ]]; then
+                _icon="${DIM}·${NC}"
+                _score_color="${YELLOW}"
+            else
+                _icon="${RED}✗${NC}"
+                _score_color="${RED}"
+            fi
+            # Truncate description to fit
+            _desc="$_fdelivers"
+            [[ "$_fscore" -lt 80 && -n "$_fgaps" ]] && _desc="$_fgaps"
+            [[ ${#_desc} -gt 40 ]] && _desc="${_desc:0:37}..."
+            printf "  %b %b%-3s%b %-14s %b%s%b\n" "$_icon" "$_score_color" "$_fscore" "$NC" "$_fname" "$DIM" "$_desc" "$NC"
+        done
+        echo ""
+    fi
+
+    # Beliefs section
+    if [[ "$BELIEFS_TOTAL" -gt 0 ]]; then
+        echo -e "  ${BOLD}beliefs${NC}  ${PASS} ${GREEN}✓${NC}  ${DIM}·${NC}  ${WARN} ${YELLOW}⚠${NC}  ${DIM}·${NC}  ${FAIL} ${RED}✗${NC}"
+
+        # Show failures first
+        for _entry in "${BELIEF_FAILS[@]+"${BELIEF_FAILS[@]}"}"; do
+            IFS='|' read -r _bname _bdesc _bsev <<< "$_entry"
+            if [[ "$_bsev" == "block" ]]; then
+                echo -e "  ${RED}●${NC} ${_bname}  ${DIM}${_bdesc}${NC}"
+            else
+                echo -e "  ${RED}✗${NC} ${_bname}  ${DIM}${_bdesc}${NC}"
+            fi
+        done
+
+        # Show warnings
+        for _entry in "${BELIEF_WARNS[@]+"${BELIEF_WARNS[@]}"}"; do
+            IFS='|' read -r _bname _bdesc <<< "$_entry"
+            echo -e "  ${YELLOW}⚠${NC} ${_bname}  ${DIM}${_bdesc}${NC}"
+        done
+
+        # Passes: just a count, don't list them
+        echo ""
+    fi
+
+    # Next action line
+    if [[ "$FAIL" -gt 0 ]]; then
+        echo -e "  ${DIM}next: /plan to fix the ${FAIL} failure(s)${NC}"
+    elif [[ "$WARN" -gt 0 ]]; then
+        echo -e "  ${DIM}next: /plan to address ${WARN} warning(s)${NC}"
+    else
+        echo -e "  ${DIM}next: /go${NC}"
+    fi
+
+    echo -e "$SEP"
+    echo ""
 fi
 
 # Exit code — block severity failures return non-zero
 BLOCK_FAILS=0
-BELIEFS_FILE=""
-for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
-    [[ -f "$bf" ]] && BELIEFS_FILE="$bf" && break
+BELIEFS_FILE_CHECK=""
+for bf in lens/*/eval/beliefs.yml "config/evals/beliefs.yml"; do
+    [[ -f "$bf" ]] && BELIEFS_FILE_CHECK="$bf" && break
 done
-if [[ -f "$BELIEFS_FILE" && "$FAIL" -gt 0 ]]; then
-    # Count beliefs with severity: block that were checked and failed
-    # For now, any FAIL with block_on_failure config = non-zero exit
+if [[ -f "$BELIEFS_FILE_CHECK" && "$FAIL" -gt 0 ]]; then
     BLOCK_ON=$(grep -c 'block_on_failure: true' config/rhino.yml 2>/dev/null) || BLOCK_ON=0
     if [[ "$BLOCK_ON" -gt 0 ]]; then
         BLOCK_FAILS=$FAIL
@@ -1383,7 +1485,6 @@ if [[ -f "$BELIEFS_FILE" && "$FAIL" -gt 0 ]]; then
 fi
 
 if [[ "$BLOCK_FAILS" -gt 0 ]]; then
-    echo "Blocking: $BLOCK_FAILS failure(s) with block_on_failure enabled"
     exit 1
 fi
 exit 0

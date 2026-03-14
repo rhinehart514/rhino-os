@@ -19,7 +19,7 @@ Extends rhino-os with product-development-specific tools:
 
 ## Commands
 
-`/assert`, `/critique`, `/ship`, `/evolve` — symlinked to `.claude/commands/` by `install.sh`.
+`/ship` — symlinked to `.claude/commands/` by `install.sh`. Product-specific eval types (dom_check, copy_check, playwright_task) are available through `beliefs.yml`.
 
 ## Disabling
 

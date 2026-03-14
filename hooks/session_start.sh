@@ -293,13 +293,22 @@ SELF_REC=""
 
 # 1. Hooks broken?
 HOOKS_BROKEN_COUNT=0
-for hook in "$HOME/.claude/hooks/"*.sh; do
-    [[ ! -f "$hook" ]] && continue
-    if [[ -L "$hook" ]]; then
-        target=$(readlink "$hook" 2>/dev/null)
-        [[ ! -f "$target" ]] && HOOKS_BROKEN_COUNT=$((HOOKS_BROKEN_COUNT + 1))
-    fi
-done
+if [[ -f "$PROJECT_DIR/.claude/settings.json" ]] && command -v jq &>/dev/null; then
+    # Check project-local hooks from settings.json
+    while IFS= read -r hook_cmd; do
+        [[ -z "$hook_cmd" ]] && continue
+        [[ ! -f "$hook_cmd" ]] && HOOKS_BROKEN_COUNT=$((HOOKS_BROKEN_COUNT + 1))
+    done < <(jq -r '.. | .command? // empty' "$PROJECT_DIR/.claude/settings.json" 2>/dev/null)
+else
+    # Fall back to global hooks dir (legacy install)
+    for hook in "$HOME/.claude/hooks/"*.sh; do
+        [[ ! -f "$hook" ]] && continue
+        if [[ -L "$hook" ]]; then
+            target=$(readlink "$hook" 2>/dev/null)
+            [[ ! -f "$target" ]] && HOOKS_BROKEN_COUNT=$((HOOKS_BROKEN_COUNT + 1))
+        fi
+    done
+fi
 if [[ "$HOOKS_BROKEN_COUNT" -gt 0 ]]; then
     SELF_REC="[self] $HOOKS_BROKEN_COUNT broken hook(s) — run \`rhino self\`"
 fi
@@ -307,8 +316,11 @@ fi
 # 2. Mind files missing?
 if [[ -z "$SELF_REC" ]]; then
     MIND_MISSING_COUNT=0
+    # Check project-local first, fall back to global
+    RULES_DIR="$PROJECT_DIR/.claude/rules"
+    [[ ! -d "$RULES_DIR" ]] && RULES_DIR="$HOME/.claude/rules"
     for mf in identity.md thinking.md standards.md self.md; do
-        if [[ ! -L "$HOME/.claude/rules/$mf" ]] || [[ ! -f "$HOME/.claude/rules/$mf" ]]; then
+        if [[ ! -L "$RULES_DIR/$mf" ]] || [[ ! -f "$RULES_DIR/$mf" ]]; then
             MIND_MISSING_COUNT=$((MIND_MISSING_COUNT + 1))
         fi
     done

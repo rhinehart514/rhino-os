@@ -64,43 +64,7 @@ echo ""
 echo -e "  ${CYAN}◆${NC} ${BOLD}rhino-os uninstall${NC}"
 echo ""
 
-# --- 1. Remove mind/ symlinks from rules ---
-echo -e "  ${BOLD}Mind${NC}"
-for mind_file in identity.md thinking.md standards.md self.md; do
-    remove_if_ours "$CLAUDE_DIR/rules/$mind_file" "rules/$mind_file"
-done
-# Remove lens mind symlinks
-for lens_mind in product-eyes.md product-standards.md product-self.md; do
-    remove_if_ours "$CLAUDE_DIR/rules/$lens_mind" "rules/$lens_mind (lens)"
-done
-
-# --- 2. Remove hook symlinks ---
-echo ""
-echo -e "  ${BOLD}Hooks${NC}"
-if [[ -d "$CLAUDE_DIR/hooks" ]]; then
-    for hook_file in "$CLAUDE_DIR/hooks"/*.sh; do
-        [[ ! -e "$hook_file" ]] && continue
-        name="$(basename "$hook_file")"
-        remove_if_ours "$hook_file" "hooks/$name"
-    done
-else
-    skip "hooks/ directory (does not exist)"
-fi
-
-# --- 3. Remove command symlinks from global ---
-echo ""
-echo -e "  ${BOLD}Commands${NC}"
-if [[ -d "$CLAUDE_DIR/commands" ]]; then
-    for cmd_file in "$CLAUDE_DIR/commands"/*.md; do
-        [[ ! -e "$cmd_file" ]] && continue
-        name="$(basename "$cmd_file")"
-        remove_if_ours "$cmd_file" "commands/$name"
-    done
-else
-    skip "commands/ directory (does not exist)"
-fi
-
-# --- 4. Remove CLI symlinks ---
+# --- 1. Remove CLI symlinks ---
 echo ""
 echo -e "  ${BOLD}CLI${NC}"
 LOCAL_BIN="$HOME/bin"
@@ -108,7 +72,7 @@ for tool in rhino score.sh taste.mjs; do
     remove_if_ours "$LOCAL_BIN/$tool" "~/bin/$tool"
 done
 
-# --- 5. Remove RHINO_DIR from shell profile ---
+# --- 2. Remove RHINO_DIR from shell profile ---
 echo ""
 echo -e "  ${BOLD}Environment${NC}"
 PROFILE=""
@@ -129,18 +93,13 @@ else
     skip "no shell profile found"
 fi
 
-# --- 6. Preserve user data ---
+# --- 3. Preserve user data ---
 echo ""
 echo -e "  ${BOLD}Your data${NC}"
 if [[ -d "$CLAUDE_DIR/knowledge" ]]; then
     preserve "~/.claude/knowledge/"
 else
     skip "~/.claude/knowledge/ (does not exist)"
-fi
-if [[ -d "$CLAUDE_DIR/plans" ]]; then
-    preserve "~/.claude/plans/"
-else
-    skip "~/.claude/plans/ (does not exist)"
 fi
 
 # --- Done ---
@@ -150,5 +109,9 @@ if $DRY_RUN; then
 else
     echo -e "  ${GREEN}✓${NC} ${BOLD}Done.${NC} rhino-os uninstalled."
     [[ -n "$PROFILE" ]] && echo -e "    ${DIM}Reload your shell: source $PROFILE${NC}"
+    echo ""
+    echo -e "  ${DIM}Project-local .claude/ files are left in place.${NC}"
+    echo -e "  ${DIM}Delete .claude/rules/, .claude/commands/, and .claude/settings.json${NC}"
+    echo -e "  ${DIM}from individual projects to fully remove.${NC}"
 fi
 echo ""

@@ -79,49 +79,49 @@ beliefs:
     feature: learning
     severity: warn
 
-  # ── cli ─────────────────────────────────────────────
+  # ── self-diagnostic ────────────────────────────────
   # Do the tools work?
 
   - id: eval-runs
     belief: "rhino eval . exits without crash"
     type: self_check
     metric: eval-runs
-    feature: cli
+    feature: self-diagnostic
     severity: block
 
   - id: tests-pass
     belief: "rhino test exits 0"
     type: self_check
     metric: tests-pass
-    feature: cli
+    feature: self-diagnostic
     severity: block
 
   - id: help-works
     belief: "rhino help produces output"
     type: self_check
     metric: help-works
-    feature: cli
+    feature: self-diagnostic
     severity: warn
 
   - id: hooks-resolve
     belief: "Session start hook exists"
     type: file_check
     path: "~/.claude/hooks/session_start.sh"
-    feature: cli
+    feature: install
     severity: warn
 
   - id: mind-identity-loaded
     belief: "identity.md is symlinked in ~/.claude/rules/"
     type: file_check
     path: "~/.claude/rules/identity.md"
-    feature: cli
+    feature: install
     severity: block
 
   - id: mind-thinking-loaded
     belief: "thinking.md is symlinked in ~/.claude/rules/"
     type: file_check
     path: "~/.claude/rules/thinking.md"
-    feature: cli
+    feature: install
     severity: block
 
   # ── commands ────────────────────────────────────────
@@ -252,10 +252,10 @@ beliefs:
       - "stale predictions and knowledge are detected and flagged"
     severity: warn
 
-  - id: cli-complete
-    belief: "CLI tools form a coherent, working toolchain"
+  - id: self-diagnostic-complete
+    belief: "Self-diagnostic tools measure system health and calibration"
     type: feature_review
-    feature: cli
+    feature: self-diagnostic
     path: "bin/"
     severity: warn
 
@@ -277,10 +277,10 @@ beliefs:
     severity: warn
 
   - id: commands-are-intuitive
-    belief: "The 4 slash commands make sense to a new user"
+    belief: "The slash commands make sense to a new user"
     type: llm_judge
     path: ".claude/commands"
-    prompt: "Read these command files. Would a new user understand what /feature, /plan, /go, and /ship do from their descriptions? Are the names intuitive?"
+    prompt: "Read these command files. Would a new user understand what /plan, /go, /eval, /feature, and /ship do from their descriptions? Are the names intuitive?"
     feature: commands
     severity: warn
 
@@ -305,5 +305,5 @@ beliefs:
     type: llm_judge
     path: "bin/feature.sh"
     prompt: "Read this feature management script. Does it provide a coherent workflow for listing, viewing, and detecting features? Would a user find it useful?"
-    feature: cli
+    feature: self-diagnostic
     severity: warn
