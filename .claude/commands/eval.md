@@ -54,6 +54,94 @@ Compare current `rhino eval . --score` against `.claude/cache/score-cache.json`.
 - Flag regressions (was passing, now failing)
 - Flag progressions (was failing, now passing)
 
+## Output format
+
+Always use this structure. No walls of text — scannable, dense, visual.
+
+```
+◆ eval
+
+▸ scoring         ██████░░░░  58/100
+  PARTIAL: score.sh computes honest number, but no trend visualization
+  MISSING: onboarding guidance for new projects is generic
+
+▸ learning        ████░░░░░░  48/100
+  DELIVERS: predictions logged to TSV with evidence
+  MISSING: no automatic grading — predictions rot without manual check
+  MISSING: knowledge model is append-only, no pruning
+
+✓ commands        ███████░░░  70/100
+  DELIVERS: 9 slash commands with cross-recommendations
+  PARTIAL: output formatting inconsistent across commands
+
+· install         ██████░░░░  68/100
+  DELIVERS: install.sh works end-to-end
+  PARTIAL: no verification that symlinks were created correctly
+
+bottleneck: **learning** at 48 — predictions log but never auto-grade
+
+/go learning      fix the worst feature
+/ideate           raise the bar (if all green)
+/feature [name]   define what's missing
+```
+
+**Formatting rules:**
+- Features sorted worst-to-best
+- Bar graphs: █ for passing proportion, ░ for failing
+- Show DELIVERS/PARTIAL/MISSING verdicts indented under each feature
+- Bold the bottleneck feature name
+- Bottom: 2-3 relevant next commands (not all commands)
+
+For **taste** output:
+
+```
+◆ eval taste
+
+overall: **3.2**/5
+
+▾ weakest
+  · breathing room    1.8  too dense, elements crowded
+  · polish            2.1  inconsistent border radius, mixed shadows
+  · hierarchy         2.5  competing CTAs on dashboard
+
+▴ strongest
+  ✓ emotional tone    4.2  confident, professional
+  ✓ wayfinding        3.9  clear navigation structure
+  ✓ contrast          3.8  readable text, good color ratios
+
+fix: **breathing room** — add consistent padding/margin system
+
+/go [feature]     target the weakest dimension
+/eval             run assertions alongside
+```
+
+For **diff** output:
+
+```
+◆ eval diff
+
+  scoring      58 → 62  ↑4   trend_for() now wired
+  learning     48 → 48  —    no change
+  commands     68 → 70  ↑2   cross-recommendations added
+  install      68 → 68  —
+
+  ✓ NEW PASS: scoring/trend-visualization (was MISSING)
+  ✗ NEW FAIL: learning/auto-grade (was PARTIAL, now MISSING)
+
+net: +6 across 2 features
+```
+
+## State to read (parallel)
+
+Before presenting results, read:
+1. `.claude/cache/score-cache.json` — previous feature scores (for delta/trends)
+2. `config/rhino.yml` — feature definitions (delivers/for/code)
+3. `~/.claude/knowledge/predictions.tsv` — last prediction (to check if eval confirms/denies it)
+
+After presenting results:
+- If a prediction was about this feature, grade it inline
+- If results contradict experiment-learnings.md, flag it
+
 ## Tools to use
 
 **Use Bash** to run `rhino eval .` and `rhino taste`.
@@ -65,12 +153,7 @@ Compare current `rhino eval . --score` against `.claude/cache/score-cache.json`.
 - Dismiss failing assertions — they exist because someone said "this must be true"
 - Run taste without being asked (it's expensive — only on `taste` or `full`)
 - Show "score" as a number to the founder — show pass rate and feature breakdown instead
-
-## Next action (always recommend one)
-- Assertions failing → "`/go [worst feature]` to fix."
-- All passing → "`/ideate` to raise the bar."
-- Taste scores low → "`/go` targeting that dimension."
-- No features defined → "`/feature new [name]` to define what this feature delivers."
+- Output walls of unformatted text — use the template above
 
 ## If something breaks
 - `rhino eval .` fails: check if `features:` section exists in rhino.yml. If not, suggest `/feature new [name]`

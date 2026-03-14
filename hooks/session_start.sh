@@ -210,20 +210,41 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
     fi
     echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${SCORE_BAR}"
     if [[ "$SCORING_MODE" == "assertions" ]]; then
-        local sub_line="              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
-        # Show worst feature if available
-        WORST_FEAT=""
+        echo -e "              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
+        # Show feature scores (worst to best, compact)
         if command -v jq &>/dev/null && [[ -f "$SCORE_CACHE" ]]; then
-            WORST_FEAT=$(jq -r '.features // {} | to_entries | map(select(.value.total > 0)) | sort_by(.value.pass / .value.total) | .[0] | "\(.key) \(.value.pass)/\(.value.total)"' "$SCORE_CACHE" 2>/dev/null || true)
+            FEAT_LIST=$(jq -r '.features // {} | to_entries | sort_by(if .value.type == "generative" then .value.score else (.value.pass / (.value.total + 0.001) * 100) end) | .[:3] | .[] | if .value.type == "generative" then "\(.key)|\(.value.score)" else "\(.key)|\(.value.pass * 100 / (.value.total + 1) | floor)" end' "$SCORE_CACHE" 2>/dev/null || true)
+            if [[ -n "$FEAT_LIST" ]]; then
+                FEAT_DISPLAY=""
+                FIRST=true
+                while IFS='|' read -r fname fscore; do
+                    [[ -z "$fname" ]] && continue
+                    $FIRST || FEAT_DISPLAY="${FEAT_DISPLAY}  "
+                    if [[ "$fscore" -ge 70 ]]; then
+                        FEAT_DISPLAY="${FEAT_DISPLAY}${C_DIM}${fname}${C_NC} ${C_GREEN}${fscore}${C_NC}"
+                    elif [[ "$fscore" -ge 50 ]]; then
+                        FEAT_DISPLAY="${FEAT_DISPLAY}${C_DIM}${fname}${C_NC} ${C_YELLOW}${fscore}${C_NC}"
+                    else
+                        FEAT_DISPLAY="${FEAT_DISPLAY}${C_RED}▸${C_NC} ${fname} ${C_RED}${fscore}${C_NC}"
+                    fi
+                    FIRST=false
+                done <<< "$FEAT_LIST"
+                echo -e "              ${FEAT_DISPLAY}"
+            fi
         fi
-        if [[ -n "$WORST_FEAT" && "$WORST_FEAT" != "null" && "$WORST_FEAT" != " " ]]; then
-            sub_line="${sub_line}  ${C_DIM}·${C_NC}  ${C_RED}▸${C_NC} ${WORST_FEAT}"
-        fi
-        echo -e "$sub_line"
     elif [[ "$SCORING_MODE" == "onboarding" ]]; then
         echo -e "              ${C_DIM}onboarding${C_NC}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
     else
         echo -e "              ${C_DIM}no value hypothesis${C_NC}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
+    fi
+    # Show score reasons if available
+    if command -v jq &>/dev/null && [[ -f "$SCORE_CACHE" ]]; then
+        REASONS=$(jq -r '.reasons // {} | to_entries[] | .value[] // empty' "$SCORE_CACHE" 2>/dev/null | head -3)
+        if [[ -n "$REASONS" ]]; then
+            while IFS= read -r reason; do
+                [[ -n "$reason" ]] && echo -e "              ${C_DIM}· ${reason}${C_NC}"
+            done <<< "$REASONS"
+        fi
     fi
 else
     echo -e "  ${C_DIM}score${C_NC}       ${C_DIM}none yet — run${C_NC} rhino score ."

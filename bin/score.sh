@@ -83,6 +83,26 @@ for _lens_score in "$RHINO_ROOT"/lens/*/scoring/score-*.sh; do
     [[ -f "$_lens_score" ]] && source "$_lens_score"
 done
 
+# --- Reasons (why the score is what it is) ---
+# Uses temp files because scoring functions run in subshells via $()
+REASONS_DIR=$(mktemp -d)
+: > "$REASONS_DIR/build"
+: > "$REASONS_DIR/structure"
+: > "$REASONS_DIR/hygiene"
+
+add_reason() {
+    local category="$1" msg="$2"
+    case "$category" in
+        BUILD_REASONS)   echo "$msg" >> "$REASONS_DIR/build" ;;
+        STRUCTURE_REASONS) echo "$msg" >> "$REASONS_DIR/structure" ;;
+        HYGIENE_REASONS) echo "$msg" >> "$REASONS_DIR/hygiene" ;;
+    esac
+}
+
+cleanup_reasons() {
+    rm -rf "$REASONS_DIR" 2>/dev/null
+}
+
 # --- Spinner ---
 SPINNER_PID=""
 spin() {
@@ -120,7 +140,7 @@ cleanup_spinner() {
         printf "\033[0m\n" >&2
     fi
 }
-trap cleanup_spinner EXIT
+trap 'cleanup_spinner; cleanup_reasons' EXIT
 
 # --- Cache ---
 CACHE_DIR=".claude/cache"
@@ -191,6 +211,7 @@ score_build_health() {
             ts_errors=$(npx tsc --noEmit 2>&1 | grep -c "error TS" || true)
             if [[ "$ts_errors" -gt 0 ]]; then
                 score=$((score + ts_penalty))
+                add_reason BUILD_REASONS "$ts_errors TypeScript errors ($ts_penalty)"
             fi
         else
             local has_build=false
@@ -207,8 +228,10 @@ score_build_health() {
             fi
             if ! $has_build; then
                 score=$((score + ts_penalty))
+                add_reason BUILD_REASONS "no build output found ($ts_penalty)"
             elif [[ "$build_age" -gt 86400 ]]; then
                 score=$((score + stale_penalty))
+                add_reason BUILD_REASONS "build >24h old ($stale_penalty)"
             fi
         fi
     fi
@@ -217,6 +240,7 @@ score_build_health() {
         if [[ "$FORCE" == true ]]; then
             if ! npm run build > /dev/null 2>&1; then
                 score=$((score + fail_penalty))
+                add_reason BUILD_REASONS "build command failed ($fail_penalty)"
             fi
         fi
     fi
@@ -244,16 +268,16 @@ score_structure() {
         lines=$(wc -l < "$f" 2>/dev/null | tr -d ' ')
         [[ "$lines" -gt 500 ]] && large_files=$((large_files + 1))
     done < <(find "$SRC_DIR" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.py" \) ! -path "*/node_modules/*" ! -path "*/.next/*" ! -name "*.d.ts" ! -name "*.min.*" 2>/dev/null)
-    if [[ "$large_files" -gt 10 ]]; then score=$((score - 15))
-    elif [[ "$large_files" -gt 5 ]]; then score=$((score - 10))
-    elif [[ "$large_files" -gt 2 ]]; then score=$((score - 5))
+    if [[ "$large_files" -gt 10 ]]; then score=$((score - 15)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-15)"
+    elif [[ "$large_files" -gt 5 ]]; then score=$((score - 10)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-10)"
+    elif [[ "$large_files" -gt 2 ]]; then score=$((score - 5)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-5)"
     fi
 
     # Deep nesting: files nested >5 levels deep suggest poor organization
     local deep_files=0
     deep_files=$(find "$SRC_DIR" -mindepth 6 -type f ! -path "*/node_modules/*" ! -path "*/.next/*" 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "$deep_files" -gt 20 ]]; then score=$((score - 10))
-    elif [[ "$deep_files" -gt 5 ]]; then score=$((score - 5))
+    if [[ "$deep_files" -gt 20 ]]; then score=$((score - 10)); add_reason STRUCTURE_REASONS "$deep_files deeply nested files (-10)"
+    elif [[ "$deep_files" -gt 5 ]]; then score=$((score - 5)); add_reason STRUCTURE_REASONS "$deep_files deeply nested files (-5)"
     fi
 
     # Test presence: no tests at all is a structural gap
@@ -268,6 +292,7 @@ score_structure() {
     fi
     if [[ "$has_tests" -eq 0 ]]; then
         score=$((score - 10))
+        add_reason STRUCTURE_REASONS "no test files found (-10)"
     fi
 
     # CLI projects: score structure differently than web projects
@@ -296,9 +321,9 @@ score_structure() {
                 fi
             done < <(grep -oE '`[~./][^`]+`' "$f" 2>/dev/null | sed 's/`//g')
         done
-        if [[ "$broken_refs" -gt 10 ]]; then score=$((score - 30))
-        elif [[ "$broken_refs" -gt 5 ]]; then score=$((score - 20))
-        elif [[ "$broken_refs" -gt 0 ]]; then score=$((score - 10))
+        if [[ "$broken_refs" -gt 10 ]]; then score=$((score - 30)); add_reason STRUCTURE_REASONS "$broken_refs broken file references (-30)"
+        elif [[ "$broken_refs" -gt 5 ]]; then score=$((score - 20)); add_reason STRUCTURE_REASONS "$broken_refs broken file references (-20)"
+        elif [[ "$broken_refs" -gt 0 ]]; then score=$((score - 10)); add_reason STRUCTURE_REASONS "$broken_refs broken file references (-10)"
         fi
 
         # Dead commands: functions/commands defined in bin/rhino but unreachable
@@ -316,6 +341,7 @@ score_structure() {
             config_dims=$(grep -h -A20 'dimensions:' config/rhino.yml lens/*/config/rhino-*.yml 2>/dev/null | grep '^ *-' | wc -l | tr -d ' ')
             if [[ "$config_dims" -eq 0 ]]; then
                 score=$((score - 10))
+                add_reason STRUCTURE_REASONS "no config dimensions defined (-10)"
             fi
         fi
 
@@ -360,10 +386,10 @@ score_hygiene() {
         fi
     fi
 
-    # Helper: tiered penalty from config. Usage: tiered_penalty count "50:-30 20:-20 5:-10"
+    # Helper: tiered penalty from config. Usage: tiered_penalty count "50:-30 20:-20 5:-10" "label"
     # Thresholds checked from highest to lowest. Penalty scaled by density_mult.
     tiered_penalty() {
-        local count=$1 defaults="$2"
+        local count=$1 defaults="$2" label="${3:-}"
         local pair threshold penalty
         for pair in $defaults; do
             threshold="${pair%%:*}"
@@ -375,6 +401,7 @@ score_hygiene() {
                 local cap=$(( penalty * 3 ))
                 [[ "$scaled" -lt "$cap" ]] && scaled="$cap"
                 score=$((score + scaled))
+                [[ -n "$label" ]] && add_reason HYGIENE_REASONS "$count $label ($scaled)"
                 return
             fi
         done
@@ -386,13 +413,13 @@ score_hygiene() {
         # Check for unfinished work markers in shell scripts and JS
         local todo_count
         todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-        tiered_penalty "$todo_count" "20:-20 10:-10 3:-5"
+        tiered_penalty "$todo_count" "20:-20 10:-10 3:-5" "TODO/FIXME markers"
 
         # console.log/console.error in JS files (CLI tools should use structured output)
         local console_count
         console_count=$(grep -rn "console\.\(log\|warn\|error\)" --include="*.mjs" --include="*.js" "$SRC_DIR" 2>/dev/null | grep -v "// ok\|logger\|debug\|node_modules" | wc -l | tr -d ' ')
         # CLI tools legitimately use console — higher thresholds than web
-        tiered_penalty "$console_count" "50:-20 30:-10 15:-5"
+        tiered_penalty "$console_count" "50:-20 30:-10 15:-5" "console.log statements"
 
         # Syntax errors in shell scripts
         local syntax_errors=0
@@ -402,7 +429,7 @@ score_hygiene() {
                 syntax_errors=$((syntax_errors + 1))
             fi
         done
-        tiered_penalty "$syntax_errors" "3:-30 1:-15"
+        tiered_penalty "$syntax_errors" "3:-30 1:-15" "shell syntax errors"
 
         # Syntax errors in JS/MJS files
         for f in "$SRC_DIR"/*.mjs; do
@@ -411,17 +438,17 @@ score_hygiene() {
                 syntax_errors=$((syntax_errors + 1))
             fi
         done
-        tiered_penalty "$syntax_errors" "3:-30 1:-15"
+        tiered_penalty "$syntax_errors" "3:-30 1:-15" "JS syntax errors"
 
         # Hardcoded paths (should use config or variables)
         local hardcoded_paths
         hardcoded_paths=$(grep -rn "/Users/\|/home/" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "# ok\|example\|template\|node_modules" | wc -l | tr -d ' ')
-        tiered_penalty "$hardcoded_paths" "10:-20 5:-10 1:-5"
+        tiered_penalty "$hardcoded_paths" "10:-20 5:-10 1:-5" "hardcoded paths"
 
         # Unreachable code after return/exit (only count if next non-blank line is actual code, not control flow)
         local dead_code
         dead_code=$(grep -rn -A1 "^\s*return\b\|^\s*exit\b" --include="*.sh" "$SRC_DIR" 2>/dev/null | grep -v "return\|exit\|}\|esac\|fi\|done\|else\|elif\|#\|^\s*$\|node_modules\|local\|;;\|^--" | wc -l | tr -d ' ')
-        tiered_penalty "$dead_code" "10:-15 5:-10 2:-5"
+        tiered_penalty "$dead_code" "10:-15 5:-10 2:-5" "unreachable code blocks"
 
         [[ "$score" -lt 0 ]] && score=0
         echo "$score"
@@ -758,8 +785,32 @@ if [[ "$SCORING_MODE" == "assertions" && -n "$PRODUCT" && "$PRODUCT" =~ ^[0-9]+$
     [[ "$PRODUCT" -ge 80 ]] && READY_TODOS=true
 fi
 
+# Build reasons JSON array from file
+_reasons_file_to_json() {
+    local file="$1"
+    if [[ ! -s "$file" ]]; then
+        echo "[]"
+        return
+    fi
+    local json="["
+    local first=true
+    while IFS= read -r r; do
+        [[ -z "$r" ]] && continue
+        r="${r//\"/\\\"}"
+        $first || json+=","
+        json+="\"$r\""
+        first=false
+    done < "$file"
+    json+="]"
+    echo "$json"
+}
+
+BUILD_REASONS_JSON=$(_reasons_file_to_json "$REASONS_DIR/build")
+STRUCTURE_REASONS_JSON=$(_reasons_file_to_json "$REASONS_DIR/structure")
+HYGIENE_REASONS_JSON=$(_reasons_file_to_json "$REASONS_DIR/hygiene")
+
 cat > "$CACHE_FILE" <<CEOF
-{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"health_min":$HEALTH_MIN,"health_gate":"$([ "$HEALTH_MIN" -lt "$HEALTH_GATE_THRESHOLD" ] && echo "FAIL" || echo "PASS")","product":${PRODUCT:-null},"taste":${TASTE_SCORE:-null},"scoring_mode":"$SCORING_MODE","assertion_count":$ASSERTION_COUNT,"assertion_pass_count":$ASSERTION_PASS_COUNT,"features":$FEATURES_JSON,"ready_strategy":$READY_STRATEGY,"ready_todos":$READY_TODOS,"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON,"cached_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"health_min":$HEALTH_MIN,"health_gate":"$([ "$HEALTH_MIN" -lt "$HEALTH_GATE_THRESHOLD" ] && echo "FAIL" || echo "PASS")","product":${PRODUCT:-null},"taste":${TASTE_SCORE:-null},"scoring_mode":"$SCORING_MODE","assertion_count":$ASSERTION_COUNT,"assertion_pass_count":$ASSERTION_PASS_COUNT,"features":$FEATURES_JSON,"ready_strategy":$READY_STRATEGY,"ready_todos":$READY_TODOS,"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON,"reasons":{"build":$BUILD_REASONS_JSON,"structure":$STRUCTURE_REASONS_JSON,"hygiene":$HYGIENE_REASONS_JSON},"cached_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 CEOF
 
 # --- Trends ---
@@ -805,7 +856,7 @@ case "$OUTPUT_MODE" in
         ;;
     json)
         cat <<EOF
-{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"health_min":$HEALTH_MIN,"health_gate":"$([ "$HEALTH_MIN" -lt "$HEALTH_GATE_THRESHOLD" ] && echo "FAIL" || echo "PASS")","product":${PRODUCT:-null},"taste":${TASTE_SCORE:-null},"scoring_mode":"$SCORING_MODE","assertion_count":$ASSERTION_COUNT,"assertion_pass_count":$ASSERTION_PASS_COUNT,"features":$FEATURES_JSON,"ready_strategy":$READY_STRATEGY,"ready_todos":$READY_TODOS,"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON}
+{"score":$local_min,"build":$BUILD,"build_gate":"$BUILD_GATE","structure":$STRUCTURE,"hygiene":$HYGIENE,"health_min":$HEALTH_MIN,"health_gate":"$([ "$HEALTH_MIN" -lt "$HEALTH_GATE_THRESHOLD" ] && echo "FAIL" || echo "PASS")","product":${PRODUCT:-null},"taste":${TASTE_SCORE:-null},"scoring_mode":"$SCORING_MODE","assertion_count":$ASSERTION_COUNT,"assertion_pass_count":$ASSERTION_PASS_COUNT,"features":$FEATURES_JSON,"ready_strategy":$READY_STRATEGY,"ready_todos":$READY_TODOS,"project_type":"$PROJECT_TYPE","src_dir":"$SRC_DIR","integrity_warnings":$INTEGRITY_JSON,"reasons":{"build":$BUILD_REASONS_JSON,"structure":$STRUCTURE_REASONS_JSON,"hygiene":$HYGIENE_REASONS_JSON}}
 EOF
         ;;
     score)
@@ -814,6 +865,11 @@ EOF
         # Build gate
         if [[ "$BUILD_GATE" == "FAIL" ]]; then
             echo -e "  \033[0;31m✗ BUILD GATE: FAIL ($BUILD/100)\033[0m"
+            if [[ -s "$REASONS_DIR/build" ]]; then
+                while IFS= read -r reason; do
+                    [[ -n "$reason" ]] && echo -e "    \033[2m· $reason\033[0m"
+                done < "$REASONS_DIR/build"
+            fi
         else
             echo -e "  \033[0;32m✓\033[0m build ($BUILD/100)"
         fi
@@ -827,6 +883,20 @@ EOF
             echo -e "  \033[1;33m⚠\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE $struct_trend · hygiene:$HYGIENE $hygiene_trend — below warning threshold $HEALTH_WARN_THRESHOLD)\033[0m"
         else
             echo -e "  \033[0;32m✓\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE $struct_trend · hygiene:$HYGIENE $hygiene_trend)\033[0m"
+        fi
+
+        # Show reasons for health dimensions (only when penalties exist)
+        if [[ -s "$REASONS_DIR/structure" || -s "$REASONS_DIR/hygiene" ]]; then
+            if [[ -s "$REASONS_DIR/structure" ]]; then
+                while IFS= read -r reason; do
+                    [[ -n "$reason" ]] && echo -e "    \033[2m· struct: $reason\033[0m"
+                done < "$REASONS_DIR/structure"
+            fi
+            if [[ -s "$REASONS_DIR/hygiene" ]]; then
+                while IFS= read -r reason; do
+                    [[ -n "$reason" ]] && echo -e "    \033[2m· hygiene: $reason\033[0m"
+                done < "$REASONS_DIR/hygiene"
+            fi
         fi
         echo ""
 

@@ -69,16 +69,7 @@ For each prediction with empty `result`/`correct` columns, check outcomes and fi
 **Ladder** (when no scores): product definition → UX flow → core functionality → communication
 
 ### 5. Founder alignment (use AskUserQuestion)
-Present your diagnosis with options. Surface relevant backlog items:
-
-```
-Question: "The bottleneck is [X] because [Y]. 3 todos tagged to this feature. Promote any?"
-Options:
-  - "Agree — plan for [X]" (Recommended)
-  - "Promote [todo-id] and plan around it"
-  - "Actually, [alternative]"
-  - "I want to work on [specific feature]"
-```
+Present your diagnosis with options. Surface relevant backlog items.
 
 ### 6. Write moves (use TaskCreate)
 For each move (1-2 moves, not 3-5 tasks):
@@ -93,12 +84,57 @@ Also write `.claude/plans/plan.yml` as a snapshot.
 ### 7. Exit plan mode
 Call ExitPlanMode with the plan summary. User approves or adjusts.
 
-### 8. Handoff
-One recommendation based on outcome:
-- Tasks created → "Run `/go [feature]` to start building."
-- Unclear what to build → "Run `/ideate [feature]` to brainstorm directions."
-- Need more info → "Run `/research [topic]` to fill the gap."
-- Everything passing → "Run `/eval full` to validate, then `/ship`."
+### 8. Output the plan
+
+## Output format
+
+Always use this structure. Dense, scannable, opinionated.
+
+```
+◆ plan — [feature name or "full product"]
+
+score: **92** · features: 6 · predictions: 63% accurate (16 graded)
+
+▾ state
+  worst: **learning** at 48/100
+  stale: 2 ungraded predictions (graded inline ↓)
+  previous plan: "Structured Plans + Todos" — all tasks done
+  last 3 commits: [hash] [msg], [hash] [msg], [hash] [msg]
+
+▾ graded predictions
+  ✓ "trend_for() will raise scoring to 60+" → 58 (partial)
+  ✗ "auto-grade will work without API" → not implemented (wrong)
+
+◆ bottleneck: **learning** — predictions log but never auto-grade
+
+  The learning feature claims "a model that gets smarter every session"
+  but predictions.tsv has 16 entries with only 8 auto-graded. The knowledge
+  model is append-only. No mechanism detects when learning stalls.
+
+▸ move 1 — auto-grade predictions on session start
+  feature: learning
+  predict: grading predictions mechanically will raise learning from 48 to 60+
+  accept: session_start hook grades predictions with filled result columns
+  touch: hooks/session_start.sh, bin/self.sh
+
+▸ move 2 — knowledge model pruning
+  feature: learning
+  predict: adding a staleness check will surface dead patterns
+  accept: experiment-learnings.md entries older than 30 days get flagged
+
+/go learning      start building
+/research learning explore unknowns first
+/ideate learning   brainstorm directions
+```
+
+**Formatting rules:**
+- Header: `◆ plan — [scope]`
+- State bar: score, feature count, prediction accuracy — one line
+- State section: collapsed, 4-5 lines max, worst feature bolded
+- Graded predictions: ✓/✗ prefix, quoted prediction, outcome
+- Bottleneck: `◆ bottleneck: **[name]**` — bold, with 2-3 sentence diagnosis
+- Moves: `▸ move N — [title]` with feature/predict/accept/touch fields
+- Bottom: 2-3 relevant next commands
 
 ## Special modes
 - `brainstorm`: skip bottleneck, propose 5 high-information directions

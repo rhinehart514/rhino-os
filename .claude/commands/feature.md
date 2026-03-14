@@ -64,11 +64,7 @@ The generative eval will have Claude judge whether the code delivers what it cla
 1. **Scan the codebase**: find all files related to the feature (grep for the name, trace imports, map dependencies)
 2. **Check external context**: WebSearch for best practices, competitor approaches, common patterns for this type of feature
 3. **Map what exists vs what's missing**: which assertions pass? which don't? why?
-4. **Present findings with AskUserQuestion**:
-   ```
-   "I found 3 gaps in [feature]. Which matters most?"
-   Options with previews showing the code/context for each gap
-   ```
+4. **Present findings with AskUserQuestion**
 5. **Generate recommendations**: new assertions, refactoring suggestions, or tasks
 
 ### `[name] ideate` → brainstorm possibilities
@@ -77,15 +73,84 @@ The generative eval will have Claude judge whether the code delivers what it cla
 
 1. Read the feature's current state (assertions, code, pass rate)
 2. Generate 3-4 ideas for improving or extending the feature
-3. Present each idea with an ASCII preview or code snippet:
-   ```
-   Question: "Which direction for [feature]?"
-   Options with previews:
-     - "Add [capability]" → preview showing what the code would look like
-     - "Refactor [pattern]" → preview showing before/after
-     - "Split into [sub-features]" → preview showing the new structure
-   ```
+3. Present with previews showing what the code/experience would look like
 4. Based on selection, generate assertions and tasks for the chosen direction
+
+## Output format
+
+### List all features:
+
+```
+◆ features
+
+▸ learning        ████░░░░░░  **48**/100  ← worst
+  "a model that gets smarter every session"
+  for: the system itself
+
+▸ scoring         █████░░░░░  **58**/100
+  "honest number that tells a founder if their product improved"
+  for: solo founder who just made changes
+
+· self-diagnostic ██████░░░░  **68**/100
+  "system health check — measures calibration, staleness, learning loop"
+  for: solo founder who wants to know if the system is working
+
+· install         ██████░░░░  **68**/100
+  "one-command setup — clone, run install.sh, everything works"
+  for: new user trying rhino-os for the first time
+
+· docs            ██████░░░░  **68**/100
+  "clear explanation of what rhino-os is and how to use it"
+  for: someone who has never heard of rhino-os
+
+· commands        ███████░░░  **70**/100
+  "slash commands that route founder intent to the right action"
+  for: solo founder working in Claude Code
+
+bottleneck: **learning** — `/plan learning` to work on it
+
+/feature [name]       deep dive into one
+/feature new [name]   define a new feature
+/feature detect       scan codebase for undeclared features
+```
+
+### Single feature detail:
+
+```
+◆ feature — scoring
+
+  **58**/100  █████░░░░░
+
+  delivers: "honest number that tells a founder if their product improved"
+  for: solo founder who just made changes
+  code: bin/score.sh, bin/eval.sh, bin/lib/config.sh
+
+▾ verdict
+  DELIVERS: score.sh computes honest number with health gate
+  DELIVERS: per-feature breakdown identifies real bottlenecks
+  PARTIAL: trend visualization exists but not surfaced in output
+  MISSING: onboarding guidance for new projects is generic
+
+/go scoring           fix the gaps
+/feature scoring ideate  brainstorm improvements
+/eval scoring         measure current state
+```
+
+### New feature created:
+
+```
+◆ feature new — [name]
+
+  defined in config/rhino.yml
+  delivers: "[what]"
+  for: "[who]"
+  code: [files]
+
+  baseline: **PARTIAL** — 2 delivers, 1 partial, 1 missing
+
+/go [name]    build what's missing
+/eval [name]  measure in detail
+```
 
 ## System awareness
 - `/feature [name]` (you) → define, manage, detect features
@@ -95,15 +160,10 @@ The generative eval will have Claude judge whether the code delivers what it cla
 - `/plan [feature]` → plan work for a feature
 - `/go [feature]` → autonomous build loop
 
-## The point
-
-Features make the product concrete. `/feature` is where you define what your product is. `/eval` measures it. `/ideate` imagines what it could be. `/plan` and `/go` execute.
-
-## Next action (always recommend one)
-- Feature created with failing assertions → "Run `/go [feature]` to build it."
-- Feature is all green → "Run `/ideate [feature]` to extend it, or `/eval taste` to check craft."
-- Research revealed gaps → "Run `/plan [feature]` to prioritize fixes."
-- No features exist → "Run `/feature detect` to scan, or `/feature new [name]` to define one."
+## What you never do
+- Output raw CLI output without formatting — use the templates above
+- Create features without asking what they deliver (use AskUserQuestion)
+- Skip the baseline eval after creating a new feature
 
 ## If something breaks
 - `rhino feature` fails: read rhino.yml directly and list features under `features:` section

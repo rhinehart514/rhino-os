@@ -49,7 +49,9 @@ score_structure_product() {
 
     if [[ "$dead_ends" -gt 0 ]]; then
         local dead_pct=$((dead_ends * 100 / total_pages))
-        score=$((score - dead_pct / dead_end_div))
+        local dead_penalty=$((dead_pct / dead_end_div))
+        score=$((score - dead_penalty))
+        [[ "$dead_penalty" -gt 0 ]] && add_reason STRUCTURE_REASONS "$dead_ends dead-end pages, no outbound links (-$dead_penalty)"
     fi
 
     # Empty states without guidance
@@ -61,7 +63,9 @@ score_structure_product() {
     if [[ "$empty_states" -gt 0 ]]; then
         local cta_pct=$((empty_with_cta * 100 / empty_states))
         local missing_pct=$((100 - cta_pct))
-        score=$((score - missing_pct / empty_div))
+        local empty_penalty=$((missing_pct / empty_div))
+        score=$((score - empty_penalty))
+        [[ "$empty_penalty" -gt 0 ]] && add_reason STRUCTURE_REASONS "$((empty_states - empty_with_cta)) empty states without CTAs (-$empty_penalty)"
     fi
 
     [[ "$score" -lt 0 ]] && score=0
@@ -90,7 +94,7 @@ score_hygiene_product() {
     # Reuse tiered_penalty from score.sh (it's already defined when we're sourced)
     # But we need our own copy since the outer one captures `score` by closure
     _product_tiered_penalty() {
-        local count=$1 defaults="$2"
+        local count=$1 defaults="$2" label="${3:-}"
         local pair threshold penalty
         for pair in $defaults; do
             threshold="${pair%%:*}"
@@ -100,6 +104,7 @@ score_hygiene_product() {
                 local cap=$(( penalty * 3 ))
                 [[ "$scaled" -lt "$cap" ]] && scaled="$cap"
                 score=$((score + scaled))
+                [[ -n "$label" ]] && add_reason HYGIENE_REASONS "$count $label ($scaled)"
                 return
             fi
         done
@@ -108,28 +113,28 @@ score_hygiene_product() {
     # `any` types — real type safety gap
     local any_count
     any_count=$(grep -rn ": any\b" --include="*.ts" --include="*.tsx" "$src_dir" 2>/dev/null | grep -v "node_modules\|\.d\.ts" | wc -l | tr -d ' ')
-    _product_tiered_penalty "$any_count" "50:-30 20:-20 5:-10 1:-3"
+    _product_tiered_penalty "$any_count" "50:-30 20:-20 5:-10 1:-3" ":any types"
 
     # console.log in production code
     local console_count
     console_count=$(grep -rn "console\.\(log\|warn\|error\)" --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | grep -v "node_modules\|test\|spec\|__test__\|logger" | wc -l | tr -d ' ')
-    _product_tiered_penalty "$console_count" "30:-25 15:-15 5:-5 1:-3"
+    _product_tiered_penalty "$console_count" "30:-25 15:-15 5:-5 1:-3" "console.log in prod code"
 
     # Unfinished work markers
     local todo_count
     todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-    _product_tiered_penalty "$todo_count" "30:-20 15:-10 5:-5 1:-3"
+    _product_tiered_penalty "$todo_count" "30:-20 15:-10 5:-5 1:-3" "TODO/FIXME markers"
 
     # Unused imports (rough signal — files with 10+ imports are suspicious)
     local large_import_files
     large_import_files=$(grep -rn "^import " --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | \
         awk -F: '{print $1}' | sort | uniq -c | sort -rn | awk '$1 > 15 {count++} END {print count+0}')
-    _product_tiered_penalty "$large_import_files" "10:-15 5:-10"
+    _product_tiered_penalty "$large_import_files" "10:-15 5:-10" "files with 15+ imports"
 
     # Disabled lint rules — eslint-disable, @ts-ignore, @ts-expect-error
     local lint_overrides
     lint_overrides=$(grep -rn "eslint-disable\|@ts-ignore\|@ts-expect-error\|@ts-nocheck" --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
-    _product_tiered_penalty "$lint_overrides" "20:-15 10:-10 3:-5 1:-3"
+    _product_tiered_penalty "$lint_overrides" "20:-15 10:-10 3:-5 1:-3" "lint overrides"
 
     [[ "$score" -lt 0 ]] && score=0
     echo "$score"

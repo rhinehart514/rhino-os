@@ -30,21 +30,30 @@ For each feature:
 - Fetch relevant pages
 - Update experiment-learnings.md with findings
 
+## State to read at start (parallel)
+
+Before building, read:
+1. TaskList — existing tasks
+2. `rhino todo active` — promoted todos (founder's priority)
+3. `.claude/plans/strategy.yml` — current bottleneck, stage
+4. `.claude/plans/roadmap.yml` — current thesis (what we're trying to prove)
+5. `~/.claude/knowledge/experiment-learnings.md` — known patterns, dead ends to avoid
+6. `~/.claude/knowledge/predictions.tsv` — recent predictions (calibration)
+7. `.claude/cache/score-cache.json` — per-feature scores (baseline)
+
+This context informs every prediction and decision in the loop.
+
 ## The loop
 
 ```
-Read todos (active first) → Pick bottleneck feature → Understand codebase →
-Build end-to-end → Commit → Run eval → Keep/revert commit → Update model → Next
+Read state → Pick move → Predict → Build → Commit → Eval → Keep/revert → Update model → Next
 ```
 
-### 1. Read todos
-Run `rhino todo active` first. Promoted todos = founder's explicit priority. If no active todos, read `rhino todo` for the full backlog and pick the highest-priority item.
-
-### 2. Pick the move
+### 1. Pick the move
 A move = a feature-level intent. Not a single-file tweak. Understand the full scope before starting.
-Call TaskList for existing tasks. Combine with todo priorities.
+Call TaskList for existing tasks. Promoted todos = founder's explicit priority.
 
-### 3. Predict
+### 2. Predict
 ```
 I predict: [specific outcome]
 Because: [cite experiment-learnings.md or declare exploration]
@@ -52,11 +61,11 @@ I'd be wrong if: [falsification condition]
 ```
 Log to `~/.claude/knowledge/predictions.tsv`.
 
-### 4. Build
+### 3. Build
 Build the whole feature end-to-end. Any number of files. Follow `mind/standards.md`.
 Make atomic git commits — each commit is a reviewable, revertable unit.
 
-### 5. Measure
+### 4. Measure
 Run `rhino eval .` after each commit. Eval = value (assertion pass rate). Use `rhino score .` as a supporting health check.
 
 - **Assertion regressed** (was passing, now failing) → revert the commit, log why
@@ -64,11 +73,58 @@ Run `rhino eval .` after each commit. Eval = value (assertion pass rate). Use `r
 - **Eval stable or improved** → keep
 - **Score dropped but assertions held** → keep (value > health)
 
-### 6. Update model
+### 5. Update model
 Fill in prediction result. If wrong, update experiment-learnings.md.
 
-### 7. Mark done
+### 6. Mark done
 TaskUpdate → completed. Pick next move. Loop.
+
+## Output format
+
+### During the loop — after each move:
+
+```
+◆ move 1 — [title]
+
+  predict: [what I expected]
+  result:  [what happened]
+  verdict: ✓ kept (scoring 58 → 62) | ✗ reverted (learning regressed) | — stable
+
+  [1-2 sentences on what changed and why]
+```
+
+### When the loop ends:
+
+```
+◆ go — session complete
+
+  moves: **3** completed · 1 reverted
+  eval:  scoring 58→68 ↑10 · learning 48→48 — · commands 70→72 ↑2
+  predictions: 3/4 correct (75%)
+
+▾ what changed
+  ✓ move 1: wired trend_for() in score output (+10 scoring)
+  ✗ move 2: auto-grade attempt broke session_start hook (reverted)
+  ✓ move 3: added cross-recommendations to /eval (+2 commands)
+
+▾ model updates
+  · trend visualization is high-ROI (Known Pattern — 3 experiments)
+  · session_start hook is fragile — needs tests before modification (Uncertain)
+
+bottleneck now: **learning** at 48 — unchanged, needs different approach
+
+/eval full        validate before shipping
+/ideate learning  current approach exhausted — brainstorm
+/plan             next session
+```
+
+**Formatting rules:**
+- Per-move: `◆ move N — [title]`, predict/result/verdict, brief narrative
+- Session summary: moves count, eval trajectory with deltas, prediction accuracy
+- What changed: ✓/✗ per move, one line each
+- Model updates: new patterns discovered, formatted as experiment-learnings entries
+- Bottleneck: bold feature name, current score, one-sentence diagnosis
+- Bottom: 2-3 relevant next commands
 
 ## Plateau handling
 If assertions haven't improved in 3 consecutive moves:
@@ -82,23 +138,11 @@ If assertions haven't improved in 3 consecutive moves:
 - **Fundamental** (missing package, design flaw): skip task
 - **3 consecutive crashes**: stop the loop, ask founder
 
-## When the loop ends
-Output:
-- Moves completed (with kept/reverted counts)
-- Eval trajectory (start → end assertion pass rate)
-- Prediction accuracy for this session
-- What the bottleneck is NOW
-
-**Next action** (pick one based on outcome):
-- Assertions improved → "Run `/eval full` to validate before shipping."
-- Assertions plateaued → "Run `/ideate [feature]` — current approach is exhausted."
-- All tasks done → "Run `/ship` to deploy, or `/plan` for next session."
-- New unknowns surfaced → "Run `/research [topic]` to fill the gap."
-
 ## What you never do
 - Skip the prediction step
 - Continue past plateau without researching
 - Modify score.sh or eval.sh during the loop (immutable eval harness)
+- Output walls of unformatted text — use the templates above
 
 ## If something breaks
 - `rhino score .` fails: use git diff size as proxy, do NOT skip revert check
