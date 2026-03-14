@@ -555,6 +555,17 @@ ${judge_context}"
                 check_warn "$belief_id" "bench_check: rhino bench failed"
             fi
             ;;
+        command_check)
+            # Run arbitrary shell command — PASS if exit 0, FAIL otherwise
+            if [[ -n "$belief_command" ]]; then
+                local cmd_output
+                cmd_output=$(eval "$belief_command" 2>&1) && \
+                    check_pass "$belief_id" "$cmd_output" || \
+                    check_fail "$belief_id" "${cmd_output:-command failed}" "warn" 3
+            else
+                check_warn "$belief_id" "command_check: no command: field"
+            fi
+            ;;
         score_trend)
             # Check if score has changed over recent history
             local history_file=".claude/scores/history.tsv"
@@ -661,6 +672,7 @@ if [[ -f "$BELIEFS_FILE" ]]; then
             belief_min_calibration=""
             belief_window=""
             belief_direction=""
+            belief_command=""
             in_forbidden=false
             forbidden_words=()
         fi
@@ -733,6 +745,11 @@ if [[ -f "$BELIEFS_FILE" ]]; then
         # Direction (for score_trend)
         if echo "$line" | grep -q '^\s*direction:'; then
             belief_direction=$(echo "$line" | sed 's/.*direction: *//')
+        fi
+
+        # Command (for command_check)
+        if echo "$line" | grep -q '^\s*command:'; then
+            belief_command=$(echo "$line" | sed 's/.*command: *//')
         fi
 
         # Forbidden list parsing (for content_check)

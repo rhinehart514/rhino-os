@@ -190,6 +190,38 @@ beliefs:
     feature: docs
     severity: warn
 
+  # ── value ─────────────────────────────────────────────
+  # Does rhino-os actually deliver value? Not "does the file exist" —
+  # "is the system doing the thing it claims to do?"
+
+  - id: plan-fresh
+    belief: "plan.yml updated within 7 days — sessions are happening"
+    type: command_check
+    command: test $(( ($(date +%s) - $(stat -f %m .claude/plans/plan.yml 2>/dev/null || echo 0)) / 86400 )) -le 7
+    feature: learning
+    severity: warn
+
+  - id: predictions-graded-recently
+    belief: "Predictions from the last 7 days have been graded — the loop closes"
+    type: command_check
+    command: awk -F'\t' -v cutoff=$(date -v-7d +%Y-%m-%d) '$1 >= cutoff && $5 != "" { found=1 } END { exit !found }' ~/.claude/knowledge/predictions.tsv
+    feature: learning
+    severity: warn
+
+  - id: knowledge-updated-recently
+    belief: "experiment-learnings.md updated within 14 days — model is not stale"
+    type: command_check
+    command: test $(( ($(date +%s) - $(stat -f %m ~/.claude/knowledge/experiment-learnings.md 2>/dev/null || echo 0)) / 86400 )) -le 14
+    feature: learning
+    severity: warn
+
+  - id: score-has-history
+    belief: "history.tsv has >2 entries — scoring is actually being used"
+    type: command_check
+    command: test $(wc -l < .claude/scores/history.tsv 2>/dev/null || echo 0) -gt 2
+    feature: scoring
+    severity: warn
+
   # ── llm_judge — subjective quality (Claude evaluates) ──
 
   - id: scoring-formula-clear
