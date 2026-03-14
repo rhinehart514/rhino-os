@@ -18,6 +18,8 @@ SCORE_MODE=false
 BY_FEATURE=false
 JSON_OUTPUT=false
 FRESH_MODE=false
+NO_GENERATIVE=false
+NO_LLM=false
 FEATURE_FILTER=""
 POSITIONAL=""
 for arg in "$@"; do
@@ -26,6 +28,8 @@ for arg in "$@"; do
         --by-feature) BY_FEATURE=true ;;
         --json) JSON_OUTPUT=true ;;
         --fresh) FRESH_MODE=true ;;
+        --no-generative) NO_GENERATIVE=true ;;
+        --no-llm) NO_LLM=true; NO_GENERATIVE=true ;;
         --feature=*) FEATURE_FILTER="${arg#--feature=}" ;;
         --feature) ;; # next arg is the feature name, handled below
         *)
@@ -414,13 +418,13 @@ gather_code_context() {
         local expanded="${path/#\~/$HOME}"
         if [[ -f "$expanded" ]]; then
             context+="=== $path ===
-$(head -200 "$expanded" 2>/dev/null)
+$(head -500 "$expanded" 2>/dev/null)
 
 "
         elif [[ -d "$expanded" ]]; then
             context+=$(find "$expanded" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.mjs" -o -name "*.yml" -o -name "*.md" \) ! -path "*/node_modules/*" 2>/dev/null | head -8 | while read -r f; do
                 echo "=== $f ==="
-                head -80 "$f" 2>/dev/null
+                head -200 "$f" 2>/dev/null
                 echo ""
             done)
             context+="
@@ -466,19 +470,19 @@ judge_feature() {
     local for_whom="$3"
     local code_context="$4"
 
-    local prompt="This feature claims to deliver: \"${delivers}\"
-For: \"${for_whom}\"
+    local prompt="You are a code evaluator. Output ONLY a single JSON object, nothing else. No markdown, no explanation, no preamble.
 
-Here is the code:
+Feature claim: \"${delivers}\"
+Target user: \"${for_whom}\"
+
+Code:
 ${code_context}
 
-Questions:
-1. Does the code actually deliver what it claims? (DELIVERS / PARTIAL / MISSING)
-2. What specific gaps exist between the claim and the code?
-3. If a \"${for_whom}\" person used this right now, what would break or disappoint them?
+Evaluate: does the code deliver on the claim for this user? Rate 0-100.
+List specific gaps between claim and reality (max 5).
 
-Respond as JSON only, no markdown fences:
-{\"verdict\": \"DELIVERS\" or \"PARTIAL\" or \"MISSING\", \"gaps\": [\"gap 1\", \"gap 2\"], \"evidence\": \"specific code references\", \"score\": 0-100}"
+Output format (ONLY this JSON, nothing else):
+{\"verdict\":\"DELIVERS\",\"gaps\":[],\"evidence\":\"brief\",\"score\":85}"
 
     local api_key="${ANTHROPIC_API_KEY:-}"
     local result=""
@@ -507,11 +511,35 @@ Respond as JSON only, no markdown fences:
 
     # Parse the JSON response
     if [[ -n "$result" ]]; then
-        # Extract JSON from response (might have surrounding text)
+        # Strip markdown fences if present
+        local cleaned
+        cleaned=$(echo "$result" | sed '/^```/d')
+        # Try 1: full response is valid JSON
+        if echo "$cleaned" | jq -c . &>/dev/null 2>&1; then
+            echo "$cleaned" | jq -c .
+            return
+        fi
+        # Try 2: extract from first { to last } on their own lines
         local json_part
-        json_part=$(echo "$result" | grep -o '{[^}]*}' | head -1)
-        if [[ -n "$json_part" ]] && echo "$json_part" | jq . &>/dev/null; then
+        json_part=$(echo "$cleaned" | sed -n '/^{/,/^}/p')
+        if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
+            echo "$json_part" | jq -c .
+            return
+        fi
+        # Try 3: find any line starting with { and extract JSON object
+        json_part=$(echo "$cleaned" | grep -o '{.*}' | while IFS= read -r line; do
+            if echo "$line" | jq -c . 2>/dev/null; then
+                break
+            fi
+        done)
+        if [[ -n "$json_part" ]]; then
             echo "$json_part"
+            return
+        fi
+        # Try 4: use perl to extract balanced braces (handles multi-line)
+        json_part=$(echo "$cleaned" | perl -0777 -ne 'if (/(\{(?:[^{}]|(?:\{(?:[^{}]|\{[^{}]*\})*\}))*\})/s) { print $1 }' 2>/dev/null)
+        if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
+            echo "$json_part" | jq -c .
             return
         fi
     fi
@@ -607,7 +635,7 @@ run_generative_eval() {
 # ONLY run on explicit eval calls (not --score mode).
 # Score mode uses cached results if available, skips otherwise.
 # This keeps `rhino score .` fast and free (no LLM calls).
-if [[ "$HAS_FEATURES" == true && "$SCORE_MODE" != "true" ]]; then
+if [[ "$HAS_FEATURES" == true && "$SCORE_MODE" != "true" && "$NO_GENERATIVE" != "true" ]]; then
     echo "  generative eval (Claude judges feature claims)"
     echo ""
     run_generative_eval
@@ -792,8 +820,8 @@ process_belief() {
             ;;
         llm_judge)
             # LLM-as-judge: Claude evaluates code/files against a quality prompt
-            # Skip entirely in --score mode — don't count in totals at all
-            if [[ "$SCORE_MODE" == "true" ]]; then
+            # Skip entirely in --score mode or --no-llm mode
+            if [[ "$SCORE_MODE" == "true" || "$NO_LLM" == "true" ]]; then
                 return
             elif [[ -n "$belief_prompt" ]]; then
                 local judge_context=""
@@ -887,8 +915,8 @@ ${judge_context}"
             ;;
         feature_review)
             # Claude evaluates feature completeness — explicit capabilities or inferred
-            # Skip in --score mode (expensive LLM call)
-            if [[ "$SCORE_MODE" == "true" ]]; then
+            # Skip in --score mode or --no-llm mode (expensive LLM call)
+            if [[ "$SCORE_MODE" == "true" || "$NO_LLM" == "true" ]]; then
                 return
             fi
 

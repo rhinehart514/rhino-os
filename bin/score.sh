@@ -785,6 +785,14 @@ fi
 # --- Cache (AFTER taste read so taste score is included) ---
 mkdir -p "$CACHE_DIR"
 
+# Save previous cache for change detection before overwriting
+PREV_FEATURES_JSON="{}"
+PREV_SCORE=""
+if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
+    PREV_FEATURES_JSON=$(jq -c '.features // {}' "$CACHE_FILE" 2>/dev/null) || PREV_FEATURES_JSON="{}"
+    PREV_SCORE=$(jq -r '.score // empty' "$CACHE_FILE" 2>/dev/null) || PREV_SCORE=""
+fi
+
 # Compute readiness
 READY_STRATEGY=false
 READY_TODOS=false
@@ -854,38 +862,88 @@ EOF
         fi
 
         # Health gate
+        struct_trend=$(trend_for structure "$STRUCTURE" 3)
+        hygiene_trend=$(trend_for hygiene "$HYGIENE" 4)
         if [[ "$HEALTH_MIN" -lt "$HEALTH_GATE_THRESHOLD" ]]; then
-            echo -e "  \033[0;31m✗ HEALTH GATE: FAIL (health=$HEALTH_MIN, threshold=$HEALTH_GATE_THRESHOLD)\033[0m"
+            echo -e "  \033[0;31m✗ BUILD GATE: FAIL (health=$HEALTH_MIN, threshold=$HEALTH_GATE_THRESHOLD)\033[0m"
         elif [[ "$HEALTH_MIN" -lt "$HEALTH_WARN_THRESHOLD" ]]; then
-            echo -e "  \033[1;33m⚠\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE hygiene:$HYGIENE — below warning threshold $HEALTH_WARN_THRESHOLD)\033[0m"
+            echo -e "  \033[1;33m⚠\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE $struct_trend · hygiene:$HYGIENE $hygiene_trend — below warning threshold $HEALTH_WARN_THRESHOLD)\033[0m"
         else
-            echo -e "  \033[0;32m✓\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE hygiene:$HYGIENE)\033[0m"
+            echo -e "  \033[0;32m✓\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE $struct_trend · hygiene:$HYGIENE $hygiene_trend)\033[0m"
         fi
         echo ""
 
         # Score display — depends on scoring mode
         overall_color=$(dim_color "$local_min")
+        score_trend=$(trend_for score "$local_min" 5)
+        # Format delta with color: green for up, red for down, dim for unchanged
+        score_delta_display=""
+        if [[ "$score_trend" == ↑* ]]; then
+            score_delta_display=" \033[0;32m$score_trend\033[0m"
+        elif [[ "$score_trend" == ↓* ]]; then
+            score_delta_display=" \033[0;31m$score_trend\033[0m"
+        elif [[ "$score_trend" != "·" ]]; then
+            score_delta_display=" \033[2m$score_trend\033[0m"
+        fi
 
         if [[ "$SCORING_MODE" == "assertions" ]]; then
             bar=$(make_bar "$local_min")
-            echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m  ${overall_color}${bar}\033[0m  \033[2m($ASSERTION_PASS_COUNT/$ASSERTION_COUNT assertions passing)\033[0m"
+            echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m${score_delta_display}  ${overall_color}${bar}\033[0m  \033[2m($ASSERTION_PASS_COUNT/$ASSERTION_COUNT assertions passing)\033[0m"
 
-            # Per-feature breakdown
+            # Per-feature breakdown with change indicators
             if [[ -n "$FEATURES_JSON" && "$FEATURES_JSON" != "{}" ]] && command -v jq &>/dev/null; then
                 echo ""
-                jq -r 'to_entries | sort_by(.value.pass / (.value.total + 0.001)) | .[] | "\(.key) \(.value.pass) \(.value.total)"' <<< "$FEATURES_JSON" 2>/dev/null | while read -r fname fpass ftotal; do
+                # Handle both beliefs features (pass/total) and generative features (score)
+                jq -r 'to_entries | sort_by(
+                    if .value.type == "generative" then .value.score / 100
+                    else .value.pass / (.value.total + 0.001)
+                    end
+                ) | .[] | "\(.key) \(.value.type // "beliefs") \(.value.pass // 0) \(.value.total // 0) \(.value.score // 0)"' <<< "$FEATURES_JSON" 2>/dev/null | while read -r fname ftype fpass ftotal fscore; do
                     [[ -z "$fname" ]] && continue
-                    fpct=0
-                    [[ "$ftotal" -gt 0 ]] && fpct=$((fpass * 100 / ftotal))
-                    fbar=$(make_bar "$fpct")
-                    fcolor=$(dim_color "$fpct")
-                    printf "  %-12s ${fcolor}${fbar}\033[0m  %s/%s\n" "$fname" "$fpass" "$ftotal"
+                    if [[ "$ftype" == "generative" ]]; then
+                        fpct="$fscore"
+                        fbar=$(make_bar "$fpct")
+                        fcolor=$(dim_color "$fpct")
+                        # Check for change from previous run
+                        fdelta=""
+                        if [[ -n "$PREV_FEATURES_JSON" && "$PREV_FEATURES_JSON" != "{}" ]]; then
+                            prev_score=$(echo "$PREV_FEATURES_JSON" | jq -r ".\"$fname\".score // empty" 2>/dev/null)
+                            if [[ -n "$prev_score" && "$prev_score" =~ ^[0-9]+$ ]]; then
+                                change=$((fscore - prev_score))
+                                if [[ "$change" -gt 0 ]]; then
+                                    fdelta="  \033[0;32m↑${change}\033[0m"
+                                elif [[ "$change" -lt 0 ]]; then
+                                    fdelta="  \033[0;31m↓$((change * -1))\033[0m"
+                                fi
+                            fi
+                        fi
+                        printf "  %-12s ${fcolor}${fbar}\033[0m  %s/100${fdelta}\n" "$fname" "$fpct"
+                    else
+                        fpct=0
+                        [[ "$ftotal" -gt 0 ]] && fpct=$((fpass * 100 / ftotal))
+                        fbar=$(make_bar "$fpct")
+                        fcolor=$(dim_color "$fpct")
+                        # Check for change from previous run
+                        fdelta=""
+                        if [[ -n "$PREV_FEATURES_JSON" && "$PREV_FEATURES_JSON" != "{}" ]]; then
+                            prev_pass=$(echo "$PREV_FEATURES_JSON" | jq -r ".\"$fname\".pass // empty" 2>/dev/null)
+                            if [[ -n "$prev_pass" && "$prev_pass" =~ ^[0-9]+$ ]]; then
+                                change=$((fpass - prev_pass))
+                                if [[ "$change" -gt 0 ]]; then
+                                    fdelta="  \033[0;32m+${change}\033[0m"
+                                elif [[ "$change" -lt 0 ]]; then
+                                    fdelta="  \033[0;31m${change}\033[0m"
+                                fi
+                            fi
+                        fi
+                        printf "  %-12s ${fcolor}${fbar}\033[0m  %s/%s${fdelta}\n" "$fname" "$fpass" "$ftotal"
+                    fi
                 done
             fi
         elif [[ "$SCORING_MODE" == "onboarding" ]]; then
             onboarding_cap=$(cfg scoring.onboarding_cap 50)
             bar=$(make_bar "$((local_min * 100 / onboarding_cap))")
-            echo -e "  \033[1mScore: ${overall_color}${local_min}/${onboarding_cap}\033[0m  ${overall_color}${bar}\033[0m  \033[2m(define assertions to unlock full scoring)\033[0m"
+            echo -e "  \033[1mScore: ${overall_color}${local_min}/${onboarding_cap}\033[0m${score_delta_display}  ${overall_color}${bar}\033[0m  \033[2m(define assertions to unlock full scoring)\033[0m"
 
             # Completion checklist
             echo ""
@@ -895,17 +953,21 @@ EOF
             has_beliefs=false; [[ -n "$local_beliefs_file" ]] && has_beliefs=true
             has_belief_entries=false; [[ "$ASSERTION_COUNT" -gt 0 ]] && has_belief_entries=true
 
-            [[ "$has_hypothesis" == true ]] && echo -e "    \033[0;32m✓\033[0m value hypothesis defined" || echo -e "    \033[2m·\033[0m define value.hypothesis in rhino.yml"
-            [[ "$has_signals" == true ]] && echo -e "    \033[0;32m✓\033[0m value signals defined" || echo -e "    \033[2m·\033[0m add value.signals to rhino.yml"
+            [[ "$has_hypothesis" == true ]] && echo -e "    \033[0;32m✓\033[0m value hypothesis defined" || echo -e "    \033[2m·\033[0m value hypothesis — what does the user get? (one sentence in rhino.yml)"
+            [[ "$has_signals" == true ]] && echo -e "    \033[0;32m✓\033[0m value signals defined" || echo -e "    \033[2m·\033[0m value signals — how do you know it's working? (measurable proxies)"
             local _ht=0; find . -maxdepth 4 -type f \( -name "*.test.*" -o -name "*.spec.*" \) ! -path "*/node_modules/*" 2>/dev/null | head -1 | grep -q . && _ht=1
-            [[ "$_ht" -eq 1 ]] && echo -e "    \033[0;32m✓\033[0m tests exist" || echo -e "    \033[2m·\033[0m add tests"
-            [[ "$has_beliefs" == true ]] && echo -e "    \033[0;32m✓\033[0m beliefs.yml exists" || echo -e "    \033[2m·\033[0m create beliefs.yml with assertions"
-            [[ "$has_belief_entries" == true ]] && echo -e "    \033[0;32m✓\033[0m assertions planted" || echo -e "    \033[2m·\033[0m plant assertions in beliefs.yml"
+            [[ "$_ht" -eq 1 ]] && echo -e "    \033[0;32m✓\033[0m tests exist" || echo -e "    \033[2m·\033[0m tests — any test file (*.test.*, *.spec.*)"
+            [[ "$has_beliefs" == true ]] && echo -e "    \033[0;32m✓\033[0m beliefs.yml exists" || echo -e "    \033[2m·\033[0m beliefs.yml — assertions about what must be true"
+            [[ "$has_belief_entries" == true ]] && echo -e "    \033[0;32m✓\033[0m assertions planted" || echo -e "    \033[2m·\033[0m assertions — run /init to generate from your project"
+            echo ""
+            echo -e "  \033[2mScore is capped at ${onboarding_cap} until assertions are defined.\033[0m"
+            echo -e "  \033[2mAssertions measure what matters — run /init to set them up.\033[0m"
         else
             # Empty mode — no value hypothesis at all
-            echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m  \033[2m(no value hypothesis)\033[0m"
+            echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m${score_delta_display}  \033[2m(unconfigured)\033[0m"
             echo ""
-            echo -e "  \033[2mNext: add value.hypothesis to config/rhino.yml\033[0m"
+            echo -e "  \033[2mrhino-os doesn't know what this project does yet.\033[0m"
+            echo -e "  \033[2mRun /init to set up scoring — it reads your code and generates config.\033[0m"
         fi
 
         # Taste — still shown if available

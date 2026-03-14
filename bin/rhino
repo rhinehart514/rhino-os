@@ -23,6 +23,25 @@ NC='\033[0m'
 # --- Config reader ---
 source "$RHINO_DIR/bin/lib/config.sh"
 
+# --- Dependency check (warn, don't block) ---
+check_dep() {
+    local cmd="$1" needed_for="$2"
+    if ! command -v "$cmd" &>/dev/null; then
+        echo -e "  ${YELLOW}⚠${NC} ${cmd} not found — needed for ${needed_for}" >&2
+        return 1
+    fi
+    return 0
+}
+
+require_dep() {
+    local cmd="$1" needed_for="$2"
+    if ! command -v "$cmd" &>/dev/null; then
+        echo -e "  ${RED}✗${NC} ${cmd} not found — required for ${needed_for}" >&2
+        echo -e "  ${DIM}Install ${cmd} and try again.${NC}" >&2
+        exit 1
+    fi
+}
+
 # ============================================================
 # SCORE
 # ============================================================
@@ -34,6 +53,7 @@ cmd_score() {
 # TASTE
 # ============================================================
 cmd_taste() {
+    require_dep "node" "rhino taste"
     local args=("$@")
     if [[ ${#args[@]} -eq 0 ]]; then
         args=(".")
@@ -159,10 +179,7 @@ cmd_data() {
 # GO (autonomous build loop via Claude Code)
 # ============================================================
 cmd_go() {
-    if ! command -v claude &>/dev/null; then
-        echo -e "  ${RED}✗${NC} Claude CLI not found"
-        exit 1
-    fi
+    require_dep "claude" "rhino go (autonomous build loop)"
     echo ""
     echo -e "  ${CYAN}◆${NC} ${BOLD}rhino go${NC}"
     echo -e "  ${DIM}Starting autonomous build loop...${NC}"
@@ -240,6 +257,7 @@ cmd_test() {
 # EVAL
 # ============================================================
 cmd_eval() {
+    require_dep "jq" "rhino eval"
     local eval_script="$RHINO_DIR/bin/eval.sh"
     if [[ ! -f "$eval_script" ]]; then
         echo -e "${RED}eval.sh not found at $eval_script${NC}"
