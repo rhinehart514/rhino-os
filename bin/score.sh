@@ -550,14 +550,25 @@ FEATURES_JSON="{}"
 
 start_spinner "checking value..."
 
-# Check for beliefs/assertions
+# Check for features in rhino.yml (generative eval) OR beliefs/assertions
 local_beliefs_file=""
 for bf in "lens/product/eval/beliefs.yml" "config/evals/beliefs.yml"; do
     [[ -f "$bf" ]] && local_beliefs_file="$bf" && break
 done
 
+local_has_features=false
+if [[ -f "config/rhino.yml" ]] && grep -q '^features:' "config/rhino.yml" 2>/dev/null; then
+    local_has_features=true
+fi
+
 if [[ -n "$local_beliefs_file" ]]; then
     ASSERTION_COUNT=$(grep -c '^\s*- id:' "$local_beliefs_file" 2>/dev/null || true)
+fi
+
+# Generative features count as assertions for scoring mode detection
+if [[ "$local_has_features" == true && "$ASSERTION_COUNT" -eq 0 ]]; then
+    # Count features in rhino.yml
+    ASSERTION_COUNT=$(grep -cE '^  [a-z][a-z0-9_-]*:$' "config/rhino.yml" 2>/dev/null || true)
 fi
 
 if [[ "$ASSERTION_COUNT" -gt 0 ]]; then

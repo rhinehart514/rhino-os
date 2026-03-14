@@ -80,8 +80,40 @@ go:
   plateau_threshold: 3
   # taste_every_n moved to lens/product/config/rhino-product.yml
 
+# ── Features ─────────────────────────────────────────
+# Each feature declares what it delivers and for whom.
+# `rhino eval .` reads these and has Claude judge the gap
+# between claim and code. DELIVERS/PARTIAL/MISSING → score.
+features:
+  scoring:
+    delivers: "honest number that tells a founder if their product improved"
+    for: "solo founder who just made changes"
+    code: ["bin/score.sh", "bin/eval.sh", "bin/lib/config.sh"]
+  learning:
+    delivers: "a model that gets smarter every session — predictions, grading, knowledge updates"
+    for: "the system itself — compounds over time"
+    code: ["mind/thinking.md", "~/.claude/knowledge/experiment-learnings.md", "~/.claude/knowledge/predictions.tsv"]
+  cli:
+    delivers: "working toolchain — score, eval, feature, init, self, bench all run without crashing"
+    for: "solo founder using rhino from the terminal"
+    code: ["bin/rhino", "bin/score.sh", "bin/eval.sh", "bin/feature.sh", "bin/init.sh", "bin/self.sh", "bin/bench.sh"]
+  commands:
+    delivers: "slash commands that route founder intent to the right action"
+    for: "solo founder working in Claude Code"
+    code: [".claude/commands/plan.md", ".claude/commands/go.md", ".claude/commands/eval.md", ".claude/commands/feature.md", ".claude/commands/init.md"]
+  install:
+    delivers: "one-command setup — clone, run install.sh, everything works"
+    for: "new user trying rhino-os for the first time"
+    code: ["install.sh", "README.md"]
+  docs:
+    delivers: "clear explanation of what rhino-os is and how to use it"
+    for: "someone who has never heard of rhino-os"
+    code: ["README.md"]
+
 # ── Evals ────────────────────────────────────────────
 evals:
+  generative: true               # use features: section for generative eval (Claude judges)
+  beliefs_fallback: true          # also run beliefs.yml if it exists (supplementary)
   tier1_on_every_build: true
   tier2_on_demand: true          # behavioral eval — requires dev server
   block_on_failure: true         # hard fail on "block" severity beliefs

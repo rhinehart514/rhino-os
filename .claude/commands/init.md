@@ -52,15 +52,19 @@ value:
       measurable: true
 ```
 
-### 4. Generate meaningful assertions
+### 4. Generate feature definitions
 
-Edit `config/evals/beliefs.yml` — add assertions that test whether the product actually delivers value, not just whether files exist. Use what you learned about the product.
+Add a `features:` section to `config/rhino.yml`. For each feature you detected, write what it delivers and for whom based on reading the actual code.
 
-Keep assertion types to `file_check` and `content_check` only (mechanical, no LLM calls). But make them test things that matter:
-- Does the main entry point exist and render something useful?
-- Do key features have their routes/components?
-- Are critical config files present?
-- Is the codebase free of obvious debt markers?
+```yaml
+features:
+  [feature-name]:
+    delivers: "[what this feature actually does — be specific, based on reading the code]"
+    for: "[who specifically benefits]"
+    code: ["path/to/file1", "path/to/dir/"]
+```
+
+This replaces static assertions. The generative eval will have Claude judge whether the code delivers what it claims. No need to write manual assertions — the claim IS the assertion.
 
 ### 5. Validate
 
@@ -82,10 +86,9 @@ for: [who uses it]
 hypothesis: "[the real hypothesis you wrote]"
 
 ✓ config/rhino.yml (value hypothesis defined)
-✓ config/evals/beliefs.yml (N assertions)
-✓ N features detected
+✓ N features defined (generative eval)
 
-eval: M/N passing
+eval: [DELIVERS/PARTIAL/MISSING per feature]
 
 next: /plan
 ```

@@ -26,42 +26,36 @@ Multiple features → show all, identify weakest.
 ### `detect` → find features in the codebase
 Run `rhino feature detect`. Show what was found. For unasserted features: "Run `/feature new [name]` to define it."
 
-### `new [name]` → create a feature with interactive questions
+### `new [name]` → create a feature definition
 
-**Use AskUserQuestion** to understand the feature before planting assertions:
+**Use AskUserQuestion** to understand what the feature delivers:
 
 ```
-Questions (up to 4):
-1. "What does [name] do?" — options based on codebase scan
-   (Handles data | User-facing UI | Auth/access | API/integration)
-2. "What must NEVER break?" — multiSelect
-   (Data integrity | Auth/security | Core flow | Performance)
-3. "Who uses this?"
-   (End users | Admins | Both | Developers)
-4. "What files are involved?" — options from codebase scan
-   (src/[detected paths])
+Questions (2-3):
+1. "What does [name] deliver to the user?" — free text
+   (The specific value. Not "handles auth" but "users can sign up, log in, and reset their password")
+2. "Who specifically uses this?"
+   (End users | Admins | Developers | The system itself)
+3. "What code files are involved?" — options from codebase scan
+   (src/[detected paths], bin/[scripts])
 ```
 
-Based on answers, generate 3-5 assertions mixing mechanical and subjective:
+Based on answers, add a feature entry to `config/rhino.yml` under `features:`:
 
-**Mechanical** (fast, deterministic):
-- `type: file_check` with `path:` and `contains:` — does the code exist?
-- `type: content_check` with `forbidden:` — code quality gates
-
-**Subjective** (Claude evaluates quality):
-- `type: llm_judge` with `path:` and `prompt:` — is the code good? coherent? complete?
-  Example: `prompt: "Is the auth flow complete? Can a user sign up, log in, reset password?"`
-
-**Behavioral** (requires dev server):
-- `type: dom_check` or `playwright_task` — only if dev server is detected
-
-Always include at least 1 llm_judge assertion per feature. Mechanical checks tell you "it exists." LLM judges tell you "it's good."
+```yaml
+features:
+  [name]:
+    delivers: "[what they said it delivers]"
+    for: "[who they said uses it]"
+    code: ["path/to/file1", "path/to/dir/"]
+```
 
 Then:
-1. Write to beliefs.yml with `feature: [name]`
-2. Run `rhino eval . --feature [name]` for baseline
-3. Create tasks (TaskCreate) for any failing assertions
-4. Output: "[name] created with N assertions. X/N passing. Run `/go [name]`."
+1. Write to rhino.yml `features:` section (append to existing features)
+2. Run `rhino eval . --feature [name] --fresh` for baseline
+3. Output: "[name] defined. Verdict: [DELIVERS/PARTIAL/MISSING]. Run `/go [name]` to close gaps."
+
+The generative eval will have Claude judge whether the code delivers what it claims. No need to write manual assertions — the claim IS the assertion.
 
 ### `[name] research` → explore the feature's codebase and context
 
@@ -112,9 +106,9 @@ Features make the product concrete. `/feature` is where you define what your pro
 - No features exist → "Run `/feature detect` to scan, or `/feature new [name]` to define one."
 
 ## If something breaks
-- `rhino feature` fails: read beliefs.yml directly and list unique `feature:` values
-- No beliefs.yml: create one with the header, then run the `new` flow
+- `rhino feature` fails: read rhino.yml directly and list features under `features:` section
+- No features in rhino.yml: suggest `/feature new [name]` to define one
+- Falls back to beliefs.yml if no `features:` section in rhino.yml
 - WebSearch fails: skip external context, work with codebase only
-- No features in beliefs.yml: all assertions are unscoped — suggest adding `feature:` fields
 
 $ARGUMENTS

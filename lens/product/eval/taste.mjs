@@ -282,70 +282,112 @@ function loadFeatures() {
   return null;
 }
 
-// --- Detect routes ---
-function detectRoutes(srcDir) {
-  // Check for taste.yml config first
+// --- Discover routes by browsing the app like a user ---
+// No filesystem assumptions. Works with any framework, any data layer.
+// BFS from root: find links, follow them, screenshot each unique page.
+async function discoverRoutes(browser, url, authConfig) {
+  const maxRoutes = cfg("taste.max_routes", 8);
+  const visited = new Set();
+  const queue = ["/"];
+  const discovered = []; // { path, title }
+  const origin = new URL(url).origin;
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  // Auth first — so we see authenticated pages
+  await injectAuth(context, page, authConfig, url);
+
+  while (queue.length > 0 && discovered.length < maxRoutes) {
+    const path = queue.shift();
+    const normalized = normalizePath(path);
+    if (visited.has(normalized)) continue;
+    visited.add(normalized);
+
+    try {
+      await page.goto(`${url}${path}`, {
+        waitUntil: "networkidle",
+        timeout: cfg("taste.timeouts.page_load", 30000),
+      });
+      await page.waitForTimeout(cfg("taste.timeouts.post_load_wait", 1000));
+
+      // Skip error pages (4xx/5xx responses render but aren't useful to evaluate)
+      const pageTitle = await page.title().catch(() => "");
+      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 200) || "").catch(() => "");
+      const is404 = /404|not found/i.test(pageTitle) || /404|not found|page doesn.t exist/i.test(bodyText);
+      if (is404) continue;
+
+      discovered.push({ path: normalized, title: pageTitle });
+
+      // Extract all internal links from this page
+      const links = await page.evaluate((originStr) => {
+        const anchors = Array.from(document.querySelectorAll("a[href]"));
+        const navLinks = Array.from(document.querySelectorAll("[role=link][href], [data-href]"));
+        const allElements = [...anchors, ...navLinks];
+
+        return allElements
+          .map(el => {
+            const href = el.getAttribute("href") || el.getAttribute("data-href") || "";
+            return href;
+          })
+          .filter(href => {
+            if (!href) return false;
+            // Skip anchors, mailto, tel, javascript
+            if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) return false;
+            // Skip external links
+            if (href.startsWith("http") && !href.startsWith(originStr)) return false;
+            // Skip static assets
+            if (/\.(png|jpg|jpeg|gif|svg|css|js|ico|woff|ttf|pdf)$/i.test(href)) return false;
+            return true;
+          })
+          .map(href => {
+            // Normalize to path-only
+            if (href.startsWith("http")) {
+              try { return new URL(href).pathname; } catch { return null; }
+            }
+            // Strip query params and hash
+            return href.split("?")[0].split("#")[0];
+          })
+          .filter(Boolean);
+      }, origin);
+
+      // Add new links to the queue
+      for (const link of links) {
+        const norm = normalizePath(link);
+        if (!visited.has(norm) && !queue.includes(norm)) {
+          queue.push(norm);
+        }
+      }
+    } catch (err) {
+      console.error(`  ${DIM}skip ${path}: ${err.message}${NC}`);
+    }
+  }
+
+  await page.close();
+  await context.close();
+
+  // Always include root
+  if (!discovered.find(d => d.path === "/")) {
+    discovered.unshift({ path: "/", title: "" });
+  }
+
+  return discovered.map(d => d.path);
+}
+
+function normalizePath(path) {
+  // Strip trailing slash (except root), normalize double slashes
+  let p = path.replace(/\/+/g, "/");
+  if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
+  return p || "/";
+}
+
+// --- Detect routes (taste.yml override OR filesystem fallback) ---
+function detectConfiguredRoutes() {
   const config = loadTasteConfig();
-  if (config) {
+  if (config && config.routes.length > 0) {
     return { routes: config.routes, mobileOnly: config.mobile || [] };
   }
-
-  // Auto-detect: find all routes, then pick the most important ones
-  const allRoutes = [];
-
-  function walkDir(dir, prefix = "") {
-    if (!existsSync(dir)) return;
-    const entries = readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.name.startsWith("_") || entry.name.startsWith(".")) continue;
-      if (entry.name === "node_modules" || entry.name === "api") continue;
-
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name.startsWith("[")) continue;
-        walkDir(fullPath, `${prefix}/${entry.name}`);
-      } else if (entry.name === "page.tsx" || entry.name === "page.jsx" || entry.name === "page.ts") {
-        allRoutes.push(prefix || "/");
-      }
-    }
-  }
-
-  const appDirs = [
-    join(srcDir, "app"),
-    join(projectDir, "apps/web/src/app"),
-    join(projectDir, "src/app"),
-    join(projectDir, "app"),
-  ];
-
-  for (const appDir of appDirs) {
-    if (existsSync(appDir)) {
-      walkDir(appDir);
-      break;
-    }
-  }
-
-  if (!allRoutes.includes("/")) allRoutes.unshift("/");
-
-  // Smart selection: cap at 8 routes, prioritize key pages
-  const priorityKeywords = ["create", "new", "enter", "login", "sign", "onboard", "home", "dashboard", "profile", "settings", "about"];
-  const prioritized = [];
-  const rest = [];
-
-  for (const route of [...new Set(allRoutes)]) {
-    if (route === "/") { prioritized.unshift(route); continue; }
-    const lower = route.toLowerCase();
-    if (priorityKeywords.some(k => lower.includes(k))) {
-      prioritized.push(route);
-    } else {
-      rest.push(route);
-    }
-  }
-
-  // Take priority routes first, fill remaining with others, cap at 8
-  const maxRoutes = cfg("taste.max_routes", 8);
-  const selected = [...prioritized, ...rest].slice(0, maxRoutes);
-
-  return { routes: selected, mobileOnly: ["/"] };
+  return null;
 }
 
 // --- Inject auth state into browser context ---
@@ -964,11 +1006,6 @@ async function main() {
     }
   }
 
-  // Find source dir for route detection
-  let srcDir = projectDir;
-  if (existsSync(join(projectDir, "apps/web/src"))) srcDir = join(projectDir, "apps/web/src");
-  else if (existsSync(join(projectDir, "src"))) srcDir = join(projectDir, "src");
-
   // Load features map (optional)
   const features = loadFeatures();
 
@@ -983,20 +1020,6 @@ async function main() {
     console.error(`Error: --feature requires .claude/features.yml to exist`);
     process.exit(1);
   }
-
-  // Detect routes (feature-filtered or full)
-  startSpinner("detecting routes...");
-  let routeConfig;
-  if (featureFilter && features) {
-    // Only screenshot routes for the specified feature
-    routeConfig = { routes: features[featureFilter].routes, mobileOnly: [] };
-  } else {
-    routeConfig = detectRoutes(srcDir);
-  }
-  const { routes, mobileOnly } = routeConfig;
-  const mobileCount = routes.filter(r => mobileOnly.includes(r)).length;
-  const featureLabel = featureFilter ? ` [feature: ${featureFilter}]` : "";
-  stopSpinner(`${routes.length} routes (${mobileCount} with mobile)${featureLabel}: ${routes.join(", ")}`);
 
   // Start or connect to dev server
   let server = null;
@@ -1021,7 +1044,31 @@ async function main() {
       console.error(`  ${GREEN}✓${NC} auth config loaded (${authConfig.cookies?.length || 0} cookies, ${Object.keys(authConfig.localStorage || {}).length} localStorage items)`);
     }
 
-    // Screenshot routes
+    // Determine routes: explicit config > feature filter > browse-and-discover
+    let routes;
+    let mobileOnly = ["/"];
+    const featureLabel = featureFilter ? ` [feature: ${featureFilter}]` : "";
+
+    if (featureFilter && features) {
+      routes = features[featureFilter].routes;
+      console.error(`  ${GREEN}✓${NC} feature routes: ${routes.join(", ")}`);
+    } else {
+      const configured = detectConfiguredRoutes();
+      if (configured) {
+        routes = configured.routes;
+        mobileOnly = configured.mobileOnly;
+        console.error(`  ${GREEN}✓${NC} routes from taste.yml: ${routes.join(", ")}`);
+      } else {
+        // Browse the app like a user — discover routes by following links
+        startSpinner("browsing app to discover routes...");
+        routes = await discoverRoutes(browser, url, authConfig);
+        stopSpinner(`discovered ${routes.length} routes${featureLabel}: ${routes.join(", ")}`);
+      }
+    }
+
+    // Screenshot discovered routes
+    const routeConfig = { routes, mobileOnly };
+    const mobileCount = routes.filter(r => mobileOnly.includes(r)).length;
     const totalShots = routes.length + mobileCount;
     startSpinner(`screenshotting ${totalShots} views (${routes.length} desktop + ${mobileCount} mobile)...`);
     const screenshots = await screenshotRoutes(browser, url, routeConfig, authConfig);

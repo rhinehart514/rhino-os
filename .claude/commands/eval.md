@@ -7,8 +7,12 @@ description: "Is my product good? The one measurement command. /eval runs assert
 The one measurement command. Answers: "Is my product good?"
 
 Two things to measure:
-- **Assertions** (`/eval`) — what must be true about the product. Pass/fail, grouped by feature.
+- **Generative eval** (`/eval`) — each feature declares what it delivers. Claude judges the gap between claim and code. DELIVERS/PARTIAL/MISSING per feature.
 - **Taste** (`/eval taste`) — does it look good? Claude Vision, 11 dimensions. Expensive, only when asked.
+
+Features are defined in `config/rhino.yml` under `features:`. Each has `delivers:` (what value), `for:` (who), and `code:` (where). The eval reads the claim + code and judges the gap.
+
+If no `features:` section exists, falls back to beliefs.yml mechanical assertions.
 
 Score (`rhino score .`) exists for CI/scripts. Don't surface it to the founder unless they ask.
 
@@ -66,11 +70,12 @@ Compare current `rhino eval . --score` against `.claude/cache/score-cache.json`.
 - Assertions failing → "`/go [worst feature]` to fix."
 - All passing → "`/ideate` to raise the bar."
 - Taste scores low → "`/go` targeting that dimension."
-- No assertions exist → "`/init` to bootstrap, or `/feature new [name]` to define what matters."
+- No features defined → "`/feature new [name]` to define what this feature delivers."
 
 ## If something breaks
-- `rhino eval .` fails: check if beliefs.yml exists. If not, suggest `/init` or `/feature new [name]`
+- `rhino eval .` fails: check if `features:` section exists in rhino.yml. If not, suggest `/feature new [name]`
 - `rhino taste` fails: check if lens/product/ exists. If not, taste isn't installed for this project
-- No assertions: "No beliefs defined. Run `/init` to bootstrap."
+- No features: "No features defined. Run `/feature new [name]` to define what your product delivers."
+- Falls back to beliefs.yml if no `features:` section — old assertions still work as supplementary checks
 
 $ARGUMENTS

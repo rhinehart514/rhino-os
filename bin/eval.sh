@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# eval.sh — Tier 1 mechanical eval runner
-# Runs belief checks against a project. No LLM calls.
+# eval.sh — Generative eval runner
+# Primary: reads features from rhino.yml, Claude judges gap between claim and code.
+# Fallback: beliefs.yml mechanical checks (supplementary).
 
 set -euo pipefail
 
@@ -16,6 +17,7 @@ export RHINO_EVAL_DEPTH=$((RHINO_EVAL_DEPTH + 1))
 SCORE_MODE=false
 BY_FEATURE=false
 JSON_OUTPUT=false
+FRESH_MODE=false
 FEATURE_FILTER=""
 POSITIONAL=""
 for arg in "$@"; do
@@ -23,6 +25,7 @@ for arg in "$@"; do
         --score) SCORE_MODE=true ;;
         --by-feature) BY_FEATURE=true ;;
         --json) JSON_OUTPUT=true ;;
+        --fresh) FRESH_MODE=true ;;
         --feature=*) FEATURE_FILTER="${arg#--feature=}" ;;
         --feature) ;; # next arg is the feature name, handled below
         *)
@@ -82,7 +85,14 @@ check_fail() {
     SCORE_PENALTY=$((SCORE_PENALTY + penalty))
 }
 
-if [[ "$SCORE_MODE" != "true" ]]; then
+# Early feature detection for header logic
+HAS_FEATURES=false
+if [[ -f "config/rhino.yml" ]] && grep -q '^features:' "config/rhino.yml" 2>/dev/null; then
+    HAS_FEATURES=true
+fi
+
+# Print header if generative eval didn't already
+if [[ "$SCORE_MODE" != "true" && "$HAS_FEATURES" != true ]]; then
     echo "rhino eval — $PROJECT_NAME $TIMESTAMP"
     echo ""
 fi
@@ -283,6 +293,345 @@ run_self_eval() {
         SELF_RESULTS=$(bash "$RHINO_DIR/bin/self.sh" --eval 2>/dev/null) || true
     fi
 }
+
+# ============================================================
+# GENERATIVE EVAL — features from rhino.yml
+# ============================================================
+
+EVAL_CACHE_DIR=".claude/cache"
+EVAL_CACHE_FILE="$EVAL_CACHE_DIR/eval-cache.json"
+
+# Read features from rhino.yml using simple YAML parsing
+# Outputs lines: feature_name|delivers|for|code_path1,code_path2
+parse_features() {
+    local config_file="config/rhino.yml"
+    [[ ! -f "$config_file" ]] && return
+
+    local in_features=false
+    local current_feat="" current_delivers="" current_for="" current_code=""
+    local in_code=false
+
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Detect features: section
+        if echo "$line" | grep -q '^features:'; then
+            in_features=true
+            continue
+        fi
+
+        # Detect end of features section (new top-level key)
+        if [[ "$in_features" == true ]] && echo "$line" | grep -qE '^[a-z]'; then
+            # Emit last feature
+            if [[ -n "$current_feat" ]]; then
+                echo "${current_feat}|${current_delivers}|${current_for}|${current_code}"
+                current_feat=""
+            fi
+            in_features=false
+            continue
+        fi
+
+        [[ "$in_features" != true ]] && continue
+
+        # New feature (2-space indent, key with colon, no value)
+        if echo "$line" | grep -qE '^  [a-z][a-z0-9_-]*:$'; then
+            # Emit previous feature
+            if [[ -n "$current_feat" ]]; then
+                echo "${current_feat}|${current_delivers}|${current_for}|${current_code}"
+            fi
+            current_feat=$(echo "$line" | sed 's/^[[:space:]]*//;s/:[[:space:]]*$//')
+            current_delivers=""
+            current_for=""
+            current_code=""
+            in_code=false
+            continue
+        fi
+
+        # delivers:
+        if echo "$line" | grep -q '^\s*delivers:'; then
+            current_delivers=$(echo "$line" | sed 's/.*delivers: *//;s/^"//;s/"$//')
+            in_code=false
+            continue
+        fi
+
+        # for:
+        if echo "$line" | grep -q '^\s*for:'; then
+            current_for=$(echo "$line" | sed 's/.*for: *//;s/^"//;s/"$//')
+            in_code=false
+            continue
+        fi
+
+        # code: (inline array)
+        if echo "$line" | grep -q '^\s*code:'; then
+            in_code=true
+            # Parse inline array: ["a", "b"]
+            local inline
+            inline=$(echo "$line" | grep -o '\[.*\]' || true)
+            if [[ -n "$inline" ]]; then
+                current_code=$(echo "$inline" | tr -d '[]"' | sed 's/, */,/g')
+                in_code=false
+            fi
+            continue
+        fi
+
+        # code array items
+        if [[ "$in_code" == true ]]; then
+            if echo "$line" | grep -q '^\s*-'; then
+                local item
+                item=$(echo "$line" | sed 's/^[[:space:]]*- *//;s/^"//;s/"$//')
+                if [[ -n "$current_code" ]]; then
+                    current_code="${current_code},${item}"
+                else
+                    current_code="$item"
+                fi
+            else
+                in_code=false
+            fi
+        fi
+    done < "$config_file"
+
+    # Emit last feature
+    if [[ -n "$current_feat" ]]; then
+        echo "${current_feat}|${current_delivers}|${current_for}|${current_code}"
+    fi
+}
+
+# Gather code content for a feature's code paths
+gather_code_context() {
+    local code_paths="$1"
+    local context=""
+    local OLD_IFS="$IFS"
+    IFS=','
+    for path in $code_paths; do
+        IFS="$OLD_IFS"
+        # Expand ~ to $HOME
+        local expanded="${path/#\~/$HOME}"
+        if [[ -f "$expanded" ]]; then
+            context+="=== $path ===
+$(head -200 "$expanded" 2>/dev/null)
+
+"
+        elif [[ -d "$expanded" ]]; then
+            context+=$(find "$expanded" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.mjs" -o -name "*.yml" -o -name "*.md" \) ! -path "*/node_modules/*" 2>/dev/null | head -8 | while read -r f; do
+                echo "=== $f ==="
+                head -80 "$f" 2>/dev/null
+                echo ""
+            done)
+            context+="
+"
+        fi
+    done
+    IFS="$OLD_IFS"
+    echo "$context"
+}
+
+# Check eval cache for a feature
+# Returns cached verdict if fresh, empty string if stale/missing
+check_eval_cache() {
+    local feat_name="$1"
+    if [[ "$FRESH_MODE" == true ]]; then
+        echo ""
+        return
+    fi
+    if [[ -f "$EVAL_CACHE_FILE" ]] && command -v jq &>/dev/null; then
+        local cached_at
+        cached_at=$(jq -r ".\"$feat_name\".cached_at // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+        if [[ -n "$cached_at" ]]; then
+            # Check if code files have changed since cache
+            local cache_mtime
+            cache_mtime=$(stat -f %m "$EVAL_CACHE_FILE" 2>/dev/null || stat -c %Y "$EVAL_CACHE_FILE" 2>/dev/null || echo 0)
+            local now
+            now=$(date +%s)
+            local age=$(( now - cache_mtime ))
+            # Cache valid for same session (1 hour)
+            if [[ "$age" -lt 3600 ]]; then
+                jq -c ".\"$feat_name\"" "$EVAL_CACHE_FILE" 2>/dev/null
+                return
+            fi
+        fi
+    fi
+    echo ""
+}
+
+# Call Claude to judge a feature
+judge_feature() {
+    local feat_name="$1"
+    local delivers="$2"
+    local for_whom="$3"
+    local code_context="$4"
+
+    local prompt="This feature claims to deliver: \"${delivers}\"
+For: \"${for_whom}\"
+
+Here is the code:
+${code_context}
+
+Questions:
+1. Does the code actually deliver what it claims? (DELIVERS / PARTIAL / MISSING)
+2. What specific gaps exist between the claim and the code?
+3. If a \"${for_whom}\" person used this right now, what would break or disappoint them?
+
+Respond as JSON only, no markdown fences:
+{\"verdict\": \"DELIVERS\" or \"PARTIAL\" or \"MISSING\", \"gaps\": [\"gap 1\", \"gap 2\"], \"evidence\": \"specific code references\", \"score\": 0-100}"
+
+    local api_key="${ANTHROPIC_API_KEY:-}"
+    local result=""
+
+    if [[ -z "$api_key" ]]; then
+        # Try claude CLI
+        local tmp_file
+        tmp_file=$(mktemp)
+        echo "$prompt" > "$tmp_file"
+        result=$(claude -p "$(cat "$tmp_file")" --model haiku 2>/dev/null </dev/null) || result=""
+        rm -f "$tmp_file"
+    else
+        # Direct API call
+        local payload
+        payload=$(jq -n \
+            --arg prompt "$prompt" \
+            '{model:"claude-haiku-4-5-20251001",max_tokens:500,messages:[{role:"user",content:$prompt}]}')
+        local response
+        response=$(curl -s "https://api.anthropic.com/v1/messages" \
+            -H "x-api-key: $api_key" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$payload" 2>/dev/null)
+        result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+    fi
+
+    # Parse the JSON response
+    if [[ -n "$result" ]]; then
+        # Extract JSON from response (might have surrounding text)
+        local json_part
+        json_part=$(echo "$result" | grep -o '{[^}]*}' | head -1)
+        if [[ -n "$json_part" ]] && echo "$json_part" | jq . &>/dev/null; then
+            echo "$json_part"
+            return
+        fi
+    fi
+
+    # Fallback: couldn't parse
+    echo '{"verdict":"PARTIAL","gaps":["could not evaluate"],"evidence":"eval failed","score":50}'
+}
+
+# Run generative eval for all features (or filtered)
+run_generative_eval() {
+    local features_data
+    features_data=$(parse_features)
+
+    [[ -z "$features_data" ]] && return
+
+    mkdir -p "$EVAL_CACHE_DIR"
+
+    # Build cache JSON incrementally
+    local cache_json="{"
+    local cache_first=true
+
+    while IFS='|' read -r feat_name delivers for_whom code_paths; do
+        [[ -z "$feat_name" ]] && continue
+
+        # Feature filter
+        if [[ -n "$FEATURE_FILTER" && "$feat_name" != "$FEATURE_FILTER" ]]; then
+            continue
+        fi
+
+        # Check cache first
+        local cached
+        cached=$(check_eval_cache "$feat_name")
+
+        local verdict="" gaps="" evidence="" feat_score=""
+
+        if [[ -n "$cached" && "$cached" != "" ]]; then
+            verdict=$(echo "$cached" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
+            gaps=$(echo "$cached" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
+            evidence=$(echo "$cached" | jq -r '.evidence // ""' 2>/dev/null)
+            feat_score=$(echo "$cached" | jq -r '.score // 50' 2>/dev/null)
+        else
+            # Gather code and call Claude
+            local code_context
+            code_context=$(gather_code_context "$code_paths")
+
+            if [[ -n "$code_context" ]]; then
+                local judge_result
+                judge_result=$(judge_feature "$feat_name" "$delivers" "$for_whom" "$code_context")
+                verdict=$(echo "$judge_result" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
+                gaps=$(echo "$judge_result" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
+                evidence=$(echo "$judge_result" | jq -r '.evidence // ""' 2>/dev/null)
+                feat_score=$(echo "$judge_result" | jq -r '.score // 50' 2>/dev/null)
+            else
+                verdict="MISSING"
+                gaps="no code files found"
+                evidence=""
+                feat_score=0
+            fi
+        fi
+
+        # Map verdict to PASS/WARN/FAIL
+        local _pre_pass=$PASS _pre_warn=$WARN _pre_fail=$FAIL
+        case "$verdict" in
+            DELIVERS)
+                check_pass "$feat_name" "delivers: $delivers"
+                ;;
+            PARTIAL)
+                check_warn "$feat_name" "partial: $gaps"
+                ;;
+            MISSING|*)
+                check_fail "$feat_name" "missing: $gaps" "warn" 5
+                ;;
+        esac
+
+        # Track per-feature results
+        local _dp=$((PASS - _pre_pass)) _dw=$((WARN - _pre_warn)) _df=$((FAIL - _pre_fail))
+        FEATURE_RESULTS="${FEATURE_RESULTS}${feat_name}:${_dp}:${_dw}:${_df}
+"
+
+        # Build cache entry
+        $cache_first || cache_json+=","
+        cache_json+="\"$feat_name\":{\"verdict\":\"$verdict\",\"gaps\":$(echo "[\"${gaps//; /\",\"}\"]" | sed 's/\[""]/[]/'),\"evidence\":$(echo "$evidence" | jq -Rs .),\"score\":${feat_score:-50},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+        cache_first=false
+    done <<< "$features_data"
+
+    cache_json+="}"
+
+    # Write cache
+    echo "$cache_json" > "$EVAL_CACHE_FILE" 2>/dev/null || true
+}
+
+# === Run generative eval ===
+# HAS_FEATURES already detected earlier (before header)
+# ONLY run on explicit eval calls (not --score mode).
+# Score mode uses cached results if available, skips otherwise.
+# This keeps `rhino score .` fast and free (no LLM calls).
+if [[ "$HAS_FEATURES" == true && "$SCORE_MODE" != "true" ]]; then
+    echo "  generative eval (Claude judges feature claims)"
+    echo ""
+    run_generative_eval
+    echo ""
+elif [[ "$HAS_FEATURES" == true && "$SCORE_MODE" == "true" ]]; then
+    # In --score mode: read cached generative results, don't call Claude
+    if [[ -f "$EVAL_CACHE_FILE" ]] && command -v jq &>/dev/null; then
+        while IFS= read -r feat_name; do
+            [[ -z "$feat_name" ]] && continue
+            # Feature filter
+            if [[ -n "$FEATURE_FILTER" && "$feat_name" != "$FEATURE_FILTER" ]]; then
+                continue
+            fi
+            _pre_pass=$PASS; _pre_warn=$WARN; _pre_fail=$FAIL
+            verdict=$(jq -r ".\"$feat_name\".verdict // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+            case "$verdict" in
+                DELIVERS) PASS=$((PASS + 1)) ;;
+                PARTIAL)  WARN=$((WARN + 1)) ;;
+                MISSING)  FAIL=$((FAIL + 1)) ;;
+                *)        ;; # no cached result — skip, don't penalize
+            esac
+            _dp=$((PASS - _pre_pass)); _dw=$((WARN - _pre_warn)); _df=$((FAIL - _pre_fail))
+            FEATURE_RESULTS="${FEATURE_RESULTS}${feat_name}:${_dp}:${_dw}:${_df}
+"
+        done < <(jq -r 'keys[]' "$EVAL_CACHE_FILE" 2>/dev/null)
+    fi
+    # If no cache exists, generative features simply don't contribute to score.
+    # Run `rhino eval .` first to populate the cache.
+fi
 
 # Process a belief based on its type
 process_belief() {
@@ -487,7 +836,7 @@ ${judge_context}"
                         local judge_tmp
                         judge_tmp=$(mktemp)
                         echo "$judge_input" > "$judge_tmp"
-                        judge_result=$(claude -p "$(cat "$judge_tmp")" --model haiku 2>/dev/null | head -2) || judge_result=""
+                        judge_result=$(claude -p "$(cat "$judge_tmp")" --model haiku 2>/dev/null </dev/null | head -2) || judge_result=""
                         rm -f "$judge_tmp"
 
                         if [[ -z "$judge_result" ]]; then
@@ -534,6 +883,115 @@ ${judge_context}"
             else
                 check_warn "$belief_id" "llm_judge: no prompt: field"
             fi
+            ;;
+        feature_review)
+            # Claude evaluates feature completeness — explicit capabilities or inferred
+            # Skip in --score mode (expensive LLM call)
+            if [[ "$SCORE_MODE" == "true" ]]; then
+                return
+            fi
+
+            # Gather code context for the feature
+            local review_context=""
+            if [[ -n "$belief_path" ]]; then
+                local expanded_path="${belief_path/#\~/$HOME}"
+                if [[ -f "$expanded_path" ]]; then
+                    review_context=$(head -300 "$expanded_path" 2>/dev/null)
+                elif [[ -d "$expanded_path" ]]; then
+                    review_context=$(find "$expanded_path" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.mjs" -o -name "*.yml" -o -name "*.md" \) ! -path "*/node_modules/*" 2>/dev/null | head -10 | while read -r f; do
+                        echo "=== $f ==="
+                        head -80 "$f" 2>/dev/null
+                    done)
+                fi
+            elif [[ -n "$belief_feature" ]]; then
+                # Auto-discover: find files related to this feature
+                review_context=$(grep -rl "$belief_feature" bin/ .claude/commands/ lens/ config/ 2>/dev/null | grep -v node_modules | head -8 | while read -r f; do
+                    echo "=== $f ==="
+                    head -80 "$f" 2>/dev/null
+                done)
+            fi
+
+            if [[ -z "$review_context" ]]; then
+                check_warn "$belief_id" "feature_review: no code found for feature"
+            else
+
+            # Build the prompt
+            local review_prompt="You are reviewing a feature for completeness. Be honest and critical.
+
+"
+            if [[ ${#capabilities[@]} -gt 0 ]]; then
+                review_prompt+="The feature claims these capabilities:
+"
+                for cap in "${capabilities[@]}"; do
+                    review_prompt+="- $cap
+"
+                done
+                review_prompt+="
+For each capability, respond IMPLEMENTED or MISSING.
+Then on the final line write: COMPLETENESS: X/Y (where X = implemented, Y = total)
+"
+            else
+                review_prompt+="Analyze this feature's code. Identify:
+1. What capabilities are implemented (working code, not stubs)
+2. What's obviously missing for this feature to be complete
+3. On the final line: COMPLETENESS: X/Y (your best estimate of implemented/total capabilities)
+
+Be specific. 'Error handling' is too vague. 'Handles invalid input gracefully' is specific.
+"
+            fi
+            review_prompt+="
+Feature: ${belief_feature:-unknown}
+Code:
+${review_context}"
+
+            # Call Claude (reuse llm_judge calling pattern)
+            local review_tmp review_result
+            review_tmp=$(mktemp)
+            echo "$review_prompt" > "$review_tmp"
+
+            local api_key="${ANTHROPIC_API_KEY:-}"
+            if [[ -z "$api_key" ]]; then
+                review_result=$(claude -p "$(cat "$review_tmp")" --model haiku 2>/dev/null </dev/null) || review_result=""
+            else
+                local review_payload
+                review_payload=$(jq -n \
+                    --rawfile prompt "$review_tmp" \
+                    '{model:"claude-haiku-4-5-20251001",max_tokens:500,messages:[{role:"user",content:$prompt}]}')
+                local review_response
+                review_response=$(curl -s "https://api.anthropic.com/v1/messages" \
+                    -H "x-api-key: $api_key" \
+                    -H "anthropic-version: 2023-06-01" \
+                    -H "content-type: application/json" \
+                    -d "$review_payload" 2>/dev/null)
+                review_result=$(echo "$review_response" | jq -r '.content[0].text // empty' 2>/dev/null)
+            fi
+            rm -f "$review_tmp"
+
+            if [[ -z "$review_result" ]]; then
+                check_warn "$belief_id" "feature_review: Claude not available"
+            else
+                # Parse COMPLETENESS: X/Y from response
+                local completeness
+                completeness=$(echo "$review_result" | grep -o 'COMPLETENESS: [0-9]*/[0-9]*' | tail -1)
+                if [[ -n "$completeness" ]]; then
+                    local impl total pct
+                    impl=$(echo "$completeness" | grep -o '[0-9]*' | head -1)
+                    total=$(echo "$completeness" | grep -o '[0-9]*' | tail -1)
+                    if [[ "$total" -gt 0 ]]; then
+                        pct=$(( impl * 100 / total ))
+                        if [[ "$pct" -ge 70 ]]; then
+                            check_pass "$belief_id" "${belief_feature}: ${impl}/${total} capabilities (${pct}%)"
+                        else
+                            check_fail "$belief_id" "${belief_feature}: ${impl}/${total} capabilities (${pct}%)" "warn" 3
+                        fi
+                    else
+                        check_warn "$belief_id" "feature_review: could not parse completeness"
+                    fi
+                else
+                    check_warn "$belief_id" "feature_review: no COMPLETENESS line in response"
+                fi
+            fi
+            fi  # end review_context not empty
             ;;
         bench_check)
             # Run rhino bench --json and check calibration percentage
@@ -649,7 +1107,9 @@ if [[ -f "$BELIEFS_FILE" ]]; then
     belief_threshold=""
     belief_feature=""
     in_forbidden=false
+    in_capabilities=false
     forbidden_words=()
+    capabilities=()
 
     while IFS= read -r line; do
         # New belief entry
@@ -674,7 +1134,9 @@ if [[ -f "$BELIEFS_FILE" ]]; then
             belief_direction=""
             belief_command=""
             in_forbidden=false
+            in_capabilities=false
             forbidden_words=()
+            capabilities=()
         fi
 
         # Type
@@ -772,6 +1234,21 @@ if [[ -f "$BELIEFS_FILE" ]]; then
                 [[ -n "$word" ]] && forbidden_words+=("$word")
             else
                 in_forbidden=false
+            fi
+        fi
+
+        # Capabilities list parsing (for feature_review)
+        if echo "$line" | grep -q '^\s*capabilities:'; then
+            in_capabilities=true
+            continue
+        fi
+
+        if [[ "$in_capabilities" == "true" ]]; then
+            if echo "$line" | grep -q '^\s*-'; then
+                _cap=$(echo "$line" | sed 's/^\s*- *//' | tr -d '"')
+                [[ -n "$_cap" ]] && capabilities+=("$_cap")
+            else
+                in_capabilities=false
             fi
         fi
 

@@ -6,6 +6,7 @@
 #   self_check    — runs self.sh --eval metric (mechanical)
 #   bench_check   — runs rhino bench, checks calibration % (mechanical)
 #   score_trend   — reads history.tsv, checks score variance/direction (mechanical)
+#   feature_review — Claude evaluates feature completeness (capabilities list or inferred)
 #   llm_judge     — Claude evaluates code quality (subjective, uses Haiku)
 #
 # feature: which part of the product this tests
@@ -220,6 +221,49 @@ beliefs:
     type: command_check
     command: test $(wc -l < .claude/scores/history.tsv 2>/dev/null || echo 0) -gt 2
     feature: scoring
+    severity: warn
+
+  # ── feature completeness (Claude reviews code) ─────
+  # Claude reads the actual code and judges what's implemented vs missing.
+  # Explicit capabilities where we know what "done" means, inferred where we don't.
+
+  - id: scoring-complete
+    belief: "Scoring feature covers the full value measurement stack"
+    type: feature_review
+    feature: scoring
+    capabilities:
+      - "score.sh produces a numeric score for any project type"
+      - "health gate blocks score when infrastructure is broken"
+      - "assertions drive the score when beliefs.yml exists"
+      - "history.tsv tracks scores over time"
+      - "bench.sh validates scoring accuracy against test fixtures"
+      - "score handles edge cases: empty project, no assertions, missing files"
+    severity: warn
+
+  - id: learning-complete
+    belief: "Learning feature covers the full predict-measure-update loop"
+    type: feature_review
+    feature: learning
+    capabilities:
+      - "predictions.tsv gets new entries logged with evidence"
+      - "predictions get graded (correct column filled in)"
+      - "experiment-learnings.md gets updated when predictions are wrong"
+      - "session boot card surfaces prediction accuracy and staleness"
+      - "stale predictions and knowledge are detected and flagged"
+    severity: warn
+
+  - id: cli-complete
+    belief: "CLI tools form a coherent, working toolchain"
+    type: feature_review
+    feature: cli
+    path: "bin/"
+    severity: warn
+
+  - id: commands-complete
+    belief: "Slash commands cover the full founder workflow"
+    type: feature_review
+    feature: commands
+    path: ".claude/commands"
     severity: warn
 
   # ── llm_judge — subjective quality (Claude evaluates) ──
