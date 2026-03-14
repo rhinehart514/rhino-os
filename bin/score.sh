@@ -578,6 +578,7 @@ if [[ "$ASSERTION_COUNT" -gt 0 ]]; then
     if [[ -n "$eval_json" ]] && command -v jq &>/dev/null; then
         eval_score=$(echo "$eval_json" | jq -r '.score // empty' 2>/dev/null) || eval_score=""
         ASSERTION_PASS_COUNT=$(echo "$eval_json" | jq -r '.pass // 0' 2>/dev/null) || ASSERTION_PASS_COUNT=0
+        ASSERTION_COUNT=$(echo "$eval_json" | jq -r '.total // 0' 2>/dev/null) || ASSERTION_COUNT=0
         FEATURES_JSON=$(echo "$eval_json" | jq -c '.features // {}' 2>/dev/null) || FEATURES_JSON="{}"
     else
         eval_score=""

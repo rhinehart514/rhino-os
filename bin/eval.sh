@@ -53,6 +53,12 @@ SCORE_PENALTY=0
 # Per-feature tracking (feature_name:pass:warn:fail accumulated as lines)
 FEATURE_RESULTS=""
 
+# Generative eval numeric scores (feature_name:score accumulated as lines)
+# These contribute directly to the final score as numbers, not pass/warn/fail buckets.
+GENERATIVE_SCORES=""
+GENERATIVE_COUNT=0
+GENERATIVE_SUM=0
+
 # --- Check functions ---
 
 check_pass() {
@@ -566,24 +572,23 @@ run_generative_eval() {
             fi
         fi
 
-        # Map verdict to PASS/WARN/FAIL
-        local _pre_pass=$PASS _pre_warn=$WARN _pre_fail=$FAIL
-        case "$verdict" in
-            DELIVERS)
-                check_pass "$feat_name" "delivers: $delivers"
-                ;;
-            PARTIAL)
-                check_warn "$feat_name" "partial: $gaps"
-                ;;
-            MISSING|*)
-                check_fail "$feat_name" "missing: $gaps" "warn" 5
-                ;;
-        esac
-
-        # Track per-feature results
-        local _dp=$((PASS - _pre_pass)) _dw=$((WARN - _pre_warn)) _df=$((FAIL - _pre_fail))
-        FEATURE_RESULTS="${FEATURE_RESULTS}${feat_name}:${_dp}:${_dw}:${_df}
+        # Track as numeric score (not pass/warn/fail buckets)
+        [[ -z "$feat_score" || "$feat_score" == "null" ]] && feat_score=50
+        GENERATIVE_SCORES="${GENERATIVE_SCORES}${feat_name}:${feat_score}
 "
+        GENERATIVE_COUNT=$((GENERATIVE_COUNT + 1))
+        GENERATIVE_SUM=$((GENERATIVE_SUM + feat_score))
+
+        # Display output (non-score mode only)
+        if [[ "$SCORE_MODE" != "true" ]]; then
+            if [[ "$feat_score" -ge 80 ]]; then
+                echo "  [${feat_score}] $feat_name    delivers: $delivers"
+            elif [[ "$feat_score" -ge 40 ]]; then
+                echo "  [${feat_score}] $feat_name    partial: $gaps"
+            else
+                echo "  [${feat_score}] $feat_name    missing: $gaps"
+            fi
+        fi
 
         # Build cache entry
         $cache_first || cache_json+=","
@@ -608,7 +613,7 @@ if [[ "$HAS_FEATURES" == true && "$SCORE_MODE" != "true" ]]; then
     run_generative_eval
     echo ""
 elif [[ "$HAS_FEATURES" == true && "$SCORE_MODE" == "true" ]]; then
-    # In --score mode: read cached generative results, don't call Claude
+    # In --score mode: read cached generative scores as numbers, don't call Claude
     if [[ -f "$EVAL_CACHE_FILE" ]] && command -v jq &>/dev/null; then
         while IFS= read -r feat_name; do
             [[ -z "$feat_name" ]] && continue
@@ -616,17 +621,13 @@ elif [[ "$HAS_FEATURES" == true && "$SCORE_MODE" == "true" ]]; then
             if [[ -n "$FEATURE_FILTER" && "$feat_name" != "$FEATURE_FILTER" ]]; then
                 continue
             fi
-            _pre_pass=$PASS; _pre_warn=$WARN; _pre_fail=$FAIL
-            verdict=$(jq -r ".\"$feat_name\".verdict // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
-            case "$verdict" in
-                DELIVERS) PASS=$((PASS + 1)) ;;
-                PARTIAL)  WARN=$((WARN + 1)) ;;
-                MISSING)  FAIL=$((FAIL + 1)) ;;
-                *)        ;; # no cached result — skip, don't penalize
-            esac
-            _dp=$((PASS - _pre_pass)); _dw=$((WARN - _pre_warn)); _df=$((FAIL - _pre_fail))
-            FEATURE_RESULTS="${FEATURE_RESULTS}${feat_name}:${_dp}:${_dw}:${_df}
+            feat_score=$(jq -r ".\"$feat_name\".score // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+            if [[ -n "$feat_score" && "$feat_score" =~ ^[0-9]+$ ]]; then
+                GENERATIVE_SCORES="${GENERATIVE_SCORES}${feat_name}:${feat_score}
 "
+                GENERATIVE_COUNT=$((GENERATIVE_COUNT + 1))
+                GENERATIVE_SUM=$((GENERATIVE_SUM + feat_score))
+            fi
         done < <(jq -r 'keys[]' "$EVAL_CACHE_FILE" 2>/dev/null)
     fi
     # If no cache exists, generative features simply don't contribute to score.
@@ -1260,9 +1261,9 @@ fi
 
 # === --score mode: output single integer, per-feature JSON, or combined JSON ===
 if [[ "$SCORE_MODE" == "true" ]]; then
-    TOTAL=$((PASS + WARN + FAIL))
+    BELIEFS_TOTAL=$((PASS + WARN + FAIL))
 
-    # Aggregate per-feature results (always needed for --json and --by-feature)
+    # Aggregate per-feature results from beliefs (always needed for --json and --by-feature)
     _bf_tmpdir=$(mktemp -d)
     while IFS=: read -r _bf_name _bf_p _bf_w _bf_f; do
         [[ -z "$_bf_name" ]] && continue
@@ -1273,29 +1274,50 @@ if [[ "$SCORE_MODE" == "true" ]]; then
         echo "$((_bf_pp + _bf_p)):$((_bf_pw + _bf_w)):$((_bf_pf + _bf_f))" > "$_bf_tmpdir/$_bf_name"
     done <<< "$FEATURE_RESULTS"
 
+    # Add generative scores to feature JSON
+    while IFS=: read -r _gf_name _gf_score; do
+        [[ -z "$_gf_name" ]] && continue
+        echo "gen:${_gf_score}" > "$_bf_tmpdir/$_gf_name.gen"
+    done <<< "$GENERATIVE_SCORES"
+
     _bf_json="{"
     _bf_first=true
     for _bf_file in "$_bf_tmpdir"/*; do
         [[ ! -f "$_bf_file" ]] && continue
         _bf_fname=$(basename "$_bf_file")
-        IFS=: read -r _bf_p _bf_w _bf_f < "$_bf_file"
-        _bf_t=$((_bf_p + _bf_w + _bf_f))
-        $_bf_first || _bf_json+=","
-        _bf_json+="\"$_bf_fname\":{\"pass\":$_bf_p,\"warn\":$_bf_w,\"fail\":$_bf_f,\"total\":$_bf_t}"
-        _bf_first=false
+        if [[ "$_bf_fname" == *.gen ]]; then
+            # Generative feature — numeric score
+            _bf_fname="${_bf_fname%.gen}"
+            _gf_s=$(cut -d: -f2 < "$_bf_file")
+            $_bf_first || _bf_json+=","
+            _bf_json+="\"$_bf_fname\":{\"score\":$_gf_s,\"type\":\"generative\"}"
+            _bf_first=false
+        else
+            # Beliefs feature — pass/warn/fail
+            IFS=: read -r _bf_p _bf_w _bf_f < "$_bf_file"
+            _bf_t=$((_bf_p + _bf_w + _bf_f))
+            $_bf_first || _bf_json+=","
+            _bf_json+="\"$_bf_fname\":{\"pass\":$_bf_p,\"warn\":$_bf_w,\"fail\":$_bf_f,\"total\":$_bf_t}"
+            _bf_first=false
+        fi
     done
     _bf_json+="}"
     rm -rf "$_bf_tmpdir"
 
-    # Compute score
+    # Compute blended score:
+    # beliefs contribute: (PASS*100 + WARN*50) / BELIEFS_TOTAL
+    # generative contributes: GENERATIVE_SUM / GENERATIVE_COUNT
+    # Final = weighted average by count
     _eval_score=""
-    if [[ "$TOTAL" -gt 0 ]]; then
-        _eval_score=$(( (PASS * 100 + WARN * 50) / TOTAL ))
+    _total_weight=$((BELIEFS_TOTAL + GENERATIVE_COUNT))
+    if [[ "$_total_weight" -gt 0 ]]; then
+        _beliefs_points=0
+        [[ "$BELIEFS_TOTAL" -gt 0 ]] && _beliefs_points=$(( PASS * 100 + WARN * 50 ))
+        _eval_score=$(( (_beliefs_points + GENERATIVE_SUM) / _total_weight ))
     fi
 
     if [[ "$JSON_OUTPUT" == "true" ]]; then
-        # Combined JSON output: score + counts + features
-        echo "{\"score\":${_eval_score:-null},\"pass\":$PASS,\"warn\":$WARN,\"fail\":$FAIL,\"total\":$TOTAL,\"features\":$_bf_json}"
+        echo "{\"score\":${_eval_score:-null},\"pass\":$PASS,\"warn\":$WARN,\"fail\":$FAIL,\"beliefs_total\":$BELIEFS_TOTAL,\"generative_count\":$GENERATIVE_COUNT,\"generative_sum\":$GENERATIVE_SUM,\"total\":$_total_weight,\"features\":$_bf_json}"
     elif [[ "$BY_FEATURE" == "true" ]]; then
         echo "$_bf_json"
     else
@@ -1306,7 +1328,13 @@ fi
 
 # === Summary ===
 echo ""
-echo "$PASS passed | $WARN warned | $FAIL failed"
+if [[ "$GENERATIVE_COUNT" -gt 0 ]]; then
+    _gen_avg=$((GENERATIVE_SUM / GENERATIVE_COUNT))
+    echo "generative: ${GENERATIVE_COUNT} features, avg ${_gen_avg}/100"
+fi
+if [[ "$((PASS + WARN + FAIL))" -gt 0 ]]; then
+    echo "beliefs: $PASS passed | $WARN warned | $FAIL failed"
+fi
 if [[ "$SCORE_PENALTY" -gt 0 ]]; then
     echo "Score impact: -${SCORE_PENALTY} pts from failures"
 fi

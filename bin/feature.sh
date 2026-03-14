@@ -106,29 +106,30 @@ cmd_list() {
             return
         fi
 
-        # Read eval cache for verdicts
+        # Read eval cache for scores
         local cache=".claude/cache/eval-cache.json"
 
         while IFS= read -r feat; do
             [[ -z "$feat" ]] && continue
-            local delivers verdict color icon
+            local delivers feat_score color
 
             delivers=$(get_feature_delivers "$feat")
 
             if [[ -f "$cache" ]] && command -v jq &>/dev/null; then
-                verdict=$(jq -r ".\"$feat\".verdict // \"—\"" "$cache" 2>/dev/null) || verdict="—"
+                feat_score=$(jq -r ".\"$feat\".score // \"—\"" "$cache" 2>/dev/null) || feat_score="—"
             else
-                verdict="—"
+                feat_score="—"
             fi
 
-            case "$verdict" in
-                DELIVERS) color="$GREEN"; icon="✓" ;;
-                PARTIAL)  color="$YELLOW"; icon="·" ;;
-                MISSING)  color="$RED"; icon="✗" ;;
-                *)        color="$DIM"; icon="?" ;;
-            esac
-
-            printf "  ${color}${icon}${NC} ${BOLD}%-14s${NC} %s\n" "$feat" "${delivers:0:60}"
+            if [[ "$feat_score" =~ ^[0-9]+$ ]]; then
+                if [[ "$feat_score" -ge 80 ]]; then color="$GREEN"
+                elif [[ "$feat_score" -ge 40 ]]; then color="$YELLOW"
+                else color="$RED"
+                fi
+                printf "  ${color}%3s${NC} ${BOLD}%-14s${NC} %s\n" "$feat_score" "$feat" "${delivers:0:55}"
+            else
+                printf "  ${DIM}  —${NC} ${BOLD}%-14s${NC} %s\n" "$feat" "${delivers:0:55}"
+            fi
         done <<< "$features"
     else
         # Fallback: beliefs.yml
@@ -195,17 +196,19 @@ cmd_view() {
             echo ""
         fi
 
-        # Check eval cache for last verdict
+        # Check eval cache for score
         local cache=".claude/cache/eval-cache.json"
         if [[ -f "$cache" ]] && command -v jq &>/dev/null; then
-            local verdict gaps
+            local feat_score gaps verdict
+            feat_score=$(jq -r ".\"$feat\".score // empty" "$cache" 2>/dev/null)
             verdict=$(jq -r ".\"$feat\".verdict // empty" "$cache" 2>/dev/null)
-            if [[ -n "$verdict" ]]; then
-                case "$verdict" in
-                    DELIVERS) echo -e "  ${GREEN}✓ DELIVERS${NC}" ;;
-                    PARTIAL)  echo -e "  ${YELLOW}· PARTIAL${NC}" ;;
-                    MISSING)  echo -e "  ${RED}✗ MISSING${NC}" ;;
-                esac
+            if [[ -n "$feat_score" && "$feat_score" =~ ^[0-9]+$ ]]; then
+                local color
+                if [[ "$feat_score" -ge 80 ]]; then color="$GREEN"
+                elif [[ "$feat_score" -ge 40 ]]; then color="$YELLOW"
+                else color="$RED"
+                fi
+                echo -e "  ${color}${feat_score}/100${NC} ${DIM}(${verdict})${NC}"
                 gaps=$(jq -r ".\"$feat\".gaps // [] | .[]" "$cache" 2>/dev/null)
                 if [[ -n "$gaps" ]]; then
                     echo ""
