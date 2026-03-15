@@ -109,23 +109,35 @@ Fix your health issues, but don't confuse them with value.
 
 **Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed. macOS or Linux.
 
+### Option A: Plugin install (recommended)
+
+Inside Claude Code:
+```
+/plugin marketplace add rhinehart514/rhino-os
+/plugin install rhino-os@rhino-marketplace
+```
+
+Done. Commands, skills, agents, and hooks load automatically.
+
+### Option B: Manual install
+
 ```bash
-# 1. Install rhino-os (one time)
 git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os
 cd ~/rhino-os && ./install.sh
 source ~/.zshrc  # or restart your terminal
+```
 
-# 2. Set up your project
+### Then, in any project:
+
+```bash
 cd ~/your-project
-rhino init        # detects project, generates config + assertions
-
-# 3. Start improving
 claude            # rhino-os boots automatically
+/init             # detects project, generates config + assertions
 /plan             # find the bottleneck
 /go               # autonomous build loop — keeps what passes, reverts what doesn't
 ```
 
-Your first score will be low. That's correct — you haven't told it what your product should do yet. `rhino init` generates assertions, then `/go` builds toward passing them.
+Your first score will be low. That's correct — you haven't told it what your product should do yet. `/init` generates assertions, then `/go` builds toward passing them.
 
 **Optional:** Node 18+ for visual eval (`rhino taste`).
 

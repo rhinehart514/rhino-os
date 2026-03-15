@@ -1,13 +1,27 @@
 {
   "name": "rhino-marketplace",
   "description": "Measurement-driven product development for Claude Code",
-  "owner": { "name": "Laney Fraass" },
+  "owner": {
+    "name": "Laney Fraass",
+    "url": "https://github.com/rhinehart514"
+  },
+  "metadata": {
+    "description": "rhino-os makes your product measurably better every session. Score, eval, taste, predict, learn.",
+    "version": "1.0.0"
+  },
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "7.2.0",
+      "version": "8.0.0",
       "source": "./",
-      "author": { "name": "Laney Fraass" }
+      "description": "Learning plugin — measurement, predictions, autonomous building that compounds across sessions",
+      "author": {
+        "name": "Laney Fraass"
+      },
+      "keywords": ["product", "measurement", "learning", "eval", "autonomous", "scoring"],
+      "homepage": "https://github.com/rhinehart514/rhino-os",
+      "repository": "https://github.com/rhinehart514/rhino-os",
+      "license": "MIT"
     }
   ]
 }
