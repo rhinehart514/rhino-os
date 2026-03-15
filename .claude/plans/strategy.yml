@@ -1,0 +1,55 @@
+# strategy.yml — Product strategy as structured data
+# /strategy writes this. /plan reads this for bottleneck + stage.
+# Replaces product-model.md and learning-agenda.md with typed fields.
+
+meta:
+  updated: 2026-03-13
+  stage: one
+  stage_definition: "Core loop works for one person (Laney on HIVE). Unproven externally."
+
+bottleneck:
+  name: first-loop
+  description: "The gap between 'project is set up' and 'I ran /go and my project got better'"
+  evidence: "Zero external users have completed the full loop. Only tested on HIVE."
+  blocked_by: "No external validation — every test has been on HIVE (Next.js)"
+
+loop:
+  install: 3
+  install_notes: "git clone + install.sh is idempotent, tested, fast"
+  setup: 2
+  setup_notes: "Works but weak handoff — user has to know to type /plan next"
+  first_loop: 1
+  first_loop_notes: "Never proven end-to-end on a non-HIVE project"
+  value: 1
+  value_notes: "Score works immediately. Taste requires Playwright + dev server."
+  return: 1
+  return_notes: "Session context hook exists. Never tested externally."
+
+unknowns:
+  - id: external-project
+    question: "Does the full loop work on a non-HIVE project?"
+    first_experiment: "Run /strategy → /plan → /go on a small existing project"
+    graduation: "One non-HIVE project completes with score delta > 0"
+    priority: resolved
+    result: "HIVE monorepo bootstrapped successfully. 10 features detected, score 65 (honest), 31 todos extracted, full command suite wired. 2026-03-14."
+
+  - id: loop-compounds
+    question: "Does the loop actually compound across sessions?"
+    first_experiment: "Run 3 consecutive /go cycles, track prediction citations"
+    graduation: ">30% of predictions cite experiment-learnings.md entries"
+    priority: high
+
+  - id: new-user-friction
+    question: "What breaks first for new users?"
+    first_experiment: "Fresh install walkthrough on a clean machine"
+    graduation: "New user completes install → setup → first /plan without help"
+    priority: medium
+
+graduation:
+  from: one
+  to: some
+  criteria:
+    - "10+ predictions logged"
+    - "3+ experiment learnings for rhino-os itself"
+    - "2/3 unknowns resolved"
+    - "FirstLoop score >= 2/3"

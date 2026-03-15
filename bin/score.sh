@@ -682,10 +682,17 @@ if [[ "$HIST_LINES" -ge 3 ]]; then
             INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}COSMETIC-ONLY: hygiene +${h_hygiene_delta} but structure ${h_struct_delta}. Cleanup without structural improvement.\n"
         fi
         # Inflation: single commit jumped too much
+        # Skip if previous score was below onboarding cap (likely first real eval after init)
         max_delta=$(cfg integrity.max_single_commit_delta 15)
         h_total_delta=$(( h_struct_delta + h_hygiene_delta ))
+        hist_prev_product=$(tail -2 "$HISTORY_FILE" | head -1 | cut -f5)
+        onboarding_cap_check=$(cfg scoring.onboarding_cap 50)
         if [[ "$h_total_delta" -gt "$max_delta" ]]; then
-            INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}INFLATION: score jumped +${h_total_delta} in one run (max: ${max_delta}). Verify changes are real.\n"
+            if [[ -n "$hist_prev_product" && "$hist_prev_product" =~ ^[0-9]+$ && "$hist_prev_product" -lt "$onboarding_cap_check" ]]; then
+                : # Skip — this is a first-eval jump from init, not inflation
+            else
+                INTEGRITY_WARNINGS="${INTEGRITY_WARNINGS}INFLATION: score jumped +${h_total_delta} in one run (max: ${max_delta}). Verify changes are real.\n"
+            fi
         fi
     fi
 fi

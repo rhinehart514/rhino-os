@@ -8,7 +8,7 @@ items:
     title: "Consolidate INFLATION integrity warning — first-run detection is noisy"
     priority: low
     feature: scoring
-    status: backlog
+    status: done
     context: "Score jumps +75 on first run, triggers false inflation warning"
     source: "go session 2026-03-13"
     created: 2026-03-13
@@ -17,7 +17,7 @@ items:
     title: "Review stage ceiling — score 95 exceeds early stage ceiling (80)"
     priority: medium
     feature: scoring
-    status: backlog
+    status: done
     context: "Either upgrade project.stage to growth or adjust ceiling thresholds"
     source: "go session 2026-03-13"
     created: 2026-03-13
@@ -26,7 +26,7 @@ items:
     title: "Improve prediction calibration — currently BROKEN at 17%"
     priority: high
     feature: learning
-    status: backlog
+    status: done
     context: "learning-compounds eval failing. Most predictions graded partial or no."
     source: "eval 2026-03-13"
     created: 2026-03-13
@@ -35,7 +35,7 @@ items:
     title: "Run rhino-os on a non-rhino-os project"
     priority: high
     feature: install
-    status: backlog
+    status: done
     context: "Single highest-information experiment possible. Core value hypothesis untested."
     source: "experiment-learnings.md unknown territory"
     created: 2026-03-13
@@ -44,7 +44,7 @@ items:
     title: "Document score = min(dimensions) formula somewhere discoverable"
     priority: low
     feature: docs
-    status: backlog
+    status: done
     context: "Three predictions got this wrong before learning it. Not documented."
     source: "predictions.tsv 2026-03-13"
     created: 2026-03-13

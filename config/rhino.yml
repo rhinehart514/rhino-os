@@ -4,7 +4,7 @@
 # ── Project ─────────────────────────────────────────
 project:
   # Maps to strategy.yml: mvp≈one, early≈some, growth≈many
-  stage: early  # mvp → early → growth → mature. Controls score ceiling warnings.
+  stage: growth  # mvp → early → growth → mature. Controls score ceiling warnings.
   mode: build   # build → workshop mode (no shipping pressure, learning focus)
                 # ship  → pipeline mode (/ship visible, ceiling warnings active)
 

@@ -43,6 +43,8 @@ You write assertions in `beliefs.yml` — mechanical checks that test whether yo
 
 `rhino score .` runs them. The pass rate IS your score. The `/go` loop keeps changes that improve the pass rate, reverts changes that regress it.
 
+**How the score blends:** If you have both `features:` in rhino.yml (generative eval — Claude judges if code delivers what it claims) and `beliefs.yml` (mechanical file checks), generative evals count **3x** vs beliefs. This prevents easy file-exists checks from inflating the score. The score also shows *reasons* — what penalties were applied and why.
+
 ### 2. Health (a gate, not the score)
 
 Structure and hygiene (dead ends, `any` types, console.logs) are still checked. But they don't reduce your score — they gate it:

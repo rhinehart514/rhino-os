@@ -1,0 +1,5 @@
+date	agent	prediction	evidence	result	correct	model_update
+2026-03-14	cofounder	Visual system + score reasons will raise commands from 70 to 75+	Commands had no output templates. Score had no reasons.	Commands rewritten with templates, score reasons added. Eval not yet re-run.
+2026-03-14	cofounder	3x generative weighting will drop HIVE score from 79 to ~60	Beliefs (file checks) averaging 95%, generative averaging 38%. Equal weighting inflates.	HIVE 79→65 with 3x weighting. rhino-os 92→84.	yes	File-check inflation is a known pattern now. 3x weighting produces honest scores.
+2026-03-14	cofounder	init.sh will work on HIVE monorepo after bash 3 fix + monorepo detection	declare -A failed on macOS bash 3.2. No apps/ detection.	10 features detected, Claude analyzed project, score 85/100, full stack wired.	yes	Bash 3 compat is mandatory. Always test with /bin/bash not /usr/local/bin/bash.
+2026-03-14	cofounder	Marking test-external-project done + creating project-local knowledge will raise learning from 48 to 55+	Learning eval judges prediction/knowledge model presence. No local files exist.
