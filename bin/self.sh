@@ -183,7 +183,7 @@ fi
 # ============================================================
 CURRENT_SYSTEM="think"
 
-# mind-integrity (6 pts): 4 mind files present + delivered
+# mind-integrity (5 pts): 4 mind files present + delivered
 MIND_FILES=(identity.md thinking.md standards.md self.md)
 MIND_MISSING=0
 MIND_UNLINKED=0
@@ -209,35 +209,35 @@ else
 fi
 if [[ "$MIND_MISSING" -eq 0 && "$MIND_UNLINKED" -eq 0 ]]; then
     if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-        check_pass "mind-integrity" "4 mind files present + SKILL.md delivers them" 6
+        check_pass "mind-integrity" "4 mind files present + SKILL.md delivers them" 5
     else
-        check_pass "mind-integrity" "4 mind files present + symlinked" 6
+        check_pass "mind-integrity" "4 mind files present + symlinked" 5
     fi
 elif [[ "$MIND_MISSING" -gt 0 ]]; then
-    check_fail "mind-integrity" "$MIND_MISSING mind file(s) missing from mind/" 6
+    check_fail "mind-integrity" "$MIND_MISSING mind file(s) missing from mind/" 5
 else
     if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-        check_fail "mind-integrity" "skills/rhino-mind/SKILL.md missing" 6
+        check_fail "mind-integrity" "skills/rhino-mind/SKILL.md missing" 5
     else
-        check_fail "mind-integrity" "$MIND_UNLINKED mind file(s) not symlinked in rules/" 6
+        check_fail "mind-integrity" "$MIND_UNLINKED mind file(s) not symlinked in rules/" 5
     fi
 fi
 
-# strategy-ready (6 pts): strategy.yml has stage + bottleneck
+# strategy-ready (5 pts): strategy.yml has stage + bottleneck
 STRATEGY_FILE=".claude/plans/strategy.yml"
 if [[ -f "$STRATEGY_FILE" ]]; then
     has_stage=$(grep -c 'stage:' "$STRATEGY_FILE" 2>/dev/null) || has_stage=0
     has_bottleneck=$(grep -c 'bottleneck:' "$STRATEGY_FILE" 2>/dev/null) || has_bottleneck=0
     if [[ "$has_stage" -gt 0 && "$has_bottleneck" -gt 0 ]]; then
-        check_pass "strategy-ready" "strategy has stage + bottleneck" 6
+        check_pass "strategy-ready" "strategy has stage + bottleneck" 5
     else
-        check_warn "strategy-ready" "strategy missing stage or bottleneck" 3 6
+        check_warn "strategy-ready" "strategy missing stage or bottleneck" 2 5
     fi
 else
-    check_fail "strategy-ready" "no strategy.yml — run /strategy" 6
+    check_fail "strategy-ready" "no strategy.yml — run /strategy" 5
 fi
 
-# knowledge-coverage (7 pts): all 4 zones populated
+# knowledge-coverage (6 pts): all 4 zones populated
 LEARNINGS="$HOME/.claude/knowledge/experiment-learnings.md"
 if [[ -f "$LEARNINGS" ]]; then
     has_known=$(grep -c '## Known' "$LEARNINGS" 2>/dev/null) || has_known=0
@@ -246,40 +246,67 @@ if [[ -f "$LEARNINGS" ]]; then
     has_dead=$(grep -c '## Dead' "$LEARNINGS" 2>/dev/null) || has_dead=0
     zones=$((has_known + has_uncertain + has_unknown + has_dead))
     if [[ "$zones" -ge 4 ]]; then
-        check_pass "knowledge-coverage" "all 4 zones populated (known/uncertain/unknown/dead)" 7
+        check_pass "knowledge-coverage" "all 4 zones populated (known/uncertain/unknown/dead)" 6
     elif [[ "$zones" -ge 2 ]]; then
-        check_warn "knowledge-coverage" "$zones/4 knowledge zones populated" $((zones * 7 / 4)) 7
+        check_warn "knowledge-coverage" "$zones/4 knowledge zones populated" $((zones * 6 / 4)) 6
     else
-        check_fail "knowledge-coverage" "knowledge model has $zones/4 zones — too thin to reason from" 7
+        check_fail "knowledge-coverage" "knowledge model has $zones/4 zones — too thin to reason from" 6
     fi
 else
-    check_fail "knowledge-coverage" "no experiment-learnings.md" 7
+    check_fail "knowledge-coverage" "no experiment-learnings.md" 6
 fi
 
-# prediction-accuracy (6 pts): calibrated 30-90%
+# prediction-accuracy (5 pts): calibrated 30-90%
 PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
 ACCURACY_FLOOR=$(cfg self.prediction_accuracy_floor 0.30)
 ACCURACY_CEILING=$(cfg self.prediction_accuracy_ceiling 0.90)
 
 if [[ ! -f "$PRED_FILE" ]]; then
-    check_warn "prediction-accuracy" "no predictions.tsv found" 0 6
+    check_warn "prediction-accuracy" "no predictions.tsv found" 0 5
 else
     TOTAL_GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
     if [[ "$TOTAL_GRADED" -lt 5 ]]; then
-        check_warn "prediction-accuracy" "only $TOTAL_GRADED graded predictions (need 5+ for calibration)" 3 6
+        check_warn "prediction-accuracy" "only $TOTAL_GRADED graded predictions (need 5+ for calibration)" 2 5
     else
         CORRECT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
         PARTIAL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
         # Partial credit: directionally right but off on magnitude counts as 0.5
         ACCURACY=$(awk "BEGIN { printf \"%.2f\", ($CORRECT + $PARTIAL * 0.5) / $TOTAL_GRADED }")
         if awk "BEGIN { exit !($ACCURACY < $ACCURACY_FLOOR) }"; then
-            check_fail "prediction-accuracy" "accuracy ${ACCURACY} below floor ${ACCURACY_FLOOR} — model may be broken" 6
+            check_fail "prediction-accuracy" "accuracy ${ACCURACY} below floor ${ACCURACY_FLOOR} — model may be broken" 5
         elif awk "BEGIN { exit !($ACCURACY > $ACCURACY_CEILING) }"; then
-            check_warn "prediction-accuracy" "accuracy ${ACCURACY} above ceiling ${ACCURACY_CEILING} — predictions may be too safe" 3 6
+            check_warn "prediction-accuracy" "accuracy ${ACCURACY} above ceiling ${ACCURACY_CEILING} — predictions may be too safe" 2 5
         else
-            check_pass "prediction-accuracy" "accuracy ${ACCURACY} (${CORRECT}/${TOTAL_GRADED}) — well calibrated" 6
+            check_pass "prediction-accuracy" "accuracy ${ACCURACY} (${CORRECT}/${TOTAL_GRADED}) — well calibrated" 5
         fi
     fi
+fi
+
+# knowledge-entry-staleness (4 pts): individual knowledge entries checked for age
+KNOWLEDGE_STALE_DAYS=$(cfg self.knowledge_stale_days 14)
+if [[ -f "$LEARNINGS" ]]; then
+    # Count dated entries and check for stale ones (dates embedded in entries like "2026-03-10")
+    STALE_ENTRIES=0
+    TOTAL_ENTRIES=0
+    CUTOFF_DATE=$(date -v-${KNOWLEDGE_STALE_DAYS}d '+%Y-%m-%d' 2>/dev/null || date -d "${KNOWLEDGE_STALE_DAYS} days ago" '+%Y-%m-%d' 2>/dev/null || echo "")
+    if [[ -n "$CUTOFF_DATE" ]]; then
+        while IFS= read -r entry_date; do
+            [[ -z "$entry_date" ]] && continue
+            TOTAL_ENTRIES=$((TOTAL_ENTRIES + 1))
+            if [[ "$entry_date" < "$CUTOFF_DATE" ]]; then
+                STALE_ENTRIES=$((STALE_ENTRIES + 1))
+            fi
+        done < <(grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$LEARNINGS" 2>/dev/null | sort -u)
+    fi
+    if [[ "$TOTAL_ENTRIES" -eq 0 ]]; then
+        check_warn "knowledge-entry-staleness" "no dated entries in knowledge model — can't assess freshness" 2 4
+    elif [[ "$STALE_ENTRIES" -gt "$((TOTAL_ENTRIES / 2))" ]]; then
+        check_warn "knowledge-entry-staleness" "${STALE_ENTRIES}/${TOTAL_ENTRIES} dated entries older than ${KNOWLEDGE_STALE_DAYS}d" 1 4
+    else
+        check_pass "knowledge-entry-staleness" "${TOTAL_ENTRIES} dated entries, ${STALE_ENTRIES} stale" 4
+    fi
+else
+    check_fail "knowledge-entry-staleness" "no experiment-learnings.md" 4
 fi
 
 # ============================================================
@@ -287,7 +314,7 @@ fi
 # ============================================================
 CURRENT_SYSTEM="act"
 
-# commands-depth (6 pts): slash commands are substantive, not stubs
+# commands-depth (5 pts): slash commands are substantive, not stubs
 if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
     CMD_DIR="$RHINO_DIR/commands"
 else
@@ -306,17 +333,17 @@ if [[ -d "$CMD_DIR" ]]; then
         fi
     done
     if [[ "$CMD_COUNT" -eq 0 ]]; then
-        check_fail "commands-depth" "no slash commands found" 6
+        check_fail "commands-depth" "no slash commands found" 5
     elif [[ "$STUB_COUNT" -gt 0 ]]; then
-        check_warn "commands-depth" "$STUB_COUNT/$CMD_COUNT commands are stubs (<20 lines)" 3 6
+        check_warn "commands-depth" "$STUB_COUNT/$CMD_COUNT commands are stubs (<20 lines)" 2 5
     else
-        check_pass "commands-depth" "$CMD_COUNT commands, all substantive" 6
+        check_pass "commands-depth" "$CMD_COUNT commands, all substantive" 5
     fi
 else
-    check_fail "commands-depth" "no commands directory" 6
+    check_fail "commands-depth" "no commands directory" 5
 fi
 
-# hook-health (6 pts): hooks resolve and are executable
+# hook-health (5 pts): hooks resolve and are executable
 HOOK_TIMEOUT_MS=$(cfg self.hook_timeout_ms 200)
 HOOKS_BROKEN=0
 HOOKS_CHECKED=0
@@ -378,14 +405,14 @@ else
 fi
 
 if [[ "$HOOKS_CHECKED" -eq 0 ]]; then
-    check_warn "hook-health" "no hooks found" 0 6
+    check_warn "hook-health" "no hooks found" 0 5
 elif [[ "$HOOKS_BROKEN" -gt 0 ]]; then
-    check_fail "hook-health" "$HOOKS_BROKEN hook(s) broken or not executable" 6
+    check_fail "hook-health" "$HOOKS_BROKEN hook(s) broken or not executable" 5
 else
-    check_pass "hook-health" "$HOOKS_CHECKED hooks healthy" 6
+    check_pass "hook-health" "$HOOKS_CHECKED hooks healthy" 5
 fi
 
-# config-coherence (6 pts): rhino.yml required sections present
+# config-coherence (5 pts): rhino.yml required sections present
 CONFIG_FILE="$RHINO_DIR/config/rhino.yml"
 if [[ ! -f "$CONFIG_FILE" ]]; then
     check_fail "config-coherence" "rhino.yml not found" 6
@@ -404,13 +431,13 @@ else
         fi
     done
     if [[ "$MISSING_SECTIONS" -gt 0 ]]; then
-        check_warn "config-coherence" "$MISSING_SECTIONS required section(s) missing from rhino.yml" 3 6
+        check_warn "config-coherence" "$MISSING_SECTIONS required section(s) missing from rhino.yml" 2 5
     else
-        check_pass "config-coherence" "rhino.yml has all required sections" 6
+        check_pass "config-coherence" "rhino.yml has all required sections" 5
     fi
 fi
 
-# act-commands-execute (7 pts): rhino help/version run
+# act-commands-execute (5 pts): rhino help/version run
 # Note: can't call score.sh or eval.sh here (both can call self.sh → recursion)
 ACT_CMDS_OK=0
 ACT_CMDS_TOTAL=2
@@ -422,12 +449,43 @@ for cmd in help version; do
 done
 
 if [[ "$ACT_CMDS_OK" -eq "$ACT_CMDS_TOTAL" ]]; then
-    check_pass "commands-execute" "$ACT_CMDS_OK/$ACT_CMDS_TOTAL commands produce output" 7
+    check_pass "commands-execute" "$ACT_CMDS_OK/$ACT_CMDS_TOTAL commands produce output" 5
 elif [[ "$ACT_CMDS_OK" -gt 0 ]]; then
-    local_pts=$((ACT_CMDS_OK * 7 / ACT_CMDS_TOTAL))
-    check_warn "commands-execute" "$ACT_CMDS_OK/$ACT_CMDS_TOTAL commands produce output" "$local_pts" 7
+    local_pts=$((ACT_CMDS_OK * 5 / ACT_CMDS_TOTAL))
+    check_warn "commands-execute" "$ACT_CMDS_OK/$ACT_CMDS_TOTAL commands produce output" "$local_pts" 5
 else
-    check_fail "commands-execute" "0/$ACT_CMDS_TOTAL commands produce output" 7
+    check_fail "commands-execute" "0/$ACT_CMDS_TOTAL commands produce output" 5
+fi
+
+# plan-active (5 pts): plan.yml exists with non-stale tasks
+PLAN_CHECK_FILE=""
+for _pf in "$PWD/.claude/plans/plan.yml" "$HOME/.claude/plans/plan.yml"; do
+    [[ -f "$_pf" ]] && PLAN_CHECK_FILE="$_pf" && break
+done
+if [[ -z "$PLAN_CHECK_FILE" ]]; then
+    check_warn "plan-active" "no plan.yml — run /plan to create one" 0 5
+else
+    PLAN_TODO=$(grep -c 'status: todo' "$PLAN_CHECK_FILE" 2>/dev/null | tr -d ' \n' || true)
+    PLAN_DONE=$(grep -c 'status: done' "$PLAN_CHECK_FILE" 2>/dev/null | tr -d ' \n' || true)
+    [[ -z "$PLAN_TODO" || ! "$PLAN_TODO" =~ ^[0-9]+$ ]] && PLAN_TODO=0
+    [[ -z "$PLAN_DONE" || ! "$PLAN_DONE" =~ ^[0-9]+$ ]] && PLAN_DONE=0
+    PLAN_TOTAL=$((PLAN_TODO + PLAN_DONE))
+    # Check plan staleness (>48h old = stale)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        PLAN_MOD=$(stat -f %m "$PLAN_CHECK_FILE" 2>/dev/null || echo 0)
+    else
+        PLAN_MOD=$(stat -c %Y "$PLAN_CHECK_FILE" 2>/dev/null || echo 0)
+    fi
+    PLAN_AGE_H=$(( ($(date +%s) - PLAN_MOD) / 3600 ))
+    if [[ "$PLAN_TOTAL" -eq 0 ]]; then
+        check_warn "plan-active" "plan.yml exists but has no tasks" 2 5
+    elif [[ "$PLAN_AGE_H" -gt 48 ]]; then
+        check_warn "plan-active" "plan ${PLAN_AGE_H}h old with ${PLAN_TODO} todo tasks — may be stale" 2 5
+    elif [[ "$PLAN_TODO" -gt 0 ]]; then
+        check_pass "plan-active" "${PLAN_TODO} todo / ${PLAN_DONE} done tasks, updated ${PLAN_AGE_H}h ago" 5
+    else
+        check_pass "plan-active" "all ${PLAN_DONE} tasks done — plan complete" 5
+    fi
 fi
 
 # ============================================================
@@ -435,51 +493,51 @@ fi
 # ============================================================
 CURRENT_SYSTEM="learn"
 
-# learning-velocity (7 pts): predictions per week
+# learning-velocity (5 pts): predictions per week
 MIN_PER_WEEK=$(cfg self.min_predictions_per_week 3)
 PRED_STALE_DAYS=$(cfg self.prediction_stale_days 7)
 
 if [[ ! -f "$PRED_FILE" ]]; then
-    check_warn "learning-velocity" "no predictions.tsv" 0 7
+    check_warn "learning-velocity" "no predictions.tsv" 0 5
 else
     CUTOFF_DATE=$(date -v-${PRED_STALE_DAYS}d '+%Y-%m-%d' 2>/dev/null || date -d "${PRED_STALE_DAYS} days ago" '+%Y-%m-%d' 2>/dev/null || echo "")
     if [[ -n "$CUTOFF_DATE" ]]; then
         RECENT_COUNT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' -v cutoff="$CUTOFF_DATE" '$1 >= cutoff { c++ } END { print c+0 }')
         if [[ "$RECENT_COUNT" -lt "$MIN_PER_WEEK" ]]; then
-            check_warn "learning-velocity" "${RECENT_COUNT} predictions in last ${PRED_STALE_DAYS}d (minimum: ${MIN_PER_WEEK})" 3 7
+            check_warn "learning-velocity" "${RECENT_COUNT} predictions in last ${PRED_STALE_DAYS}d (minimum: ${MIN_PER_WEEK})" 2 5
         else
-            check_pass "learning-velocity" "${RECENT_COUNT} predictions in last ${PRED_STALE_DAYS}d" 7
+            check_pass "learning-velocity" "${RECENT_COUNT} predictions in last ${PRED_STALE_DAYS}d" 5
         fi
     else
-        check_warn "learning-velocity" "could not compute date cutoff" 0 7
+        check_warn "learning-velocity" "could not compute date cutoff" 0 5
     fi
 fi
 
-# prediction-grading (6 pts): are predictions being graded?
+# prediction-grading (4 pts): are predictions being graded?
 if [[ ! -f "$PRED_FILE" ]]; then
-    check_warn "prediction-grading" "no predictions.tsv" 0 6
+    check_warn "prediction-grading" "no predictions.tsv" 0 4
 else
     TOTAL_ROWS=$(tail -n +2 "$PRED_FILE" | wc -l | tr -d ' ')
     TOTAL_GRADED_L=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
     if [[ "$TOTAL_ROWS" -eq 0 ]]; then
-        check_warn "prediction-grading" "no predictions logged yet" 0 6
+        check_warn "prediction-grading" "no predictions logged yet" 0 4
     elif [[ "$TOTAL_GRADED_L" -eq 0 ]]; then
-        check_fail "prediction-grading" "0/$TOTAL_ROWS predictions graded — learning loop stalled" 6
+        check_fail "prediction-grading" "0/$TOTAL_ROWS predictions graded — learning loop stalled" 4
     else
         grade_rate=$((TOTAL_GRADED_L * 100 / TOTAL_ROWS))
         if [[ "$grade_rate" -ge 50 ]]; then
-            check_pass "prediction-grading" "$TOTAL_GRADED_L/$TOTAL_ROWS predictions graded (${grade_rate}%)" 6
+            check_pass "prediction-grading" "$TOTAL_GRADED_L/$TOTAL_ROWS predictions graded (${grade_rate}%)" 4
         else
-            check_warn "prediction-grading" "$TOTAL_GRADED_L/$TOTAL_ROWS predictions graded (${grade_rate}%)" 3 6
+            check_warn "prediction-grading" "$TOTAL_GRADED_L/$TOTAL_ROWS predictions graded (${grade_rate}%)" 2 4
         fi
     fi
 fi
 
-# knowledge-freshness (6 pts): experiment-learnings.md age
+# knowledge-freshness (4 pts): experiment-learnings.md age
 KNOWLEDGE_STALE_DAYS=$(cfg self.knowledge_stale_days 14)
 
 if [[ ! -f "$LEARNINGS" ]]; then
-    check_fail "knowledge-freshness" "experiment-learnings.md not found" 6
+    check_fail "knowledge-freshness" "experiment-learnings.md not found" 4
 else
     if [[ "$(uname)" == "Darwin" ]]; then
         MTIME=$(stat -f %m "$LEARNINGS" 2>/dev/null || echo 0)
@@ -489,18 +547,18 @@ else
     NOW=$(date +%s)
     AGE_DAYS=$(( (NOW - MTIME) / 86400 ))
     if [[ "$AGE_DAYS" -gt "$KNOWLEDGE_STALE_DAYS" ]]; then
-        check_warn "knowledge-freshness" "experiment-learnings.md is ${AGE_DAYS}d old (threshold: ${KNOWLEDGE_STALE_DAYS}d)" 3 6
+        check_warn "knowledge-freshness" "experiment-learnings.md is ${AGE_DAYS}d old (threshold: ${KNOWLEDGE_STALE_DAYS}d)" 2 4
     else
-        check_pass "knowledge-freshness" "experiment-learnings.md updated ${AGE_DAYS}d ago" 6
+        check_pass "knowledge-freshness" "experiment-learnings.md updated ${AGE_DAYS}d ago" 4
     fi
 fi
 
-# self-model-freshness (6 pts): mind/self.md age
+# self-model-freshness (4 pts): mind/self.md age
 SELF_STALE_DAYS=$(cfg self.self_stale_days 7)
 SELF_FILE="$RHINO_DIR/mind/self.md"
 
 if [[ ! -f "$SELF_FILE" ]]; then
-    check_fail "self-model-freshness" "mind/self.md not found" 6
+    check_fail "self-model-freshness" "mind/self.md not found" 4
 else
     if [[ "$(uname)" == "Darwin" ]]; then
         MTIME=$(stat -f %m "$SELF_FILE" 2>/dev/null || echo 0)
@@ -510,10 +568,63 @@ else
     NOW=$(date +%s)
     AGE_DAYS=$(( (NOW - MTIME) / 86400 ))
     if [[ "$AGE_DAYS" -gt "$SELF_STALE_DAYS" ]]; then
-        check_warn "self-model-freshness" "mind/self.md is ${AGE_DAYS}d old (threshold: ${SELF_STALE_DAYS}d)" 3 6
+        check_warn "self-model-freshness" "mind/self.md is ${AGE_DAYS}d old (threshold: ${SELF_STALE_DAYS}d)" 2 4
     else
-        check_pass "self-model-freshness" "mind/self.md updated ${AGE_DAYS}d ago" 6
+        check_pass "self-model-freshness" "mind/self.md updated ${AGE_DAYS}d ago" 4
     fi
+fi
+
+# grade-runs (4 pts): grade.sh executes and produces output
+if [[ ! -f "$RHINO_DIR/bin/grade.sh" ]]; then
+    check_fail "grade-runs" "grade.sh not found" 4
+elif [[ ! -x "$RHINO_DIR/bin/grade.sh" ]]; then
+    check_fail "grade-runs" "grade.sh not executable" 4
+else
+    if [[ -f "$PRED_FILE" ]]; then
+        # Actually run grade.sh --quiet and check exit code
+        if bash "$RHINO_DIR/bin/grade.sh" --quiet "$PRED_FILE" \
+            "$PWD/.claude/scores/history.tsv" \
+            "$PWD/.claude/cache/score-cache.json" 2>/dev/null; then
+            check_pass "grade-runs" "grade.sh executes successfully" 4
+        else
+            check_warn "grade-runs" "grade.sh exited with error" 2 4
+        fi
+    else
+        check_warn "grade-runs" "grade.sh exists but no predictions.tsv to grade" 2 4
+    fi
+fi
+
+# learning-loop-closure (4 pts): full loop — predictions exist → graded → knowledge updated
+# This is the core logic check: does the learning loop actually close?
+LOOP_STAGES=0
+LOOP_TOTAL=4
+# Stage 1: predictions exist
+if [[ -f "$PRED_FILE" ]]; then
+    PRED_ROWS=$(tail -n +2 "$PRED_FILE" | wc -l | tr -d ' ')
+    [[ "$PRED_ROWS" -gt 0 ]] && LOOP_STAGES=$((LOOP_STAGES + 1))
+fi
+# Stage 2: some predictions are graded
+if [[ -f "$PRED_FILE" ]]; then
+    GRADED_ROWS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
+    [[ "$GRADED_ROWS" -gt 0 ]] && LOOP_STAGES=$((LOOP_STAGES + 1))
+fi
+# Stage 3: knowledge model has content (not just headers)
+if [[ -f "$LEARNINGS" ]]; then
+    KNOWLEDGE_ENTRIES=$(grep -c '^\s*-\s' "$LEARNINGS" 2>/dev/null || echo "0")
+    [[ "$KNOWLEDGE_ENTRIES" -gt 0 ]] && LOOP_STAGES=$((LOOP_STAGES + 1))
+fi
+# Stage 4: model_update column has entries (grading → knowledge feedback)
+if [[ -f "$PRED_FILE" ]]; then
+    MODEL_UPDATES=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$7 != "" { c++ } END { print c+0 }')
+    [[ "$MODEL_UPDATES" -gt 0 ]] && LOOP_STAGES=$((LOOP_STAGES + 1))
+fi
+
+if [[ "$LOOP_STAGES" -eq "$LOOP_TOTAL" ]]; then
+    check_pass "learning-loop-closure" "full loop: predict→grade→update→knowledge (${LOOP_STAGES}/${LOOP_TOTAL})" 4
+elif [[ "$LOOP_STAGES" -ge 2 ]]; then
+    check_warn "learning-loop-closure" "loop partially closed: ${LOOP_STAGES}/${LOOP_TOTAL} stages active" $((LOOP_STAGES * 4 / LOOP_TOTAL)) 4
+else
+    check_fail "learning-loop-closure" "learning loop broken: only ${LOOP_STAGES}/${LOOP_TOTAL} stages active" 4
 fi
 
 # ============================================================

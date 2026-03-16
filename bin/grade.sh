@@ -316,3 +316,60 @@ else
     rm -f "$TEMP_FILE"
     $QUIET || echo "No predictions could be auto-graded. Run /retro for manual grading."
 fi
+
+# --- Consolidate knowledge: append model_updates to experiment-learnings.md ---
+consolidate_knowledge() {
+    local learnings_file="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$learnings_file" ]] && learnings_file="$HOME/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$learnings_file" ]] && return 0
+
+    # Collect new updates (not already in the file)
+    local new_entries=""
+    local consolidated=0
+
+    while IFS=$'\t' read -r _date _agent _prediction _evidence _result _correct model_update; do
+        [[ -z "$model_update" ]] && continue
+        [[ -z "$_correct" ]] && continue
+
+        # Deduplicate: skip if first 40 chars already present
+        local dedup_key="${model_update:0:40}"
+        if grep -qF "$dedup_key" "$learnings_file" 2>/dev/null; then
+            continue
+        fi
+
+        new_entries="${new_entries}\n- **Auto-graded** (${_date}): ${model_update}"
+        consolidated=$((consolidated + 1))
+    done < <(tail -n +2 "$PRED_FILE")
+
+    [[ "$consolidated" -eq 0 ]] && return 0
+
+    # Insert before "## Unknown Territory" (which follows Uncertain Patterns)
+    local marker="## Unknown Territory"
+    if grep -q "^${marker}" "$learnings_file"; then
+        local temp_learnings
+        temp_learnings=$(mktemp)
+        local inserted=false
+
+        while IFS= read -r line; do
+            if [[ "$line" == "$marker"* ]] && ! $inserted; then
+                # Insert new entries before Unknown Territory
+                printf "%b\n\n" "$new_entries" >> "$temp_learnings"
+                inserted=true
+            fi
+            printf "%s\n" "$line" >> "$temp_learnings"
+        done < "$learnings_file"
+
+        if $inserted; then
+            mv "$temp_learnings" "$learnings_file"
+        else
+            rm -f "$temp_learnings"
+        fi
+    else
+        # No Unknown Territory section — append at end
+        printf "\n%b\n" "$new_entries" >> "$learnings_file"
+    fi
+
+    $QUIET || echo "Consolidated $consolidated learning(s) into experiment-learnings.md"
+}
+
+consolidate_knowledge

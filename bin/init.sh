@@ -798,7 +798,7 @@ current: v1.0
 
 versions:
   v1.0:
-    thesis: "rhino-os can measure and improve this project"
+    thesis: "${PROJECT_NAME} can be measured and improved"
     status: testing
     goal: "Bootstrap complete. Can the measurement loop find real improvements?"
     evidence_needed:
