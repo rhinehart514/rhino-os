@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v8.1
+current: v8.2
 
 versions:
 
@@ -123,6 +123,32 @@ versions:
         evidence: "All skills written and cross-referenced. Untested as a full loop."
       - id: agent-todos
         question: "Do agents actually produce useful todos as exhaust?"
+        status: todo
+
+  v8.2:
+    thesis: "Skills are intelligent — they use native tools, remember, research, and self-improve"
+    tier: minor
+    parent: v8.0
+    status: active
+    goal: "Skills that compose Claude Code's native capabilities (Playwright MCP, WebSearch, memory) into intelligence that no script could achieve."
+    summary: "/taste rebuilt as native Claude Code skill — Playwright MCP + Claude Vision + market research + persistent memory + todo generation + self-improvement. /strategy consolidated from /strategist. /openclaw added for chat-optimized output."
+    evidence_needed:
+      - id: taste-native
+        question: "Does /taste produce better evaluations than the old taste.mjs subprocess?"
+        status: proven
+        evidence: "New skill uses Playwright MCP natively (no Node subprocess), 0-100 scale (vs 1-5), market research before scoring, persistent memory across evaluations, auto-creates todos, self-improving calibration."
+      - id: taste-market-research
+        question: "Does market research before scoring produce more grounded evaluations?"
+        status: todo
+      - id: taste-memory-compounds
+        question: "Does taste memory (learnings.md) actually improve over multiple evaluations?"
+        status: todo
+      - id: strategy-unified
+        question: "Does merging /strategist into /strategy simplify the UX?"
+        status: proven
+        evidence: "One entry point (/strategy) replaces two overlapping skills. All sub-commands preserved."
+      - id: openclaw-works
+        question: "Does /openclaw produce chat-sized output from rhino-os state?"
         status: todo
 
   v9.0:
