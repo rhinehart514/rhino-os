@@ -312,8 +312,11 @@ Save full results to `.claude/evals/reports/taste-{YYYY-MM-DD}.json`:
 
 Append to `.claude/evals/taste-history.tsv` (create with header if missing):
 ```
-timestamp	url	overall	weakest	delta	todos_created
+date	url	overall	hierarchy	breathing_room	contrast	polish	emotional_tone	information_density	wayfinding	distinctiveness	scroll_experience	layout_coherence	information_architecture
+2026-03-16	http://localhost:3000	62	70	45	65	55	60	68	50	72	58	65	50
 ```
+
+If the file doesn't exist, create it with the header row first. This feeds `/taste trend`, `/calibrate drift`, and `/rhino progress`.
 
 ### Step 12: Present Results
 
@@ -361,40 +364,63 @@ timestamp	url	overall	weakest	delta	todos_created
 
 When `trend` is the argument:
 
-1. Read ALL files in `.claude/evals/reports/taste-*.json`
-2. Read `.claude/evals/taste-history.tsv`
-3. Read `.claude/evals/taste-learnings.md`
+1. Read `.claude/evals/taste-history.tsv` — the primary data source with all 11 dimension scores per eval
+2. Read ALL files in `.claude/evals/reports/taste-*.json` — full reports with prescriptions and evidence
+3. Read `.claude/evals/taste-learnings.md` — accumulated taste intelligence
+
+If `taste-history.tsv` has <2 eval runs, note: "Run `/taste <url>` once more for trend data."
 
 Present:
-- **Overall trajectory**: chart-like ASCII showing score over time
-- **Per-dimension trends**: which are improving, stuck, regressing
+- **Overall trajectory**: score progression with bar chart and total delta
+- **Per-dimension trends**: every dimension's progression, grouped by trajectory (improving/stuck/regressing)
 - **Prescription effectiveness**: how many prescriptions led to actual improvement?
 - **Self-grade**: "My prescriptions improved dimensions X% of the time. I was wrong about [dimension] — I predicted [X] but [Y] happened."
 - **Model update**: if prescriptions are consistently wrong about a dimension, note it in taste-learnings.md
 
 ```
-◆ taste trend — <url>
+  ⎯⎯ taste trend ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  overall   45 → 52 → 48 → 61   ▸▸▾▸  trending up
+  overall    45 → 52 → 58 → 62  ████████████░░░░░░░░  +17 in 4 evals
 
-  ▸ improving
-    hierarchy        32 → 45 → 58    +26 over 3 evals
-    contrast         41 → 55 → 62    +21 over 3 evals
+  ▾ dimensions
+    hierarchy         55 → 62 → 68 → 70  ↑15  improving
+    breathing_room    38 → 40 → 42 → 45  ↑7   slow
+    contrast          60 → 62 → 64 → 65  ↑5   stable
+    polish            40 → 45 → 50 → 55  ↑15  improving
+    emotional_tone    50 → 52 → 55 → 58  ↑8   slow
+    information_density  55 → 58 → 60 → 62  ↑7   slow
+    wayfinding        35 → 38 → 42 → 50  ↑15  improving ←
+    distinctiveness   35 → 38 → 36 → 38  ↑3   stuck — current approach exhausted
+    scroll_experience 48 → 50 → 52 → 55  ↑7   slow
+    layout_coherence  42 → 48 → 52 → 58  ↑16  improving
+    info_architecture 40 → 42 → 45 → 48  ↑8   slow
 
-  ▸ stuck (unchanged 3+ evals)
-    distinctiveness  35 → 38 → 36    plateau — current approach exhausted
+  ▸ improving (delta > 10 over window)
+    hierarchy        55 → 70    +15 over 4 evals — responds fastest to fixes
+    polish           40 → 55    +15 over 4 evals
+    wayfinding       35 → 50    +15 over 4 evals ← biggest gain
 
-  ▸ regressing
-    breathing_room   55 → 48 → 42    -13 — new features crowding the layout?
+  ▸ stuck (delta < 5 over 3+ evals)
+    distinctiveness  35 → 38    +3 — plateau, needs structural changes not CSS
+
+  ▸ regressing (any negative delta between consecutive evals)
+    [none in this example]
 
   ▸ prescription accuracy
     8 prescriptions given, 5 followed, 3 led to improvement
-    accuracy: 60% — [dimension] prescriptions are reliable, [dimension] are not
+    accuracy: 60% — hierarchy prescriptions are reliable, distinctiveness are not
 
   ▸ learning
     "Hierarchy responds fastest to fixes. Distinctiveness requires structural
     changes, not CSS tweaks — prescriptions targeting CSS haven't moved it."
 ```
+
+Classify each dimension's trajectory:
+- **improving**: total delta > 10 over the available window
+- **slow**: total delta 5-10
+- **stable**: total delta 1-4
+- **stuck**: total delta < 1 over 3+ evals — flag as "current approach exhausted"
+- **regressing**: any negative delta between consecutive evals — flag with possible cause
 
 ## Comparative Mode (vs)
 

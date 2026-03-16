@@ -45,6 +45,17 @@ After results, one opinion: "**[worst feature]** is the bottleneck — N/M asser
 
 If everything passes: "All green. `/ideate` to raise the bar."
 
+#### Assertion History Logging
+After presenting results, append each assertion's status to `.claude/evals/assertion-history.tsv`:
+```
+date	feature	assertion_id	type	status	severity
+2026-03-16	scoring	scoring-score-sh	file_check	PASS	warn
+2026-03-16	scoring	scoring-eval-sh	file_check	PASS	warn
+2026-03-16	commands	cmd-output	llm_judge	FAIL	warn
+```
+
+If the file doesn't exist, create it with the header row first. This is what makes `/eval trend` and `/assert health` work — without this append, trend data doesn't exist.
+
 ### Feature name → scoped assertions
 `/eval auth`, `/eval scoring cli`
 
@@ -160,10 +171,10 @@ Not just taste trend — track individual assertions over time.
 1. Read `.claude/scores/history.tsv` — score trajectory
 2. Read `.claude/cache/score-cache.json` — current per-feature scores
 3. Read `lens/product/eval/beliefs.yml` — all assertions with IDs
-4. If `.claude/evals/assertion-history.tsv` exists, read it. If not, note "first trend run — will track from here."
+4. If `.claude/evals/assertion-history.tsv` exists, read it. If it has <2 eval runs (fewer than 2 distinct dates), note: "Run `/eval` once more for trend data."
 5. After running `rhino eval .`, append current assertion results to `.claude/evals/assertion-history.tsv`:
    ```
-   date	assertion_id	feature	result	type
+   date	feature	assertion_id	type	status	severity
    ```
 
 Classify each assertion:
