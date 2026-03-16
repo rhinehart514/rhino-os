@@ -1,7 +1,7 @@
 ---
 name: rhino
 description: "Project status dashboard + rhino-os system status. The home screen. Shows where your product is, what you can do, and the one thing that matters right now."
-argument-hint: "[help|system|compare|health]"
+argument-hint: "[help|system|compare|health|progress]"
 allowed-tools: Read, Bash, Grep, Glob
 ---
 
@@ -9,12 +9,13 @@ allowed-tools: Read, Bash, Grep, Glob
 
 The home screen. This is what the founder sees when they want to know where they are and what to do next. It should feel like opening a well-designed app — everything you need, nothing you don't, beautiful enough to screenshot.
 
-**Five views:**
+**Six views:**
 - `/rhino` — the full dashboard (product + system + opinion)
 - `/rhino help` — what can I do? Every skill with just enough to be excited.
 - `/rhino system` — internals for power users
 - `/rhino compare` — delta against last run. What changed since you last looked.
 - `/rhino health` — system health audit. Is rhino-os itself working properly?
+- `/rhino progress` — the arc. Score trajectory, feature maturity timeline, prediction accuracy trend, assertion pass rate over time.
 
 ## Steps (run in parallel)
 
@@ -224,6 +225,101 @@ System health audit. Is rhino-os itself working?
 
 ---
 
+## Progress (`/rhino progress`)
+
+The arc — where you were, where you are, where you're headed. This is the view that makes a founder feel the compound effect.
+
+### Steps
+1. Read `.claude/scores/history.tsv` — parse all rows, group by day, compute daily averages for score
+2. Read `~/.claude/knowledge/predictions.tsv` — compute weekly accuracy (rolling 7-day windows)
+3. Read `config/rhino.yml` — get features and their current maturity
+4. Read `git log --oneline --format="%H %ai %s" -50` via Bash — commit frequency and types
+5. Read `.claude/cache/eval-cache.json` — current feature scores for endpoint
+6. Read `.claude/plans/roadmap.yml` — version history with dates
+
+### Render
+
+```
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  ◆ progress — 7 days
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ⎯⎯ score trajectory ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  100 ┤
+   90 ┤                          ●━━━●━━━● 95
+   80 ┤              ●━━━●━━━●
+   70 ┤    ●━━━●━━━●
+   60 ┤
+      └──────────────────────────────────────
+       Mar 9  10   11   12   13   14   15  16
+
+  +30 pts in 7 days  ·  avg +4.3/day
+
+  ⎯⎯ feature maturity ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  scoring     ░░░░▓▓▓▓████████████████████  planned → working   Mar 9-15
+  commands    ░░░░░░▓▓▓▓▓▓████████████████  planned → working   Mar 10-14
+  learning    ░░░░░░░░░░▓▓▓▓▓▓▓▓██████████  planned → working   Mar 11-16
+  install     ░░░░░░░░▓▓▓▓████████████████  planned → polished  Mar 10-15
+  docs        ░░░░░░░░░░░░▓▓▓▓▓▓██████████  planned → working   Mar 12-16
+
+  legend: ░ planned  ▓ building  █ working  ● polished
+
+  ⎯⎯ prediction accuracy ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  100% ┤
+   75% ┤    ●━━━━━━━━●              ●━━━● 63%
+   50% ┤                 ●━━━●━━━●
+   25% ┤
+      └──────────────────────────────────────
+       Mar 9  10   11   12   13   14   15  16
+
+  28 predictions  ·  22 graded  ·  63% accurate  ·  well-calibrated
+
+  ⎯⎯ assertions ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  total: 8 → 25 → 48 → 63   (+55 in 7 days)
+  pass rate: ░░░░▓▓▓▓████████████████  40% → 89%
+
+  ⎯⎯ velocity ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  commits: 47 in 7 days  ·  6.7/day
+  versions: v6.0 → v7.0 → v7.1 → v7.2 → v8.0 → v8.1 → v8.2
+  theses proven: 6/7
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ◆ 7 days: score **+30**, features **5 matured**, theses **6 proven**
+
+  /rhino             current snapshot
+  /retro             grade ungraded predictions
+  /roadmap           version history
+```
+
+### Design principles
+- ASCII line charts for score and prediction accuracy — use `●` for data points, `━` for connections, `┤` and `└──` for axes
+- Feature maturity timeline uses gradient blocks: `░` planned, `▓` building, `█` working, `●` polished — a visual timeline of each feature's journey
+- Assertion growth shown as a ramp: total count over time + pass rate bar
+- Velocity zone: raw commit frequency + version progression + thesis success rate
+- One bold summary sentence at the bottom: the compound effect in one line
+- Time range: default 7 days, accepts argument `/rhino progress 30` for 30 days
+
+### Data sources for the charts
+- Score trajectory: parse `.claude/scores/history.tsv`, group by day, take daily max (score column varies — use the `product` column or first numeric after timestamp)
+- Feature maturity: no explicit history file — reconstruct from git log (when files in feature's code paths first appeared, when assertions started passing). This is approximate but useful.
+- Prediction accuracy: parse predictions.tsv, group by week, compute rolling accuracy
+- Assertions: count beliefs in beliefs.yml is current state. For growth, use git log on beliefs.yml to count entries per commit.
+- Velocity: git log with dates
+
+### Conditional rendering
+- No history.tsv → skip score trajectory, note "run `rhino score .` a few times to build history"
+- <3 days of data → show the data but note "building trend — more data in a few days"
+- No predictions → skip prediction accuracy zone
+- No beliefs.yml → skip assertions zone
+
+---
+
 ## Help (`/rhino help`)
 
 This is the skill catalog that makes someone want to try everything. Not a reference manual — a menu of superpowers. Each skill gets one line that makes the founder think "I need that."
@@ -321,7 +417,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   /rhino                   Where am I? What matters?
                            Product state, system health, one opinion.
-                           help · system · compare · health
+                           help · system · compare · health · progress
 
   ⎯⎯ connect ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
