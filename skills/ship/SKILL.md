@@ -329,12 +329,13 @@ These fire during pre-flight and before any deploy action. They are not suggesti
   assertions: 57/63 passing (no block failures)
   secrets: none detected
   product: **62%** · version: **v8.0** — 43% proven
-  deploy confidence: **87%** (assertions 90% x deploys 97%)
+  deploy confidence: **87%** ████████████████░░░░ (assertions 90% x deploys 97%)
 
-  ▾ features affected
-    ✓ scoring     w:5  working   58 (v:62 q:50 u:60) ↑4
-    ✓ commands    w:5  working   70 (v:75 q:65 u:68) ↑2
-    ⚠ learning    w:4  building  — not ready to ship
+  ⎯⎯ features affected ⎯⎯
+
+  scoring  ████████████████████ w:5  working  90 ✓
+  commands ██████████████████░░ w:5  working  85 ✓
+  learning ████████░░░░░░░░░░░░ w:4  building 40 ⚠
 
   ⚠ learning is still building — ship anyway?
 ```
@@ -349,7 +350,7 @@ These fire during pre-flight and before any deploy action. They are not suggesti
   product: **62%** · version: **v8.0** — 43% proven
   branch: main → origin/main
   deploy: vercel — building
-  deploy confidence: **91%**
+  deploy confidence: **91%** ██████████████████░░
 
 /ship verify [url]  confirm it's live
 /ship history       deployment log
@@ -404,14 +405,27 @@ These fire during pre-flight and before any deploy action. They are not suggesti
 ◆ ship verify — [url]
 
   status: **[pass/fail]**
-  response: [status code] in [ms]
 
-  ▾ checks
-    ✓ page loads (200 OK, [ms])
-    ✓ key content present: "[headline text]"
-    ✗ assertion [id] fails on deployed version
+  ⎯⎯ response ⎯⎯
 
-  deploy confidence: **[N]%** ([trend])
+  status:    200 OK
+  time:      320ms  ██████░░░░░░░░░░░░░░ (target <500ms)
+  ssl:       valid, expires 2026-12-01
+
+  ⎯⎯ content checks ⎯⎯
+
+  ✓ title tag present: "[page title]"
+  ✓ headline found: "[product name or heading]"
+  ✓ no error markers (500, Application Error, Not Found)
+  ✗ assertion [id] fails on deployed version
+
+  ⎯⎯ assertions (live) ⎯⎯
+
+  ✓ 56/63 passing on deployed version
+  ✗ deploy-smoke — expected 200, got 503
+  ⚠ response time regression: 320ms vs 180ms last deploy (+78%)
+
+  deploy confidence: **[N]%** ████████████████░░░░ ([trend])
 
 /ship rollback     revert if broken
 /eval              full assertion check
@@ -426,8 +440,11 @@ These fire during pre-flight and before any deploy action. They are not suggesti
   pushed: origin/[branch]
   deploy: [rebuilding/manual]
 
+  severity: ██████████████████░░ HIGH — assertion regression in production
+
   ⚠ investigation required
   · what broke: [from deploy-history]
+  · affected features: [feature list with weights]
   · todo created: "[feature]: investigate rollback — [reason]"
 
 /eval              check current state
@@ -439,24 +456,44 @@ These fire during pre-flight and before any deploy action. They are not suggesti
 ```
 ◆ ship history — [N] deploys
 
-  success rate: **[N]%** ([M]/[N])
+  success rate: **[N]%** ████████████████░░░░ ([M]/[N])
   avg score delta: +[N]
   rollback rate (last 5): [N]/5
 
-  ▾ recent
-    ✓ 2026-03-16  a1b2c3d  92→95  vercel  verified
-    ✓ 2026-03-15  d4e5f6g  88→92  vercel  verified
-    ✗ 2026-03-14  g7h8i9j  85→82  vercel  rolled back — assertion regression
+  ⎯⎯ recent deploys ⎯⎯
 
-  ▾ trends
-    · scores improving across last 5 deploys
-    · no rollbacks in last 3 deploys
-    · deploy confidence trending up: 72% → 87% → 91%
+  date        commit   score   target  status
+  2026-03-16  a1b2c3d  92→95   vercel  ✓ verified   320ms
+  2026-03-15  d4e5f6g  88→92   vercel  ✓ verified   280ms
+  2026-03-14  g7h8i9j  85→82   vercel  ✗ rolled back — assertion regression
+
+  ⎯⎯ trends ⎯⎯
+
+  scores:     ██████████████████░░ improving across last 5 deploys
+  stability:  ████████████████████ no rollbacks in last 3 deploys
+  confidence: 72% → 87% → 91% ████████████████████ trending up
 
 /ship              deploy now
 /ship dry          pre-flight check
 /eval              verify assertions
 ```
+
+---
+
+## Tool usage
+
+**WebFetch** in verify route:
+1. Fetch the deployed URL — record HTTP status code and measure response time (start/end timestamp delta)
+2. Check response body for key heading text (product name, title tag, known headline)
+3. Check response body for error markers ("500 Internal Server Error", "Application Error", "Not Found")
+4. Compare response time against last successful verification in deploy-history.json — flag >2x regression
+
+**Vercel MCP tools** when available (detect via `vercel.json` or Vercel project):
+1. After deploy: `mcp__claude_ai_Vercel__get_deployment` — poll deployment status (building/ready/error), show real state in output
+2. On verify or post-deploy: `mcp__claude_ai_Vercel__get_runtime_logs` — check for runtime errors, surface first error if any
+3. On deploy failure: `mcp__claude_ai_Vercel__get_deployment_build_logs` — show build error excerpt
+
+**Bash** for git operations, `rhino score .`, and `rhino eval . --no-generative` for pre-flight checks.
 
 ---
 

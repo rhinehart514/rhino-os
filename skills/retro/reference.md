@@ -10,8 +10,10 @@ Loaded on demand. Steps and routing are in SKILL.md.
 ◆ retro — 3 ungraded, 2 stale
 
 product: **64%** · score: 58 · todos: 8/14 done · predictions: 63%
+accuracy trend: 45% → 55% → 63% ████████████░░░░░░░░ improving
 
-▾ grading
+  ⎯⎯ grading ⎯⎯
+
   ✓ "error boundary hardening will raise quality_score from 50 to 65" → quality_score 58 (partial)
     actual: +8 not +15. Subprocess paths still open.
 
@@ -22,15 +24,19 @@ product: **64%** · score: 58 · todos: 8/14 done · predictions: 63%
   · "trend visualization will raise value_score 62→72" → value_score 68 (partial)
     actual: +6 not +10. Inline sparkline helped but less than expected.
 
-accuracy: **63%** (10/16) — well-calibrated
-trend: ↑ from 55% (improving)
+  ⎯⎯ accuracy ⎯⎯
 
-▾ sub-score insights
+  **63%** (10/16) — well-calibrated
+  trend: ↑ from 55% (improving)
+
+  ⎯⎯ sub-score insights ⎯⎯
+
   most predicted: quality_score (5 predictions) — 40% correct (too optimistic about error handling)
   least predicted: ux_score (1 prediction) — blind spot
   best calibrated: value_score (3 predictions) — 67% correct
 
-▾ stale knowledge (2 entries)
+  ⎯⎯ stale knowledge (2 entries) ⎯⎯
+
   · "copy changes have 80% keep rate" — last evidence 45 days ago
   · "navigation patterns are unknown" — in Unknown Territory for 38 days, 0 experiments
 
@@ -146,26 +152,36 @@ artifact: ~/.claude/cache/last-retro.yml
 ```
 ◆ retro health — learning system diagnostic
 
-▾ prediction frequency
+  ⎯⎯ prediction frequency ⎯⎯
+
   this week: 4 predictions · last week: 2 · avg: 3.2/week
   trend: **stable**
-  ████████████████░░░░  3.2/wk (target: 3-5)
+  frequency:  ████████████████░░░░  3.2/wk (target: 3-5)
 
-▾ grading latency
+  ⎯⎯ grading latency ⎯⎯
+
   avg: **2.5 days** · median: 2 days · worst: 8 days
-  ████████████░░░░░░░░  2.5d (target: <3d)
+  latency:    ████████████░░░░░░░░  2.5d (target: <3d)
   ungraded backlog: 3 predictions (oldest: 2026-03-10)
 
-▾ knowledge model
+  ⎯⎯ model freshness ⎯⎯
+
   Known: 8 · Uncertain: 4 · Unknown: 6 · Dead: 3 · Stale: 1
   Known:Unknown ratio: **1.3:1** — healthy (target: 1:1 to 3:1)
-  model updates: 1.2/week (last: 2 days ago)
+  freshness:  ██████████████████░░  updated 2 days ago (target: <7d)
+  updates: 1.2/week (last: 2 days ago)
 
-▾ prediction types
-  score: 5 (33%) · feature: 3 (20%) · approach: 4 (27%) · meta: 1 (7%) · other: 2 (13%)
+  ⎯⎯ prediction types ⎯⎯
+
+  score:    ██████████████░░░░░░  5 (33%)
+  feature:  ████████░░░░░░░░░░░░  3 (20%)
+  approach: ██████████░░░░░░░░░░  4 (27%)
+  meta:     ██░░░░░░░░░░░░░░░░░░  1 (7%)
+  other:    ████░░░░░░░░░░░░░░░░  2 (13%)
   ⚠ no meta predictions in 2 weeks — not predicting about the system itself
 
-▾ warnings
+  ⎯⎯ warnings ⎯⎯
+
   · grading backlog: 3 predictions ungraded
   · model update last 2 days ago — on track
 
@@ -181,20 +197,23 @@ artifact: .claude/cache/retro-health.json
 ```
 ◆ retro dimensions — accuracy by topic
 
-▾ by feature
+  ⎯⎯ by feature ⎯⎯
+
   **scoring**:     40% (2/5)  ████████░░░░░░░░░░░░  too optimistic
   **commands**:    67% (2/3)  █████████████░░░░░░░░  well-calibrated
   **learning**:    50% (1/2)  ██████████░░░░░░░░░░░  insufficient data
   **docs**:        —  (0/0)   ░░░░░░░░░░░░░░░░░░░░  blind spot
 
-▾ by dimension
-  value_score:     67% (3/4.5)  well-calibrated
-  quality_score:   40% (2/5)    **overconfident** — predictions overshoot by ~40%
-  ux_score:        100% (1/1)   insufficient data
-  approach:        50% (2/4)    well-calibrated
-  maturity:        —  (0/0)     blind spot
+  ⎯⎯ by dimension ⎯⎯
 
-▾ insights
+  value_score:     67% (3/4.5)  █████████████░░░░░░░░  well-calibrated
+  quality_score:   40% (2/5)    ████████░░░░░░░░░░░░░  **overconfident** — overshoot ~40%
+  ux_score:        100% (1/1)   ████████████████████░  insufficient data
+  approach:        50% (2/4)    ██████████░░░░░░░░░░░  well-calibrated
+  maturity:        —  (0/0)     ░░░░░░░░░░░░░░░░░░░░  blind spot
+
+  ⎯⎯ insights ⎯⎯
+
   worst: **quality_score** at 40% (5 predictions) — systematically overestimate improvements
   best: **value_score** at 67% (4 predictions) — good model of value delivery
   blind spots: **docs**, **ux_score**, **maturity** — zero predictions, unknown accuracy
@@ -209,20 +228,28 @@ artifact: .claude/cache/retro-health.json
 ```
 ◆ retro auto — 6 ungraded, attempting auto-grade
 
-▾ mechanical (high confidence)
+  ⎯⎯ grade.sh results ⎯⎯
+
+  ran: bash bin/grade.sh
+  mechanical grades: 2 applied · 0 conflicts
+
+  ⎯⎯ mechanical (high confidence) ⎯⎯
+
   ✓ "raise scoring from 32 to 45" → score-cache: 48 (yes)
   · "quality_score will improve +10" → eval-delta: +6 (partial)
 
-▾ proposed (needs review)
+  ⎯⎯ proposed (needs review) ⎯⎯
+
   · "speculative branching helps on unfamiliar territory" → 2 sessions used it, winner by +3 avg
-    proposed: **yes** — evidence: session logs show consistent winner margin
+    proposed: **yes** [HIGH confidence] — evidence: session logs show consistent winner margin
 
   · "adversarial review catches fragility" → 1 catch in 3 sessions
-    proposed: **partial** — evidence: catches are real but infrequent
+    proposed: **partial** [MEDIUM confidence] — evidence: catches are real but infrequent
 
-▾ skipped (no evidence)
+  ⎯⎯ skipped (no evidence) ⎯⎯
+
   · "navigation patterns will affect retention" — no nav data, no experiments
-    → remains ungraded. Run `/research navigation` to build evidence.
+    [LOW confidence] → remains ungraded. Run `/research navigation` to build evidence.
 
 ⚠ anti-rationalization: 0 warnings
 

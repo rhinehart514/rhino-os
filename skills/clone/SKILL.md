@@ -2,7 +2,7 @@
 name: clone
 description: "Use when reproducing a design from a URL using your framework and design tokens"
 argument-hint: "<url> [verify|mobile|section <name>|history]"
-allowed-tools: Read, Bash, Grep, Glob, Edit, Write, WebFetch
+allowed-tools: Read, Bash, Grep, Glob, Edit, Write, WebFetch, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_resize, mcp__playwright__browser_navigate, mcp__playwright__browser_wait_for, mcp__playwright__browser_snapshot
 ---
 
 # /clone
@@ -42,8 +42,14 @@ If no arguments: use AskUserQuestion to ask for a URL.
 Read `.claude/cache/clone-history.json` if it exists. If this URL was cloned before, show what was generated last time:
 
 ```
-Found previous clone of [domain] from [date]:
-  [N] components generated, [compliance]% token compliance
+◆ clone — previous operation found
+
+  ⎯⎯ history ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  [domain] — cloned [date]
+  components: [N] generated
+  compliance: ████████████████░░░░  [N]%
+
   Re-clone the full page, or clone a specific section?
 ```
 
@@ -130,7 +136,9 @@ Report compliance %: `(total_values - hardcoded) / total_values x 100`
 If compliance <80%: auto-fix the hardcoded values using the closest design token match. Show what was fixed:
 
 ```
-  token compliance: **[N]%** ([M] hardcoded values found)
+  ⎯⎯ token compliance ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  compliance: ████████████████░░░░  [N]% ([M] hardcoded values found)
   auto-fixed:
     Hero.tsx:12 — #3B82F6 → text-blue-500
     FeatureGrid.tsx:8 — 24px → gap-6
@@ -167,26 +175,71 @@ Append to `.claude/cache/clone-history.json`:
 }
 ```
 
-### Step 8: Report results
+### Step 8: Visual diff
+
+Before reporting results, use Playwright to screenshot the generated components for visual comparison:
+
+1. **Screenshot the source** at both viewports:
+   ```
+   browser_navigate → source URL
+   browser_resize → 1440x900 (desktop)
+   browser_take_screenshot → save to .claude/cache/clone-screenshots/[domain]-source-desktop.png
+   browser_resize → 390x844 (mobile)
+   browser_take_screenshot → save to .claude/cache/clone-screenshots/[domain]-source-mobile.png
+   ```
+
+2. **Screenshot generated components** (if dev server running):
+   ```
+   browser_navigate → local preview URL
+   browser_resize → 1440x900 (desktop)
+   browser_take_screenshot → save to .claude/cache/clone-screenshots/[domain]-local-desktop.png
+   browser_resize → 390x844 (mobile)
+   browser_take_screenshot → save to .claude/cache/clone-screenshots/[domain]-local-mobile.png
+   ```
+
+3. If dev server is not running, note "Start dev server for visual diff" and only capture source screenshots.
+
+### Step 9: Report results
 
 ```
 ◆ clone — [url domain]
 
-  captured: [url] → [screenshot dimensions]
+  ⎯⎯ capture ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  source: [url] → [screenshot dimensions]
   stack: [framework] + [styling] → [component directory]
-  token compliance: **[N]%**
 
-  ▾ generated
-    ✓ NavBar — top navigation with links + CTA
-    ✓ Hero — headline, subhead, two CTAs
-    ✓ FeatureGrid — 3-column feature cards
-    ✓ Footer — links, social, copyright
+  ⎯⎯ token compliance ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▾ hardcoded values ([N] found)
-    ⚠ Hero.tsx:12 — #3B82F6 → use text-blue-500
-    ✓ NavBar.tsx — all tokens used correctly
+  compliance: ████████████████░░░░  [N]%
 
-/clone <url> verify    visual comparison
+  ⎯⎯ generated ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ✓ NavBar        top navigation with links + CTA
+  ✓ Hero          headline, subhead, two CTAs
+  ✓ FeatureGrid   3-column feature cards
+  ✓ Footer        links, social, copyright
+
+  ⎯⎯ hardcoded values ([N] found) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ⚠ Hero.tsx:12        #3B82F6 → use text-blue-500
+  ✓ NavBar.tsx          all tokens used correctly
+
+  ⎯⎯ visual diff ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  screenshots saved:
+    source  desktop: .claude/cache/clone-screenshots/[domain]-source-desktop.png
+    source  mobile:  .claude/cache/clone-screenshots/[domain]-source-mobile.png
+    local   desktop: .claude/cache/clone-screenshots/[domain]-local-desktop.png
+    local   mobile:  .claude/cache/clone-screenshots/[domain]-local-mobile.png
+
+  responsive match:
+    desktop (1440px): ██████████████████░░  90%
+    mobile  (390px):  ████████████░░░░░░░░  62%
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+/clone <url> verify    visual comparison dashboard
 /clone <url> mobile    mobile-first clone
 /eval taste            full visual eval
 /feature [name]        define what this builds toward
@@ -228,24 +281,54 @@ Visual comparison of generated components against the source URL. Use when you w
 
 ### Output
 
+Use `browser_take_screenshot` to capture source at 1440px and 390px, and local preview at the same viewports. Use `browser_resize` to switch between desktop (1440x900) and mobile (390x844). Save all screenshots to `.claude/cache/clone-screenshots/` for the founder to view directly.
+
 ```
 ◆ clone verify — [url domain]
 
-  token compliance: **[N]%**
+  ⎯⎯ token compliance ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▾ hardcoded values ([N] found)
-    ⚠ Hero.tsx:12 — #3B82F6 → use text-blue-500
-    ⚠ FeatureGrid.tsx:8 — 24px → use gap-6
-    ✓ NavBar.tsx — all tokens used correctly
+  compliance: ████████████████░░░░  [N]%
 
-  ▾ visual comparison
-    ✓ layout matches at desktop (1440px)
-    ⚠ mobile spacing 2x source — adjust gap-8 → gap-4
-    ✗ footer links not visible at 390px
+  ⎯⎯ hardcoded values ([N] found) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-/clone <url> mobile    fix mobile issues
-/eval taste            full visual eval
-/calibrate design-system   document tokens
+  ⚠ Hero.tsx:12        #3B82F6 → use text-blue-500
+  ⚠ FeatureGrid.tsx:8  24px → use gap-6
+  ✓ NavBar.tsx          all tokens used correctly
+  ✓ Footer.tsx          all tokens used correctly
+
+  ⎯⎯ visual comparison dashboard ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  screenshots:
+    source  desktop: .claude/cache/clone-screenshots/[domain]-source-desktop.png
+    source  mobile:  .claude/cache/clone-screenshots/[domain]-source-mobile.png
+    local   desktop: .claude/cache/clone-screenshots/[domain]-local-desktop.png
+    local   mobile:  .claude/cache/clone-screenshots/[domain]-local-mobile.png
+
+                        source    local     delta
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  layout (desktop)      ----      ----      ✓ match
+  layout (mobile)       ----      ----      ⚠ stacks but gap 2x
+  spacing               16/24px   24/32px   ⚠ 1.5x source
+  typography            3 levels  3 levels  ✓ match
+  color palette         tokens    tokens    ✓ via design system
+  touch targets (390)   ----      44px+     ✓ accessible
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  responsive match:
+    desktop (1440px): ██████████████████░░  90%
+    mobile  (390px):  ████████████░░░░░░░░  62%
+
+  ⎯⎯ issues ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ⚠ mobile spacing 2x source — adjust gap-8 → gap-4
+  ✗ footer links not visible at 390px — overflow hidden
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+/clone <url> mobile         fix mobile issues
+/eval taste                 full visual eval
+/calibrate design-system    document tokens
 ```
 
 ---
@@ -295,20 +378,36 @@ Clone specifically for mobile viewport (390x844). Generates mobile-first compone
 ```
 ◆ clone mobile — [url domain]
 
-  captured: [url] → 390x844 (mobile-first)
+  ⎯⎯ capture ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  source: [url] → 390x844 (mobile-first)
   stack: [framework] + [styling] → [component directory]
-  token compliance: **[N]%**
 
-  ▾ generated (mobile-first)
-    ✓ MobileNav — hamburger menu, slide-out drawer
-    ✓ Hero — stacked headline + CTA, full-width image
-    ✓ FeatureList — single column, expandable cards
-    ✓ Footer — stacked links, simplified
+  ⎯⎯ token compliance ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▾ responsive breakpoints
-    ✓ 390px — base (mobile)
-    ✓ 640px — sm (tablet portrait)
-    ✓ 1024px — lg (desktop)
+  compliance: ████████████████░░░░  [N]%
+
+  ⎯⎯ generated (mobile-first) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ✓ MobileNav      hamburger menu, slide-out drawer
+  ✓ Hero           stacked headline + CTA, full-width image
+  ✓ FeatureList    single column, expandable cards
+  ✓ Footer         stacked links, simplified
+
+  ⎯⎯ responsive breakpoints ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ✓ 390px   base (mobile)        ██████████████████████  verified
+  ✓ 640px   sm (tablet portrait)  ████████████████░░░░░░  interpolated
+  ✓ 1024px  lg (desktop)          ████████████████░░░░░░  interpolated
+
+  ⎯⎯ visual diff ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  screenshots saved:
+    source  mobile:  .claude/cache/clone-screenshots/[domain]-source-mobile.png
+    source  desktop: .claude/cache/clone-screenshots/[domain]-source-desktop.png
+    local   mobile:  .claude/cache/clone-screenshots/[domain]-local-mobile.png
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
 /clone <url> verify    compare against source
 /clone <url>           desktop clone
@@ -342,17 +441,25 @@ Clone just one section from the page. Faster, more focused. Good for borrowing a
 ```
 ◆ clone section — [section name] from [url domain]
 
-  captured: [url] → isolated [section name]
-  stack: [framework] + [styling] → [component directory]
-  token compliance: **[N]%**
+  ⎯⎯ capture ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▾ generated
-    ✓ PricingTable — 3 tiers, toggle annual/monthly
-    ✓ PricingCard — individual tier card (reusable)
+  source: [url] → isolated [section name]
+  stack: [framework] + [styling] → [component directory]
+
+  ⎯⎯ token compliance ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  compliance: ██████████████████░░  92%
+
+  ⎯⎯ generated ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ✓ PricingTable   3 tiers, toggle annual/monthly
+  ✓ PricingCard    individual tier card (reusable)
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
 /clone <url>              full page clone
 /clone <url> section nav  clone another section
-/clone <url> verify       visual comparison
+/clone <url> verify       visual comparison dashboard
 ```
 
 ---
@@ -372,14 +479,25 @@ Show past clone operations.
 ```
 ◆ clone history — [N] operations
 
-  ▾ recent
-    ✓ 2026-03-16  example.com       4 components  85% compliant  verified
-    ✓ 2026-03-15  competitor.io     2 components  92% compliant
-    ⚠ 2026-03-14  landing-ref.com   6 components  67% compliant — 8 hardcoded
+  ⎯⎯ recent clones ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-/clone <url>           clone a new page
-/clone <url> verify    audit existing
-/calibrate design-system   improve compliance
+  2026-03-16  example.com       4 components  ████████████████░░░░  85%  verified
+  2026-03-15  competitor.io     2 components  ██████████████████░░  92%
+  2026-03-14  landing-ref.com   6 components  █████████████░░░░░░░  67%  ⚠ 8 hardcoded
+
+  ⎯⎯ compliance trend ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  03-14  █████████████░░░░░░░  67%
+  03-15  ██████████████████░░  92%  +25
+  03-16  ████████████████░░░░  85%  -7
+
+  avg: 81%   trend: improving
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+/clone <url>                clone a new page
+/clone <url> verify         audit existing
+/calibrate design-system    improve compliance
 ```
 
 ---

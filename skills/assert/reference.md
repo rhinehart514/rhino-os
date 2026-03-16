@@ -119,13 +119,22 @@ After confirm:
 
 v8.0: **89%** pass rate · health: **B**
 
+  ⎯⎯ live results (rhino eval . --no-generative) ⎯⎯
+
+  56/63 passing · 5 warn · 2 fail
+  pass rate trend: ✓✓✓✓·✓✗✓✓✓ (last 10 runs)
+
+  ⎯⎯ stability ⎯⎯
+
 ▾ flapping (2) — oscillate pass/fail, waste attention
   ⚠ score-calibrated        scoring    ✓✗✓✗✓✗✓✓✗✓  6 flips/10 runs
   ⚠ learning-compounds      learning   ✓✓✗✓✗✓✗✓✓✗  5 flips/10 runs
 
 ▾ stale (4) — always pass, never challenged
-  · rhino-yml-exists         scoring    23 consecutive passes, unchanged 40 commits
-  · hooks-json-exists        commands   23 consecutive passes, unchanged 35 commits
+  · rhino-yml-exists         scoring    ✓✓✓✓✓✓✓✓✓✓  23 consecutive, unchanged 40 commits
+  · hooks-json-exists        commands   ✓✓✓✓✓✓✓✓✓✓  23 consecutive, unchanged 35 commits
+
+  ⎯⎯ quality ⎯⎯
 
 ▾ trivial (1) — condition can't fail
   · config-has-features      scoring    file_check on core config — upgrade to content_check
@@ -136,7 +145,8 @@ v8.0: **89%** pass rate · health: **B**
 ▾ orphaned (0)
   ✓ all assertions map to active features
 
-▾ coverage by weight
+  ⎯⎯ coverage by weight ⎯⎯
+
   scoring     w:5  ██████████████░░░░░░  6 assertions
   commands    w:5  ██████░░░░░░░░░░░░░░  3 assertions
   learning    w:4  ████████░░░░░░░░░░░░  5 assertions
@@ -154,12 +164,14 @@ v8.0: **89%** pass rate · health: **B**
 
 v8.0: **89%** · scoring w:5 · 6 assertions
 
-  dimension       status  assertions
-  value           ✓       score-honest, value-hypothesis-defined
-  behavior        ·       score-runs (shallow — only tests exit code)
-  structure       ✓       score-sh-exists, score-has-history
-  regression      ✗       no boundary tests
-  edge cases      ✗       no error path assertions
+  ⎯⎯ dimension depth ⎯⎯
+
+  dimension       status  depth                assertions
+  value           ✓       ████████████████████  score-honest, value-hypothesis-defined
+  behavior        ·       ████░░░░░░░░░░░░░░░░  score-runs (shallow — only tests exit code)
+  structure       ✓       ████████████████████  score-sh-exists, score-has-history
+  regression      ✗       ░░░░░░░░░░░░░░░░░░░░  no boundary tests
+  edge cases      ✗       ░░░░░░░░░░░░░░░░░░░░  no error path assertions
 
   gap: **regression** + **edge cases** — scoring could break silently
 
@@ -179,15 +191,18 @@ v8.0: **89%** · scoring w:5 · 6 assertions
 
 v8.0: **89%** pass rate · 6 features
 
-  feature      w   value  behavior  structure  regression  edge
-  scoring      5   ✓      ·         ✓          ✗           ✗
-  commands     5   ✓      ✓         ✓          ·           ✗
-  learning     4   ·      ·         ✓          ✗           ✗
-  deploy       4   ✗      ✗         ✗          ✗           ✗
-  docs         3   ✓      ·         ✓          ✗           ·
-  todo         3   ✓      ✓         ✓          ·           ·
+  ⎯⎯ coverage matrix ⎯⎯
 
-  critical gaps:
+  feature      w   value  behavior  structure  regression  edge   depth
+  scoring      5   ✓      ·         ✓          ✗           ✗      ████████████░░░░░░░░
+  commands     5   ✓      ✓         ✓          ·           ✗      ██████████████░░░░░░
+  learning     4   ·      ·         ✓          ✗           ✗      ██████░░░░░░░░░░░░░░
+  deploy       4   ✗      ✗         ✗          ✗           ✗      ░░░░░░░░░░░░░░░░░░░░
+  docs         3   ✓      ·         ✓          ✗           ·      ██████████░░░░░░░░░░
+  todo         3   ✓      ✓         ✓          ·           ·      ██████████████████░░
+
+  ⎯⎯ critical gaps ⎯⎯
+
   ⚠ **deploy** (w:4) — zero coverage across all dimensions
   ⚠ **scoring** regression — no boundary tests for highest-weight feature
   ⚠ **learning** value — claims "predictions compound" but no assertion tests this

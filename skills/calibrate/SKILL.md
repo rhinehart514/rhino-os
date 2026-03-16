@@ -140,7 +140,7 @@ If no design system exists: say so honestly, propose a minimal one from what exi
 
 For each of the 11 taste dimensions, create `lens/product/eval/knowledge/[dimension].md`:
 
-Use WebSearch to research what makes each dimension excellent in real products:
+Use WebSearch to research what makes each dimension excellent in real products. Cite sources explicitly — each knowledge file should trace back to real references, not guesses.
 
 ```markdown
 # [Dimension Name]
@@ -155,6 +155,10 @@ Use WebSearch to research what makes each dimension excellent in real products:
 - 5: [concrete description with examples]
 - 3: [concrete description]
 - 1: [concrete description]
+
+## Sources
+- [URL 1] — [what was learned]
+- [URL 2] — [what was learned]
 ```
 
 Prioritize dimensions the founder cares most about (from step 1).
@@ -192,31 +196,57 @@ When running the `verify` route specifically:
    - Calibrated dimensions should have lower variance than uncalibrated ones
    - If calibrated dimensions have HIGHER variance, the calibration is adding noise, not signal
 
-6. **Output verification report**:
+6. **Run taste eval**: Invoke `/taste <url>` to get fresh scores. Capture the full taste output — you need per-dimension scores to compare against founder expectations. If taste history exists, also read previous scores for before/after comparison.
+
+7. **Output verification report**:
 ```
 ◆ calibrate verify
 
-  ▸ calibration state
-    founder profile: [exists/missing] (last updated: [date])
-    design system: [exists/missing]
-    dimensions calibrated: [N]/11
-      calibrated: hierarchy, breathing_room, contrast, ...
-      uncalibrated: emotional_tone, scroll_experience, ...
+  ⎯⎯ calibration state ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ alignment check (founder expectations vs actual scores)
-    [dimension]   expected: [high/med/low]   actual: [score]   [aligned/misaligned]
-    ...
+  founder profile:  [exists/missing] (last updated: [date])
+  design system:    [exists/missing]
+  dimensions:       ████████████████░░░░  [N]/11 calibrated
+    calibrated:   hierarchy, breathing_room, contrast, ...
+    uncalibrated: emotional_tone, scroll_experience, ...
 
-  ▸ consistency check (calibrated vs uncalibrated variance)
-    calibrated avg variance: [N] points
-    uncalibrated avg variance: [N] points
-    [verdict: calibration is reducing/increasing/not affecting consistency]
+  ⎯⎯ alignment (founder expectations vs taste scores) ⎯⎯
 
-  ▸ misaligned dimensions (gap > 20)
-    [dimension]: founder expects [X], taste scores [Y] — recalibrate with /calibrate dimensions [name]
+                          expected   actual   delta   status
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  hierarchy              high       78       ----    ✓ aligned
+  breathing_room         medium     52       ----    ✓ aligned
+  contrast               high       45       -25     ✗ misaligned
+  information_density    high       71       ----    ✓ aligned
+  distinctiveness        medium     38       -17     ⚠ drifting
+  ...
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ verdict
-    [summary: calibration is working / partially working / needs attention]
+  ⎯⎯ before/after (per dimension) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+                          before     after    change
+  hierarchy              ██████░░░░  ████████░░  +15
+  breathing_room         █████░░░░░  █████░░░░░  +2
+  contrast               ████░░░░░░  ████░░░░░░  0
+  information_density    ███░░░░░░░  ███████░░░  +22
+  ...
+
+  ⎯⎯ consistency check ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  calibrated avg variance:   [N] points
+  uncalibrated avg variance: [N] points
+  [verdict: calibration is reducing/increasing/not affecting consistency]
+
+  ⎯⎯ misaligned (gap > 20) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  contrast:         founder expects high, taste scores 45 — recalibrate
+  → /calibrate dimensions contrast
+
+  ⎯⎯ verdict ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  [summary: calibration is working / partially working / needs attention]
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   next: /calibrate dimensions [list]   fix misaligned dimensions
         /calibrate refresh             update founder preferences
@@ -239,21 +269,29 @@ When running the `refresh` route:
 ```
 ◆ calibrate refresh
 
-  ▸ current profile (from [date])
-    loves: Linear's density, Arc's gradients
-    hates: generic dashboards, shadcn defaults
-    pain: navigation feels buried
+  ⎯⎯ current profile (from [date]) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ new answers
-    loves: Linear's density, Vercel's typography [NEW]
-    hates: generic dashboards [UNCHANGED], dark mode for dark mode's sake [NEW]
-    pain: information density is too low now [CHANGED from "navigation feels buried"]
+  loves: Linear's density, Arc's gradients
+  hates: generic dashboards, shadcn defaults
+  pain:  navigation feels buried
 
-  ▸ proposed changes
-    + add "Vercel's typography" to loves
-    + add "dark mode for dark mode's sake" to hates
-    ~ update pain: "navigation feels buried" -> "information density is too low now"
-    - remove nothing
+  ⎯⎯ new answers ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  loves: Linear's density, Vercel's typography [NEW]
+  hates: generic dashboards [UNCHANGED], dark mode for dark mode's sake [NEW]
+  pain:  information density is too low now [CHANGED from "navigation feels buried"]
+
+  ⎯⎯ proposed changes ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  + add "Vercel's typography" to loves
+  + add "dark mode for dark mode's sake" to hates
+  ~ update pain: "navigation feels buried" -> "information density is too low now"
+  - remove nothing
+
+  ⎯⎯ dimension impact ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  wayfinding:          high → medium (pain shifted away from navigation)
+  information_density: medium → high (new pain: density too low)
 
   confirm these updates? (y/n, or specify which to apply)
 ```
@@ -293,25 +331,52 @@ When running the `drift` route:
 ```
 ◆ calibrate drift
 
-  ▸ drift detection (founder expectations vs recent scores)
-    [dimension]   expected: [range]   recent avg: [score]   drift: [±N]   [ok/drifted]
-    ...
+  ⎯⎯ drift dashboard (expected vs actual) ⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ drifted dimensions (gap > 20)
-    [dimension]: expected [range], scoring [avg]. Recalibrate: /calibrate dimensions [name]
-    ...
+                          expected   actual   drift   status
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  hierarchy              70+        75       +5      ✓ ok
+  breathing_room         40-69      52       ----    ✓ ok
+  contrast               70+        43       -27     ✗ drifted
+  polish                 70+        68       -2      ✓ ok
+  emotional_tone         40-69      29       -26     ✗ drifted
+  information_density    70+        72       +2      ✓ ok
+  wayfinding             40-69      55       ----    ✓ ok
+  distinctiveness        40-69      35       -20     ⚠ borderline
+  scroll_experience      ----       41       ----    · uncalibrated
+  layout_coherence       ----       58       ----    · uncalibrated
+  info_architecture      ----       47       ----    · uncalibrated
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ stale calibration files
-    [dimension].md: last updated [date] ([N] days ago), scores avg [X] — refresh recommended
-    ...
+  ⎯⎯ drifted dimensions (gap > 20) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ calibration effectiveness (last [N] calibrations)
-    [date] [type]: [dimensions] — [improved/no effect/unknown]
-    ...
+  contrast:
+    expected: ██████████████░░░░░░  70+
+    actual:   ████████░░░░░░░░░░░░  43     drift: -27
+    → /calibrate dimensions contrast
 
-  ▸ founder profile freshness
-    last updated: [date] ([N] days ago)
-    [fresh / stale — recommend /calibrate refresh]
+  emotional_tone:
+    expected: ████████░░░░░░░░░░░░  40-69
+    actual:   █████░░░░░░░░░░░░░░░  29     drift: -26
+    → /calibrate dimensions emotional_tone
+
+  ⎯⎯ stale calibration files ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  [dimension].md: last updated [date] ([N] days ago), scores avg [X]
+  → knowledge may be outdated — refresh recommended
+
+  ⎯⎯ calibration effectiveness ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  last [N] calibrations:
+    [date] [type]: [dimensions]
+      effectiveness: ████████████████░░░░  [N]% improved
+
+  ⎯⎯ founder profile freshness ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  last updated: [date] ([N] days ago)
+  [fresh / stale — recommend /calibrate refresh]
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   next: /calibrate dimensions [list]   fix drifted dimensions
         /calibrate refresh             update founder preferences
@@ -370,21 +435,44 @@ If a dimension's knowledge file hasn't been updated in 30+ days but taste scores
 ```
 ◆ calibrate
 
-  ✓ founder profile written (3 preferences, 2 anti-patterns)
-  ✓ design system documented (.claude/design-system.md)
-    tokens: 5 color, 4 spacing, 3 radius, 2 shadow, 3 typography
-    components: card, button, input, nav (4 patterns)
-    rules: 6 anti-slop rules
-  ✓ dimension knowledge: 4/11 dimensions researched
-    hierarchy ✓  breathing_room ✓  distinctiveness ✓  polish ✓
-    contrast ·  emotional_tone ·  information_density ·
-    wayfinding ·  scroll_experience ·  layout_coherence ·  information_architecture ·
+  ⎯⎯ founder profile ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  calibration: founder prefers [Linear-style density] over [Notion-style whitespace]
+  ✓ written to ~/.claude/knowledge/founder-taste.md
+    preferences: 3 loves, 2 anti-patterns
+    pain: [current pain point]
+
+  ⎯⎯ design system ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ✓ written to .claude/design-system.md
+    tokens:      5 color, 4 spacing, 3 radius, 2 shadow, 3 typography
+    components:  card, button, input, nav (4 patterns)
+    rules:       6 anti-slop rules
+
+  ⎯⎯ dimension knowledge ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  calibrated: ████████░░░░░░░░░░░░  4/11
+
+    hierarchy          ✓ researched (WebSearch: 3 sources)
+    breathing_room     ✓ researched (WebSearch: 2 sources)
+    distinctiveness    ✓ researched (WebSearch: 4 sources)
+    polish             ✓ researched (WebSearch: 2 sources)
+    contrast           · pending
+    emotional_tone     · pending
+    information_density · pending
+    wayfinding         · pending
+    scroll_experience  · pending
+    layout_coherence   · pending
+    information_architecture · pending
+
+  ⎯⎯ calibration mapping ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  founder prefers [Linear-style density] over [Notion-style whitespace]
   → taste will penalize breathing_room > 4 (founder finds sparse layouts empty)
   → taste will reward information_density >= 3 (founder wants data-rich UIs)
 
   ✓ calibration logged to .claude/cache/calibration-history.json
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
 /taste <url>                    run with calibrated knowledge
 /calibrate dimensions           fill remaining 7 dimensions
@@ -396,10 +484,10 @@ If a dimension's knowledge file hasn't been updated in 30+ days but taste scores
 ## Tools to use
 
 **Use AskUserQuestion** for founder interview (profile, refresh)
-**Use WebSearch** for dimension research
+**Use WebSearch** for dimension research — cite sources in dimension knowledge files. Each dimension knowledge file should include "Sources: [URLs]" at the bottom listing what WebSearch results informed the rubric. If WebSearch is unavailable, note "uncalibrated against market" in the output.
 **Use Read** to detect design system from codebase, read taste history, read calibration state
 **Use Write/Edit** to create knowledge files, design-system.md, calibration-history.json
-**Invoke `/taste <url>`** to verify calibration (taste skill uses Playwright MCP natively)
+**Invoke `/taste <url>`** for the verify route — capture the full taste output including per-dimension scores. Diff the scores against founder expectations from founder-taste.md. If taste-history.tsv has previous scores, compute before/after deltas per dimension.
 **Use Glob** to find dimension knowledge files, taste report files
 
 ## Anti-rationalization checks

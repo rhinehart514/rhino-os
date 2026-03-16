@@ -341,6 +341,22 @@ When state is missing, degrade gracefully — never crash, never skip silently.
 **Use Edit** to update experiment-learnings.md when model changes
 **Use Edit** to write retro-health.json
 
+### Route-specific tool integration
+
+**Auto route:**
+1. Run `bash bin/grade.sh` via Bash as the first step — capture stdout for mechanical grades
+2. Parse grade.sh output to identify which predictions were graded mechanically vs skipped
+3. For remaining ungraded predictions, gather evidence via Bash: `git log --oneline --since="[prediction_date]"` to find relevant commits
+4. Use git log evidence to support proposed grades — cite specific commit hashes
+
+**Full retro (step 1):**
+1. Run `bash bin/grade.sh` via Bash before any manual grading
+2. Review grade.sh output for correctness before proceeding to manual grading of remainders
+
+**Health route:**
+1. Run `git log --follow ~/.claude/knowledge/experiment-learnings.md --oneline` via Bash to compute model update frequency
+2. Run `git log --follow ~/.claude/knowledge/predictions.tsv --oneline` via Bash for prediction frequency trends
+
 ---
 
 ## What you never do

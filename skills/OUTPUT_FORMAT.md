@@ -237,6 +237,81 @@ Left-aligned command, tab-indented description. No bullets, no numbers.
 
 ---
 
+## Sparklines
+
+Text-based trend indicators for time-series data. 10 characters, most recent on right:
+
+```
+  ✓✓✓✗✓✓✗✓✓✓   stable (80% pass)
+  ✗✗✓✗✓✓✓✓✓✓   improving
+  ✓✓✓✓✓✗✗✗✗✗   regressing
+  ✓✗✓✗✓✗✓✗✓✗   flapping ⚠
+```
+
+Use for assertion stability, prediction accuracy trends, deploy success history.
+
+---
+
+## Comparison Dashboard
+
+For before/after or side-by-side analysis (used by /calibrate verify, /clone verify, /rhino compare):
+
+```
+  ⎯⎯ comparison ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  dimension        before    after    delta
+  hierarchy          45        62     +17  ↑
+  breathing_room     38        41      +3  ↑
+  contrast           72        70      -2  ↓
+  polish             55        55       —
+```
+
+- Column-aligned, monospace-friendly
+- Deltas with `↑`/`↓`/`—` indicators
+- Bold the dimensions that moved most
+
+---
+
+## Screenshot References
+
+When skills capture screenshots via Playwright, show file paths:
+
+```
+  ▾ screenshots
+    desktop (1440px)  .claude/cache/clone-screenshots/source-desktop.png
+    mobile (390px)    .claude/cache/clone-screenshots/source-mobile.png
+```
+
+The user can view these with the Read tool or their file browser.
+
+---
+
+## Confidence Indicators
+
+For auto-graded predictions, research findings, and other uncertain assessments:
+
+```
+  ✓ HIGH    mechanical match (score 58→62, predicted 60+)
+  ◐ MEDIUM  directional match (predicted improvement, score went up)
+  · LOW     qualitative assessment (subjective interpretation)
+```
+
+---
+
+## Tool-Driven Interactivity
+
+Skills should use Claude Code tools to make output dynamic, not just templated:
+
+- **Bash** (`rhino eval .`, `rhino score .`, `git log`) — pull live data into output
+- **Playwright** (`browser_take_screenshot`, `browser_resize`) — visual captures for /clone, /taste, /calibrate
+- **WebFetch** — verify deployed URLs, measure response times
+- **AskUserQuestion** — interactive flows (component selection, interview questions, confirmation gates)
+- **Vercel MCP** — real deploy status, build logs, runtime logs for /ship
+
+The output template is the SHAPE. The tools fill it with REAL DATA.
+
+---
+
 ## General Rules
 
 - Dense over verbose — every line earns its place
@@ -247,3 +322,6 @@ Left-aligned command, tab-indented description. No bullets, no numbers.
 - Two-space indent for all content lines (matches the divider indent)
 - Skip zones with no data — don't show empty state or placeholders
 - Labeled dividers for subsections, full dividers for major zone breaks
+- Sparklines for trends, bars for quantities, comparison tables for before/after
+- Screenshot paths when visual evidence is captured
+- Confidence indicators when assessments are uncertain
