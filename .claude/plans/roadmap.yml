@@ -156,8 +156,12 @@ versions:
         evidence: "All 8 skills now declare state artifacts tables and read/write JSON cache files: assertion-health.json, retro-health.json, research-memory.json, rhino-snapshots.json, deploy-history.json, skill-health.json, calibration-history.json, clone-history.json."
       - id: cross-skill-flow
         question: "Does output from one skill feed usefully into another?"
-        status: partial
-        evidence: "Artifacts designed to cross-feed: research-memory → /plan, deploy-history → /rhino, assertion-health → /eval coverage, retro-health → /rhino health. Untested as a full loop."
+        status: proven
+        evidence: "/discover fuses /product + /ideate + /research into one pipeline. Reads discovery-history.tsv, experiment-learnings.md, roadmap.yml, taste-market.json, and strategy.yml. Writes discovery artifacts that /plan reads. Self-improving memory tracks recommendation outcomes."
+      - id: discover-intelligence
+        question: "Can a skill do parallel reasoning, counterfactual analysis, and self-improving memory?"
+        status: proven
+        evidence: "/discover: parallel Phase 0 (4 threads), contradiction detection, causal chains, counterfactual reasoning, anti-sycophancy checks, velocity calibration, evidence decay, inversion mode, competitive mode with market-analyst agent."
       - id: anti-rationalization
         question: "Do the anti-rationalization checks actually catch self-delusion?"
         status: todo

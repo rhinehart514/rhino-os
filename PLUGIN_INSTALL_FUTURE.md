@@ -19,13 +19,28 @@ That's it. Commands, skills, agents, and hooks load automatically. No symlinks, 
 /plugin install rhino-os@rhino-marketplace --scope local    # local scope (gitignored)
 ```
 
-### Update
+### Auto-update (recommended)
+
+After installing the marketplace, enable auto-update so you always get the latest:
+
+```
+/plugin marketplace update    # check for updates now
+```
+
+Claude Code checks for plugin updates at session start when auto-update is enabled for the marketplace. After an update, run `/reload-plugins` to activate changes without restarting.
+
+### Manual update
 
 ```
 /plugin install rhino-os@rhino-marketplace   # re-install pulls latest
 ```
 
 Or for manual installs: `rhino update`
+
+### Environment variables
+
+- `FORCE_AUTOUPDATE_PLUGINS=true` — keep plugin auto-updates even if CLI auto-update is disabled
+- `DISABLE_AUTOUPDATER` — disable all auto-updates (CLI and plugins)
 
 ## Install manually (legacy)
 
@@ -91,6 +106,7 @@ Then type:
 | `/assert` | Add/list/check assertions |
 | `/retro` | Grade predictions, close learning loop |
 | `/todo` | Manage backlog across sessions |
+| `/discover` | Product discovery — diagnose, ideate, validate in one pass |
 | `/clone` | Screenshot → components |
 | `/skill` | Manage lenses |
 
