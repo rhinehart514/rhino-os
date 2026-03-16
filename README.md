@@ -1,34 +1,26 @@
 # rhino-os
 
-Your product should get better every time you open your terminal. Not just more code — actually better.
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that makes your product measurably better every session.
 
-rhino-os is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin. You install it, point it at your project, and it figures out what your product does, what's broken, and what to fix first. It predicts what will work, measures whether it did, and updates its model when it's wrong. Over sessions, it gets smarter about *your* product specifically.
+## Try it (2 minutes)
 
-Most AI coding tools help you write code faster. This one helps you build the right thing.
+```bash
+# 1. Install
+claude /plugin marketplace add rhinehart514/rhino-os
+claude /plugin install rhino-os@rhino-marketplace
 
-## See it work
-
-```
-$ cd ~/my-project && rhino init
-
-  ◆ rhino init
-  ✓ detected: node (src/)
-  ✓ features: auth, dashboard, api (3 found)
-  ✓ generated config/rhino.yml
-  ✓ generated beliefs.yml (10 assertions)
-
-  score  20/100  ████░░░░░░░░░░░░░░░░
+# 2. Point it at your project
+cd ~/your-project
+claude
 ```
 
-The score is low because you just started. That's honest — you haven't proven your product works yet. Now open Claude Code:
-
 ```
-$ claude
-
-  ◆ rhino-os  ·  my-project
+  ◆ rhino-os  ·  your-project
   score       20/100  ████░░░░░░░░░░░░░░░░
               assertions 2/10  ·  health 85
+```
 
+```
 > /plan
   Bottleneck: auth — 0/3 assertions passing, weight 5
   Task: implement signup flow, write tests, handle edge cases
@@ -43,126 +35,94 @@ $ claude
   Building dashboard...
   ✓ dashboard-loads         PASS
   · data-displays           FAIL — empty state unhandled
-  Score: 50 → 60 ↑10 (reverted empty state regression, kept the rest)
+  Score: 50 → 60 ↑10
 ```
 
-`/plan` finds the bottleneck. `/go` builds toward it autonomously — keeping changes that improve the score, reverting changes that don't. Next session, it picks up where it left off, with a better model of what works.
+`/plan` finds what's broken. `/go` fixes it — keeping what passes, reverting what doesn't.
 
-## Install
+That's it. Next session, it picks up where it left off, smarter than before.
 
-Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS/Linux, and [`jq`](https://jqlang.github.io/jq/download/).
+---
 
-**Plugin install:**
-```bash
-claude /plugin marketplace add https://github.com/rhinehart514/rhino-os
-claude /plugin install rhino-os
-```
+**No plugin system?** Install manually:
 
-**Manual install:**
 ```bash
 git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os
 cd ~/rhino-os && ./install.sh
 ```
 
-Then in any project: `rhino init` to bootstrap, `claude` to start working.
+Then: `cd ~/your-project && rhino init && claude`
 
-## What you can do
+**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS/Linux, [jq](https://jqlang.github.io/jq/download/)
 
-**Just talk.** Say "what should I work on?" and rhino-os runs `/plan`. Say "is this good?" and it runs `/eval`. Say "just build it" and it runs `/go`. You don't need to memorize commands — but here they are:
+---
 
-**Build:** `/plan` finds the bottleneck and writes tasks. `/go` builds autonomously. `/todo` manages backlog across sessions. `/assert` adds assertions from chat.
+## What happens
 
-**Measure:** `/eval` runs assertions and shows sub-scores per feature. `rhino score .` gives you the number from the terminal. `rhino taste` runs visual eval via Claude Vision (11 dimensions — hierarchy, contrast, polish, density, and more).
+You talk. rhino-os does the right thing.
 
-**Think:** `/product` pressure-tests whether you're building the right thing. `/ideate` generates evidence-weighted ideas and kills what shouldn't exist. `/research` explores unknowns with multi-agent synthesis. `/strategy` gives you an honest, anti-sycophantic diagnosis of where you are.
+| You say | It does |
+|---------|---------|
+| "what should I work on?" | `/plan` — finds the bottleneck |
+| "just build it" | `/go` — autonomous build loop |
+| "is this good?" | `/eval` — runs assertions, shows sub-scores |
+| "what could we build?" | `/ideate` — evidence-weighted ideas + kill list |
+| "am I building the right thing?" | `/product` — pressure-tests assumptions |
+| "ship it" | `/ship` — commit, push, deploy, release |
 
-**Navigate:** `/feature` manages features with maturity tracking and dependency graphs. `/roadmap` tracks version theses (versions are questions you're testing, not releases). `/retro` grades predictions and closes the learning loop. `/rhino` shows the dashboard.
-
-**Ship:** `/ship` handles commit, push, deploy, and GitHub releases. `/onboard` bootstraps rhino-os into any repo. `/skill` creates new measured skills.
-
-17 commands total. Every one suggests what to do next.
+17 commands total. Every one suggests what to do next. You don't need to memorize any of them.
 
 ## The score
 
-```
-if build fails:              score = 0
-elif health < 20:            score = 0
-elif assertions exist:       score = assertion pass rate
-elif value hypothesis exists: score = completion ratchet (0-50)
-else:                        score = 10
-```
-
 The score is the percentage of your assertions that pass. Not lint. Not code quality. **Does your product do what you said it should do?**
 
-Health (dead ends, `any` types, console.logs in production) is a gate, not the score. Health below 20 blocks you. Above 40, it's invisible. Fix health issues, but don't confuse them with value.
-
-## How it learns
-
-Every action has a prediction: "I predict X because Y. I'd be wrong if Z." Wrong predictions are the most valuable events — they update the model.
-
-The knowledge lives in two files:
-- `predictions.tsv` — every prediction, auto-graded against reality
-- `experiment-learnings.md` — the causal model (known patterns, uncertain patterns, unknown territory, dead ends)
-
-Target prediction accuracy: 50-70%. Higher means the predictions are too safe. Lower means the model is broken. rhino-os currently runs at 70% across 21 predictions.
-
-You don't need to touch any of this. It happens automatically. But if you run `/retro`, you can see what the system learned and correct it.
-
-## Architecture
-
 ```
-rhino-os/
-  mind/               how it thinks (identity, reasoning, standards, self-model)
-  skills/             20 skills — slash commands + auto-triggered behaviors
-  agents/             6 agents (builder, explorer, measurer, reviewer, evaluator, market-analyst)
-  hooks/              9 lifecycle hooks (session start, pre-compact, post-edit, etc.)
-  bin/                CLI tools (score.sh, eval.sh, grade.sh, feature.sh, todo.sh, etc.)
-  config/rhino.yml    your project config — features, value hypothesis, signals
-  lens/product/       product lens — taste eval, web-specific scoring, UX checklist
-  tests/              mechanical tests + fixture repos
+  score       60/100  ████████████░░░░░░░░
+              assertions 6/10  ·  health 90
+              ↑40 from first session
 ```
 
-**Mind files** are loaded into every Claude Code session as system context. They define how rhino-os reasons — not step-by-step instructions, but identity, standards, and a thinking framework. Claude reads the room and acts like a cofounder, not an assistant.
+Score goes up → you're shipping value. Score drops → the change gets reverted. Simple.
 
-**Skills** use the open [Agent Skills](https://claude.com/blog/skills) format. They work in Claude Code, Cursor, Codex CLI, and Gemini CLI.
+## It gets smarter
 
-**Agents** are specialists. `/go` spawns a builder (writes code) and a measurer (scores it). `/research` spawns an explorer and a market-analyst. Agents produce todos as exhaust — work they noticed but didn't do gets captured for later.
+Most AI tools are stateless. Every session starts from zero.
 
-**Hooks** wire into Claude Code's lifecycle. Session start shows the boot card. Pre-compact saves context before compression. Post-edit runs quality checks. Post-commit validates. 9 hooks total, all in `hooks/`.
+rhino-os predicts before it acts. Measures after. Updates its model when it's wrong. Over sessions, it learns what works for *your* project specifically.
 
-**The lens system** lets you add domain-specific measurement. The product lens adds visual eval (taste.mjs), web structure checks, and a UX checklist. Drop a new lens into `lens/` and `rhino init` wires it up.
+| Session | What happens |
+|---------|-------------|
+| 1 | Learns your project, generates assertions, baseline score |
+| 5 | Predictions cite past results, bottleneck finder knows what matters |
+| 20 | Dead ends marked, patterns confirmed, not guessing anymore |
 
-## What makes this different
+70% prediction accuracy across 21 predictions. Built by using itself — score 20 to 93.
 
-Most AI coding tools are stateless. Every session starts from zero. rhino-os compounds:
+## What's inside
 
-- **Session 1:** rhino-os learns your project structure, generates assertions, establishes a baseline score.
-- **Session 5:** The knowledge model has patterns specific to your codebase. Predictions cite past results. The bottleneck finder knows which features matter most.
-- **Session 20:** Wrong predictions have been graded, dead ends are marked, the model knows what works for your project and what doesn't. It's not guessing anymore.
+```
+17 slash commands    /plan /go /eval /feature /todo /assert /product
+                     /ideate /research /strategy /roadmap /retro
+                     /rhino /ship /onboard /skill /calibrate
 
-The system was built by using itself. rhino-os improved rhino-os from score 20 to 93 across sessions, proving the loop compounds.
+6 agents             builder  measurer  explorer
+                     reviewer  evaluator  market-analyst
+
+20 skills            auto-triggered behaviors + slash command definitions
+
+9 hooks              session start, pre-compact, post-edit, post-commit, etc.
+
+CLI                  rhino score .  rhino eval .  rhino taste
+                     rhino feature  rhino todo  rhino trail
+```
+
+Uses the open [Agent Skills](https://claude.com/blog/skills) format. Works in Claude Code, Cursor, Codex CLI, and Gemini CLI.
 
 ## Tested on
 
-- **rhino-os itself** — score 20 to 93 over multiple sessions, 56/63 assertions passing
-- **commander.js** — external project scored 80/100 on first `rhino init`, 8/10 assertions passing with zero manual configuration
+- **rhino-os itself** — 20 → 93 over multiple sessions, 56/63 assertions passing
+- **commander.js** — 80/100 on first `rhino init`, zero manual configuration
 
-## Version history
+---
 
-Versions are theses, not releases. Each one asks a question.
-
-| Version | Question | Answer |
-|---------|----------|--------|
-| v6.0 | Does identity + measurement beat prescribed workflows? | Yes — cut 3,700 lines to 2,000, behavior emerged without instructions |
-| v7.0 | Should the score measure value instead of health? | Yes — assertion pass rate tracks what actually matters |
-| v8.0 | Can someone who isn't us complete a loop? | Yes — commander.js bootstrapped at 80/100 without help |
-| v8.1 | Can every skill be measured and every agent produce work? | Yes — 17 skills with sub-scores, 6 agents producing todos |
-| v9.0 | Can someone find rhino-os and install it without us? | Testing |
-
-## Inspired by
-
-[Karpathy's autoresearch](https://github.com/karpathy/autoresearch). [SWE-bench](https://www.swebench.com/). [DORA metrics](https://dora.dev/).
-
-## License
-
-[MIT](LICENSE)
+[MIT](LICENSE) · Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch), [SWE-bench](https://www.swebench.com/), [DORA metrics](https://dora.dev/)
