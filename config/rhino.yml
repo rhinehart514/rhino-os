@@ -106,14 +106,16 @@ features:
     commands: ["rhino trail"]
     status: active
     weight: 4
-    maturity: building
+    maturity: working
     depends_on: [scoring]
   self-diagnostic:
     delivers: "system health check — measures calibration, staleness, learning loop integrity"
     for: "solo founder who wants to know if the system is working"
     code: ["bin/self.sh", "bin/bench.sh"]
     commands: ["rhino self", "rhino bench"]
-    status: active
+    status: killed
+    killed_reason: "navel-gazing. useful bits folded into /retro. nobody outside us uses it."
+    killed_date: 2026-03-16
     weight: 2
     maturity: working
     depends_on: [scoring, learning]
@@ -148,6 +150,43 @@ features:
     status: active
     weight: 3
     maturity: working
+
+  # ── v9 Skills (planned 2026-03-16) ─────────────────
+  yc:
+    delivers: "pressure-tested YC applications, weekly updates with predictions, honest metrics tracking, demo day prep"
+    for: "technical founders applying to or running YC companies"
+    code: []
+    commands: ["/yc apply", "/yc weekly", "/yc metrics", "/yc demo"]
+    status: active
+    weight: 4
+    maturity: planned
+  deep-research:
+    delivers: "multi-agent research synthesis — parallel explorer + market-analyst + academic agents, confidence-rated findings, auto-logged to knowledge model"
+    for: "any founder making build-vs-buy, architecture, or market decisions"
+    code: []
+    commands: ["/deep-research"]
+    status: active
+    weight: 3
+    maturity: planned
+    depends_on: [commands]
+  agent-eval:
+    delivers: "evaluation of your Claude Code setup — skill coverage, agent effectiveness, hook latency, context efficiency"
+    for: "anyone with 5+ skills who wonders if they're actually helping"
+    code: []
+    commands: ["/agent-eval"]
+    status: active
+    weight: 3
+    maturity: planned
+    depends_on: [scoring]
+  founder-os:
+    delivers: "rhino-os loop generalized beyond code — fundraising, hiring, customers, weekly founder review"
+    for: "solo technical founders who live in the terminal"
+    code: []
+    commands: ["/fundraise", "/hire", "/customers", "/weekly"]
+    status: active
+    weight: 5
+    maturity: planned
+    depends_on: [yc, commands, learning]
 
 # ── Evals ────────────────────────────────────────────
 evals:
