@@ -50,18 +50,13 @@ If everything passes: "All green. `/ideate` to raise the bar."
 
 Run `rhino eval . --feature [name]` for each. Rank by pass rate (worst first).
 
-### `taste` → visual eval (expensive)
-Run `rhino taste`. Screenshots every route, scores 11 dimensions via Claude Vision.
+### `taste` → delegate to `/taste` skill
+Taste is now its own skill with Playwright MCP, market research, persistent memory, and 0-100 scoring. **Do not run `rhino taste` — invoke the `/taste` skill instead.**
 
-After running, apply the **Taste Intelligence Layer** (see below). Don't parrot scores.
+Tell the user: "Taste evaluation is now `/taste <url>`. It uses Playwright MCP natively, researches your market, scores 0-100, remembers past evaluations, and creates todos from prescriptions."
 
-**Founder-in-the-loop calibration:** After presenting taste results, if `founder-taste.md` exists, show the 2 weakest dimensions and ask:
-
-```
-"breathing_room scored 1.8 — does this match what you see? [Agree / Too harsh / Too generous]"
-```
-
-Disagreements auto-update `founder-taste.md` calibration section. Taste calibration happens DURING eval, not as a separate step. Over time, scores converge on founder's actual taste.
+If the user provides a URL: run `/taste <url>`.
+If no URL: run `/taste` (which will show help).
 
 ### `blind` → delusion detection
 
@@ -208,17 +203,9 @@ sharpen the assertion or investigate why it flaps
 
 ### `vs [url]` → competitive eval
 
-Side-by-side product comparison via taste eval.
+Side-by-side product comparison. **Delegate to `/taste vs <your-url> <competitor-url>`.**
 
-**Steps:**
-1. Run `rhino taste` on your product (or use cached results if <1 hour old)
-2. Use Playwright MCP to navigate to `[url]`:
-   - `browser_navigate` → URL
-   - `browser_wait_for` → networkidle (or 3s timeout)
-   - `browser_take_screenshot` → full page capture
-   - `browser_snapshot` → accessibility tree
-3. Score the competitor's page on the same 11 taste dimensions
-4. Present side-by-side comparison
+The `/taste` skill handles competitive evaluation natively — it navigates both products with Playwright MCP, scores both on 11 dimensions (0-100), and presents a gap analysis with a "steal list."
 
 ```
 ◆ eval vs — [your product] vs [competitor.com]
@@ -302,9 +289,9 @@ Lightweight single haiku call checking for AI-generated code patterns.
 ```
 
 ### `full` → assertions + taste
-Run both in parallel where possible:
+Run both:
 1. `rhino eval .` — assertions
-2. `rhino taste` — visual craft eval
+2. Invoke `/taste <url>` — visual craft eval (the `/taste` skill handles this natively)
 
 Present together. Assertions are the number that matters. Taste is the feel.
 
@@ -318,38 +305,16 @@ Compare current `rhino eval . --score` against `.claude/cache/score-cache.json`.
 
 ## Taste Intelligence Layer
 
-When presenting taste results (from `taste`, `full`, or `taste trend`), don't just format scores. Add intelligence:
+The `/taste` skill now handles ALL taste intelligence natively — market research, prescriptions, memory, todos, and self-improvement. The eval skill does NOT need to add intelligence on top of taste results.
 
-### 1. Read context (parallel)
-- `.claude/evals/reports/taste-*.json` — latest taste report
-- `.claude/evals/taste-history.tsv` — trend data
-- `~/.claude/knowledge/founder-taste.md` — founder preferences
-- `lens/product/eval/knowledge/*.md` — dimension knowledge
-- `config/rhino.yml` — features (to map dimensions → features)
+When `/eval taste` or `/eval full` runs, simply delegate to the `/taste` skill and present its output. The taste skill:
+- Researches the market BEFORE scoring (calibrated, not generic)
+- Compares against past evaluations (tracks improvement)
+- Provides specific CSS prescriptions grounded in DOM data
+- Creates todos from high-impact prescriptions
+- Updates its own learning model (taste-learnings.md)
 
-### 2. Map dimensions to features
-When a dimension is weak, name the responsible feature:
-- `hierarchy` → landing/dashboard feature
-- `wayfinding` → navigation, commands
-- `distinctiveness` → design system, product identity
-- `breathing_room` → layout, component density
-- `polish` → overall craft across all features
-
-### 3. Specific prescription
-Don't say "improve breathing room." Say:
-- Read the `evidence` field from the taste report
-- Read code files for the mapped feature
-- 2-3 sentence prescription: what file, what change, what it fixes
-
-### 4. Founder-taste mismatches
-If `founder-taste.md` exists:
-- Scored high on something founder hates? Flag it.
-- Scored low on something founder loves? Priority fix.
-
-### 5. Integrity warnings
-```
-⚠ integrity: GENEROUS — avg 3.8/5 exceeds 3.5 for early stage. May be inflated.
-```
+If presenting taste results from a cached report (`.claude/evals/reports/taste-*.json`), read the report's `dimensions`, `top_3_fixes`, and `one_thing` fields.
 
 ---
 
@@ -367,22 +332,21 @@ After presenting results, auto-grade matching predictions — see [reference.md]
 
 ## Tools to use
 
-**Use Bash** to run `rhino eval .` and `rhino taste`.
-**Use Read** to check taste reports, history, founder taste profile, dimension knowledge, code files.
+**Use Bash** to run `rhino eval .`.
+**Use Read** to check eval reports, taste reports, history, knowledge files, code files.
 **Use Grep/Glob** to scan code for coverage analysis and blind eval.
-**Use AskUserQuestion** for founder-in-the-loop taste calibration during taste eval.
-**Use WebFetch** for competitive eval screenshots when playwright isn't available.
+**Use AskUserQuestion** for clarification when needed.
+**Use WebFetch** as fallback for competitive analysis when Playwright isn't available.
 
-**Note:** `allowed-tools` is set in frontmatter. Eval CANNOT use Edit or Write — it is pure measurement. If you need to write files (taste calibrate workflow), use `/calibrate` instead.
+**Note:** `allowed-tools` is set in frontmatter. Eval CANNOT use Edit or Write — it is pure measurement. For taste evaluation, delegate to `/taste` (which has Write + Playwright MCP). For calibration, use `/calibrate`.
 
 ## What you never do
 - Modify eval.sh, score.sh, or taste.mjs — the eval harness is immutable
 - Edit ANY files — eval is read-only measurement (enforced by allowed-tools)
 - Dismiss failing assertions — they exist because someone said "this must be true"
 - Run taste without being asked (expensive — only on `taste`, `full`, or `vs`)
+- Run `rhino taste` directly — delegate to `/taste` skill instead
 - Show "score" as a number — show pass rate and feature breakdown
-- Present taste scores without reading evidence fields — numbers alone are meaningless
-- Skip the prescription — every taste eval must end with a specific, actionable fix
 - Run blind eval and then silently accept inflated claims — flag them
 
 ## Anti-Rationalization Guide
@@ -406,11 +370,11 @@ After presenting results, auto-grade matching predictions — see [reference.md]
 
 ## If something breaks
 - `rhino eval .` fails: check if `features:` section exists in rhino.yml
-- `rhino taste` fails: check if lens/product/ exists
+- `/taste` not working: check Playwright MCP installation, try `mcp__playwright__browser_install`
 - No features: "No features defined. `/feature new [name]`"
 - Falls back to beliefs.yml if no `features:` section
-- No taste history: first eval — no trend to show
-- No founder-taste.md: run inline calibration during taste eval, or suggest `/calibrate`
+- No taste history: first eval — establishing baseline
+- No founder-taste.md: suggest `/calibrate` to set up founder preferences
 - No assertion-history.tsv: first trend run — "Tracking from now. Re-run after next session for trajectory."
 - Playwright not available for `vs`: use WebFetch for screenshots, note reduced accuracy
 - `vs` URL won't load: report error, suggest trying without auth-gated pages

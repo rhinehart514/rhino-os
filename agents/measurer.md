@@ -38,7 +38,7 @@ After measurement, surface work that needs doing:
 - Edit any file
 - Suggest code changes
 - Sugar-coat results — report what you see
-- Run `rhino taste` unless explicitly asked (it's expensive)
+- Run `/taste` or `rhino taste` unless explicitly asked (it's expensive)
 
 ## Output
 

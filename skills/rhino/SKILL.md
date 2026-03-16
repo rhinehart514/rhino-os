@@ -119,7 +119,11 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   /eval                    Is my product actually good?
                            Sub-scores per feature. Rubrics. Multi-sample median.
-                           deep · slop · taste · blind · coverage · trend · diff · vs
+                           deep · slop · blind · coverage · trend · diff · vs
+
+  /taste                   Visual product intelligence. 0-100 scale.
+                           Market-calibrated. Persistent memory. Auto-creates todos.
+                           <url> · mobile · vs · deep · trend
 
   /calibrate               Ground the taste eval in YOUR preferences
                            Founder interview + design system + dimension research.
@@ -259,7 +263,8 @@ For power users who want to see the internals.
 
   bin/score.sh              value scoring with health gate
   bin/eval.sh               generative feature eval (sub-scores, rubrics, median)
-  lens/product/eval/taste.mjs   Claude Vision, 11 dimensions
+  skills/taste/SKILL.md     visual product intelligence (0-100, market-calibrated)
+  lens/product/eval/taste.mjs   legacy CLI taste eval (backward compat)
   bin/self.sh               4-system self-diagnostic
 
   /rhino          back to the dashboard

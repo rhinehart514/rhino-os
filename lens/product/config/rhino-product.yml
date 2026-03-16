@@ -7,7 +7,9 @@ scoring:
     dead_end_weight: 0.5
     empty_state_weight: 0.33
 
-# ── Taste (taste.mjs) ──────────────────────────────────
+# ── Taste (skills/taste/SKILL.md — native skill, 0-100 scale) ────
+# Legacy taste.mjs still used by `rhino taste` CLI (1-5 scale)
+# The /taste skill reads these config values for viewport sizes and limits
 taste:
   max_routes: 8
   max_screenshots: 24

@@ -38,19 +38,14 @@ If everything passes: "All green. `/ideate` to raise the bar."
 
 Run `rhino eval . --feature [name]` for each. Show pass/fail per feature. If multiple features specified, rank by pass rate (worst first).
 
-### `taste` → visual eval (expensive)
-Run `rhino taste` in the project directory. Screenshots every route, scores 11 dimensions via Claude Vision.
-
-Present results as:
-- Overall average (1-5 scale)
-- Bottom 3 dimensions (the craft bottleneck)
-- Top 3 dimensions (strengths — don't touch)
-- One recommendation: which dimension to improve and why
+### `taste` → delegate to `/taste` skill
+Taste is now its own skill. **Do not run `rhino taste` — invoke `/taste <url>` instead.**
+The `/taste` skill uses Playwright MCP natively, scores 0-100, researches the market, remembers past evaluations, and creates todos.
 
 ### `full` → assertions + taste
 Run both:
 1. `rhino eval .` — assertions (the number that matters)
-2. `rhino taste` — visual craft eval
+2. Invoke `/taste <url>` — visual craft eval (the `/taste` skill handles this)
 
 Present together. No separate "health gate" or "score" — just what's true and what looks good.
 
@@ -172,20 +167,21 @@ If no ungraded predictions match evaluated features, omit the section (no noise)
 
 ## Tools to use
 
-**Use Bash** to run `rhino eval .` and `rhino taste`.
+**Use Bash** to run `rhino eval .`. For taste, delegate to `/taste` skill.
 
 **Use Read** to check `.claude/cache/score-cache.json` for previous results (diff mode).
 
 ## What you never do
-- Modify eval.sh, score.sh, or taste.mjs — the eval harness is immutable
+- Modify eval.sh, score.sh, taste.mjs, or skills/taste/SKILL.md — the eval harness is immutable
 - Dismiss failing assertions — they exist because someone said "this must be true"
 - Run taste without being asked (it's expensive — only on `taste` or `full`)
+- Run `rhino taste` directly — delegate to `/taste` skill instead
 - Show "score" as a number to the founder — show pass rate and feature breakdown instead
 - Output walls of unformatted text — use the template above
 
 ## If something breaks
 - `rhino eval .` fails: check if `features:` section exists in rhino.yml. If not, suggest `/feature new [name]`
-- `rhino taste` fails: check if lens/product/ exists. If not, taste isn't installed for this project
+- `/taste` not working: check Playwright MCP installation. Legacy: `rhino taste` requires lens/product/
 - No features: "No features defined. Run `/feature new [name]` to define what your product delivers."
 - Falls back to beliefs.yml if no `features:` section — old assertions still work as supplementary checks
 

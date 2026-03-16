@@ -10,7 +10,7 @@ The product lens adds specific measurement tools beyond the base loop.
 ## Measurement Stack
 
 - `rhino score .` — structural lint (health tier). For web products: dead ends, empty states, TS hygiene, navigation gaps. Fast, free, every change.
-- `rhino taste` — visual eval via Claude Vision (craft tier). 11 dimensions: hierarchy, breathing room, contrast, polish, emotional tone, information density, wayfinding, distinctiveness, scroll experience, layout coherence, information architecture. Slow, expensive. Use when visual quality matters.
+- `/taste <url>` — visual product intelligence (craft tier). Claude Code skill using Playwright MCP + Claude Vision natively. 11 dimensions scored 0-100, market-calibrated, persistent memory, auto-creates todos. Legacy CLI: `rhino taste`. Slow, expensive. Use when visual quality matters.
 - `rhino eval .` — mechanical belief evals (value tier). DOM checks (contrast, click targets, hierarchy, distinctiveness), copy checks (clarity, specificity), positioning checks, blind playwright tests. Requires dev server for behavioral tiers.
 
 Score drops after a change → revert. Score plateaus → rethink the approach.
@@ -24,7 +24,7 @@ Product-specific measurement details and unknowns.
 
 ## Product Measurement Stack
 - `rhino score .` — structural lint for web products. Checks dead ends (pages with no outbound links), empty states without CTAs, IA audit, `:any` types, console.log in TSX, unused imports, lint overrides. Status: operational.
-- `rhino taste` — visual eval via Claude Vision. 11 dimensions, 1-5 scale. Anti-sycophancy rubric. Status: operational.
+- `/taste <url>` — visual product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Market-calibrated, persistent memory, auto-creates todos, self-improving. Status: operational. Legacy CLI: `rhino taste` (1-5 scale, backward compat).
 - DOM eval (`dom-eval.mjs`) — mechanical DOM checks: contrast ratio, click target size, heading hierarchy, visual distinctiveness. Requires dev server.
 - Copy eval (`copy-eval.mjs`) — headline clarity, value prop specificity, positioning. Requires dev server.
 - Blind eval (`blind-eval.mjs`) — Playwright task completion tests. Requires dev server.

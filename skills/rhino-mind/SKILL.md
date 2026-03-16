@@ -115,7 +115,7 @@ The system's job is to **build an increasingly accurate model of what makes the 
 
 **How they map to tools:**
 - `rhino score .` → Health
-- `rhino taste` → Craft
+- `/taste <url>` → Craft (visual product intelligence, 0-100 scale)
 - `rhino eval .` → Value (assertion pass rate — the north star)
 
 ## The Value Checklist

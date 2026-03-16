@@ -14,7 +14,7 @@ Most dev tools measure bottom-up: health → craft → maybe value. rhino-os mea
 
 **How they map to tools:**
 - `rhino score .` → Health (structural lint: build, structure, hygiene)
-- `rhino taste` → Craft (visual eval, if product lens installed)
+- `/taste <url>` → Craft (visual product intelligence, 0-100 scale)
 - `rhino eval .` → Value (assertion pass rate: do the things that matter actually work?)
 
 Score is a SUPPORTING metric. A 100/100 score with zero value is a beautiful corpse. **Eval pass rate is the north star.**

@@ -129,7 +129,7 @@ The 11 dimensions: `hierarchy`, `breathing_room`, `contrast`, `polish`, `emotion
 
 ### Step 4: Verify
 
-Run `rhino taste --force` to test with new knowledge. Compare against previous taste report if one exists.
+Run `/taste <url>` to test with new knowledge (the taste skill reads founder-taste.md, design-system.md, and dimension knowledge automatically). Compare against previous taste report if one exists. If no URL is known, ask the founder for their product URL or localhost port.
 
 ## Output
 
@@ -161,12 +161,12 @@ Run `rhino taste --force` to test with new knowledge. Compare against previous t
 **Use WebSearch** for dimension research
 **Use Read** to detect design system from codebase
 **Use Write/Edit** to create knowledge files and design-system.md
-**Use Bash** to run `rhino taste --force`
+**Invoke `/taste <url>`** to verify calibration (taste skill uses Playwright MCP natively)
 
 ## What you never do
 - Skip the founder interview — generic calibration is useless
 - Write vague dimension knowledge — "good hierarchy means clear structure" is garbage
-- Modify taste.mjs — the eval harness is immutable
+- Modify taste.mjs or skills/taste/SKILL.md — the eval harness is immutable
 - Run calibration silently — always show what was written and where
 
 ## If something breaks

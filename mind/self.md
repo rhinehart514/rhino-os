@@ -7,12 +7,12 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 ### Measurement Stack
 - `rhino score .` — value scoring with health gate. Status: operational. Now includes reasons for each penalty.
 - `rhino eval .` — generative feature eval (Claude judges claim vs code). Status: operational.
-- `rhino taste` — visual eval via Claude Vision, 11 dimensions. Status: operational.
+- `/taste <url>` — visual product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Market-calibrated, persistent memory, auto-creates todos, self-improving. Status: operational. Legacy CLI: `rhino taste` (1-5 scale, backward compat).
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
 ### Commands (the product surface)
-17 slash commands, each with explicit output templates and state awareness:
-/plan, /go, /eval, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product
+18 slash commands, each with explicit output templates and state awareness:
+/plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product
 
 ### Agents
 4 custom agents in agents/: measurer, explorer, builder, reviewer

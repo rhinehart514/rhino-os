@@ -264,7 +264,7 @@ For output format rules, see [OUTPUT_FORMAT.md](../OUTPUT_FORMAT.md).
 - Skip the prediction step
 - Skip prediction grading (the whole point of the learning loop)
 - Continue past plateau without researching
-- Modify score.sh, eval.sh, or taste.mjs during the loop (immutable eval harness)
+- Modify score.sh, eval.sh, taste.mjs, or skills/taste/SKILL.md during the loop (immutable eval harness)
 - Speculate on trivial moves (waste of tokens)
 - Let the reviewer block a keep when assertions improved
 - Output walls of unformatted text — use the output templates
@@ -288,7 +288,7 @@ For output format rules, see [OUTPUT_FORMAT.md](../OUTPUT_FORMAT.md).
 - 3 consecutive keeps with <2pt improvement each
 - Reviewer verdict ignored when assertions flat
 - Building outside the bottleneck without founder redirect
-- Modifying eval harness (score.sh, eval.sh, taste.mjs)
+- Modifying eval harness (score.sh, eval.sh, taste.mjs, skills/taste/SKILL.md)
 
 **All of these mean: stop the loop and re-read state. No exceptions.**
 
