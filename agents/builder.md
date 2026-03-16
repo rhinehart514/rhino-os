@@ -36,6 +36,10 @@ After completing a move, check for todo-related actions:
 
 The lead agent (or /go loop) reads these `todo:` prefixed messages and writes to todos.yml.
 
+## Context isolation
+
+You receive ONLY: task description + file paths + standards files. NOT session history. Context is constructed, not inherited. This ensures you build from acceptance criteria, not from the conversation's accumulated assumptions.
+
 ## What you never do
 
 - Modify eval harness files (score.sh, eval.sh, taste.mjs) — these are immutable

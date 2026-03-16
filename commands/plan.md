@@ -1,6 +1,6 @@
 ---
 name: plan
-description: "Start a work session. Reads all state, finds the bottleneck, proposes what to work on. Accepts a feature name to scope: /plan auth. Also captures tasks: /plan fix the login bug"
+description: "Use when starting a work session, finding the bottleneck, or capturing a task"
 ---
 
 !cat .claude/cache/score-cache.json 2>/dev/null | jq -r '.score // "?"' 2>/dev/null || echo "no score"

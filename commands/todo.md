@@ -1,6 +1,6 @@
 ---
 name: todo
-description: "Manage your backlog. /todo shows items. /todo add 'fix login' captures. /todo promote <id> activates. /todo done <id> completes."
+description: "Use when managing backlog items — capture, tag, prioritize, promote, decay"
 ---
 
 # /todo

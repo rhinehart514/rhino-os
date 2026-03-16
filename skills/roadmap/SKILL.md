@@ -1,6 +1,6 @@
 ---
 name: roadmap
-description: "Version roadmap + external narrative. /roadmap shows progress. /roadmap next diagnoses what's most provable. /roadmap bump auto-synthesizes. /roadmap narrative generates marketing copy from proven evidence. /roadmap v7.0 shows what a version taught."
+description: "Use when tracking version theses, checking progress, or generating release narrative"
 argument-hint: "[next|bump|ideate|narrative|changelog|positioning|add|done|new|v<X.Y>]"
 allowed-tools: Read, Bash, Grep, Edit, AskUserQuestion, WebSearch, Agent
 ---

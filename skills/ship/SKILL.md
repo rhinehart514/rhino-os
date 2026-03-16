@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Ship to GitHub + deploy. Commit, push, create releases with roadmap-derived changelogs, open PRs, deploy, verify. /ship for full flow, /ship release for GitHub release, /ship pr for pull request."
+description: "Use when work is measured and ready to ship — commits, releases, PRs, deploys"
 argument-hint: "[dry|hotfix|release [tag]|pr [base]|changelog]"
 allowed-tools: Read, Bash, Edit, AskUserQuestion, WebFetch, Agent
 ---

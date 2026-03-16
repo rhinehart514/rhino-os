@@ -1,6 +1,6 @@
 ---
 name: go
-description: "Fully autonomous mode. Plan, predict, build, measure, update model, repeat. Accepts a feature name to scope: /go auth. BETA: speculative branching, adversarial review, mechanical prediction grading."
+description: "Use when you want autonomous building with measurement and prediction grading"
 argument-hint: "[feature...] [--safe] [--speculate N]"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch, TaskCreate, TaskGet, TaskList, TaskUpdate
 ---
@@ -47,8 +47,46 @@ Autonomous creation loop. Plan, predict, build, measure, learn — no human in t
 
 ## The Loop
 
+```dot
+digraph go_loop {
+  rankdir=TB;
+  node [shape=box, style=rounded];
+  read [label="Read state\n(8 sources)"];
+  pick [label="Pick move\n(bottleneck-first)"];
+  predict [label="Predict\n(log to predictions.tsv)"];
+  gate [label="HARD-GATE\n(present plan, wait)" shape=diamond];
+  speculate_q [label="Speculate?" shape=diamond];
+  build_safe [label="Build (safe)\n(atomic commits)"];
+  build_spec [label="Build (speculate)\n(N worktrees)"];
+  measure [label="Measure\n(rhino eval .)"];
+  spec_review [label="Stage 1: Spec\ncompliance" shape=diamond];
+  quality_review [label="Stage 2: Code\nquality" shape=diamond];
+  decision [label="Keep / Revert?" shape=diamond];
+  grade [label="Grade prediction"];
+  plateau_q [label="3 moves\nno improvement?" shape=diamond];
+  next [label="Next move"];
+  stop [label="Stop + report"];
+  read -> pick -> predict -> gate;
+  gate -> speculate_q [label="approved"];
+  speculate_q -> build_safe [label="clear approach"];
+  speculate_q -> build_spec [label="uncertain"];
+  build_safe -> measure;
+  build_spec -> measure;
+  measure -> spec_review [label="beta"];
+  measure -> decision [label="safe"];
+  spec_review -> build_safe [label="FAILS_SPEC\n(retry x2)"];
+  spec_review -> quality_review [label="MEETS_SPEC"];
+  quality_review -> decision;
+  decision -> grade [label="keep or revert"];
+  grade -> plateau_q;
+  plateau_q -> next [label="no"];
+  plateau_q -> stop [label="yes"];
+  next -> pick;
+}
 ```
-Read state → Pick move → Predict → Build → Measure → Adversarial review → Keep/revert → Grade prediction → Update model → Next
+
+```
+Read state → Pick move → Predict → <HARD-GATE> → Build → Measure → Spec review → Quality review → Keep/revert → Grade → Next
 ```
 
 ### 1. Pick the move
@@ -62,25 +100,39 @@ I'd be wrong if: [falsification condition]
 ```
 Log to `.claude/knowledge/predictions.tsv`.
 
+### 2.5 HARD-GATE — Approval before build
+
+<HARD-GATE>
+Do NOT write code, create files, or take any implementation action until the move plan is presented and the founder acknowledges it.
+</HARD-GATE>
+
+Present via AskUserQuestion:
+- The move (what you're building, which feature)
+- The prediction (expected outcome)
+- The approach (safe vs speculate, and why)
+- Files you expect to touch
+
+Options: "Build it" / "Adjust" / "Skip to next move"
+
+In `--safe` mode: present inline but don't block (founder can interrupt).
+In beta mode: MANDATORY. Wait for response.
+
 ### 3. Build
 
 **Safe mode** (`--safe`): Build directly. Atomic git commits. Measure after each.
 
 **Beta mode** (default): Speculative branching.
 
-#### BETA: Speculative Branching
+#### BETA: Speculative Branching (worktree lifecycle)
 
-Instead of committing to one approach, try N (default 2) in parallel:
-
-1. Identify 2 plausible approaches for the move (different strategies, not variations)
-2. Spawn N agents, each in an **isolated worktree** (`isolation: worktree`):
+1. Identify 2 approaches
+2. Spawn each with worktree isolation:
    ```
-   Agent(subagent_type: "general-purpose", isolation: "worktree", prompt: "approach description + acceptance criteria")
+   Agent(subagent_type: "general-purpose", isolation: "worktree", prompt: "[approach + acceptance criteria + 'run rhino eval . --feature X --fresh --samples 1']")
    ```
-3. Each agent builds its approach independently, commits to its worktree branch
-4. Run `rhino eval . --feature [name] --fresh --samples 1` in each worktree (fast mode — speculative eval doesn't need 3-sample median)
-5. Compare scores. Keep the winner. Discard the other worktree(s).
-6. If winner improved over baseline → merge to main. If neither improved → discard both.
+3. Claude Code handles worktree creation automatically
+4. When both complete: compare scores, keep winner, discard loser (automatic)
+5. If worktree fails: fall back to safe mode, log, continue loop
 
 **When to speculate vs build direct:**
 - Speculate: unfamiliar territory, multiple plausible approaches, Unknown Territory in experiment-learnings
@@ -97,26 +149,24 @@ Run `rhino eval . --feature [name] --fresh` after each commit.
 - **Sub-scores**: check value_score, quality_score, ux_score individually. A value regression is worse than a quality regression.
 - **Score dropped but assertions held** → keep (value > health).
 
-### 5. BETA: Adversarial Review
+### 5. BETA: Two-Stage Review
 
-After building, before final keep/revert decision, spawn a reviewer agent:
+**Stage 1: Spec compliance** — does code satisfy acceptance criteria?
 
-```
-Agent(subagent_type: "feature-dev:code-reviewer", prompt: "
-Review this diff for the [feature] feature. Your job is to FIND PROBLEMS, not approve.
-Check: regressions, silent failures, assertion gaming, slop patterns.
-Cite file:line for every issue.
+Spawn code-reviewer agent with ONLY: acceptance criteria + diff. No session history.
+Verdict: MEETS_SPEC / FAILS_SPEC
+- FAILS_SPEC → loop back to build (max 2 retries, then revert)
+- MEETS_SPEC → proceed to stage 2
+
+**Stage 2: Code quality** — is the code good?
+
+Spawn code-reviewer agent with ONLY: diff + product-standards.md.
+Check: regressions, silent failures, assertion gaming, slop, UX checklist.
 Verdict: KEEP / REVERT / KEEP_WITH_FIXES
-If KEEP_WITH_FIXES: list the specific fixes needed.
-")
-```
+- Same keep/revert matrix as before
+- Reviewer can't block if assertions improved
 
-**Rules:**
-- Reviewer has no knowledge of the prediction — it reviews blind
-- REVERT verdict + assertion regression = mandatory revert
-- KEEP_WITH_FIXES = apply fixes, re-measure, then decide
-- Reviewer can't block a keep if assertions improved (measurement wins over opinion)
-- Skip adversarial review in `--safe` mode
+Skip both stages in `--safe` mode.
 
 ### 6. Keep/revert decision
 
@@ -216,8 +266,31 @@ For output format rules, see [OUTPUT_FORMAT.md](../OUTPUT_FORMAT.md).
 - Continue past plateau without researching
 - Modify score.sh, eval.sh, or taste.mjs during the loop (immutable eval harness)
 - Speculate on trivial moves (waste of tokens)
-- Let the adversarial reviewer block a keep when assertions improved
+- Let the reviewer block a keep when assertions improved
 - Output walls of unformatted text — use the output templates
+- Skip the HARD-GATE — every move gets presented before building
+
+## Anti-Rationalization Guide
+
+| Excuse | Reality |
+|--------|---------|
+| "I'll grade the prediction later" | You won't. Grade NOW, before next move. The loop breaks here. |
+| "This move is too simple to predict" | Simple moves have clearest outcomes. 10 seconds. |
+| "Score didn't change but the code is better" | If measurement can't see it, it didn't happen. |
+| "The reviewer is wrong, the code is fine" | Assertions flat + reviewer says REVERT → revert. |
+| "One more move will fix the plateau" | 3 moves without improvement = approach exhausted. Research. |
+| "I'll skip the HARD-GATE, obvious move" | "Obvious" moves have highest skip-regret rate. Present it. |
+| "Speculative branching isn't worth it here" | Unknown Territory = exactly when you need options. |
+
+## Red Flags — STOP
+
+- Prediction column empty on 2+ recent moves
+- 3 consecutive keeps with <2pt improvement each
+- Reviewer verdict ignored when assertions flat
+- Building outside the bottleneck without founder redirect
+- Modifying eval harness (score.sh, eval.sh, taste.mjs)
+
+**All of these mean: stop the loop and re-read state. No exceptions.**
 
 ## If something breaks
 - `rhino eval .` fails: check config/rhino.yml features section exists

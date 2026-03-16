@@ -1,6 +1,6 @@
 ---
 name: plan
-description: "Start a work session. Reads all state, finds the bottleneck, proposes what to work on. Accepts a feature name to scope: /plan auth. Also captures tasks: /plan fix the login bug"
+description: "Use when starting a work session, finding the bottleneck, or capturing a task"
 argument-hint: "[feature...|brainstorm|critique|task text]"
 allowed-tools: Read, Bash, Grep, Glob, EnterPlanMode, ExitPlanMode, AskUserQuestion, TaskCreate, TaskList
 ---
@@ -50,6 +50,32 @@ If `$ARGUMENTS` looks like a task (e.g., `/plan fix the login bug`), capture it:
 - `/ship` → deploy
 
 ## Steps
+
+```dot
+digraph plan_flow {
+  rankdir=TB;
+  node [shape=box, style=rounded];
+  enter [label="EnterPlanMode"];
+  read [label="Read 14 sources"];
+  grade [label="Grade ungraded\npredictions"];
+  research [label="Research <24h?" shape=diamond];
+  bottleneck [label="Bottleneck diagnosis\n(sub-score first)"];
+  thesis [label="Version >80%?" shape=diamond];
+  bump [label="Suggest\n/roadmap bump"];
+  moves [label="Generate moves\n(thesis-aware)"];
+  align [label="Founder alignment\n(AskUserQuestion)"];
+  write [label="TaskCreate\nper move"];
+  exit [label="ExitPlanMode"];
+  enter -> read -> grade -> research;
+  research -> bottleneck [label="no"];
+  research -> bottleneck [label="yes: use findings"];
+  bottleneck -> thesis;
+  thesis -> bump [label="yes"];
+  thesis -> moves [label="no"];
+  bump -> moves;
+  moves -> align -> write -> exit;
+}
+```
 
 ### 1. Enter plan mode
 Call EnterPlanMode. All reads, no writes until the plan is approved.

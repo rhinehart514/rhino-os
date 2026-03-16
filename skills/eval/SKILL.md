@@ -385,6 +385,25 @@ After presenting results, auto-grade matching predictions — see [reference.md]
 - Skip the prescription — every taste eval must end with a specific, actionable fix
 - Run blind eval and then silently accept inflated claims — flag them
 
+## Anti-Rationalization Guide
+
+| Excuse | Reality |
+|--------|---------|
+| "The score is wrong, product is better" | Score is a thermometer. Fix the product, not the thermometer. |
+| "That assertion is too strict" | Someone said "this must be true." Fix the code, not the assertion. |
+| "Taste eval is subjective anyway" | Read the evidence field, not just the number. |
+| "Blind eval is unfair to our claims" | That's the point. INFLATED claims need rewriting. |
+| "Coverage doesn't matter, enough assertions" | High-weight features with 2 assertions = flying blind. |
+
+## Red Flags — STOP
+
+- Assertion was passing, now failing, and you're considering keeping the change
+- Taste scores all above 4.0 for early-stage product (inflation)
+- Blind eval shows INFLATED on 3+ features (systematic delusion)
+- Same assertion flapping 5+ times without investigation
+
+**All of these mean: investigate before proceeding. No exceptions.**
+
 ## If something breaks
 - `rhino eval .` fails: check if `features:` section exists in rhino.yml
 - `rhino taste` fails: check if lens/product/ exists

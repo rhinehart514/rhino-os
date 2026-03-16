@@ -1,6 +1,6 @@
 ---
 name: go
-description: "Fully autonomous mode. Plan, predict, build, measure, update model, repeat. Accepts a feature name to scope: /go auth"
+description: "Use when you want autonomous building with measurement and prediction grading"
 ---
 
 !cat .claude/cache/score-cache.json 2>/dev/null | jq -r '.score // "?"' 2>/dev/null || echo "no score"

@@ -1,6 +1,6 @@
 ---
 name: skill
-description: "Create and manage measured skills. Not just prompts — skills that know if they're good. Every skill gets assertions, sub-scores, maturity tracking, and agent wiring from day one."
+description: "Use when creating new skills or managing existing ones with assertions and maturity"
 argument-hint: "[list|create <name>|install <url>|remove <name>|info <name>]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
 ---

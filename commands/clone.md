@@ -1,6 +1,6 @@
 ---
 name: clone
-description: "Screenshot any public URL, decompose into components, generate them using your framework + design tokens + conventions. /clone https://example.com"
+description: "Use when reproducing a design from a URL using your framework and design tokens"
 ---
 
 # /clone

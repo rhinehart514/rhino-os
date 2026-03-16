@@ -13,7 +13,7 @@
       "name": "rhino-os",
       "version": "8.1.0",
       "source": "./",
-      "description": "Learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions. /plan finds the bottleneck, /go builds autonomously, /eval measures what matters.",
+      "description": "Learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions. HARD-GATE approval, two-stage review, anti-rationalization tables, flowchart-driven agent discipline.",
       "author": {
         "name": "Jacob Rhinehart"
       },

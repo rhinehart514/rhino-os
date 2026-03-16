@@ -1,6 +1,6 @@
 ---
 name: skill
-description: "Manage rhino-os lenses (skills). List, install, remove, or inspect lenses."
+description: "Use when creating new skills or managing existing ones with assertions and maturity"
 ---
 
 # /skill — Lens Management

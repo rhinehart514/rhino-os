@@ -151,6 +151,16 @@ features:
     weight: 3
     maturity: working
 
+  strategist:
+    delivers: "full-stack product strategist — market intelligence, bet scoring, positioning, pricing, GTM, competitive response, honest diagnosis. One unified skill replacing /product + /strategy + /research."
+    for: "solo technical founder who needs a strategic advisor, not just a code tool"
+    code: ["skills/strategist/SKILL.md", ".claude/cache/market-context.json", ".claude/cache/market-context-base.json"]
+    commands: ["/strategist", "/strategist bet", "/strategist market", "/strategist position", "/strategist price", "/strategist gtm", "/strategist compete", "/strategist honest"]
+    status: active
+    weight: 5
+    maturity: planned
+    depends_on: [commands]
+
   # ── v9 Skills (planned 2026-03-16) ─────────────────
   yc:
     delivers: "pressure-tested YC applications, weekly updates with predictions, honest metrics tracking, demo day prep"

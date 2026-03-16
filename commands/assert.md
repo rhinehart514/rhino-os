@@ -1,6 +1,6 @@
 ---
 name: assert
-description: "Add, list, check, or remove assertions. Makes beliefs.yml a chat-native activity instead of manual YAML editing."
+description: "Use when adding, checking, or removing assertions — chat-native beliefs.yml editing"
 ---
 
 # /assert

@@ -1,6 +1,6 @@
 ---
 name: assert
-description: "Add, list, check, or remove assertions. Accepts todo graduations. Makes beliefs.yml a chat-native activity instead of manual YAML editing."
+description: "Use when adding, checking, or removing assertions — chat-native beliefs.yml editing"
 argument-hint: "[feature: belief text] or [list|check|remove|graduate] [id]"
 allowed-tools: Read, Bash, Edit, Grep
 ---

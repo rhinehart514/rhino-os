@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Zero-friction deploy. Commit, push, deploy, verify — one command. /ship hotfix for urgent fixes."
+description: "Use when work is measured and ready to ship — commits, releases, PRs, deploys"
 ---
 
 # /ship

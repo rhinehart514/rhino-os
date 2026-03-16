@@ -745,3 +745,73 @@ beliefs:
     quality: completeness
     layer: ux
     severity: warn
+
+  # ════════════════════════════════════════════════════════
+  # STRATEGIST — unified strategic brain
+  # ════════════════════════════════════════════════════════
+
+  - id: strategist-skill-exists
+    belief: "strategist skill file exists with full mode routing"
+    type: command_check
+    command: test -f skills/strategist/SKILL.md && grep -q 'bet' skills/strategist/SKILL.md && grep -q 'market' skills/strategist/SKILL.md && grep -q 'position' skills/strategist/SKILL.md
+    feature: strategist
+    quality: correctness
+    layer: infrastructure
+    severity: block
+
+  - id: strategist-base-market-model
+    belief: "Base market model ships with the skill for instant first use"
+    type: command_check
+    command: test -f .claude/cache/market-context-base.json && python3 -c "import json; d=json.load(open('.claude/cache/market-context-base.json')); assert 'saturated' in d['landscape']; assert 'emerging' in d['landscape']"
+    feature: strategist
+    quality: correctness
+    layer: infrastructure
+    severity: warn
+
+  - id: strategist-anti-sycophancy
+    belief: "strategist skill enforces anti-sycophancy rules"
+    type: file_check
+    path: "skills/strategist/SKILL.md"
+    contains: "minimum 2 below 5"
+    feature: strategist
+    quality: craft
+    layer: logic
+    severity: warn
+
+  - id: strategist-logs-predictions
+    belief: "strategist bet mode logs predictions to predictions.tsv"
+    type: file_check
+    path: "skills/strategist/SKILL.md"
+    contains: "predictions.tsv"
+    feature: strategist
+    quality: correctness
+    layer: logic
+    severity: warn
+
+  - id: strategist-reads-codebase
+    belief: "strategist grounds analysis in code reality, not just market data"
+    type: file_check
+    path: "skills/strategist/SKILL.md"
+    contains: "rhino.yml"
+    feature: strategist
+    quality: correctness
+    layer: logic
+    severity: warn
+
+  - id: strategist-has-7-dimensions
+    belief: "bet scorer evaluates ideas against 7 named dimensions"
+    type: command_check
+    command: grep -c 'Market gap\|Timing\|Founder.*fit\|Distribution\|Business model\|Defensibility\|Evidence' skills/strategist/SKILL.md | awk '{exit ($1 >= 7 ? 0 : 1)}'
+    feature: strategist
+    quality: completeness
+    layer: logic
+    severity: warn
+
+  - id: strategist-absorbs-three-skills
+    belief: "strategist covers research, product thinking, and strategic diagnosis"
+    type: command_check
+    command: grep -q 'research' skills/strategist/SKILL.md && grep -q 'coherence' skills/strategist/SKILL.md && grep -q 'honest' skills/strategist/SKILL.md
+    feature: strategist
+    quality: completeness
+    layer: logic
+    severity: warn

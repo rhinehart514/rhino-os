@@ -1,6 +1,6 @@
 ---
 name: roadmap
-description: "Version roadmap. /roadmap shows progress. /roadmap next shows what's needed for the next version. /roadmap bump marks current version shipped."
+description: "Use when tracking version theses, checking progress, or generating release narrative"
 ---
 
 # /roadmap

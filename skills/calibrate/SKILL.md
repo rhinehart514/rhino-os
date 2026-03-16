@@ -1,6 +1,6 @@
 ---
 name: calibrate
-description: "Build taste knowledge — founder interview, design system docs, dimension research. Makes /eval taste scores grounded, not generic. Run once, refine over time."
+description: "Use when taste eval scores feel generic — grounds visual evaluation in founder preferences"
 argument-hint: "[dimensions|design-system|profile]"
 context: fork
 model: sonnet

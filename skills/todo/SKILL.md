@@ -1,6 +1,6 @@
 ---
 name: todo
-description: "Living backlog — never stale. Todos decay, graduate to assertions, auto-tag from context, surface based on bottleneck. /todo shows items. /todo add captures. /todo done completes."
+description: "Use when managing backlog items — capture, tag, prioritize, promote, decay"
 argument-hint: "[add \"title\"|done <id>|promote <id>|active|health|decay]"
 allowed-tools: Read, Bash, Edit, Grep, Glob, AskUserQuestion
 ---
