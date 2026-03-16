@@ -1,6 +1,6 @@
 {
   "name": "rhino-os",
-  "version": "8.2.0",
+  "version": "8.2.1",
   "description": "Your product gets measurably better every session. Measurement, predictions, and autonomous building that compounds across sessions.",
   "author": {
     "name": "Jacob Rhinehart",
@@ -29,6 +29,5 @@
     "./agents/reviewer.md",
     "./agents/evaluator.md",
     "./agents/market-analyst.md"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }

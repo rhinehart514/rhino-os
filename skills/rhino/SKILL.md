@@ -124,14 +124,7 @@ The dashboard has four zones. Each is dense, visual, and earns its space.
   /help             see everything you can do
 ```
 
-**Design principles:**
-- Each zone separated by thin dividers — scannable, not a wall of text
-- Score zone: the big number + dimension averages (value/quality/ux)
-- Thesis zone: one line with evidence dots (✓ ◐ ·)
-- Features zone: bars + weights + sub-scores + deltas. Bottleneck marked with `←` (no text, just the arrow — it's obvious)
-- Signals zone: the numbers that tell you if the system is working (predictions, todos, session ROI, last commit)
-- Opinion: ONE bold sentence. The bottleneck and why.
-- Bottom: exactly 3 commands
+**Design:** Thin dividers between zones. Score = big number + dimensions. Thesis = one line + evidence dots. Features = bars + weights + sub-scores + deltas, bottleneck marked `←`. Signals = system health numbers. Opinion = ONE bold sentence. Bottom = exactly 3 commands.
 
 **Conditional rendering:**
 - No eval-cache → skip sub-scores, show pass rates only
@@ -185,18 +178,13 @@ Delta view. What changed since the last `/rhino` run.
   /rhino            full dashboard
 ```
 
-**Compare design principles:**
-- Only show features that changed. Unchanged features get `—` on one line, not full rows.
-- Regressions marked with `← regression` — impossible to miss.
-- Maturity transitions called out explicitly (building → working).
-- Thesis evidence: show which specific evidence items flipped.
-- Opinion is delta-aware: "Score moved but features didn't" vs "Feature matured, thesis progressing."
+**Compare design:** Only show features that changed (unchanged get `—`). Regressions marked `← regression`. Maturity transitions called out. Thesis evidence: show which items flipped. Opinion is delta-aware.
 
 ---
 
 ## Health (`/rhino health`)
 
-System health audit. Is rhino-os itself working properly?
+System health audit. Is rhino-os itself working?
 
 ### Steps
 1. **Hooks**: Check for hook output artifacts. Glob `.claude/cache/hook-*.json` or similar evidence that hooks fired. Check `settings.json` or `.claude-plugin/plugin.json` for hook definitions vs actual hook scripts existing on disk.
@@ -211,42 +199,15 @@ System health audit. Is rhino-os itself working properly?
   ◆ rhino health  ·  grade: **B**
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ⎯⎯ hooks ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-  8 defined  ·  8 scripts present  ·  ✓ all accounted for
-  session_start    ✓ script exists
-  pre_compact      ✓ script exists
-  post_edit        ✓ script exists
-  post_skill       ✓ script exists
-  post_commit      ✓ script exists
-  pre_commit       ✓ script exists
-  stop             ✓ script exists
-  subagent_stop    ✓ script exists
-
-  ⎯⎯ agents ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-  builder         12 todos produced   ✓ active
-  explorer         4 todos produced   ✓ active
-  measurer         3 todos produced   ✓ active
-  reviewer         0 todos produced   · silent
-  evaluator        2 todos produced   ✓ active
-  market-analyst   0 todos produced   · silent
-
-  ⎯⎯ skills ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-  18 installed  ·  12 with assertions  ·  6 unmeasured
-  unmeasured: clone, calibrate, skill, onboard, research, ship
-
-  ⎯⎯ learning ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-  last prediction: 2026-03-15  (1 day ago)  ✓ recent
-  ungraded: 3  · grading latency: 2.1 days avg
-  learnings: 8 known · 4 uncertain · 3 unknown · 2 dead ends
-  last learning update: 2026-03-14  (2 days ago)
+  hooks        8/8 scripts present  ✓
+  agents       4/6 producing todos  · silent: reviewer, market-analyst
+  skills       12/18 with assertions  · unmeasured: clone, calibrate, skill, onboard, research, ship
+  learning     last prediction 1d ago  ·  3 ungraded  ·  latency 2.1d avg
+               8 known · 4 uncertain · 3 unknown · 2 dead ends
 
   ⎯⎯ recommendations ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ▸ reviewer + market-analyst have produced 0 todos — check agent configs
+  ▸ reviewer + market-analyst silent — check agent configs
   ▸ 6 skills unmeasured — `/assert` to add coverage
   ▸ 3 ungraded predictions — `/retro` to close the loop
 
@@ -256,8 +217,8 @@ System health audit. Is rhino-os itself working properly?
 ```
 
 **Health design principles:**
-- Each subsystem gets its own zone with specific evidence.
-- Silent agents and unmeasured skills are called out by name — no hiding.
+- Compact summary per subsystem — expand details only where problems exist.
+- Silent agents and unmeasured skills called out by name — no hiding.
 - Recommendations are specific and actionable, not generic advice.
 - Letter grade gives an instant read before diving into details.
 
@@ -373,14 +334,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
   /rhino system   hooks, calibration, internals
 ```
 
-**Help design principles:**
-- Each skill gets a name line (bold, one-sentence hook) and a detail line (what makes it special) and a routes line (available sub-commands, dimmed)
-- The hook line should make someone think "I need to try this" — not describe functionality, sell the value
-- Grouped by workflow phase: measure → think → build → track → learn → home → setup
-- Thin dividers between groups with group name
-- Agent section at bottom — brief, contextual ("produce todos as exhaust")
-- No walls of text. If it takes more than 3 lines per skill, it's too much.
-- /rhino itself listed under "home" group with its routes visible
+**Help design:** Name line (hook) + detail line (what's special) + routes line (dimmed). Grouped by phase: measure → think → build → track → learn → home → setup. Sell the value, not the functionality. 3 lines per skill max. /rhino listed under "home" with routes visible.
 
 ---
 

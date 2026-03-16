@@ -54,6 +54,22 @@ pass rate: **84%** (21/25)
 
 ## Remove
 
+With anti-rationalization gate (failing assertion):
+```
+◆ assert remove — score-calibrated
+
+  ⚠ This assertion is **failing**. Failing assertions are the signal,
+    not the problem. Removing it hides the bug — it doesn't fix it.
+
+  id: score-calibrated
+  belief: "score is calibrated against manual review"
+  status: ✗ FAIL
+  feature: scoring  w:5
+
+  [Confirm removal] / [Fix instead: /go scoring]
+```
+
+With clean removal (passing/stale):
 ```
 ◆ assert — removed
 
@@ -96,10 +112,181 @@ After confirm:
 /assert list       see all assertions
 ```
 
+## Health
+
+```
+◆ assert health — 63 assertions
+
+v8.0: **89%** pass rate · health: **B**
+
+▾ flapping (2) — oscillate pass/fail, waste attention
+  ⚠ score-calibrated        scoring    ✓✗✓✗✓✗✓✓✗✓  6 flips/10 runs
+  ⚠ learning-compounds      learning   ✓✓✗✓✗✓✗✓✓✗  5 flips/10 runs
+
+▾ stale (4) — always pass, never challenged
+  · rhino-yml-exists         scoring    23 consecutive passes, unchanged 40 commits
+  · hooks-json-exists        commands   23 consecutive passes, unchanged 35 commits
+
+▾ trivial (1) — condition can't fail
+  · config-has-features      scoring    file_check on core config — upgrade to content_check
+
+▾ redundant (1 cluster)
+  · score-runs + score-exits-zero    both test score.sh execution
+
+▾ orphaned (0)
+  ✓ all assertions map to active features
+
+▾ coverage by weight
+  scoring     w:5  ██████████████░░░░░░  6 assertions
+  commands    w:5  ██████░░░░░░░░░░░░░░  3 assertions
+  learning    w:4  ████████░░░░░░░░░░░░  5 assertions
+  ⚠ deploy   w:4  ░░░░░░░░░░░░░░░░░░░░  0 assertions — needs coverage
+
+/assert flapping           fix unstable assertions
+/assert suggest deploy     auto-suggest for uncovered features
+/assert coverage           dimension-level gap analysis
+```
+
+## Coverage (scoped)
+
+```
+◆ assert coverage — scoring
+
+v8.0: **89%** · scoring w:5 · 6 assertions
+
+  dimension       status  assertions
+  value           ✓       score-honest, value-hypothesis-defined
+  behavior        ·       score-runs (shallow — only tests exit code)
+  structure       ✓       score-sh-exists, score-has-history
+  regression      ✗       no boundary tests
+  edge cases      ✗       no error path assertions
+
+  gap: **regression** + **edge cases** — scoring could break silently
+
+  suggested:
+  ▸ "score.sh exits non-zero on invalid input" — command_check
+  ▸ "score.sh handles missing rhino.yml gracefully" — command_check
+
+/assert scoring: score exits non-zero on bad input   add the first suggestion
+/assert suggest scoring                               more suggestions
+/assert health                                        full health dashboard
+```
+
+## Coverage (all features)
+
+```
+◆ assert coverage — all features
+
+v8.0: **89%** pass rate · 6 features
+
+  feature      w   value  behavior  structure  regression  edge
+  scoring      5   ✓      ·         ✓          ✗           ✗
+  commands     5   ✓      ✓         ✓          ·           ✗
+  learning     4   ·      ·         ✓          ✗           ✗
+  deploy       4   ✗      ✗         ✗          ✗           ✗
+  docs         3   ✓      ·         ✓          ✗           ·
+  todo         3   ✓      ✓         ✓          ·           ·
+
+  critical gaps:
+  ⚠ **deploy** (w:4) — zero coverage across all dimensions
+  ⚠ **scoring** regression — no boundary tests for highest-weight feature
+  ⚠ **learning** value — claims "predictions compound" but no assertion tests this
+
+/assert suggest deploy     auto-suggest for biggest gap
+/assert health             assertion quality dashboard
+/eval                      run assertions to update cache
+```
+
+## Suggest
+
+```
+◆ assert suggest — scoring
+
+v8.0: **89%** · scoring w:5 · 6 existing assertions
+
+  existing coverage: value ✓ · behavior · · structure ✓ · regression ✗ · edge ✗
+
+  ▸ suggestion 1 — regression
+    id: score-rejects-bad-input
+    belief: "score.sh exits non-zero when rhino.yml is malformed"
+    type: command_check
+    why: highest-weight feature has no regression protection
+
+  ▸ suggestion 2 — edge case
+    id: score-handles-no-features
+    belief: "score.sh produces a valid number even with zero features defined"
+    type: command_check
+    why: score is called by CI — must never produce garbage output
+
+  ▸ suggestion 3 — behavior depth
+    id: score-honest-penalty
+    belief: "score.sh penalizes failing assertions, not just missing ones"
+    type: llm_judge
+    why: current behavior assertion only tests exit code, not scoring logic
+
+  [Add 1] [Add 2] [Add 3] [Add all] [Skip]
+
+/assert scoring: score exits non-zero on bad input   quick-add the first
+/assert coverage scoring                              see full coverage map
+/assert health                                        check assertion quality
+```
+
+## Flapping
+
+```
+◆ assert flapping — 3 oscillating assertions
+
+v8.0: **89%** pass rate · 3 flapping out of 63
+
+  ⚠ score-calibrated · scoring · 6 flips/10 runs
+    ✓✗✓✗✓✗✓✓✗✓
+    belief: "score is calibrated against manual review"
+    diagnosis: **threshold boundary** — score hovers at 88-92, pass threshold is 90
+    fix: widen threshold to 85 or split into hard floor + stretch goal
+
+  ⚠ learning-compounds · learning · 5 flips/10 runs
+    ✓✓✗✓✗✓✗✓✓✗
+    belief: "learning system produces compounding improvements"
+    diagnosis: **environment-dependent** — depends on predictions.tsv having recent entries
+    fix: pin to structural check (file has >N entries) instead of recency check
+
+  ⚠ deploy-ready · deploy · 3 flips/10 runs
+    ✓✓✓✓✗✓✗✓✓✗
+    belief: "project is deployable"
+    diagnosis: **implementation churn** — deploy pipeline actively changing
+    fix: defer until deploy stabilizes, or narrow to "build succeeds"
+
+/assert remove score-calibrated    remove the worst offender
+/assert scoring: score > 85        replace with stable version
+/assert health                     full health dashboard
+```
+
+## Anti-rationalization warnings
+
+Inline warnings shown during relevant operations:
+
+```
+⚠ all [N] assertions for **[feature]** are file_check — proves files exist, not that they work
+```
+
+```
+⚠ **[feature]** has [N] assertion(s) at 100% — not enough to catch regressions
+```
+
+```
+⚠ **[feature]** already has [N] assertions at [pct]%. Consider covering **[uncovered]** (w:[W], 0 assertions) instead
+```
+
 ## Formatting rules
 
 - Quick-add: show all fields, weight next to feature
 - List: group by feature, ✓/·/✗ per assertion, weight in header, pass rate at bottom
 - Graduate: show the todo context (how many times it recurred), the proposed assertion, confirmation prompt
-- Flag w:4+ features with 0 assertions
+- Health: sections for each signal type, coverage bars by weight at bottom
+- Coverage: dimension matrix with ✓/·/✗, critical gaps called out, inline suggestions
+- Suggest: 2-3 suggestions with complete fields, dimension label, why-this-gap rationale
+- Flapping: sparkline per assertion, diagnosis category, concrete fix suggestion
+- Remove (failing): anti-rationalization warning before confirmation
+- Flag w:4+ features with 0 assertions in every mode that shows features
 - Bottom: exactly 3 next commands
+- Dense over verbose, bold for emphasis, no preamble, no trailing summaries

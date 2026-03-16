@@ -141,6 +141,98 @@ artifact: ~/.claude/cache/last-retro.yml
 /retro               full retro
 ```
 
+## Health dashboard output (`/retro health`)
+
+```
+◆ retro health — learning system diagnostic
+
+▾ prediction frequency
+  this week: 4 predictions · last week: 2 · avg: 3.2/week
+  trend: **stable**
+  ████████████████░░░░  3.2/wk (target: 3-5)
+
+▾ grading latency
+  avg: **2.5 days** · median: 2 days · worst: 8 days
+  ████████████░░░░░░░░  2.5d (target: <3d)
+  ungraded backlog: 3 predictions (oldest: 2026-03-10)
+
+▾ knowledge model
+  Known: 8 · Uncertain: 4 · Unknown: 6 · Dead: 3 · Stale: 1
+  Known:Unknown ratio: **1.3:1** — healthy (target: 1:1 to 3:1)
+  model updates: 1.2/week (last: 2 days ago)
+
+▾ prediction types
+  score: 5 (33%) · feature: 3 (20%) · approach: 4 (27%) · meta: 1 (7%) · other: 2 (13%)
+  ⚠ no meta predictions in 2 weeks — not predicting about the system itself
+
+▾ warnings
+  · grading backlog: 3 predictions ungraded
+  · model update last 2 days ago — on track
+
+artifact: .claude/cache/retro-health.json
+
+/retro          full retro with grading
+/retro auto     auto-grade the backlog
+/retro dimensions  accuracy by topic
+```
+
+## Dimensions output (`/retro dimensions`)
+
+```
+◆ retro dimensions — accuracy by topic
+
+▾ by feature
+  **scoring**:     40% (2/5)  ████████░░░░░░░░░░░░  too optimistic
+  **commands**:    67% (2/3)  █████████████░░░░░░░░  well-calibrated
+  **learning**:    50% (1/2)  ██████████░░░░░░░░░░░  insufficient data
+  **docs**:        —  (0/0)   ░░░░░░░░░░░░░░░░░░░░  blind spot
+
+▾ by dimension
+  value_score:     67% (3/4.5)  well-calibrated
+  quality_score:   40% (2/5)    **overconfident** — predictions overshoot by ~40%
+  ux_score:        100% (1/1)   insufficient data
+  approach:        50% (2/4)    well-calibrated
+  maturity:        —  (0/0)     blind spot
+
+▾ insights
+  worst: **quality_score** at 40% (5 predictions) — systematically overestimate improvements
+  best: **value_score** at 67% (4 predictions) — good model of value delivery
+  blind spots: **docs**, **ux_score**, **maturity** — zero predictions, unknown accuracy
+
+/retro          full retro with grading
+/retro auto     auto-grade the backlog
+/retro health   learning system health
+```
+
+## Auto-grade output (`/retro auto`)
+
+```
+◆ retro auto — 6 ungraded, attempting auto-grade
+
+▾ mechanical (high confidence)
+  ✓ "raise scoring from 32 to 45" → score-cache: 48 (yes)
+  · "quality_score will improve +10" → eval-delta: +6 (partial)
+
+▾ proposed (needs review)
+  · "speculative branching helps on unfamiliar territory" → 2 sessions used it, winner by +3 avg
+    proposed: **yes** — evidence: session logs show consistent winner margin
+
+  · "adversarial review catches fragility" → 1 catch in 3 sessions
+    proposed: **partial** — evidence: catches are real but infrequent
+
+▾ skipped (no evidence)
+  · "navigation patterns will affect retention" — no nav data, no experiments
+    → remains ungraded. Run `/research navigation` to build evidence.
+
+⚠ anti-rationalization: 0 warnings
+
+applied: 2 mechanical · awaiting: 2 proposed · skipped: 1
+
+/retro          review proposed grades + full retro
+/retro dimensions  see accuracy by topic after grading
+/retro health   check system health
+```
+
 ## Formatting rules
 
 - Header: `◆ retro — [counts]`

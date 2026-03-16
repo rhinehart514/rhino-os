@@ -130,8 +130,8 @@ versions:
     tier: minor
     parent: v8.0
     status: active
-    goal: "Skills that compose Claude Code's native capabilities (Playwright MCP, WebSearch, memory) into intelligence that no script could achieve."
-    summary: "/taste rebuilt as native Claude Code skill — Playwright MCP + Claude Vision + market research + persistent memory + todo generation + self-improvement. /strategy consolidated from /strategist. /openclaw added for chat-optimized output."
+    goal: "Skills that compose Claude Code's native capabilities (Playwright MCP, WebSearch, memory) into intelligence that no script could achieve. Every skill reads state, writes intelligence, and feeds the next."
+    summary: "/taste rebuilt as native Claude Code skill — Playwright MCP + Claude Vision + market research + persistent memory + todo generation + self-improvement. /strategy consolidated from /strategist. /openclaw added for chat-optimized output. 8 thin skills thickened: /assert, /retro, /research, /rhino, /ship, /skill, /calibrate, /clone — all now have persistent state artifacts, new routes, anti-rationalization checks, graceful degradation, and cross-session memory."
     evidence_needed:
       - id: taste-native
         question: "Does /taste produce better evaluations than the old taste.mjs subprocess?"
@@ -150,6 +150,28 @@ versions:
       - id: openclaw-works
         question: "Does /openclaw produce chat-sized output from rhino-os state?"
         status: todo
+      - id: skill-thickness
+        question: "Do all 8 upgraded skills read/write persistent state artifacts?"
+        status: proven
+        evidence: "All 8 skills now declare state artifacts tables and read/write JSON cache files: assertion-health.json, retro-health.json, research-memory.json, rhino-snapshots.json, deploy-history.json, skill-health.json, calibration-history.json, clone-history.json."
+      - id: cross-skill-flow
+        question: "Does output from one skill feed usefully into another?"
+        status: partial
+        evidence: "Artifacts designed to cross-feed: research-memory → /plan, deploy-history → /rhino, assertion-health → /eval coverage, retro-health → /rhino health. Untested as a full loop."
+      - id: anti-rationalization
+        question: "Do the anti-rationalization checks actually catch self-delusion?"
+        status: todo
+      - id: skill-todo-exhaust
+        question: "Do all 8 thickened skills produce actionable todos?"
+        status: partial
+        evidence: "All 8 skills have todo exhaust sections. Untested in practice."
+
+  v8.2.1:
+    tier: patch
+    parent: v8.2
+    status: proven
+    proven: 2026-03-16
+    summary: "Fixed duplicate hooks loading in plugin mode — hooks/hooks.json is auto-discovered by Claude Code plugin system, manifest.hooks reference was redundant. Bumped plugin.json to 8.2.1. Full referential integrity audit: all 6 agents, 22 skills, 8 hooks, 18 commands, 13 bin scripts verified present."
 
   v9.0:
     thesis: "Plugin marketplace distribution — someone finds rhino-os, installs it, gets value"

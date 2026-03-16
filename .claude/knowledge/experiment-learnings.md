@@ -51,6 +51,10 @@
 - **Auto-graded** (2026-03-14): Lens system closer to skills registry than predicted. Hardcoded paths in score.sh and eval.sh are ONLY blockers to multi-lens. Multi-lens composition (two lenses scoring?) is the real design question. Distribution could be git repos.2026-03-14	cofounder	Marking test-external-project done + creating project-local knowledge will raise learning from 48 to 55+	Learning eval judges prediction/knowledge model presence. No local files exist.	untested
 - **Auto-graded** (2026-03-15): External project scoring validated. Init→score path works for strangers. LLM eval variance remains the dominant noise source — mechanical assertions are 28/28.
 
+
+- **Auto-graded** (2026-03-13): Score prediction wrong (100 vs 95). YAML parser is different-fragile, not simpler — sed/grep single-line extraction breaks on multi-line scalars and complex quoting. The determinism claim was aspirational, not tested.
+- **Auto-graded** (2026-03-14): Prediction was about an action that was never taken. The learning eval gap (infrastructure assertions, no value assertions) remains. Project-local knowledge is still a valid idea but was deprioritized.
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?
