@@ -1,7 +1,7 @@
 ---
 name: rhino
 description: "Project status dashboard + rhino-os system status. The home screen. Shows where your product is, what you can do, and the one thing that matters right now."
-argument-hint: "[help|system]"
+argument-hint: "[help|system|compare|health]"
 allowed-tools: Read, Bash, Grep, Glob
 ---
 
@@ -9,10 +9,12 @@ allowed-tools: Read, Bash, Grep, Glob
 
 The home screen. This is what the founder sees when they want to know where they are and what to do next. It should feel like opening a well-designed app — everything you need, nothing you don't, beautiful enough to screenshot.
 
-**Three views:**
+**Five views:**
 - `/rhino` — the full dashboard (product + system + opinion)
 - `/rhino help` — what can I do? Every skill with just enough to be excited.
 - `/rhino system` — internals for power users
+- `/rhino compare` — delta against last run. What changed since you last looked.
+- `/rhino health` — system health audit. Is rhino-os itself working properly?
 
 ## Steps (run in parallel)
 
@@ -36,6 +38,42 @@ The home screen. This is what the founder sees when they want to know where they
 - Version completion % (evidence + features + todos for current thesis)
 - Bottleneck (lowest maturity × highest weight)
 - Dimension health (avg value/quality/ux across features)
+
+## State Artifacts
+
+| Artifact | Path | Read/Write | Purpose |
+|----------|------|------------|---------|
+| rhino-snapshots | `.claude/cache/rhino-snapshots.json` | R+W | Dashboard history |
+| eval-cache | `.claude/cache/eval-cache.json` | R | Feature sub-scores |
+| score-cache | `.claude/cache/score-cache.json` | R | Current score |
+| rhino.yml | `config/rhino.yml` | R | Features, stage, mode |
+| roadmap.yml | `.claude/plans/roadmap.yml` | R | Thesis, evidence |
+| predictions.tsv | `.claude/knowledge/predictions.tsv` | R | Accuracy |
+| todos.yml | `.claude/plans/todos.yml` | R | Backlog health |
+| sessions | `.claude/sessions/*.yml` | R | Session ROI |
+| beliefs.yml | `lens/product/eval/beliefs.yml` | R | Assertion coverage |
+| skill-health | `.claude/cache/skill-health.json` | R | Skill measurement status |
+
+## Dashboard Snapshot Protocol
+
+After every `/rhino` run (default view only), save current state to `.claude/cache/rhino-snapshots.json`:
+```json
+{
+  "snapshots": [
+    {
+      "date": "2026-03-16T14:30:00",
+      "score": 95,
+      "product_completion": 64,
+      "version_completion": 43,
+      "feature_scores": {"scoring": 58, "commands": 70, "learning": 48},
+      "prediction_accuracy": 63,
+      "todo_counts": {"active": 2, "backlog": 5, "stale": 1},
+      "bottleneck": "learning"
+    }
+  ]
+}
+```
+Keep last 20 snapshots. Trim oldest on append.
 
 ---
 
@@ -102,6 +140,127 @@ The dashboard has four zones. Each is dense, visual, and earns its space.
 - No predictions → show "no predictions yet — /plan to start"
 - Score zone always shows — it's the anchor
 
+After rendering the dashboard, execute the **Dashboard Snapshot Protocol** — save current computed state to `.claude/cache/rhino-snapshots.json`.
+
+---
+
+## Compare (`/rhino compare`)
+
+Delta view. What changed since the last `/rhino` run.
+
+### Steps
+1. Read `.claude/cache/rhino-snapshots.json`
+2. If no snapshots exist or file missing → output "First snapshot — comparison available next run." and stop.
+3. Take the most recent snapshot as `prev`. Compute current state (same as default dashboard steps 1-3).
+4. Diff every dimension.
+
+### Template
+```
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  ◆ rhino compare  ·  vs [prev.date]
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  score              95 → 97   +2
+  product completion 64% → 68% +4
+  version completion 43% → 48% +5
+
+  ⎯⎯ features ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  scoring    58 → 62  +4   matured: building → working
+  commands   70 → 70  —
+  learning   48 → 45  -3   ← regression
+
+  ⎯⎯ signals ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  predictions   63% → 65%  +2
+  thesis        2/4 → 3/4  +1  (◐ reach-plan → ✓)
+  todos         +3 new  ·  2 closed  ·  1 decayed
+  bottleneck    learning (unchanged)
+
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ◆ [opinion based on deltas — see pattern detection]
+
+  /go [feature]     act on what moved
+  /rhino            full dashboard
+```
+
+**Compare design principles:**
+- Only show features that changed. Unchanged features get `—` on one line, not full rows.
+- Regressions marked with `← regression` — impossible to miss.
+- Maturity transitions called out explicitly (building → working).
+- Thesis evidence: show which specific evidence items flipped.
+- Opinion is delta-aware: "Score moved but features didn't" vs "Feature matured, thesis progressing."
+
+---
+
+## Health (`/rhino health`)
+
+System health audit. Is rhino-os itself working properly?
+
+### Steps
+1. **Hooks**: Check for hook output artifacts. Glob `.claude/cache/hook-*.json` or similar evidence that hooks fired. Check `settings.json` or `.claude-plugin/plugin.json` for hook definitions vs actual hook scripts existing on disk.
+2. **Agents**: Read `.claude/plans/todos.yml` — count items with `source:` containing agent names (builder, explorer, measurer, reviewer, evaluator, market-analyst). Agents that never produce todos may not be firing.
+3. **Skills**: Glob `skills/*/SKILL.md` to list skills. Cross-reference with `lens/product/eval/beliefs.yml` — which skills have assertions covering them? Which have feature entries in `config/rhino.yml`?
+4. **Learning loop**: Read `.claude/knowledge/predictions.tsv` — when was the last prediction? How many ungraded? Read `.claude/knowledge/experiment-learnings.md` — when was it last updated? Count known/uncertain/unknown/dead-end entries.
+5. **Grade**: Compute a letter grade (A-F) based on: hooks defined and present (25%), agents producing output (25%), skills measured (25%), learning loop active (25%).
+
+### Template
+```
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  ◆ rhino health  ·  grade: **B**
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ⎯⎯ hooks ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  8 defined  ·  8 scripts present  ·  ✓ all accounted for
+  session_start    ✓ script exists
+  pre_compact      ✓ script exists
+  post_edit        ✓ script exists
+  post_skill       ✓ script exists
+  post_commit      ✓ script exists
+  pre_commit       ✓ script exists
+  stop             ✓ script exists
+  subagent_stop    ✓ script exists
+
+  ⎯⎯ agents ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  builder         12 todos produced   ✓ active
+  explorer         4 todos produced   ✓ active
+  measurer         3 todos produced   ✓ active
+  reviewer         0 todos produced   · silent
+  evaluator        2 todos produced   ✓ active
+  market-analyst   0 todos produced   · silent
+
+  ⎯⎯ skills ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  18 installed  ·  12 with assertions  ·  6 unmeasured
+  unmeasured: clone, calibrate, skill, onboard, research, ship
+
+  ⎯⎯ learning ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  last prediction: 2026-03-15  (1 day ago)  ✓ recent
+  ungraded: 3  · grading latency: 2.1 days avg
+  learnings: 8 known · 4 uncertain · 3 unknown · 2 dead ends
+  last learning update: 2026-03-14  (2 days ago)
+
+  ⎯⎯ recommendations ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  ▸ reviewer + market-analyst have produced 0 todos — check agent configs
+  ▸ 6 skills unmeasured — `/assert` to add coverage
+  ▸ 3 ungraded predictions — `/retro` to close the loop
+
+  /retro            grade predictions
+  /assert           add missing coverage
+  /rhino            back to dashboard
+```
+
+**Health design principles:**
+- Each subsystem gets its own zone with specific evidence.
+- Silent agents and unmeasured skills are called out by name — no hiding.
+- Recommendations are specific and actionable, not generic advice.
+- Letter grade gives an instant read before diving into details.
+
 ---
 
 ## Help (`/rhino help`)
@@ -110,7 +269,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
 ```
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  ◆ rhino-os  ·  18 skills  ·  6 agents  ·  v8.0.3
+  ◆ rhino-os  ·  22 skills  ·  6 agents  ·  v8.2.0
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   Just type what you want. rhino-os routes your intent.
@@ -141,7 +300,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   /research                What do we need to know before deciding?
                            Multi-source. Spawns explorer + market-analyst agents.
-                           feature · docs · site · market · competitor
+                           feature · docs · site · market · competitor · history · gaps
 
   ⎯⎯ build ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
@@ -149,7 +308,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
                            Reads 14 state sources. Sub-score aware. Thesis-informed.
                            feature · brainstorm · critique
 
-  /go                      Autonomous build loop ⚡ BETA
+  /go                      Autonomous build loop
                            Speculative branching. Adversarial review. Prediction grading.
                            feature · --safe · --speculate N
 
@@ -169,7 +328,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   /assert                  Make a belief permanent
                            Todo graduation. Chat-native assertion management.
-                           feature: belief · list · check · graduate
+                           feature: belief · list · check · graduate · health · coverage · suggest · flapping
 
   /todo                    Living backlog — never stale
                            Decay. Graduation. Smart promote. Agent-fed.
@@ -187,7 +346,13 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   /retro                   Close the learning loop
                            Grade predictions. Prune stale knowledge. Audit beta features.
-                           session · accuracy · stale
+                           session · accuracy · stale · health · dimensions · auto
+
+  ⎯⎯ home ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  /rhino                   Where am I? What matters?
+                           Product state, system health, one opinion.
+                           help · system · compare · health
 
   ⎯⎯ setup ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
@@ -211,10 +376,11 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 **Help design principles:**
 - Each skill gets a name line (bold, one-sentence hook) and a detail line (what makes it special) and a routes line (available sub-commands, dimmed)
 - The hook line should make someone think "I need to try this" — not describe functionality, sell the value
-- Grouped by workflow phase: measure → think → build → track → learn → setup
+- Grouped by workflow phase: measure → think → build → track → learn → home → setup
 - Thin dividers between groups with group name
 - Agent section at bottom — brief, contextual ("produce todos as exhaust")
 - No walls of text. If it takes more than 3 lines per skill, it's too much.
+- /rhino itself listed under "home" group with its routes visible
 
 ---
 
@@ -277,7 +443,7 @@ For power users who want to see the internals.
 
 After the dashboard, ONE bold recommendation. Check in order:
 
-1. Version completion ≥ 80% → "**v[X.Y] is ready.** `/roadmap bump` to graduate."
+1. Version completion >= 80% → "**v[X.Y] is ready.** `/roadmap bump` to graduate."
 2. Bottleneck is `planned` → "**Define [feature].** `/feature new [name]`"
 3. Bottleneck is `building` → "**[feature]** needs work. `/go [feature]`"
 4. Bottleneck is `working` + assertions failing → "**Fix [feature].** `/go [feature]`"
@@ -288,6 +454,33 @@ After the dashboard, ONE bold recommendation. Check in order:
 9. No predictions in 7+ days → "**Knowledge is stale.** `/research`"
 10. Everything green → "**Raise the bar.** `/ideate wild`"
 
+### Pattern Detection
+
+After computing the opinion, check for meta-patterns across snapshots (requires 3+ entries in `rhino-snapshots.json`):
+
+- **Bottleneck stagnation**: same feature has been bottleneck for 3+ consecutive snapshots → "**[feature] has been the bottleneck for [N] sessions.** Current approach may be exhausted. `/strategy honest`"
+- **Score-product divergence**: score went up but product completion didn't move → "**Score improved but no feature matured** — are you optimizing the thermometer? `/eval coverage`"
+- **Thesis stall**: thesis evidence hasn't progressed in 3+ snapshots → "**Thesis is stalling.** Evidence hasn't moved. Either `/research` the blockers or `/roadmap bump` to a new thesis."
+- **Learning decay**: prediction accuracy dropped below 40% → "**Model is degrading.** `/retro` before building more."
+- **All working, nothing proven**: all features at "working" but thesis evidence still unproven → "**Features work but thesis isn't proven.** Ship or pivot? `/strategy honest`"
+
+When a meta-pattern fires, it REPLACES the standard opinion from the decision tree above. Meta-patterns are higher-signal — they represent systemic issues, not just the current bottleneck.
+
+---
+
+## Anti-rationalization checks
+
+The dashboard is the most-seen surface. It must be honest:
+
+- **Score inflation**: if score jumps >15 points between snapshots without a feature maturing, flag: "Warning: Score jumped **+[N]** without feature improvement — investigate"
+- **Perpetual building**: if >3 features have been at "building" for 3+ snapshots, flag: "Warning: Feature sprawl — too many things in flight. `/strategy focus`"
+- **Prediction avoidance**: if no predictions logged in 7+ days, the learning loop is dead — make this a prominent warning in the signals zone, not a minor signal line. Use: "**No predictions in [N] days — learning loop is dead.** `/plan` to restart."
+- **Todo graveyard**: if >10 backlog items and <20% completion rate, flag: "Warning: Backlog is a graveyard. `/todo decay`"
+
+These checks run on every default dashboard render. Warnings appear between the signals zone and the opinion, in their own `warnings` zone (only rendered when at least one warning fires). Each warning is one line — dense, specific, actionable.
+
+---
+
 ## What you never do
 - Turn this into a long report — density is the design
 - Recommend more than one next action
@@ -296,12 +489,16 @@ After the dashboard, ONE bold recommendation. Check in order:
 - Make up numbers
 - Use color descriptions in the template — the terminal handles ANSI, you render the structure
 
-## If something breaks
-- `rhino score .` fails: show "score: --"
-- No eval-cache: skip sub-scores
-- No roadmap: skip thesis zone
-- No predictions: "no predictions yet — /plan to start"
-- No features: "no features — /onboard to start"
-- No sessions: skip session ROI line
+## Degraded modes
+- `rhino score .` fails → show "score: --"
+- No eval-cache → skip sub-scores, show pass rates only
+- No roadmap → skip thesis zone
+- No predictions → "no predictions yet — /plan to start"
+- No features → "no features — /onboard to start"
+- No sessions → skip session ROI line
+- No rhino-snapshots.json → create empty file, note "First snapshot — comparison available next run" (for compare view, skip pattern detection and anti-rationalization snapshot checks)
+- No eval-cache but assertions exist → run `rhino eval . --score` inline to generate
+- No skill-health.json → generate inline by globbing `skills/*/SKILL.md` and checking `lens/product/eval/beliefs.yml` for matching feature entries
+- No beliefs.yml → skip assertion coverage in health view
 
 $ARGUMENTS

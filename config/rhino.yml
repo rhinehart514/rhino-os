@@ -152,11 +152,13 @@ features:
     maturity: working
 
   strategist:
-    delivers: "full-stack product strategist — market intelligence, bet scoring, positioning, pricing, GTM, competitive response, honest diagnosis. One unified skill replacing /product + /strategy + /research."
-    for: "solo technical founder who needs a strategic advisor, not just a code tool"
-    code: ["skills/strategist/SKILL.md", ".claude/cache/market-context.json", ".claude/cache/market-context-base.json"]
-    commands: ["/strategist", "/strategist bet", "/strategist market", "/strategist position", "/strategist price", "/strategist gtm", "/strategist compete", "/strategist honest"]
-    status: active
+    delivers: "full-stack product strategist — merged into /strategy"
+    for: "solo technical founder who needs a strategic advisor"
+    code: ["skills/strategy/SKILL.md"]
+    commands: ["/strategy"]
+    status: killed
+    killed_reason: "merged into /strategy. One entry point, all sub-commands preserved."
+    killed_date: 2026-03-16
     weight: 5
     maturity: planned
     depends_on: [commands]
