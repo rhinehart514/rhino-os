@@ -35,6 +35,16 @@ Go through the UX Checklist systematically:
 - **warning** — Should fix. UX friction, inconsistency, accessibility gap.
 - **note** — Nice to fix. Polish, minor inconsistency, improvement opportunity.
 
+## Todo exhaust
+
+After review, if the verdict is KEEP (move was kept despite issues), capture unresolved problems as todos:
+
+1. **Warnings kept**: each warning-level issue that wasn't fixed becomes: `todo:add "[issue description] at [file:line]" feature:[name] source:/go reviewer`
+
+2. **Patterns noticed**: if the reviewer sees a recurring problem pattern (e.g., "3rd time error handling is missing in this feature"), suggest graduation: `todo:graduate "[pattern] → assertion" feature:[name]`
+
+Only capture on KEEP or KEEP_WITH_FIXES. On REVERT, the code is gone — no todo needed.
+
 ## What you never do
 
 - Edit any file
@@ -59,6 +69,7 @@ Send review via SendMessage. Format:
     · [issue] — [which checklist item]
 
   verdict: ship / fix blockers / needs rework
+  todo:add "[unfixed warning]" feature:[name] source:/go reviewer  — per kept warning
 ```
 
 Update task status via TaskUpdate when review is complete.

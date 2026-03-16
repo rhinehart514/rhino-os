@@ -529,7 +529,7 @@ async function screenshotRoutes(browser, url, routeConfig, authConfig) {
 
 // --- Load intelligence layers ---
 function loadContext() {
-  const ctx = { landscape: null, taste: null, product: null, dimensionKnowledge: {}, founderTaste: null };
+  const ctx = { landscape: null, taste: null, product: null, dimensionKnowledge: {}, founderTaste: null, designSystem: null };
 
   // Landscape positions (from scout)
   const landscapePath = join(process.env.HOME, ".claude", "knowledge", "landscape.json");
@@ -590,6 +590,19 @@ function loadContext() {
         ctx.founderTaste = prefs;
       }
     } catch {}
+  }
+
+  // Design system document (project-specific visual rules)
+  for (const p of [
+    join(projectDir, ".claude", "design-system.md"),
+    join(projectDir, "design-system.md"),
+  ]) {
+    if (existsSync(p)) {
+      try {
+        ctx.designSystem = readFileSync(p, "utf-8");
+      } catch {}
+      break;
+    }
   }
 
   // Project CLAUDE.md (product context)
@@ -657,10 +670,21 @@ ${ctx.founderTaste}
 `;
   }
 
+  let designSystemSection = "";
+  if (ctx.designSystem) {
+    designSystemSection = `\n## Design System (THIS product's visual rules — use for slop detection)
+The following design system has been documented for this specific product. When evaluating DISTINCTIVENESS and POLISH, check whether the screenshots follow these rules. Deviations from the design system are BUGS, not style choices. Components that look like framework defaults instead of matching the design system below should be flagged.
+
+${ctx.designSystem}
+
+**Slop detection upgrade**: Instead of asking "could AI have generated this?", ask "does this match the design system above?" Components that match = intentional. Components that don't = slop or regression.
+`;
+  }
+
   return `You are a first-time user who just landed on this product. You have never seen it before. You don't know what it does. You don't care about the code, the architecture, or the design system. You care about ONE thing: does this thing give you value fast enough that you'd come back?
 
 You have the attention span of someone with 40 browser tabs open. You will leave in 5 seconds if you don't understand what this is and what to do next.
-${productSection}${marketSection}${tasteSection}${knowledgeSection}${founderSection}
+${productSection}${designSystemSection}${marketSection}${tasteSection}${knowledgeSection}${founderSection}
 You are looking at screenshots of this application. Score each dimension 1-5 based on your EXPERIENCE as a real user seeing this cold — calibrated against products you actually use daily (Instagram, Discord, Notion, Linear, Arc). Those are the bar. Not "good for a student project." Not "good for an early product."
 
 ## STRUCTURAL AUDIT — Do This FIRST (before scoring anything else)

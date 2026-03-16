@@ -10,8 +10,11 @@
   "repository": "https://github.com/rhinehart514/rhino-os",
   "license": "MIT",
   "keywords": ["product", "measurement", "learning", "eval", "autonomous", "scoring", "predictions", "strategy"],
-  "commands": "./commands/",
   "skills": "./skills/",
-  "agents": "./agents/",
-  "hooks": "./hooks/hooks.json"
+  "agents": [
+    "./agents/builder.md",
+    "./agents/explorer.md",
+    "./agents/measurer.md",
+    "./agents/reviewer.md"
+  ]
 }

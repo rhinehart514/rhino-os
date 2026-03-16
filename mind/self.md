@@ -120,6 +120,18 @@ Two install modes, same capabilities:
 - `~/.claude/knowledge/` — predictions.tsv, experiment-learnings.md (persistent learning)
 - `~/.claude/cache/` — research artifacts, score cache (cross-command communication)
 
+## Untapped Claude Code Capabilities
+
+rhino-os uses a fraction of what Claude Code offers. Full reference: `skills/CAPABILITIES.md`.
+
+**Skills:** `context: fork` (isolated subagent context — expensive skills like /eval taste shouldn't pollute main context), `allowed-tools` (readonly skills shouldn't Write), `model` override (haiku for /todo, opus for /product), cross-tool portability (AgentSkills.io — skills work in Cursor/Gemini CLI too).
+
+**Agents:** `memory: user` (agents that learn patterns across sessions natively), `isolation: worktree` (/go should build in a worktree, merge on keep, discard on revert), agent teams (shared tasks + inter-agent messaging — Anthropic built a 100K-line compiler with 16 coordinated agents).
+
+**Hooks:** Using 8 of 22 available events. `UserPromptSubmit` could auto-route intent to skills. `TaskCompleted` could enforce quality gates in /go loops. `PreToolUse` can modify tool inputs. `SessionEnd` could auto-log sessions.
+
+**Composites:** The `/batch` pattern (ships with Claude Code) decomposes work into N units, spawns agents in isolated worktrees, each opens a PR. This is the architecture for composite skills — parallel orchestration, not sequential chaining.
+
 ## Meta-Learning
 - The predict→measure→update loop works when predictions are graded. It breaks when they're not.
 - 63% accuracy is well-calibrated. Predictions are informative, not performative.

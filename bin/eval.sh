@@ -20,6 +20,7 @@ JSON_OUTPUT=false
 FRESH_MODE=false
 NO_GENERATIVE=false
 NO_LLM=false
+EVAL_SAMPLES=3
 FEATURE_FILTER=""
 POSITIONAL=""
 for arg in "$@"; do
@@ -30,11 +31,15 @@ for arg in "$@"; do
         --fresh) FRESH_MODE=true ;;
         --no-generative) NO_GENERATIVE=true ;;
         --no-llm) NO_LLM=true; NO_GENERATIVE=true ;;
+        --samples=*) EVAL_SAMPLES="${arg#--samples=}" ;;
+        --samples) ;; # next arg is the count, handled below
         --feature=*) FEATURE_FILTER="${arg#--feature=}" ;;
         --feature) ;; # next arg is the feature name, handled below
         *)
             if [[ "${prev_arg:-}" == "--feature" ]]; then
                 FEATURE_FILTER="$arg"
+            elif [[ "${prev_arg:-}" == "--samples" ]]; then
+                EVAL_SAMPLES="$arg"
             else
                 POSITIONAL="$arg"
             fi
@@ -517,8 +522,10 @@ parse_features() {
 }
 
 # Gather code content for a feature's code paths
+# Smart reading: small files fully, large files with targeted extraction
 gather_code_context() {
     local code_paths="$1"
+    local feat_name="${2:-}"
     local context=""
     local OLD_IFS="$IFS"
     IFS=','
@@ -527,14 +534,69 @@ gather_code_context() {
         # Expand ~ to $HOME
         local expanded="${path/#\~/$HOME}"
         if [[ -f "$expanded" ]]; then
-            context+="=== $path ===
-$(head -500 "$expanded" 2>/dev/null)
+            local line_count
+            line_count=$(wc -l < "$expanded" 2>/dev/null | tr -d ' ')
+            if [[ "$line_count" -le 500 ]]; then
+                # Small file: read entirely
+                context+="=== $path (${line_count} lines) ===
+$(cat "$expanded" 2>/dev/null)
 
 "
+            elif [[ "$line_count" -le 2000 ]]; then
+                # Medium file: head + tail + feature-relevant functions
+                context+="=== $path (${line_count} lines, smart extract) ===
+--- first 200 lines ---
+$(head -200 "$expanded" 2>/dev/null)
+--- last 100 lines ---
+$(tail -100 "$expanded" 2>/dev/null)
+"
+                # Extract functions matching feature name if provided
+                if [[ -n "$feat_name" ]]; then
+                    local feat_funcs
+                    feat_funcs=$(grep -n -i "$feat_name" "$expanded" 2>/dev/null | head -5)
+                    if [[ -n "$feat_funcs" ]]; then
+                        context+="--- lines matching '$feat_name' ---
+${feat_funcs}
+"
+                    fi
+                fi
+                context+="
+"
+            else
+                # Large file: function index + most relevant function bodies
+                context+="=== $path (${line_count} lines, function index) ===
+--- function index ---
+$(grep -n -E 'function |^[a-z_]+\(\)|^[a-z_]+ *\(\) *\{|^(export )?(const|let|var) [a-z_]+ *= *(function|\()' "$expanded" 2>/dev/null | head -30)
+--- first 100 lines ---
+$(head -100 "$expanded" 2>/dev/null)
+"
+                # Extract the 3 most relevant functions based on feature name
+                if [[ -n "$feat_name" ]]; then
+                    local match_lines
+                    match_lines=$(grep -n -i "$feat_name" "$expanded" 2>/dev/null | head -3 | cut -d: -f1)
+                    for ml in $match_lines; do
+                        local start=$((ml - 2))
+                        [[ "$start" -lt 1 ]] && start=1
+                        local end=$((ml + 30))
+                        context+="--- around line $ml ---
+$(sed -n "${start},${end}p" "$expanded" 2>/dev/null)
+"
+                    done
+                fi
+                context+="
+"
+            fi
         elif [[ -d "$expanded" ]]; then
-            context+=$(find "$expanded" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.mjs" -o -name "*.yml" -o -name "*.md" \) ! -path "*/node_modules/*" 2>/dev/null | head -8 | while read -r f; do
-                echo "=== $f ==="
-                head -200 "$f" 2>/dev/null
+            context+=$(find "$expanded" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.mjs" -o -name "*.yml" -o -name "*.md" \) ! -path "*/node_modules/*" 2>/dev/null | head -12 | while read -r f; do
+                local fc
+                fc=$(wc -l < "$f" 2>/dev/null | tr -d ' ')
+                echo "=== $f (${fc} lines) ==="
+                if [[ "$fc" -le 500 ]]; then
+                    cat "$f" 2>/dev/null
+                else
+                    head -200 "$f" 2>/dev/null
+                    echo "... (${fc} lines total, truncated)"
+                fi
                 echo ""
             done)
             context+="
@@ -573,13 +635,116 @@ check_eval_cache() {
     echo ""
 }
 
+# Generate a per-feature rubric via haiku (SWE-bench for features)
+# Cached in .claude/cache/rubrics/<feature>.json with 24h TTL
+generate_feature_rubric() {
+    local feat_name="$1"
+    local delivers="$2"
+    local for_whom="$3"
+    local code_context="$4"
+
+    local rubric_dir=".claude/cache/rubrics"
+    local rubric_file="${rubric_dir}/${feat_name}.json"
+
+    # Check cache (24h TTL)
+    if [[ -f "$rubric_file" && "$FRESH_MODE" != "true" ]]; then
+        local now_ts rubric_mtime rubric_age
+        now_ts=$(date +%s)
+        rubric_mtime=$(stat -f %m "$rubric_file" 2>/dev/null || stat -c %Y "$rubric_file" 2>/dev/null || echo 0)
+        rubric_age=$(( now_ts - rubric_mtime ))
+        if [[ "$rubric_age" -lt 86400 ]]; then
+            return  # Fresh enough
+        fi
+    fi
+
+    mkdir -p "$rubric_dir"
+
+    local rubric_prompt="You are generating a specific evaluation rubric for a software feature. This rubric will be used by another LLM to score the feature accurately.
+
+Feature: \"${feat_name}\"
+Claim: \"${delivers}\"
+Target user: \"${for_whom}\"
+
+Code sample (first 2000 chars):
+$(echo "$code_context" | head -c 2000)
+
+Generate a rubric with 4 axes. For EACH axis, describe:
+1. What 80/100 looks like for THIS specific feature (not generic)
+2. What 40/100 looks like for THIS specific feature
+3. 2-3 specific things to check (file patterns, function names, error paths)
+
+Axes:
+- SPEC_ALIGNMENT: Does code match the claim? What specific promises must be met?
+- INTEGRITY: What error paths exist in this code? What edge cases matter?
+- UX: What does good output look like for this specific feature?
+- ANTI_SLOP: What would generic AI-generated code look like vs genuine implementation?
+
+Output ONLY a JSON object — no markdown fences:
+{\"spec_alignment\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]},\"integrity\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]},\"ux\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]},\"anti_slop\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]}}"
+
+    local api_key="${ANTHROPIC_API_KEY:-}"
+    local rubric_result=""
+
+    if [[ -z "$api_key" ]]; then
+        local tmp_file
+        tmp_file=$(mktemp)
+        echo "$rubric_prompt" > "$tmp_file"
+        rubric_result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || rubric_result=""
+        rm -f "$tmp_file"
+    else
+        local payload
+        payload=$(jq -n \
+            --arg prompt "$rubric_prompt" \
+            '{model:"claude-haiku-4-5-20251001",max_tokens:800,temperature:0,messages:[{role:"user",content:$prompt}]}')
+        local response
+        response=$(curl -s "https://api.anthropic.com/v1/messages" \
+            -H "x-api-key: $api_key" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$payload" 2>/dev/null)
+        rubric_result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+    fi
+
+    # Parse and cache the rubric
+    if [[ -n "$rubric_result" ]]; then
+        local cleaned
+        cleaned=$(echo "$rubric_result" | sed -E '/^```[a-zA-Z]*$/d' | sed -e '/^[[:space:]]*$/d')
+        # Extract JSON
+        local rubric_json
+        rubric_json=$(echo "$cleaned" | perl -0777 -ne 'if (/(\{(?:[^{}]|(?:\{(?:[^{}]|\{[^{}]*\})*\}))*\})/s) { print $1 }' 2>/dev/null)
+        if [[ -n "$rubric_json" ]] && echo "$rubric_json" | jq -c . &>/dev/null 2>&1; then
+            echo "$rubric_json" | jq -c . > "$rubric_file" 2>/dev/null || true
+        fi
+    fi
+}
+
 # Full product quality audit — evaluates whether a feature is genuinely good
-# Returns JSON: {"score":62,"verdict":"PARTIAL","gaps":[...],"strengths":[...],"evidence":"..."}
+# Returns JSON: {"value_score":N,"quality_score":N,"ux_score":N,"score":N,"verdict":"...","gaps":[...],"strengths":[...],"evidence":"..."}
 run_logic_research() {
     local feat_name="$1"
     local delivers="$2"
     local for_whom="$3"
     local code_context="$4"
+
+    # Check for per-feature rubric
+    local rubric_file=".claude/cache/rubrics/${feat_name}.json"
+    local rubric_section=""
+    if [[ -f "$rubric_file" ]]; then
+        local rubric_age rubric_mtime now_ts
+        now_ts=$(date +%s)
+        rubric_mtime=$(stat -f %m "$rubric_file" 2>/dev/null || stat -c %Y "$rubric_file" 2>/dev/null || echo 0)
+        rubric_age=$(( now_ts - rubric_mtime ))
+        if [[ "$rubric_age" -lt 86400 ]]; then
+            local rubric_content
+            rubric_content=$(cat "$rubric_file" 2>/dev/null)
+            if [[ -n "$rubric_content" ]]; then
+                rubric_section="
+FEATURE-SPECIFIC RUBRIC (generated from code inspection — use this instead of generic anchors):
+${rubric_content}
+"
+            fi
+        fi
+    fi
 
     local prompt="You are a product quality auditor. Your job is to find real problems. You evaluate whether this feature is genuinely good — not whether files exist or code compiles. Output ONLY a single JSON object — no markdown fences, no commentary before or after.
 
@@ -592,49 +757,49 @@ ${code_context}
 
 AUDIT PROTOCOL:
 
-1. VALUE DELIVERY (40% of score)
+1. VALUE DELIVERY (value_score, 0-100)
    - Does this code actually deliver what the claim promises?
    - Would the target user get real value from this?
    - Is there a complete path from 'user wants X' to 'user gets X'?
    - For each promise in the claim: cite file:line that delivers it, or mark MISSING.
 
-2. QUALITY & ROBUSTNESS (30% of score)
+2. QUALITY & ROBUSTNESS (quality_score, 0-100)
    - Error handling: what happens when things go wrong? Trace every external call (file I/O, API, subprocess, shell command). List caught vs unhandled.
    - Edge cases: empty input, missing files, malformed data, concurrent access, first-run vs nth-run.
    - Silent failures: find || true, 2>/dev/null without fallback, empty catch blocks, swallowed errors.
    - Code contradictions: code that contradicts its own comments, docs, or other code paths.
 
-3. USER EXPERIENCE (30% of score)
+3. USER EXPERIENCE (ux_score, 0-100)
    - Output quality: is the output clear, well-formatted, actionable?
    - Feedback: does the user know what happened and what to do next?
    - Error messages: helpful or cryptic? Does a failure tell the user how to fix it?
    - Progressive disclosure: right level of detail for the target user?
 
-SCORING RUBRIC (0-100, use these anchors exactly):
-- 80-100: Feature fully delivers on its claim. Code matches description end-to-end. Error paths handled. UX is clear. You would ship this unchanged. REQUIRES: zero critical gaps, all promises met with cited evidence.
-- 60-79: Feature mostly delivers. Core value path works. Minor gaps exist (edge cases, polish, secondary promises). No critical failures.
-- 40-59: Feature partially delivers. Happy path may work but significant gaps remain. Some promises unmet. Error handling incomplete. Real limitations a user would hit.
-- 20-39: Feature has code but doesn't deliver the claim. Major value gaps. Core promises broken or stubbed. User would not get the promised value.
-- 0-19: Feature claim exists but no matching implementation, or code is fundamentally broken/empty.
-
+SCORING RUBRIC (0-100 per dimension, use these anchors exactly):
+- 80-100: Dimension fully satisfied. REQUIRES: zero critical gaps in this dimension, all relevant promises met with cited evidence.
+- 60-79: Mostly satisfied. Core path works. Minor gaps exist. No critical failures in this dimension.
+- 40-59: Partially satisfied. Happy path may work but significant gaps remain in this dimension.
+- 20-39: Dimension has code but doesn't deliver. Major gaps. Core promises broken or stubbed.
+- 0-19: No matching implementation for this dimension, or fundamentally broken.
+${rubric_section}
 SCORING PROCEDURE — follow these steps in order:
 1. List each promise in the claim. For each, cite file:line evidence or mark MISSING.
-2. Count: promises_met / promises_total. This anchors your VALUE score.
-3. Count unhandled error paths (I/O, subprocess, API calls without error handling). This anchors QUALITY.
-4. Assess output clarity and user feedback. This anchors UX.
-5. Compute: value_pct * 0.40 + quality_pct * 0.30 + ux_pct * 0.30 = raw score (0-100).
-6. Apply integrity checks below. Final score must be an integer.
+2. Count: promises_met / promises_total. This anchors your value_score.
+3. Count unhandled error paths (I/O, subprocess, API calls without error handling). This anchors quality_score.
+4. Assess output clarity and user feedback. This anchors ux_score.
+5. Output all three scores as separate integers. DO NOT compute a weighted total — the caller does that.
+6. Apply integrity checks below.
 
 INTEGRITY RULES — violating these means YOUR audit is unreliable:
-- You MUST find at least 2 genuine problems. If you found 0, you didn't look hard enough. Penalty: cap at 60.
+- You MUST find at least 2 genuine problems. If you found 0, you didn't look hard enough. Penalty: cap all scores at 60.
 - Evidence MUST cite file:line. Vague claims like 'handles errors well' = audit failure.
-- If code contains 2>/dev/null or || true and you report 0 silent failures, you missed them. Penalty: -10.
-- Score > 80 requires you to explain what makes this genuinely excellent, not just 'it works'.
-- Score > 70 requires zero unhandled error paths in code that does I/O.
-- A growth-stage product should average 45-65 across features. If you're averaging higher, you're inflating.
+- If code contains 2>/dev/null or || true and you report 0 silent failures, you missed them. Penalty: quality_score -10.
+- Any score > 80 requires you to explain what makes this dimension genuinely excellent, not just 'it works'.
+- quality_score > 70 requires zero unhandled error paths in code that does I/O.
+- A growth-stage product should average 45-65 per dimension. If you're averaging higher, you're inflating.
 
 Output ONLY this JSON object — no markdown fences, no text before or after:
-{\"score\":55,\"verdict\":\"PARTIAL\",\"gaps\":[\"specific problem with file:line evidence\"],\"strengths\":[\"what genuinely works well\"],\"evidence\":\"1-2 sentence summary of the audit\"}"
+{\"value_score\":55,\"quality_score\":50,\"ux_score\":60,\"verdict\":\"PARTIAL\",\"gaps\":[\"specific problem with file:line evidence\"],\"strengths\":[\"what genuinely works well\"],\"evidence\":\"1-2 sentence summary of the audit\"}"
 
     local api_key="${ANTHROPIC_API_KEY:-}"
     local result=""
@@ -648,17 +813,61 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
         rm -f "$tmp_file"
     else
         # Direct API call with temperature 0 for deterministic output
-        local payload
-        payload=$(jq -n \
-            --arg prompt "$prompt" \
-            '{model:"claude-haiku-4-5-20251001",max_tokens:800,temperature:0,messages:[{role:"user",content:$prompt}]}')
-        local response
-        response=$(curl -s "https://api.anthropic.com/v1/messages" \
-            -H "x-api-key: $api_key" \
-            -H "anthropic-version: 2023-06-01" \
-            -H "content-type: application/json" \
-            -d "$payload" 2>/dev/null)
-        result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+        # Try structured output via tool_use first (guaranteed valid JSON)
+        local use_structured=true
+        local payload response
+        if [[ "$use_structured" == true ]]; then
+            payload=$(jq -n \
+                --arg prompt "$prompt" \
+                '{
+                    model:"claude-haiku-4-5-20251001",
+                    max_tokens:1024,
+                    temperature:0,
+                    tool_choice:{type:"tool",name:"audit_result"},
+                    tools:[{
+                        name:"audit_result",
+                        description:"Product quality audit result with decomposed sub-scores",
+                        input_schema:{
+                            type:"object",
+                            properties:{
+                                value_score:{type:"integer",description:"Value delivery score 0-100"},
+                                quality_score:{type:"integer",description:"Quality & robustness score 0-100"},
+                                ux_score:{type:"integer",description:"User experience score 0-100"},
+                                verdict:{type:"string",enum:["DELIVERS","PARTIAL","MISSING"]},
+                                gaps:{type:"array",items:{type:"string"}},
+                                strengths:{type:"array",items:{type:"string"}},
+                                evidence:{type:"string"}
+                            },
+                            required:["value_score","quality_score","ux_score","verdict","gaps","strengths","evidence"]
+                        }
+                    }],
+                    messages:[{role:"user",content:$prompt}]
+                }')
+            response=$(curl -s "https://api.anthropic.com/v1/messages" \
+                -H "x-api-key: $api_key" \
+                -H "anthropic-version: 2023-06-01" \
+                -H "content-type: application/json" \
+                -d "$payload" 2>/dev/null)
+            # Extract tool_use input (structured JSON)
+            result=$(echo "$response" | jq -r '.content[] | select(.type=="tool_use") | .input // empty' 2>/dev/null)
+            if [[ -n "$result" && "$result" != "null" ]]; then
+                # Structured output — already valid JSON, convert to compact
+                result=$(echo "$result" | jq -c . 2>/dev/null)
+            else
+                # Structured output failed — fall back to plain text
+                result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+            fi
+        else
+            payload=$(jq -n \
+                --arg prompt "$prompt" \
+                '{model:"claude-haiku-4-5-20251001",max_tokens:800,temperature:0,messages:[{role:"user",content:$prompt}]}')
+            response=$(curl -s "https://api.anthropic.com/v1/messages" \
+                -H "x-api-key: $api_key" \
+                -H "anthropic-version: 2023-06-01" \
+                -H "content-type: application/json" \
+                -d "$payload" 2>/dev/null)
+            result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+        fi
     fi
 
     # Parse the JSON response — robust extraction handles common LLM output formats
@@ -699,60 +908,90 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
             return
         fi
 
-        # Try 5: grep any single-line JSON object containing "score"
-        json_part=$(echo "$cleaned" | grep -o '{[^}]*"score"[^}]*}' | head -1)
+        # Try 5: grep any single-line JSON object containing "value_score" or "score"
+        json_part=$(echo "$cleaned" | grep -o '{[^}]*"value_score"[^}]*}' | head -1)
+        [[ -z "$json_part" ]] && json_part=$(echo "$cleaned" | grep -o '{[^}]*"score"[^}]*}' | head -1)
         if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
             echo "$json_part" | jq -c . | _apply_logic_antisycophancy
             return
         fi
 
-        # Try 6: last resort — extract score/verdict from free text and build JSON
-        local extracted_score extracted_verdict
-        extracted_score=$(echo "$cleaned" | grep -oE '"score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        # Try 6: last resort — extract sub-scores or single score from free text and build JSON
+        local extracted_value extracted_quality extracted_ux extracted_verdict
+        extracted_value=$(echo "$cleaned" | grep -oE '"value_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_quality=$(echo "$cleaned" | grep -oE '"quality_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_ux=$(echo "$cleaned" | grep -oE '"ux_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         extracted_verdict=$(echo "$cleaned" | grep -oE '"verdict"\s*:\s*"[A-Z]+"' | head -1 | grep -oE '"[A-Z]+"$' | tr -d '"')
+        if [[ -n "$extracted_value" ]]; then
+            echo "{\"value_score\":${extracted_value},\"quality_score\":${extracted_quality:-${extracted_value}},\"ux_score\":${extracted_ux:-${extracted_value}},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
+            return
+        fi
+        # Legacy fallback: single score
+        local extracted_score
+        extracted_score=$(echo "$cleaned" | grep -oE '"score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         if [[ -n "$extracted_score" ]]; then
-            echo "{\"score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
+            echo "{\"value_score\":${extracted_score},\"quality_score\":${extracted_score},\"ux_score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
     fi
 
     # Fallback: couldn't parse at all
-    echo '{"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed","score":30}'
+    echo '{"value_score":30,"quality_score":30,"ux_score":30,"score":30,"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed"}'
 }
 
 # Anti-sycophancy filter for audit results (0-100 scale)
-# Reads JSON from stdin, applies integrity checks, outputs corrected JSON
+# Reads JSON from stdin, applies integrity checks on sub-scores,
+# computes weighted total, outputs corrected JSON with .score field
 _apply_logic_antisycophancy() {
     local input
     input=$(cat)
-    local score
-    score=$(echo "$input" | jq -r '.score // 50' 2>/dev/null)
 
-    # Normalize: if score somehow came back on 1-5 scale, convert to 0-100
-    if [[ "$score" -le 5 ]]; then
-        score=$((score * 20))
-        input=$(echo "$input" | jq -c --argjson s "$score" '.score = $s')
+    # Extract sub-scores (fall back to legacy .score if sub-scores missing)
+    local value_score quality_score ux_score
+    value_score=$(echo "$input" | jq -r '.value_score // empty' 2>/dev/null)
+    quality_score=$(echo "$input" | jq -r '.quality_score // empty' 2>/dev/null)
+    ux_score=$(echo "$input" | jq -r '.ux_score // empty' 2>/dev/null)
+
+    # Legacy fallback: if no sub-scores, derive from single .score
+    if [[ -z "$value_score" || -z "$quality_score" || -z "$ux_score" ]]; then
+        local legacy_score
+        legacy_score=$(echo "$input" | jq -r '.score // 50' 2>/dev/null)
+        [[ "$legacy_score" -le 5 ]] && legacy_score=$((legacy_score * 20))
+        value_score="${value_score:-$legacy_score}"
+        quality_score="${quality_score:-$legacy_score}"
+        ux_score="${ux_score:-$legacy_score}"
+        input=$(echo "$input" | jq -c --argjson v "$value_score" --argjson q "$quality_score" --argjson u "$ux_score" \
+            '.value_score = $v | .quality_score = $q | .ux_score = $u')
     fi
+
+    # Normalize: if any score came back on 1-5 scale, convert to 0-100
+    [[ "$value_score" -le 5 ]] && value_score=$((value_score * 20))
+    [[ "$quality_score" -le 5 ]] && quality_score=$((quality_score * 20))
+    [[ "$ux_score" -le 5 ]] && ux_score=$((ux_score * 20))
 
     local gap_count
     gap_count=$(echo "$input" | jq -r '.gaps | length // 0' 2>/dev/null)
 
-    # 0 gaps found → auditor didn't look hard enough. Cap at 60.
+    # 0 gaps found → auditor didn't look hard enough. Cap all at 60.
     if [[ "$gap_count" -eq 0 ]]; then
-        [[ "$score" -gt 60 ]] && score=60
-        input=$(echo "$input" | jq -c --argjson s "$score" '.score = $s | .gaps += ["integrity: 0 problems found — audit was not thorough enough"]')
+        [[ "$value_score" -gt 60 ]] && value_score=60
+        [[ "$quality_score" -gt 60 ]] && quality_score=60
+        [[ "$ux_score" -gt 60 ]] && ux_score=60
+        input=$(echo "$input" | jq -c '.gaps += ["integrity: 0 problems found — audit was not thorough enough"]')
     fi
 
-    # Score > 80 with any gaps → cap at 75
-    if [[ "$score" -gt 80 && "$gap_count" -gt 0 ]]; then
-        score=75
-        input=$(echo "$input" | jq -c --argjson s "$score" '.score = $s | .gaps += ["integrity: score capped at 75 — gaps exist"]')
+    # Any sub-score > 80 with gaps → cap that sub-score at 75
+    if [[ "$gap_count" -gt 0 ]]; then
+        [[ "$value_score" -gt 80 ]] && value_score=75
+        [[ "$quality_score" -gt 80 ]] && quality_score=75
+        [[ "$ux_score" -gt 80 ]] && ux_score=75
     fi
 
-    # Score > 70 with 3+ gaps → cap at 65
-    if [[ "$score" -gt 70 && "$gap_count" -ge 3 ]]; then
-        score=65
-        input=$(echo "$input" | jq -c --argjson s "$score" '.score = $s | .gaps += ["integrity: score capped at 65 — too many gaps for this score"]')
+    # Any sub-score > 70 with 3+ gaps → cap at 65
+    if [[ "$gap_count" -ge 3 ]]; then
+        [[ "$value_score" -gt 70 ]] && value_score=65
+        [[ "$quality_score" -gt 70 ]] && quality_score=65
+        [[ "$ux_score" -gt 70 ]] && ux_score=65
     fi
 
     # Stage cap: read project stage from rhino.yml
@@ -767,10 +1006,24 @@ _apply_logic_antisycophancy() {
             mature) stage_cap=95 ;;
         esac
     fi
-    if [[ "$score" -gt "$stage_cap" ]]; then
-        score="$stage_cap"
-        input=$(echo "$input" | jq -c --argjson s "$score" '.score = $s | .gaps += ["integrity: capped at stage ceiling"]')
+    [[ "$value_score" -gt "$stage_cap" ]] && value_score="$stage_cap"
+    [[ "$quality_score" -gt "$stage_cap" ]] && quality_score="$stage_cap"
+    [[ "$ux_score" -gt "$stage_cap" ]] && ux_score="$stage_cap"
+
+    # Compute weighted total in bash (not LLM): value*0.4 + quality*0.3 + ux*0.3
+    local score=$(( value_score * 40 / 100 + quality_score * 30 / 100 + ux_score * 30 / 100 ))
+
+    # Stage cap on total too
+    [[ "$score" -gt "$stage_cap" ]] && score="$stage_cap"
+
+    if [[ "$gap_count" -gt 0 && "$score" -gt 80 ]]; then
+        input=$(echo "$input" | jq -c '.gaps += ["integrity: score capped — gaps exist"]')
+        score=75
     fi
+
+    # Write all scores back
+    input=$(echo "$input" | jq -c --argjson v "$value_score" --argjson q "$quality_score" --argjson u "$ux_score" --argjson s "$score" \
+        '.value_score = $v | .quality_score = $q | .ux_score = $u | .score = $s')
 
     echo "$input"
 }
@@ -801,29 +1054,80 @@ run_generative_eval() {
         cached=$(check_eval_cache "$feat_name")
 
         local verdict="" gaps="" evidence="" feat_score=""
+        local value_score="" quality_score="" ux_score=""
 
         if [[ -n "$cached" && "$cached" != "" ]]; then
             verdict=$(echo "$cached" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
             gaps=$(echo "$cached" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
             evidence=$(echo "$cached" | jq -r '.evidence // ""' 2>/dev/null)
             feat_score=$(echo "$cached" | jq -r '.score // 50' 2>/dev/null)
+            value_score=$(echo "$cached" | jq -r '.value_score // empty' 2>/dev/null)
+            quality_score=$(echo "$cached" | jq -r '.quality_score // empty' 2>/dev/null)
+            ux_score=$(echo "$cached" | jq -r '.ux_score // empty' 2>/dev/null)
         else
             # Gather code and call Claude
             local code_context
-            code_context=$(gather_code_context "$code_paths")
+            code_context=$(gather_code_context "$code_paths" "$feat_name")
 
             if [[ -n "$code_context" ]]; then
-                local judge_result
-                judge_result=$(run_logic_research "$feat_name" "$delivers" "$for_whom" "$code_context")
+                # Generate per-feature rubric (async, cached 24h) — runs in background for next eval
+                generate_feature_rubric "$feat_name" "$delivers" "$for_whom" "$code_context" &
+                local judge_result best_result
+                # Multi-sample median: run N times, take median score
+                local n_samples="${EVAL_SAMPLES:-3}"
+                if [[ "$n_samples" -le 1 ]]; then
+                    judge_result=$(run_logic_research "$feat_name" "$delivers" "$for_whom" "$code_context")
+                else
+                    local sample_scores=() sample_results=()
+                    for ((si=0; si<n_samples; si++)); do
+                        local sample
+                        sample=$(run_logic_research "$feat_name" "$delivers" "$for_whom" "$code_context")
+                        local s_score
+                        s_score=$(echo "$sample" | jq -r '.score // 50' 2>/dev/null)
+                        [[ -z "$s_score" || ! "$s_score" =~ ^[0-9]+$ ]] && s_score=50
+                        sample_scores+=("$s_score")
+                        sample_results+=("$sample")
+                    done
+                    # Sort scores and pick median index
+                    local sorted_indices
+                    sorted_indices=$(for i in "${!sample_scores[@]}"; do echo "$i ${sample_scores[$i]}"; done | sort -k2 -n | awk '{print $1}')
+                    local median_idx
+                    median_idx=$(echo "$sorted_indices" | sed -n "$((n_samples / 2 + 1))p")
+                    judge_result="${sample_results[$median_idx]}"
+                fi
                 verdict=$(echo "$judge_result" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
                 gaps=$(echo "$judge_result" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
                 evidence=$(echo "$judge_result" | jq -r '.evidence // ""' 2>/dev/null)
                 feat_score=$(echo "$judge_result" | jq -r '.score // 50' 2>/dev/null)
+                value_score=$(echo "$judge_result" | jq -r '.value_score // empty' 2>/dev/null)
+                quality_score=$(echo "$judge_result" | jq -r '.quality_score // empty' 2>/dev/null)
+                ux_score=$(echo "$judge_result" | jq -r '.ux_score // empty' 2>/dev/null)
             else
                 verdict="MISSING"
                 gaps="no code files found"
                 evidence=""
                 feat_score=0
+                value_score=0
+                quality_score=0
+                ux_score=0
+            fi
+        fi
+
+        # Pairwise delta tracking: compare against previous eval
+        local delta="" delta_vs=""
+        if [[ -f "$EVAL_CACHE_FILE" ]] && command -v jq &>/dev/null; then
+            local prev_score
+            prev_score=$(jq -r ".\"$feat_name\".score // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+            if [[ -n "$prev_score" && "$prev_score" =~ ^[0-9]+$ && -n "$feat_score" && "$feat_score" =~ ^[0-9]+$ ]]; then
+                delta_vs="$prev_score"
+                local diff=$(( feat_score - prev_score ))
+                if [[ "$diff" -gt 3 ]]; then
+                    delta="better"
+                elif [[ "$diff" -lt -3 ]]; then
+                    delta="worse"
+                else
+                    delta="same"
+                fi
             fi
         fi
 
@@ -843,16 +1147,54 @@ run_generative_eval() {
             GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}")
         fi
 
-        # Build cache entry
+        # Build cache entry with sub-scores and delta
         $cache_first || cache_json+=","
-        cache_json+="\"$feat_name\":{\"verdict\":$(echo "$verdict" | jq -Rs .),\"gaps\":$(if [[ -n "$gaps" ]]; then echo "$gaps" | jq -Rs 'split("; ") | map(select(length > 0))'; else echo '[]'; fi),\"evidence\":$(echo "$evidence" | jq -Rs .),\"score\":${feat_score:-50},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+        local cache_extras=""
+        [[ -n "$value_score" ]] && cache_extras+=",\"value_score\":${value_score}"
+        [[ -n "$quality_score" ]] && cache_extras+=",\"quality_score\":${quality_score}"
+        [[ -n "$ux_score" ]] && cache_extras+=",\"ux_score\":${ux_score}"
+        [[ -n "$delta" ]] && cache_extras+=",\"delta\":\"${delta}\""
+        [[ -n "$delta_vs" ]] && cache_extras+=",\"delta_vs\":${delta_vs}"
+        cache_json+="\"$feat_name\":{\"verdict\":$(echo "$verdict" | jq -Rs .),\"gaps\":$(if [[ -n "$gaps" ]]; then echo "$gaps" | jq -Rs 'split("; ") | map(select(length > 0))'; else echo '[]'; fi),\"evidence\":$(echo "$evidence" | jq -Rs .),\"score\":${feat_score:-50}${cache_extras},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
         cache_first=false
     done <<< "$features_data"
 
     cache_json+="}"
 
+    # Wait for background rubric generation to finish
+    wait 2>/dev/null || true
+
     # Write cache
     echo "$cache_json" > "$EVAL_CACHE_FILE" 2>/dev/null || true
+
+    # Write delta history
+    local delta_file="$EVAL_CACHE_DIR/eval-deltas.json"
+    if command -v jq &>/dev/null; then
+        local delta_entry
+        delta_entry=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        local delta_json="{\"timestamp\":\"${delta_entry}\",\"features\":{"
+        local delta_first=true
+        echo "$cache_json" | jq -r 'to_entries[] | "\(.key)|\(.value.score // 0)|\(.value.delta // "unknown")|\(.value.delta_vs // "")"' 2>/dev/null | while IFS='|' read -r dname dscore ddelta ddvs; do
+            [[ -z "$dname" ]] && continue
+            $delta_first || delta_json+=","
+            delta_json+="\"${dname}\":{\"score\":${dscore},\"delta\":\"${ddelta}\",\"vs\":${ddvs:-null}}"
+            delta_first=false
+        done
+        delta_json+="}}"
+
+        # Append to delta history (keep last 50 entries)
+        if [[ -f "$delta_file" ]]; then
+            local existing
+            existing=$(jq -c '.' "$delta_file" 2>/dev/null)
+            if [[ -n "$existing" ]]; then
+                echo "$existing" | jq -c --argjson new "$delta_json" '. + [$new] | .[-50:]' > "${delta_file}.tmp" 2>/dev/null && mv "${delta_file}.tmp" "$delta_file" 2>/dev/null || true
+            else
+                echo "[$delta_json]" > "$delta_file" 2>/dev/null || true
+            fi
+        else
+            echo "[$delta_json]" > "$delta_file" 2>/dev/null || true
+        fi
+    fi
 }
 
 # === Run generative eval ===

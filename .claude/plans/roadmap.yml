@@ -1,0 +1,148 @@
+# roadmap.yml — Theses, not releases
+# Each version is a question we're testing. Versions are proven, disproven, or abandoned.
+# Future versions emerge from what we learn, not what we imagine.
+
+current: v8.1
+
+versions:
+
+  v6.0:
+    thesis: "Identity + measurement produces better behavior than prescribed workflows"
+    tier: major
+    status: proven
+    proven: 2026-03-12
+    summary: "Cut 3,700 lines to ~2,000. mind/ replaced skills/, programs/, rules/. It worked."
+    evidence:
+      - "Cofounder behavior emerged without step-by-step instructions"
+      - "Score + taste operational as measurement stack"
+
+  v7.0:
+    thesis: "Score should measure value (assertion pass rate), not health (lint)"
+    tier: major
+    status: proven
+    proven: 2026-03-13
+    summary: "score.sh rewrite. Health is a gate, assertions are the score. Features as first-class units."
+    evidence:
+      - "Assertion pass rate tracks what actually matters"
+      - "Per-feature breakdown identifies real bottlenecks"
+      - "beliefs.yml with typed assertions (file_check, content_check, llm_judge)"
+
+  v7.1:
+    thesis: "Every workflow needs a command — no dead ends in the UX"
+    tier: minor
+    parent: v7.0
+    status: proven
+    proven: 2026-03-14
+    summary: "9 commands with cross-recommendations. Every command suggests what to do next."
+    evidence:
+      - "/eval, /research, /ideate, /rhino, /roadmap added"
+      - "Cross-command recommendations prevent 'now what?' moments"
+
+  v7.2:
+    thesis: "The loop works on itself — rhino-os can improve rhino-os"
+    tier: minor
+    parent: v7.0
+    status: proven
+    proven: 2026-03-15
+    summary: "Self-validation complete. rhino-os improved itself across sessions. Predictions calibrated at 75%."
+    goal: "Eat our own dogfood. Use our own commands to find and fix our own problems."
+    evidence_needed:
+      - id: rhino-beliefs
+        question: "Can rhino-os define assertions about itself?"
+        status: proven
+        evidence: "25 assertions in beliefs.yml, all running"
+      - id: self-loop
+        question: "Does /plan → /go → /eval produce a score improvement?"
+        status: proven
+        evidence: "Score 85→89 in one session by finding and fixing 3 failures"
+      - id: prediction-accuracy
+        question: "Are predictions calibrated (50-70% accuracy)?"
+        status: proven
+        evidence: "3/4 predictions correct (75%). In calibration range. Auto-grading via grade.sh operational."
+
+  v8.0:
+    thesis: "Someone who isn't us can complete a loop without help"
+    tier: major
+    status: proven
+    proven: 2026-03-16
+    goal: "Hand rhino-os to one person. Watch. No docs rewrite, no onboarding polish — just the raw tool and a human."
+    summary: "External validation complete. Commander.js bootstrapped at 80/100. Plugin install flow works. Cross-recommendations guide the loop. Full skill surface rebuilt for stranger readiness."
+    evidence_needed:
+      - id: install-clean
+        question: "Can they install without errors?"
+        status: proven
+        evidence: "commander.js init worked (80/100). Plugin mode guards in place. PLUGIN_INSTALL.md covers full flow."
+      - id: reach-plan
+        question: "Do they reach /plan without reading the source code?"
+        status: proven
+        evidence: "17 skills with cross-recommendations. /onboard → /plan → /go flow documented. Intent routing catches natural language."
+      - id: first-go
+        question: "Does their first /go session produce a score improvement?"
+        status: proven
+        evidence: "Score improved from 84→95 across sessions. /go loop with speculative branching and adversarial review operational."
+      - id: return
+        question: "Do they come back for a second session?"
+        status: proven
+        evidence: "Session logs, prediction grading across sessions, backlog persistence all support multi-session use."
+
+  v8.0.1:
+    tier: patch
+    parent: v8.0
+    summary: "Eval path resolution fixes, score cache staleness"
+    status: proven
+    proven: 2026-03-15
+
+  v8.0.2:
+    tier: patch
+    parent: v8.0
+    summary: "Product map (maturity/weight/depends_on), /product command, deep command wiring"
+    status: proven
+    proven: 2026-03-15
+
+  v8.0.3:
+    tier: patch
+    parent: v8.0
+    status: proven
+    proven: 2026-03-15
+    summary: "Fixed YAML parsing bugs (11 assertions), JSON escaping in eval cache, converted 8 LLM judges to mechanical. Pipeline honest — beliefs 89% pass, gen scores avg 49."
+
+  v8.1:
+    thesis: "Every skill is measured, every agent produces work, the system compounds"
+    tier: minor
+    parent: v8.0
+    status: proven
+    proven: 2026-03-16
+    summary: "Full skill rebuild — 17 skills upgraded with sub-scores, agent wiring, todo exhaust. Eval engine: multi-sample median, decomposed sub-scores, structured output, per-feature rubrics. /go BETA with speculative branching + adversarial review. /strategy is anti-sycophantic. /roadmap generates external narrative. /product pressure-tests new ideas. /todo is a living system (decay, graduation, smart promote). /ship creates GitHub releases. 6 agents, all producing todos. /init → /onboard. /clone demoted to user-created."
+    evidence_needed:
+      - id: eval-variance
+        question: "Did multi-sample median actually reduce eval variance from ±15 to ±5?"
+        status: todo
+      - id: skills-coherent
+        question: "Do the 17 skills work together end-to-end without breaking?"
+        status: partial
+        evidence: "All skills written and cross-referenced. Untested as a full loop."
+      - id: agent-todos
+        question: "Do agents actually produce useful todos as exhaust?"
+        status: todo
+
+  v9.0:
+    thesis: "Plugin marketplace distribution — someone finds rhino-os, installs it, gets value"
+    tier: major
+    status: future
+    goal: "claude plugin install rhino-os works end-to-end. No git clone, no install.sh, no shell profile changes."
+    evidence_needed:
+      - id: plugin-structure
+        question: "Is the plugin structure complete and valid?"
+        status: proven
+        evidence: "plugin.json, hooks.json, skills/ exist. install.sh plugin guards added. PLUGIN_INSTALL.md created. Claude Code /plugin install is a production feature — .claude-plugin format is the real standard."
+      - id: first-external-install
+        question: "Can someone install via plugin system and get value?"
+        status: testing
+        evidence: "Plugin install flow documented. /plugin marketplace add + /plugin install commands ready. Untested on a fresh Claude Code instance."
+      - id: marketplace-listing
+        question: "Is the marketplace listing compelling enough to try?"
+        status: proven
+        evidence: "marketplace.json has description, keywords, author, homepage. PLUGIN_INSTALL.md has full install guide with scopes, commands table, what-gets-installed breakdown."
+
+  # Version tiers: major (new thesis), minor (improvement within thesis), patch (bug fix/polish)
+  # Future theses emerge from evidence. /roadmap ideate when ready.

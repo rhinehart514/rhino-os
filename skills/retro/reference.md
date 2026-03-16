@@ -1,0 +1,186 @@
+# /retro Reference — Output Templates
+
+Loaded on demand. Steps and routing are in SKILL.md.
+
+---
+
+## Full retro output
+
+```
+◆ retro — 3 ungraded, 2 stale
+
+product: **64%** · score: 58 · todos: 8/14 done · predictions: 63%
+
+▾ grading
+  ✓ "error boundary hardening will raise quality_score from 50 to 65" → quality_score 58 (partial)
+    actual: +8 not +15. Subprocess paths still open.
+
+  ✗ "auto-grade will work via session_start hook" → hook too fragile, reverted (no)
+    model update: session_start hook confirmed fragile → Known Pattern
+    todo: [learning] rethink auto-grade approach (not via hooks)    /retro  [new]
+
+  · "trend visualization will raise value_score 62→72" → value_score 68 (partial)
+    actual: +6 not +10. Inline sparkline helped but less than expected.
+
+accuracy: **63%** (10/16) — well-calibrated
+trend: ↑ from 55% (improving)
+
+▾ sub-score insights
+  most predicted: quality_score (5 predictions) — 40% correct (too optimistic about error handling)
+  least predicted: ux_score (1 prediction) — blind spot
+  best calibrated: value_score (3 predictions) — 67% correct
+
+▾ stale knowledge (2 entries)
+  · "copy changes have 80% keep rate" — last evidence 45 days ago
+  · "navigation patterns are unknown" — in Unknown Territory for 38 days, 0 experiments
+
+▾ pruned
+  · Moved "copy changes have 80% keep rate" to Stale Patterns (45 days)
+
+▾ maturity updates (proposed)
+  · scoring: working → working (quality_score still <60)
+  · commands: working → working (stable but not all assertions passing)
+
+▾ model updates
+  ▸ "session_start hook is fragile" Uncertain → Known (2 experiments now confirm)
+  ▸ "inline visualization > separate commands" added to Uncertain
+  ▸ "quality_score optimism" added to Known: predictions about quality_score overshoot by ~40%
+
+▾ todos captured
+  · [learning] rethink auto-grade approach (not via hooks)           /retro  [new]
+  · [learning] investigate alternative to session_start for grading  /retro  [new]
+  · kill [xx-09] — research confirms dashboard redesign is dead end  /retro  [kill]
+
+artifact: ~/.claude/cache/last-retro.yml
+
+/plan       apply learnings to next session
+/research   explore the unknowns surfaced above
+/todo decay force decisions on stale items
+```
+
+## Session retro output (`/retro session`)
+
+```
+◆ retro session — 2026-03-16 02:30
+
+  scope: scoring · mode: beta
+  moves: 3 · kept: 2 · reverted: 1
+  score: 58 → 66 ↑8 · ROI: 2.7 points/move
+
+▾ predictions
+  ✓ "error boundary hardening will raise quality_score +15" → +8 (partial)
+  ✓ "sparkline will raise value_score +10" → +6 (partial)
+  ✗ "auto-grade via hook" → reverted (no)
+
+  session accuracy: **33%** (1/3) — below target, predictions too aggressive
+
+▾ beta features
+  speculative branching: 1 move
+    branch A won by +3 over branch B
+    verdict: **useful** — winner wouldn't have been obvious up front
+
+  adversarial review: 1 catch
+    caught hook fragility that measurement missed
+    verdict: **useful** — real problem, not noise
+
+  prediction grading: 3/3 graded ✓
+    verdict: **working** — all predictions graded before next move
+
+▾ session learnings
+  · quality_score predictions overshoot by ~40% (3 experiments now)
+  · speculative branching helps when approaches are genuinely different
+  · adversarial review catches fragility that assertion pass/fail misses
+
+▾ comparison to previous sessions
+  session   moves  kept  ROI    accuracy
+  03-16     3      2     2.7    33%
+  03-15     4      3     1.5    50%
+  03-14     2      2     3.0    100%
+
+  trend: ROI stable, accuracy declining (predictions getting more ambitious)
+
+/plan           next session
+/go scoring     continue where we left off
+/retro stale    check knowledge freshness
+```
+
+## Accuracy-only output (`/retro accuracy`)
+
+```
+◆ retro accuracy
+
+  **63%** (10/16 graded, partials at 0.5)
+  calibration: well-calibrated (target: 50-70%)
+  trend: ↑ from 55% over last 5 sessions
+
+  by dimension:
+    value_score predictions:   67% correct (3/4.5)
+    quality_score predictions: 40% correct (2/5) — too optimistic
+    ux_score predictions:      100% (1/1) — insufficient data
+
+/retro          full retro with grading
+/plan           make predictions for next session
+```
+
+## Stale check output (`/retro stale`)
+
+```
+◆ retro stale — 3 entries need attention
+
+  ⚠ Known: "copy changes have 80% keep rate" — 45 days, no new evidence
+    → move to Stale Patterns? [Yes / Re-test / Keep]
+
+  ⚠ Unknown: "navigation patterns" — 38 days, 0 experiments
+    → this has been unknown for over a month. Research or archive?
+    todo: research: navigation patterns                              /retro  [new]
+
+  ⚠ Dead End: "auto-generated assertions from code" — 62 days, 0 citations
+    → archive? (nobody references this anymore)
+
+/research [topic]    explore a stale unknown
+/retro               full retro
+```
+
+## Formatting rules
+
+- Header: `◆ retro — [counts]`
+- Grading: ✓/✗/· prefix, quoted prediction, → outcome, (grade)
+- Wrong predictions show `model update:` inline AND `todo:` for follow-up work
+- Sub-score insights: which dimensions are over/under-predicted
+- Accuracy: bold %, parenthetical, em-dash assessment
+- Session retro: beta feature verdicts (useful/not useful/working), session comparison table
+- Todos captured: list of items written to todos.yml + kill suggestions
+- Stale: ⚠ prefix, age, actionable question
+- Bottom: 2-3 relevant next commands
+
+## Retro artifact format
+
+Written to `~/.claude/cache/last-retro.yml`:
+
+```yaml
+date: YYYY-MM-DD
+product_completion: 64
+accuracy: 63
+accuracy_trend: improving
+graded_count: 3
+wrong_predictions:
+  - prediction: "auto-grade via hook"
+    feature: learning
+    dimension: quality_score
+    todo_created: "rethink auto-grade approach"
+stale_patterns:
+  - "copy changes have 80% keep rate — 45 days"
+dead_ends_archived: 1
+model_updates:
+  - "session_start hook fragility → Known"
+  - "quality_score predictions overshoot 40% → Known"
+unknowns_surfaced:
+  - "navigation patterns still untested"
+maturity_proposals:
+  - feature: scoring
+    from: working
+    to: working
+    reason: "quality_score still <60"
+todos_created: 2
+todos_killed: 1
+```
