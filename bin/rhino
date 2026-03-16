@@ -4,7 +4,7 @@ set -euo pipefail
 # rhino — CLI for rhino-os v8
 # Score = value, not health. Measurement tools: score, taste, eval, status, config
 
-VERSION="8.0.3"
+VERSION="8.1.0"
 if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
     RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
 else

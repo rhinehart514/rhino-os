@@ -1,24 +1,41 @@
 {
   "name": "rhino-marketplace",
-  "description": "Measurement-driven product development for Claude Code",
   "owner": {
     "name": "Jacob Rhinehart",
-    "url": "https://github.com/rhinehart514"
+    "email": "rhinehart514@gmail.com"
   },
   "metadata": {
-    "description": "rhino-os makes your product measurably better every session. Score, eval, taste, predict, learn.",
+    "description": "Your product gets measurably better every session. 17 commands, 6 agents, 20 skills, prediction-driven learning loop.",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "8.0.3",
+      "version": "8.1.0",
       "source": "./",
-      "description": "Learning plugin — measurement, predictions, autonomous building that compounds across sessions",
+      "description": "Learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions. /plan finds the bottleneck, /go builds autonomously, /eval measures what matters.",
       "author": {
         "name": "Jacob Rhinehart"
       },
-      "keywords": ["product", "measurement", "learning", "eval", "autonomous", "scoring"],
+      "keywords": [
+        "product",
+        "measurement",
+        "learning",
+        "eval",
+        "autonomous",
+        "scoring",
+        "predictions",
+        "strategy",
+        "founder"
+      ],
+      "category": "productivity",
+      "tags": [
+        "product-development",
+        "measurement",
+        "autonomous-building",
+        "learning-loop",
+        "founder-tools"
+      ],
       "homepage": "https://github.com/rhinehart514/rhino-os",
       "repository": "https://github.com/rhinehart514/rhino-os",
       "license": "MIT"

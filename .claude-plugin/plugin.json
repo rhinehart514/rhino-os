@@ -1,20 +1,34 @@
 {
   "name": "rhino-os",
-  "version": "8.0.3",
-  "description": "A learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions",
+  "version": "8.1.0",
+  "description": "Your product gets measurably better every session. Measurement, predictions, and autonomous building that compounds across sessions.",
   "author": {
     "name": "Jacob Rhinehart",
-    "url": "https://github.com/rhinehart514"
+    "email": "rhinehart514@gmail.com"
   },
   "homepage": "https://github.com/rhinehart514/rhino-os",
   "repository": "https://github.com/rhinehart514/rhino-os",
   "license": "MIT",
-  "keywords": ["product", "measurement", "learning", "eval", "autonomous", "scoring", "predictions", "strategy"],
+  "keywords": [
+    "product",
+    "measurement",
+    "learning",
+    "eval",
+    "autonomous",
+    "scoring",
+    "predictions",
+    "strategy",
+    "founder",
+    "cofounder"
+  ],
   "skills": "./skills/",
   "agents": [
     "./agents/builder.md",
     "./agents/explorer.md",
     "./agents/measurer.md",
-    "./agents/reviewer.md"
-  ]
+    "./agents/reviewer.md",
+    "./agents/evaluator.md",
+    "./agents/market-analyst.md"
+  ],
+  "hooks": "./hooks/hooks.json"
 }
