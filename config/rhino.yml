@@ -122,7 +122,7 @@ features:
   commands:
     delivers: "slash commands that route founder intent to the right action"
     for: "solo founder working in Claude Code"
-    code: [".claude/commands/plan.md", ".claude/commands/go.md", ".claude/commands/eval.md", ".claude/commands/feature.md", ".claude/commands/init.md", ".claude/commands/ship.md", ".claude/commands/ideate.md", ".claude/commands/research.md", ".claude/commands/roadmap.md", ".claude/commands/rhino.md", ".claude/commands/clone.md", ".claude/commands/assert.md", ".claude/commands/retro.md", ".claude/commands/skill.md", ".claude/commands/strategy.md", ".claude/commands/todo.md", ".claude/commands/product.md"]
+    code: [".claude/commands/plan.md", ".claude/commands/go.md", ".claude/commands/eval.md", ".claude/commands/taste.md", ".claude/commands/feature.md", ".claude/commands/init.md", ".claude/commands/ship.md", ".claude/commands/ideate.md", ".claude/commands/research.md", ".claude/commands/roadmap.md", ".claude/commands/rhino.md", ".claude/commands/clone.md", ".claude/commands/assert.md", ".claude/commands/retro.md", ".claude/commands/skill.md", ".claude/commands/strategist.md", ".claude/commands/strategy.md", ".claude/commands/todo.md", ".claude/commands/product.md"]
     commands: ["rhino help"]
     status: active
     weight: 5

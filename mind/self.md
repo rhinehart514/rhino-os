@@ -15,7 +15,7 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 /plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product
 
 ### Agents
-4 custom agents in agents/: measurer, explorer, builder, reviewer
+6 custom agents in agents/: measurer, explorer, builder, reviewer, evaluator, market-analyst
 
 ### Intelligence Layer
 - **Symlinks**: mind/ files (identity, thinking, standards) loaded via .claude/rules/ on every conversation. self.md is project-local only — not symlinked globally to avoid contaminating other projects.

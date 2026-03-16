@@ -5,13 +5,13 @@
     "email": "rhinehart514@gmail.com"
   },
   "metadata": {
-    "description": "Your product gets measurably better every session. 17 commands, 6 agents, 20 skills, prediction-driven learning loop.",
+    "description": "Your product gets measurably better every session. 19 commands, 6 agents, 22 skills, prediction-driven learning loop.",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "8.1.0",
+      "version": "8.2.0",
       "source": "./",
       "description": "Learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions. HARD-GATE approval, two-stage review, anti-rationalization tables, flowchart-driven agent discipline.",
       "author": {

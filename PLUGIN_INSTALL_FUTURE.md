@@ -66,10 +66,10 @@ Then type:
 
 | Component | Files | Purpose |
 |-----------|-------|---------|
-| Commands | 17 slash commands | /plan, /go, /eval, /feature, /product, etc. |
-| Skills | rhino-mind, product-lens | Identity, thinking, standards, product measurement |
-| Agents | measurer, explorer, builder, reviewer | Specialized subagents for /go loop |
-| Hooks | 7 hooks | Boot card, quality checks, context recovery |
+| Commands | 19 slash commands | /plan, /go, /eval, /taste, /feature, /product, etc. |
+| Skills | 22 skills | Command definitions, mind files, product lens, openclaw |
+| Agents | 6 agents | builder, measurer, explorer, reviewer, evaluator, market-analyst |
+| Hooks | 8 hooks | Boot card, quality checks, context recovery, pre-commit |
 
 ## Commands
 
@@ -78,6 +78,7 @@ Then type:
 | `/plan` | Find the bottleneck, write tasks |
 | `/go` | Autonomous build — keeps what passes, reverts what doesn't |
 | `/eval` | Run assertions, see what's working |
+| `/taste` | Visual product intelligence — 0-100, market-calibrated, remembers |
 | `/feature` | List features with pass rates, maturity, weights |
 | `/product` | Product thinking — who, why, assumptions, focus |
 | `/ideate` | Brainstorm what to build |

@@ -70,7 +70,7 @@ You talk. rhino-os does the right thing.
 | "am I building the right thing?" | `/product` — pressure-tests assumptions |
 | "ship it" | `/ship` — commit, push, deploy, release |
 
-17 commands total. Every one suggests what to do next. You don't need to memorize any of them.
+19 commands total. Every one suggests what to do next. You don't need to memorize any of them.
 
 ## The score
 
@@ -101,16 +101,16 @@ rhino-os predicts before it acts. Measures after. Updates its model when it's wr
 ## What's inside
 
 ```
-17 slash commands    /plan /go /eval /feature /todo /assert /product
+19 slash commands    /plan /go /eval /taste /feature /todo /assert /product
                      /ideate /research /strategy /roadmap /retro
-                     /rhino /ship /onboard /skill /calibrate
+                     /rhino /ship /onboard /skill /calibrate /clone
 
 6 agents             builder  measurer  explorer
                      reviewer  evaluator  market-analyst
 
-20 skills            auto-triggered behaviors + slash command definitions
+22 skills            auto-triggered behaviors + slash command definitions
 
-9 hooks              session start, pre-compact, post-edit, post-commit, etc.
+8 hooks              session start, pre-compact, post-edit, post-commit, etc.
 
 CLI                  rhino score .  rhino eval .  rhino taste
                      rhino feature  rhino todo  rhino trail
