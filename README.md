@@ -4,8 +4,6 @@ A learning plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-co
 
 **What is Claude Code?** A CLI tool where you talk to Claude in your terminal and it reads, writes, and runs code. rhino-os is a plugin that adds measurement, learning, and strategy on top.
 
-Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch).
-
 ---
 
 ## What rhino-os Adds to Claude Code
@@ -101,18 +99,29 @@ Fix your health issues, but don't confuse them with value.
 
 ### 3. Craft (on demand)
 
-`rhino taste` — Claude Vision scores your UI across 11 dimensions. Expensive, run when visual quality matters.
+`rhino taste` — Claude Vision scores your UI across 11 dimensions (hierarchy, breathing room, contrast, polish, emotional tone, information density, wayfinding, distinctiveness, scroll experience, layout coherence, information architecture). Expensive, run when visual quality matters.
 
 ---
 
-## Quick Start
+## Install
 
-**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed. macOS or Linux. [`jq`](https://jqlang.github.io/jq/download/) installed (used by scoring, eval, and init).
+**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed. macOS or Linux. [`jq`](https://jqlang.github.io/jq/download/) installed.
+
+### Option 1: Plugin install (recommended)
+
+```bash
+claude /plugin marketplace add https://github.com/rhinehart514/rhino-os
+claude /plugin install rhino-os
+```
+
+No git clone, no symlinks, no shell profile changes. Claude Code manages everything.
+
+### Option 2: Manual install
 
 ```bash
 git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os
 cd ~/rhino-os && ./install.sh
-source ~/.zshrc && rhino doctor   # verify install works
+source ~/.zshrc && rhino doctor   # verify install
 ```
 
 Then in any project:
@@ -122,7 +131,7 @@ cd ~/your-project
 rhino init        # detects project, generates config + assertions, first score
 claude            # start Claude Code — rhino-os boots automatically
 /plan             # find the bottleneck
-/go               # autonomous build loop — keeps what passes, reverts what doesn't
+/go               # autonomous build loop
 ```
 
 Your first score will be low. That's correct — you haven't told it what your product should do yet. `rhino init` generates assertions, then `/go` builds toward passing them.
@@ -151,40 +160,72 @@ cd ~/rhino-os && ./uninstall.sh
 
 ---
 
-## The Commands
+## Commands
 
-Every command accepts a feature name. Work on what you want, scoped to the part of the product you care about.
+17 slash commands. Every command accepts a feature name to scope work.
+
+### Build
 
 | Command | What it does |
 |---------|-------------|
 | `/plan [feature]` | Find the bottleneck, write tasks |
 | `/go [feature]` | Autonomous build loop — keeps what passes, reverts what doesn't |
-| `/eval [taste\|full]` | Run assertions, visual eval |
-| `/feature [name]` | List, create, detect features |
 | `/todo [add\|done]` | Manage backlog across sessions |
 | `/assert [feat: x]` | Add assertions from chat |
-| `/ideate [wild]` | Brainstorm possibilities |
-| `/research [topic]` | Explore unknown territory |
-| `/retro` | Grade predictions, close learning loop |
-| `/roadmap` | Version theses and progress |
-| `/strategy` | Stage, bottleneck, loop health |
-| `/rhino` | Status dashboard |
-| `/ship` | Commit, push, deploy, verify |
-| `/init` | Bootstrap into any repo |
-| `/clone <url>` | Screenshot → components |
-| `/skill [create]` | Manage lenses |
-| `/product` | Product thinking — who, why, assumptions, focus, delight |
 
-**Terminal:**
+### Measure
+
+| Command | What it does |
+|---------|-------------|
+| `/eval [taste\|full]` | Run assertions, visual eval, sub-scores per feature |
+| `/calibrate` | Ground taste eval in founder preferences + design system |
+
+### Think
+
+| Command | What it does |
+|---------|-------------|
+| `/product` | Product thinking — who cares, why, assumptions, focus |
+| `/ideate [wild]` | Evidence-weighted brainstorming + kill list |
+| `/research [topic]` | Explore unknown territory with multi-agent synthesis |
+| `/strategy` | Anti-sycophantic strategic diagnosis |
+
+### Navigate
+
+| Command | What it does |
+|---------|-------------|
+| `/feature [name]` | List, create, detect features |
+| `/roadmap` | Version theses, progress, external narrative |
+| `/retro` | Grade predictions, close the learning loop |
+| `/rhino` | Status dashboard |
+
+### Ship
+
+| Command | What it does |
+|---------|-------------|
+| `/ship` | Commit, push, deploy, GitHub releases |
+| `/onboard` | Bootstrap rhino-os into any repo |
+| `/clone <url>` | Screenshot a site, decompose into components |
+| `/skill [create]` | Create and manage measured skills |
+
+### Terminal (CLI)
 
 | Command | What it does |
 |---------|-------------|
 | `rhino score .` | The score. Assertion pass rate, per-feature breakdown. |
+| `rhino eval .` | Run assertions from the terminal. |
+| `rhino taste` | Visual eval (Claude Vision, expensive). |
 | `rhino feature` | List all features with pass rates. |
 | `rhino feature detect` | Auto-detect features from your codebase. |
 | `rhino todo` | Backlog management (show, add, done, promote). |
-| `rhino eval .` | Run assertions from the terminal. |
-| `rhino taste` | Visual eval (Claude Vision, expensive). |
+| `rhino trail` | Evidence trail — session arc over time. |
+| `rhino init` | Bootstrap rhino-os into any repo. |
+| `rhino update` | Pull latest + refresh symlinks. |
+| `rhino doctor` | Verify install health (symlinks, deps). |
+| `rhino self` | Self-diagnostic (4-system health check). |
+| `rhino bench` | Calibration check against fixture repos. |
+| `rhino status` | System health overview. |
+| `rhino config` | Show configuration. |
+| `rhino plan` | View/manage build plan. |
 
 A typical session: `/plan auth` -> `/go auth` -> `/plan` next time.
 
@@ -198,6 +239,8 @@ Every action has a prediction. Wrong predictions update the model. Over sessions
 - **Knowledge model** (`~/.claude/knowledge/experiment-learnings.md`) — known patterns, uncertain patterns, unknown territory, dead ends
 - **Assertions** (`beliefs.yml`) — the definition of done, enforced mechanically
 - **Session trail** (`rhino trail`) — persistent evidence of improvement across sessions
+
+The predict -> measure -> update loop runs automatically. Target prediction accuracy: 50-70% (well-calibrated). Too high means predictions are too safe. Too low means the model is broken.
 
 You don't need to understand this to start. Run `/plan`, follow its lead.
 
@@ -217,36 +260,63 @@ One number. Measures what matters.
 
 ---
 
-## CLI Reference
+## Agents
 
-```
-  rhino v8.0.3
+6 custom agents that work inside Claude Code sessions:
 
-  Measure
-    eval [dir]      Run assertions — the one command
-    taste [dir]     Visual eval (Claude Vision, expensive)
-    score [dir]     Score for scripts/CI (--quiet for number)
+| Agent | Role |
+|-------|------|
+| **builder** | Writes code. Full editing capability. Used by `/go`. |
+| **explorer** | Researches unknowns, pulls docs, analyzes sites. Read-only. |
+| **measurer** | Runs score, eval, taste. Read-only. Honest measurement. |
+| **reviewer** | Post-build quality review against product standards. Read-only. |
+| **evaluator** | Evaluates product quality with structured rubrics. |
+| **market-analyst** | Competitive analysis and market research. |
 
-  Features
-    feature         List all features with pass rates
-    feature <name>  View one feature's assertions
-    feature detect  Auto-detect features from codebase
+Agents are spawned by commands when needed. `/go` uses builder + measurer. `/research` uses explorer + market-analyst. `/eval` uses evaluator.
 
-  Build
-    plan            View/manage build plan
-    todo            Backlog (show|add|done|edit|tag|promote)
-    test            Run test suites
+---
 
-  System
-    trail           Evidence trail — session arc over time
-    init            Bootstrap rhino-os into any repo
-    update          Pull latest + refresh symlinks
-    doctor          Verify install health (symlinks, deps)
-    status          Health overview
-    self            Self-diagnostic
-    bench           Calibration check
-    config          Show configuration
-```
+## Hooks
+
+9 lifecycle hooks that fire automatically during Claude Code sessions:
+
+| Hook | When | What it does |
+|------|------|-------------|
+| `session_start.sh` | Session begins | Boot card with score, signals, learning status |
+| `pre_compact.sh` | Before context compression | Saves recovery context so Claude rebuilds its model |
+| `post_edit.sh` | After file edits | Write-time quality checks |
+| `post_skill.sh` | After skill runs | YAML validation for plan files |
+| `post_commit.sh` | After git commit | Post-commit checks |
+| `pre_commit_check.sh` | Before commit | Pre-commit validation |
+| `stop.sh` | Session ends | Cleanup and session logging |
+| `subagent_stop.sh` | Agent completes | Agent output processing |
+
+---
+
+## Skills
+
+20 skills that Claude loads automatically when relevant:
+
+**Core:** `rhino-mind` (identity + thinking + standards + self-model), `product-lens` (product measurement + UX checklist)
+
+**Commands (user-invoked):** `plan`, `go`, `eval`, `feature`, `todo`, `assert`, `product`, `ideate`, `research`, `strategy`, `roadmap`, `retro`, `rhino`, `ship`, `onboard`, `clone`, `skill`, `calibrate`
+
+Skills use the [Agent Skills](https://claude.com/blog/skills) format — the same `SKILL.md` files work in Claude Code, Cursor, Codex CLI, and Gemini CLI.
+
+---
+
+## Product Lens
+
+The product lens (`lens/product/`) adds web-product-specific measurement:
+
+- **taste.mjs** — Claude Vision visual eval across 11 dimensions
+- **beliefs.yml** — product-specific assertions
+- **scoring/** — web structure checks (dead ends, empty states, IA audit)
+- **corpus/** — taste reference database for calibrated scoring
+- **mind/** — product-eyes.md (measurement stack), product-self.md (unknowns), product-standards.md (UX checklist)
+
+Install other lenses by dropping directories into `lens/`. Each lens provides its own config, commands, scoring extensions, and mind files.
 
 ---
 
@@ -254,42 +324,97 @@ One number. Measures what matters.
 
 ```
 rhino-os/
-  .claude-plugin/          plugin manifest (future plugin marketplace support)
-    plugin.json            name, version, description
-    marketplace.json       marketplace listing
-  commands/                slash commands (plan, go, eval, feature, etc.)
-  .claude/commands/        symlinks → commands/ (backward compat)
-  skills/                  auto-triggered skills for plugin system
-    rhino-mind/SKILL.md    core operating model (identity + thinking + standards + self)
-    product-lens/SKILL.md  product measurement (eyes + self + UX checklist)
-  agents/                  custom agents (measurer, explorer, builder, reviewer)
-  mind/                    identity + reasoning (source of truth)
-    identity.md            cofounder behavior
-    thinking.md            predict -> measure -> update model
-    standards.md           what quality means (value > craft > health)
-    self.md                self-model (capabilities, weaknesses, calibration)
-  bin/
-    rhino                  CLI entrypoint
-    score.sh               THE score (assertion pass rate, health gate)
-    eval.sh                assertion runner
-    self.sh                4-system self-diagnostic
-    bench.sh               calibration check against fixture repos
-    init.sh                bootstrap rhino-os into any repo
+  .claude-plugin/            plugin manifest
+    plugin.json              name, version, description
+    marketplace.json         marketplace listing
+  skills/                    20 skills (auto-triggered + user-invoked)
+    rhino-mind/SKILL.md      core operating model
+    product-lens/SKILL.md    product measurement
+    plan/SKILL.md            bottleneck finding + task writing
+    go/SKILL.md              autonomous build loop
+    eval/SKILL.md            assertion runner + sub-scores
+    ...                      (17 more)
+  commands/                  slash command definitions (*.md)
+  agents/                    6 custom agents
+    builder.md               writes code (used by /go)
+    explorer.md              researches unknowns (used by /research)
+    measurer.md              runs evals (used by /go, /eval)
+    reviewer.md              post-build quality review
+    evaluator.md             structured rubric evaluation
+    market-analyst.md        competitive analysis
+  mind/                      identity + reasoning (source of truth)
+    identity.md              cofounder behavior
+    thinking.md              predict -> measure -> update model
+    standards.md             what quality means (value > craft > health)
+    self.md                  self-model (capabilities, weaknesses, calibration)
+  bin/                       CLI tools
+    rhino                    CLI entrypoint (v8.0.3)
+    score.sh                 THE score (assertion pass rate, health gate)
+    eval.sh                  assertion runner + generative eval
+    grade.sh                 prediction auto-grading + knowledge consolidation
+    trail.sh                 session evidence trail
+    feature.sh               feature management (list, detect, view)
+    todo.sh                  backlog management
+    plan.sh                  build plan management
+    init.sh                  bootstrap rhino-os into any repo
+    self.sh                  4-system self-diagnostic
+    bench.sh                 calibration check against fixtures
+    skill.sh                 skill management
+    data.sh                  data utilities
+    serve.mjs                dev server for eval
+    lib/                     shared libraries (config.sh)
   config/
-    rhino.yml              tunables + value hypothesis + signals
-  hooks/
-    hooks.json             declarative hook config (for plugin system)
-    run-hook.cmd           polyglot hook launcher (Unix + Windows)
-    session_start.sh       boot card on session start
-    post_skill.sh          plan file validation after skill writes
-    post_edit.sh           write-time quality checks
-  lens/product/            product development lens
-    eval/beliefs.yml       product assertions
-    eval/taste.mjs         visual eval engine
-    scoring/               web-specific structure/hygiene extensions
-    corpus/                taste reference database
-  tests/                   mechanical tests for score, eval, self
+    rhino.yml                tunables, value hypothesis, features, signals
+  hooks/                     9 lifecycle hooks
+    hooks.json               declarative hook config (for plugin system)
+    run-hook.cmd             polyglot hook launcher (Unix + Windows)
+    session_start.sh         boot card on session start
+    pre_compact.sh           context recovery before compression
+    post_edit.sh             write-time quality checks
+    post_skill.sh            plan file validation
+    post_commit.sh           post-commit checks
+    pre_commit_check.sh      pre-commit validation
+    stop.sh                  session cleanup
+    subagent_stop.sh         agent output processing
+  lens/product/              product development lens
+    lens.yml                 lens manifest
+    eval/beliefs.yml         product assertions
+    eval/taste.mjs           visual eval engine (11 dimensions)
+    scoring/                 web-specific structure/hygiene extensions
+    corpus/                  taste reference database
+    mind/                    product-eyes, product-self, product-standards
+  tests/                     mechanical tests + fixture repos
+    fixtures/                healthy, decent, mediocre test projects
+  install.sh                 symlink installer
+  uninstall.sh               clean removal
 ```
+
+---
+
+## How Versions Work
+
+Versions are theses, not releases. Each one asks a question. It gets proven, disproven, or abandoned.
+
+| Version | Thesis | Status |
+|---------|--------|--------|
+| v6.0 | Identity + measurement > prescribed workflows | Proven |
+| v7.0 | Score measures value, not health | Proven |
+| v7.1 | Every workflow needs a command | Proven |
+| v7.2 | The loop works on itself | Proven |
+| v8.0 | Someone who isn't us can complete a loop | Proven |
+| v8.1 | Every skill measured, every agent produces work | Proven |
+| v9.0 | Plugin marketplace distribution | Future |
+
+Future versions emerge from evidence. `/roadmap` tracks the arc.
+
+---
+
+## Inspired By
+
+- [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) — autonomous research loops
+- [SWE-bench](https://www.swebench.com/) — task-resolution benchmarks for code agents
+- [Octalysis](https://yukaichou.com/gamification-examples/octalysis-complete-gamification-framework/) — motivation architecture framework
+- [DORA metrics](https://dora.dev/) — throughput, failure rate, lead time, recovery
 
 ---
 
