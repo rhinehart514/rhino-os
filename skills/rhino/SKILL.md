@@ -83,7 +83,7 @@ The dashboard has four zones. Each is dense, visual, and earns its space.
 
 ```
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  ◆ [PROJECT NAME]  ·  v8.0.3  ·  stage: one  ·  build mode
+  ◆ [PROJECT NAME]  ·  v8.0.3  ·  20 commands  ·  build mode
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   "[value hypothesis]"
@@ -230,7 +230,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
 ```
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  ◆ rhino-os  ·  22 skills  ·  6 agents  ·  v8.2.0
+  ◆ rhino-os  ·  20 commands  ·  22 skills  ·  6 agents
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   Just type what you want. rhino-os routes your intent.
@@ -243,17 +243,21 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   /taste                   Visual product intelligence. 0-100 scale.
                            Market-calibrated. Persistent memory. Auto-creates todos.
-                           <url> · mobile · vs · deep · trend
+                           url · mobile · vs · deep · trend
 
-  /calibrate               Ground the taste eval in YOUR preferences
+  /calibrate               Ground the taste eval in YOUR preferences.
                            Founder interview + design system + dimension research.
-                           profile · design-system · dimensions
+                           profile · design-system · dimensions · verify · refresh · drift
 
   ⎯⎯ think ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   /product                 Should this exist? Who cares?
                            7 lenses. Pressure-tests new ideas AND existing products.
                            "I want to build..." · user · assumptions · pitch · coherence
+
+  /strategy                The honest take on where you are.
+                           Anti-sycophantic. Names what you're avoiding. Full strategy suite.
+                           bet · market · position · price · gtm · compete · honest · coherence · user · research · docs · site
 
   /ideate                  What should we build next?
                            Evidence-weighted. Steals from market. Mandatory kill list.
@@ -265,64 +269,65 @@ This is the skill catalog that makes someone want to try everything. Not a refer
 
   ⎯⎯ build ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  /plan                    Find the bottleneck, propose what to work on
+  /plan                    Find the bottleneck, propose what to work on.
                            Reads 14 state sources. Sub-score aware. Thesis-informed.
                            feature · brainstorm · critique
 
-  /go                      Autonomous build loop
+  /go                      Autonomous build loop.
                            Speculative branching. Adversarial review. Prediction grading.
                            feature · --safe · --speculate N
 
-  /clone                   Screenshot any URL, generate components
+  /clone                   Screenshot any URL, generate components.
                            Your framework + your design tokens + your conventions.
-                           <url>
+                           url · verify · mobile · section · history
 
-  /ship                    Get it out the door
-                           Pre-flight → commit → push → GitHub release → deploy → verify.
-                           release · pr · hotfix · dry
+  /ship                    Get it out the door.
+                           Pre-flight, commit, push, GitHub release, deploy, verify.
+                           release · pr · hotfix · dry · verify · rollback · history
 
   ⎯⎯ track ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  /feature                 Define, manage, detect features
+  /feature                 Define, manage, detect features.
                            Sub-score breakdown. Maturity tracking. Dependency graph.
                            name · new · detect · ideate · status
 
-  /assert                  Make a belief permanent
+  /assert                  Make a belief permanent.
                            Todo graduation. Chat-native assertion management.
-                           feature: belief · list · check · graduate · health · coverage · suggest · flapping
+                           feature: belief · list · check · remove · graduate · health · coverage · suggest · flapping
 
-  /todo                    Living backlog — never stale
+  /todo                    Living backlog — never stale.
                            Decay. Graduation. Smart promote. Agent-fed.
                            add · done · promote · health · decay
 
-  /roadmap                 Version theses + the external story
+  /roadmap                 Version theses + the external story.
                            Proves/disproves questions. Generates narrative + changelog.
                            next · bump · narrative · changelog · positioning
 
   ⎯⎯ learn ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  /strategy                The honest take on where you are
-                           Anti-sycophantic. Names what you're avoiding. One opinion.
-                           refresh · honest
-
-  /retro                   Close the learning loop
+  /retro                   Close the learning loop.
                            Grade predictions. Prune stale knowledge. Audit beta features.
                            session · accuracy · stale · health · dimensions · auto
 
-  ⎯⎯ home ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  ⎯⎯ setup ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  /onboard                 Onboard any repo in under 2 minutes.
+                           Detects project. Generates features. Runs first eval.
+                           --force
+
+  /skill                   Manage skills.
+                           Create, install, audit, measure overlap.
+                           list · create · install · remove · info · health · overlap · audit
 
   /rhino                   Where am I? What matters?
                            Product state, system health, one opinion.
                            help · system · compare · health
 
-  ⎯⎯ setup ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  ⎯⎯ connect ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  /onboard                 Onboard any repo in under 2 minutes
-                           Detects project. Generates features. Runs first eval.
-                           --force
-
-  /skill                   Manage skills
-                           list · install · remove · create
+  /openclaw                Chat-optimized interface.
+                           Formats rhino-os output for messaging delivery.
+                           pulse · ask · nudge · bet · grunt
 
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
@@ -334,7 +339,7 @@ This is the skill catalog that makes someone want to try everything. Not a refer
   /rhino system   hooks, calibration, internals
 ```
 
-**Help design:** Name line (hook) + detail line (what's special) + routes line (dimmed). Grouped by phase: measure → think → build → track → learn → home → setup. Sell the value, not the functionality. 3 lines per skill max. /rhino listed under "home" with routes visible.
+**Help design:** Name line (hook) + detail line (what's special) + routes line (dimmed). Grouped by phase: measure → think → build → track → learn → setup → connect. Sell the value, not the functionality. 3 lines per skill max.
 
 ---
 
@@ -347,7 +352,8 @@ For power users who want to see the internals.
   ◆ rhino system  ·  v8.0.3  ·  plugin mode
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  skills       18 installed (16 commands + 2 context)
+  commands     20 installed
+  skills       22 total (20 commands + 2 context)
   agents       6 (builder, explorer, measurer, reviewer, evaluator, market-analyst)
   hooks        8 active
 
