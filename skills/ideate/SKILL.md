@@ -40,6 +40,8 @@ Parse `$ARGUMENTS`:
 | `future` | Future-back thinking | Read `techniques/future-back.md` → endgame backward |
 | `steal` | Pattern theft | Read `techniques/pattern-theft.md` → steal from winners |
 | `cross` | Cross-domain | Read `techniques/cross-domain.md` → import from other fields |
+| `yc` | YC lens | Read `techniques/yc-lens.md` → evaluate ideas like a YC partner |
+| `market` | 2026 market context | Read `techniques/market-2026.md` → what's true NOW that changes what to build |
 | `[any text]` | Constrained ideation | Ideas within a specific direction |
 
 ## The protocol
@@ -69,9 +71,15 @@ Sources ranked by signal strength:
 **Technique modes (divergent, invert, etc.):** Read the corresponding file from `techniques/` and follow its method. These push thinking out of the default evidence-weighted mode into creative territory.
 
 **Deep mode:** Pick 3 techniques, run each, then converge. Suggested flow:
-1. `techniques/divergent.md` — generate volume (2 min)
-2. `techniques/killer.md` — attack survivors (2 min)
-3. One of: inversion, constraint, user-states, combination, future-back, pattern-theft, cross-domain — based on what the evidence-scan revealed
+1. `techniques/market-2026.md` — read market context first (grounds everything in reality)
+2. `techniques/divergent.md` — generate volume (2 min)
+3. `techniques/killer.md` — attack survivors (2 min)
+4. `techniques/yc-lens.md` — score survivors on fundability
+5. One of: inversion, constraint, user-states, combination, future-back, pattern-theft, cross-domain
+
+**YC mode (`/ideate yc`):** Read `techniques/yc-lens.md` + `techniques/market-2026.md`. Every idea gets the 10 YC questions. Score 0-10 on fundability. Bottom ideas get killed.
+
+**Market mode (`/ideate market`):** Read `techniques/market-2026.md`. Ideate against the 5 market gaps. Every idea must answer "why now?" with a 2026-specific signal.
 
 Generate **3-5 ideas** (default) or **20+** (divergent). No filler. If only 2 have evidence, generate 2.
 
