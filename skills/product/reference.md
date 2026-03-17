@@ -65,7 +65,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
 
   [Edit] / [Approve]
 
-── verdict ────────────────────────────────
+⎯⎯ verdict ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   The gap is real — nobody measures product value at pre-traction. The HN
   thread and competitive whitespace confirm demand. Biggest risk is #4:
   "assertions replace testing" is a bet that developers will adopt a new
@@ -88,7 +88,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
   product: **64%** · score: 95 · stage: **one**
   thesis: "Someone who isn't us can complete a loop without help"
 
-── who ────────────────────────────────────
+⎯⎯ who ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   entry: GitHub README → git clone → install.sh → /onboard
   friction: 1-install (2/5) → 2-first-command (3/5) → 3-understand-output (4/5)
   drop-off: **step 2** — after install, user sees a score but doesn't
@@ -99,7 +99,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
 
   gap: need guided next-step after /onboard → /ideate
 
-── assumptions ────────────────────────────
+⎯⎯ assumptions ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   1. **Solo founders want autonomous measurement** — risk:4 × ignorance:3 = 12
      Known Pattern confirms: "value score motivates, health score doesn't"
      BUT: 0 external users have confirmed this
@@ -114,7 +114,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
 
   gap: all top assumptions require external testing → /research
 
-── pitch ──────────────────────────────────
+⎯⎯ pitch ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   elevator: "rhino-os measures whether your product is delivering what
   you promised — not just whether the code compiles."
   tweet: "Your linter says the code is clean. But is your product better?
@@ -125,7 +125,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
   clarity: **pass** — names the person, states the difference, specific
   cross-check with narrative.yml: **match** ✓
 
-── coherence ──────────────────────────────
+⎯⎯ coherence ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   code vs claims: eval-cache shows 7 features avg 49/100 but score is 95
     ⚠ **disconnect** — assertion pass rate (95) and generative quality (49)
     tell different stories. The score is honest but confusing.
@@ -137,7 +137,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
   README vs product: README describes 17 commands, accurate.
     ✓ **aligned**
 
-── verdict ────────────────────────────────
+⎯⎯ verdict ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   product clarity: **7/10**
   stage: one — no external users
   biggest risk: all assumptions untested externally
@@ -232,7 +232,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
 - Header: `◆ product — [project name or idea description]`
 - New idea mode: market reality → person → assumptions → hypothesis → verdict
 - Existing product: stage-appropriate lenses → synthesis → verdict
-- Each lens uses `──` dividers (exception to standard format, per OUTPUT_FORMAT.md)
+- Each lens uses labeled `⎯⎯` dividers per OUTPUT_FORMAT.md
 - Assumptions ranked by risk × ignorance score, highest first
 - Coherence check: ✓ aligned / ⚠ disconnect for each pair
 - Verdict: product clarity score, stage, biggest risk, biggest disconnect, drop-off, opinionated paragraph
