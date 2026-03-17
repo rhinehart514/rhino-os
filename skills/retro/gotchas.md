@@ -1,27 +1,45 @@
-# Retro Gotchas — Learning Loop Failure Modes
+# Retro Gotchas
 
-LLMs grading predictions and auditing learning hit these traps. Read before every `/retro` run.
+Real failure modes from retro sessions. Read before every `/retro` run.
 
-## Prediction grading subjectivity
-"Improve error handling" can't be graded yes/no. Numeric targets are gradable. Qualitative predictions need proxy metrics. When grading qualitative predictions, find a measurable proxy or present to the founder for confirmation.
+## Grading own predictions leniently
 
-## Accuracy threshold rigidity
-50-70% "well-calibrated" assumes uniform difficulty. Some predictions are easy, some are hard. Context matters. A run of easy correct predictions doesn't mean the model is too safe — check what was predicted.
+The #1 failure mode. "It was close enough" becomes `yes` when it should be `partial`. "The spirit was right" becomes `partial` when it should be `no`. Grade against the literal text of the prediction, not what you meant.
 
-## All-correct blindness
-100% accuracy = predictions are too safe. Not learning. The 50-70% range ensures enough wrong predictions to update the model. If accuracy trends above 70% over multiple sessions, push for bolder predictions.
+**Fix:** Run anti-rationalization checks from `references/grading-guide.md` after every grading pass. If accuracy jumps >20% in one session, something is wrong.
 
-## Dead end resurrection
-A "dead end" that appears in recent predictions may not actually be dead. Maybe the context changed — new tools, different codebase, different stage. Before dismissing a direction as dead, check if conditions have changed since it was marked dead.
+## Partial as a hedge
+
+When >50% of grades are `partial`, you're hedging. Partial means genuinely split outcomes (e.g., two targets, one hit, one missed). Not "I'm not sure." For each partial, ask: would rounding to yes or no change the model update? If yes, round.
+
+## Qualitative predictions can't be auto-graded
+
+"Improve error handling" has no numeric target. The grader agent will try to grade it anyway and produce confident-sounding garbage. Qualitative predictions need a proxy metric OR founder confirmation. Mark `[proposed]` and present.
+
+## Stale predictions are hard to grade
+
+Predictions >14 days old lose context. You'll reconstruct a plausible story instead of grading accurately. Grade weekly. Check `scripts/prediction-stats.sh` for the ungraded backlog — if it's >5, run `/retro auto` immediately.
+
+## Dead ends that aren't dead
+
+A "dead end" that keeps appearing in recent predictions has unresolved energy. Don't archive it — conditions may have changed (new tools, different stage, more knowledge). Move it to Uncertain with a revival note.
+
+## Model updates without citing evidence
+
+Every model update in experiment-learnings.md must point to a specific graded prediction. "I updated the model because it felt right" is rationalization, not learning. The prediction → grade → update chain is the entire point.
 
 ## Knowledge model bloat
-experiment-learnings.md grows forever. No pruning = noise accumulates. The consolidator agent helps but manual review still needed. Flag entries older than 30 days with no recent citation as candidates for pruning.
 
-## Grading latency compounding
-If predictions go ungraded for 2+ weeks, grading accuracy drops (harder to recall context). Grade weekly. Check `scripts/prediction-stats.sh` for ungraded count.
+experiment-learnings.md grows but never shrinks. After 20+ entries in any section, consolidation is overdue. The consolidator agent helps but check its work — it may merge entries that are subtly different.
 
-## Model update without evidence
-"I updated the model because it felt right" is not evidence-based learning. Cite the data. Every model update needs: what prediction failed, what the actual outcome was, what measurably changed.
+## Confirmation bias in accuracy assessment
 
-## Confirmation bias in grading
-Grading your own predictions leniently. The grader agent helps, but even it can be influenced by the prediction text. When in doubt, grade "no" and let the founder override to "partial."
+50-70% "well-calibrated" assumes uniform difficulty. A run of easy correct predictions doesn't mean the model is good — check WHAT was predicted. Five "the sun will rise" predictions at 100% accuracy tell you nothing. Five "craft_score will hit 70 after this refactor" predictions at 60% accuracy tell you a lot.
+
+## Forgetting to log the retro session
+
+After grading, run `scripts/retro-log.sh add [route] [graded] [pruned] [accuracy] [updates] "[notes]"`. Without logging, you can't track retro frequency or spot patterns across sessions. The log is how `/retro health` knows when you last ran a retro.
+
+## Consolidator merging different patterns
+
+The consolidator agent aggressively merges entries that look similar. Two patterns with the same keywords but different boundary conditions are NOT duplicates. Review consolidator output before committing — check that merged entries preserve boundary conditions from both originals.
