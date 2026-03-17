@@ -1,0 +1,17 @@
+# Assertion template — copy and customize
+- id: feature-name-check-description
+  type: file_check  # file_check | content_check | command_check | llm_judge | score_trend
+  # For file_check:
+  path: "path/to/file"
+  # For content_check:
+  # path: "path/to/file"
+  # contains: "expected content"
+  # For command_check:
+  # command: "bash some-command"
+  # expect_exit: 0
+  # expect_output: "expected string"
+  # For llm_judge:
+  # claim: "what should be true"
+  # evidence_files: ["file1", "file2"]
+  severity: warn  # block | warn | info
+  feature: feature-name

@@ -58,6 +58,9 @@
 
 - **Auto-graded** (2026-03-17): Named agent references are wasted — skills bypass them. memory:user only on 1/6 agents. Agent teams completely unused despite native support.
 
+
+- **Auto-graded** (2026-03-17): Code eval cannot measure visual-layer changes. Need taste re-eval to verify prediction. Playwright MCP screenshot timeout is a blocker for taste measurement.
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?
