@@ -5,15 +5,15 @@
     "email": "rhinehart514@gmail.com"
   },
   "metadata": {
-    "description": "Your product gets measurably better every session. 19 commands, 6 agents, 22 skills, prediction-driven learning loop.",
+    "description": "Your product gets measurably better every session. 9 agents, 21 skills, prediction-driven learning loop.",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "8.2.3",
+      "version": "8.3.0",
       "source": "./",
-      "description": "Learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions. 21 commands, 6 agents, 22 skills. Auto-updates supported.",
+      "description": "Agent-orchestrated product intelligence for Claude Code — 9 agents with memory, parallel evaluation, self-healing build loop, 21 skills. Auto-updates supported.",
       "author": {
         "name": "Jacob Rhinehart"
       },
