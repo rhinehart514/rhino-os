@@ -7,484 +7,116 @@ allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch, WebFetc
 
 # /strategy
 
-**The product strategist in your terminal.** Combines market intelligence, product thinking, strategic diagnosis, and research into one skill. This replaces `/product`, `/strategy`, and `/research` as a unified strategic brain.
+A cofounder diagnosing what actually matters. Reads your code, metrics, predictions, the live market — synthesizes a strategic view. Every recommendation is a prediction that gets graded. Anti-sycophantic by design.
 
-Not a chatbot giving generic advice. Reads your code, your metrics, your predictions, the live market — and synthesizes a strategic view that a $500/hr advisor would charge for. Every recommendation is a prediction that gets graded. Anti-sycophantic by design.
+## Skill folder structure
 
-## When to use /strategy vs other commands
+This skill is a **folder**, not just this file. Read these on demand:
 
-| Command | Question | Grounded in |
-|---------|----------|-------------|
-| `/eval` | How good is each feature? (0-100) | Code review by top engineer |
-| `/strategy` | Given the scores + market, what matters? | Eval sub-scores + market intelligence |
-| `/discover` | What systems should exist? What's missing? | Eval scores + systems thinking |
-| `/plan` | What should I work on right now? | Strategy bottleneck + eval weakness |
-| `/go` | Build it autonomously | Eval keep/revert decisions |
-
-The flow: `/eval` measures → `/strategy` diagnoses (what matters given the market) → `/discover` ideates (what systems to build) → `/plan` prioritizes (what to do first) → `/go` builds → `/eval` re-measures. Every skill reads eval scores. Strategy and discover share the diagnosis — strategy knows the market, discover knows the systems.
+- `scripts/stage-check.sh` — mechanically determines project stage from eval-cache + features + user signals
+- `scripts/work-impact.sh` — reads git log + eval-cache, shows which recent work actually moved scores
+- `scripts/competitive-scan.sh` — outputs structured competitor data, checks market-context.json freshness
+- `scripts/strategy-freshness.sh` — checks strategy.yml age, flags staleness, shows what changed since last run
+- `references/strategy-frameworks.md` — stage-appropriate frameworks and bet scoring dimensions
+- `references/honest-diagnosis.md` — how to name what the founder is avoiding. Read before `/strategy honest`.
+- `references/market-2026.md` — current landscape, competitor positioning, what's being disrupted
+- `templates/strategy-brief.md` — output template for every strategy session
+- `reference.md` — detailed output examples and formatting rules
+- `gotchas.md` — real failure modes. **Read before every run.**
 
 ## Routing
 
 Parse `$ARGUMENTS`:
 
-### No arguments → full strategic read
-The default. Combines strategic diagnosis with market intelligence. One-page assessment of where you are and what to do.
+| Input | Mode | What happens |
+|-------|------|-------------|
+| (none) | Full strategic read | Run all scripts -> diagnose -> deliver |
+| `honest` | The hardest version | Read `references/honest-diagnosis.md` -> name what's avoided |
+| `bet <idea>` | Score a product idea | 7 dimensions, anti-sycophancy gate |
+| `coherence` | Narrative audit | Code vs claims, pitch vs reality |
+| `user` / `journey` | User model | Journey walkthrough, friction scoring |
+| `market <domain>` | Landscape dive | Spawn explorer + market-analyst |
+| `position` | Strategic positioning | Category + differentiator from code reality |
+| `price` | Pricing intel | Spawn gtm agent for pricing analysis |
+| `gtm` | Go-to-market | Distribution strategy via gtm agent |
+| `compete <name>` | Competitive response | Real-time intelligence, default: keep building |
+| `research <topic>` | Investigation | Multi-source, prediction-driven |
+| `docs <lib>` | Library docs | context7 MCP: resolve-library-id -> query-docs |
+| `site <url>` | Live analysis | Playwright: navigate -> snapshot -> synthesize |
 
-### Think modes (product-inward)
+## The protocol
 
-| Input | Mode |
-|-------|------|
-| `bet <idea>` | Score a product idea against 7 dimensions |
-| `coherence` | Is the product internally consistent? |
-| `honest` | The hardest version — names what you're avoiding |
-| `user` or `journey` | User model + assumptions + journey walkthrough |
-| `assumptions` or `risks` | Assumption audit ranked by risk × ignorance |
-| `focus` or `cut` | Feature kill/focus exercise |
-| `"I want to build..."` | New idea mode — pressure test from scratch |
+### Step 1: Run scripts (always first)
 
-### Market modes (world-outward)
-
-| Input | Mode |
-|-------|------|
-| `market <domain>` | Deep landscape dive with agents |
-| `position` | Messaging + category grounded in code + competitors |
-| `price` | Pricing intelligence for solo-founder scale |
-| `gtm` | Go-to-market playbook with evidence |
-| `compete <name>` | Competitive response — real-time intelligence |
-| `landscape` | Full market map generation |
-
-### Research modes (investigation)
-
-| Input | Mode |
-|-------|------|
-| `research <topic>` | General-purpose investigation |
-| `docs <lib>` | Real-time library docs via context7 |
-| `site <url>` | Live site analysis via Playwright |
-
-**Ambiguity resolution:** Exact keyword match wins → feature name match → free-form topic. Never ask "did you mean?" — just act.
-
----
-
-## Default mode: Full Strategic Read
-
-Combines strategic diagnosis with market intelligence. Reads everything:
-
-### 1. Read state (parallel)
-
-**Internal state:**
-1. `config/rhino.yml` — features, weight, depends_on, value hypothesis
-2. `.claude/cache/eval-cache.json` — sub-scores + deltas per feature
-3. `.claude/plans/strategy.yml` — current diagnosis, stage, bottleneck
-4. `.claude/plans/roadmap.yml` — thesis + evidence progress
-5. `.claude/knowledge/predictions.tsv` — accuracy, recent predictions
-6. `.claude/knowledge/experiment-learnings.md` — known patterns, dead ends
-7. `.claude/plans/todos.yml` — backlog health
-8. `git log --oneline -20` — what's actually been worked on
-
-**External state:**
-9. `.claude/cache/market-context.json` — market model (if exists)
-10. `.claude/cache/market-context-base.json` — base market intelligence (ships with skill)
-11. `~/.claude/preferences.yml` — agent cost tier. Map `agents.cost` to model overrides for explorer and market-analyst:
-    - economy: explorer=haiku, market-analyst=sonnet
-    - balanced: explorer=sonnet, market-analyst=opus (default)
-    - premium: explorer=opus, market-analyst=opus
-    When spawning agents, pass `model: "<resolved_model>"` parameter. If no preferences.yml, use balanced defaults.
-
-### 2. Diagnose honestly (eval-grounded)
-
-**Eval reality check:** Read eval-cache.json sub-scores for every active feature. The eval scores are the ground truth — not maturity labels, not the founder's belief about quality. Sort features by score, worst first.
-
-For the worst 3 features, look at sub-scores:
-- **delivery dragging** (d < c and d < v) → the feature exists but delivers nothing. Strategic question: should this feature exist at all?
-- **craft dragging** (c < d and c < v) → delivers value but is fragile. Strategic question: is this a ticking time bomb or acceptable at this stage?
-- **viability dragging** (v < d and v < c) → works but users struggle. Strategic question: does this block adoption?
-
-**Stage-appropriate check:** Is current work appropriate for current stage?
-- Stage one: anything not "get one person to use this" is potentially wasted. High-delivery, low-craft is FINE at stage one. Polishing (v:70, c:70, d:40) before delivery is confirmed = wasted work.
-- Stage some: anything not retention-focused is premature
-- Stage many: anything not growth/distribution is wasted
-
-**Work-to-impact ratio:** What was built in last 5 sessions? Check eval deltas — did the scores actually move? If 5 sessions of work and scores are flat, the approach is wrong regardless of how much code was written.
-
-**Feature sprawl:** >3 features at "building" simultaneously = spreading too thin. Check eval — features with scores and no recent delta are being neglected.
-
-**Measurement health:** Predictions graded? Accuracy 50-70%? If 95% → too safe. If 20% → broken model.
-
-**Market position:** Category saturation, competitive pressure, timing window.
-
-**Cross-reference /discover:** If `~/.claude/cache/last-discovery.yml` exists and is <7 days old, read it. Does the discovery recommendation align with where eval shows weakness? If discover recommended building system X but eval shows system Y is the weakest, name the tension.
-
-### 3. Deliver the assessment
-
-```
-── strategy ──────────────────────────────────
-
-  stage: [one/some/many/growth]
-  category: [where you sit in the market]
-  saturation: [low/medium/high] — [evidence]
-
-  eval reality:
-    worst:  [feature] at [score] — [which sub-score drags it: d/c/v] — [one-line why]
-    best:   [feature] at [score] — [what makes it strong]
-    trend:  [improving/flat/declining] over last [N] sessions
-
-  bottleneck: [the one thing — grounded in eval sub-scores, not guesses]
-  market window: [timing assessment]
-
-  competitors:
-  ▸ [name] — [threat level] — [why]
-
-  "[One paragraph. What a cofounder would say. Anti-sycophantic.
-   Names the hard truth. Market-informed. Grounded in the actual scores.]"
-
-  ● You're avoiding: [the thing — cite the eval score that proves it]
-  ● This doesn't matter yet: [premature work — cite stage vs sub-score]
-  ● The real risk is: [failure mode — what the scores say will break first]
-
-  /strategy bet [idea]   score a product bet
-  /discover              what systems are missing
-  /eval                  refresh the scores
+```bash
+bash scripts/stage-check.sh
+bash scripts/work-impact.sh
+bash scripts/strategy-freshness.sh
+bash scripts/competitive-scan.sh
 ```
 
-### 4. Update strategy.yml
+These produce structured output at zero context cost. Only their output enters the conversation.
+
+### Step 2: Read gotchas
+
+Read `gotchas.md` before generating. Every gotcha is a failure mode from a real session.
+
+### Step 3: Read state (parallel)
+
+**Internal:** rhino.yml, eval-cache.json, strategy.yml, roadmap.yml, predictions.tsv, experiment-learnings.md, todos.yml, `git log --oneline -20`
+
+**External:** market-context.json (if exists), market-context-base.json (ships with skill)
+
+**Cost tier** from `~/.claude/preferences.yml` -> `agents.cost`:
+- economy: explorer=haiku, market-analyst=sonnet
+- balanced: explorer=sonnet, market-analyst=opus (default)
+- premium: explorer=opus, market-analyst=opus
+
+### Step 4: Diagnose honestly (eval-grounded)
+
+Sort features by eval score, worst first. For worst 3, check sub-score pattern:
+- delivery dragging (d < c, d < v) -> should this feature exist?
+- craft dragging (c < d, c < v) -> ticking time bomb or acceptable debt?
+- viability dragging (v < d, v < c) -> blocking adoption?
+
+Check stage-appropriateness, work-to-impact ratio, feature sprawl, measurement health, market position.
+
+### Step 5: Deliver using template
+
+Read `templates/strategy-brief.md` for the output structure. Read `reference.md` for detailed examples.
+
+### Step 6: Update strategy.yml
 
 Write diagnosis to `.claude/plans/strategy.yml` including market context.
 
----
+### Step 7: Log prediction
 
-## Think Modes
-
-### `bet <idea>` — Score a product bet
-
-The flagship mode. Feed it an idea, get an honest assessment.
-
-**7 dimensions, each scored 1-10:**
-
-1. **Market gap** — Is anyone doing this well? (1=packed, 10=greenfield)
-   - WebSearch for competitors. Count funded companies, check traction.
-2. **Timing** — Why now? What changed? (1=too early/late, 10=perfect moment)
-   - What technology/market shift enables this NOW?
-3. **Founder-market fit** — Can YOU build this? (1=no relevant skills, 10=perfect fit)
-   - Read codebase, past work, existing features. Be honest about gaps.
-4. **Distribution** — How do users find this? (1=no channel, 10=proven channel)
-   - Name the channel. If you can't name it, score = 2.
-5. **Business model** — How does money work at 1-person scale? (1=unclear, 10=proven model)
-   - What do competitors charge? What's the value metric?
-6. **Defensibility** — What stops copying? (1=weekend project, 10=deep moat)
-   - Network effects, data, switching cost, or speed.
-7. **Evidence quality** — Data or vibes? (1=pure intuition, 10=validated data)
-   - Count citations. No evidence = score 2.
-
-**Anti-sycophancy rule:** At least 2 dimensions MUST score below 5. No idea is perfect. If you can't find weaknesses, look harder.
-
-```dot
-digraph bet_scoring {
-  rankdir=TB;
-  node [shape=box, style=rounded];
-  parse [label="Parse idea"];
-  search [label="WebSearch\n(competitors, pricing)"];
-  read_base [label="Read market\nbase model"];
-  score [label="Score 7 dimensions\n(each 1-10)"];
-  check [label=">=2 below 5?" shape=diamond];
-  fix [label="Look harder\nfor weaknesses"];
-  synth [label="Conviction score\n+ #1 build / #1 not"];
-  log [label="Log prediction\n(predictions.tsv)"];
-  parse -> search -> read_base -> score -> check;
-  check -> fix [label="no"];
-  fix -> score;
-  check -> synth [label="yes"];
-  synth -> log;
-}
-```
-
-**Output:**
-```
-── bet: [idea name] ──────────────────────────
-
-  conviction: [total/70] ([percentage]%)
-
-  market gap      ████████░░  8   [one-line evidence]
-  timing          ██████░░░░  6   [one-line evidence]
-  founder fit     ████████░░  8   [one-line evidence]
-  distribution    ███░░░░░░░  3   [one-line evidence]  ← weak
-  business model  █████░░░░░  5   [one-line evidence]
-  defensibility   ██░░░░░░░░  2   [one-line evidence]  ← weak
-  evidence        ██████░░░░  6   [one-line evidence]
-
-  #1 reason to build: [the strongest signal]
-  #1 reason to NOT build: [the biggest risk]
-
-  prediction: "[specific, falsifiable prediction about this idea]"
-```
-
-Log prediction to `~/.claude/knowledge/predictions.tsv`.
-
-### `coherence` — Narrative coherence audit
-
-Checks alignment across:
-- **Code vs claims**: does eval-cache show features delivering what rhino.yml claims?
-- **Narrative vs reality**: does README match what's actually proven?
-- **Pitch vs positioning**: does the pitch match competitive positioning?
-
-Every disconnect is a finding. Disconnects are the most important output.
-
-### `honest` — The hardest version
-
-Skip the numbers. Just answer: "If I'm being completely honest, what's the one thing that matters and what are you avoiding?"
-
-**Anti-sycophancy rules — MUST include at least one of:**
-- "You're avoiding..." — name the hard thing
-- "This doesn't matter yet..." — name premature work
-- "The real risk is..." — name the failure mode
-- "Stop..." — name one thing to stop immediately
-
-### `user` — User model + journey
-
-Walk each step from "heard about this" to "got value." Score friction 1-5 per step. Find the drop-off. Name the person at name-level specificity. Extract and rank assumptions by risk × ignorance.
-
-### New idea mode — `"I want to build..."`
-
-If $ARGUMENTS is >10 words and doesn't match any route, treat as a new product idea:
-1. Extract what/who/why-now/how
-2. Market reality check via WebSearch (<2 min)
-3. Name the person (use AskUserQuestion)
-4. Assumption extraction ranked by risk × ignorance
-5. Draft value hypothesis for rhino.yml
-6. Verdict: is this worth building?
-
----
-
-## Market Modes
-
-### `market <domain>` — Deep landscape dive
-
-Spawns explorer + market-analyst agents in parallel. Pulls real data:
-
-- **Category map**: saturated / growing / emerging / dead
-- **Key players**: with traction signals (not just funding — actual users)
-- **Business models**: what works at solo / small team / funded scale
-- **Distribution channels**: what works for this category
-- **Timing**: why now vs too early vs too late
-
-Saves to `.claude/cache/market-context.json`. Other modes read from this cache.
-
-### `position` — Strategic positioning
-
-Not "write marketing copy." Strategic positioning:
-- Who is the ideal customer? (specific, not "developers")
-- What category do you create or join?
-- What's the differentiator? (from code reality, not aspirations)
-- What's the one sentence someone uses to describe you?
-- What do you NOT compete with?
-
-Reads codebase to ground positioning in reality. Flags disconnects.
-
-### `price` — Pricing intelligence
-
-Spawn the gtm agent for pricing-specific analysis:
-```
-Agent(subagent_type: "rhino-os:gtm", prompt: "Pricing analysis for [product]. Research competitor pricing pages, value metrics, willingness-to-pay signals. Focus on: what's the value metric, what do competitors charge, what model fits a solo founder at [stage]. Write to .claude/cache/gtm-strategy.json.", run_in_background: true)
-```
-
-Synthesize gtm findings with inline analysis:
-- What's the value metric? (per seat, per project, per query, flat)
-- What do competitors charge and why?
-- What's willingness-to-pay for THIS user at THIS stage?
-- Free vs freemium vs paid — what works here?
-- Price anchoring: what's the alternative cost?
-
-Outputs recommendation as prediction. For deeper financial modeling, suggest `/money price`.
-
-### `gtm` — Go-to-market playbook
-
-Distribution strategy based on category + stage + resources.
-
-Spawn the gtm agent for deep GTM analysis:
-```
-Agent(subagent_type: "rhino-os:gtm", prompt: "Full GTM analysis for [product]. Stage: [stage]. Category: [category]. Read rhino.yml, market-context.json, customer-intel.json. Produce channel ranking, pricing recommendation, unit economics estimate, and launch sequence. Write to .claude/cache/gtm-strategy.json.", run_in_background: true)
-```
-
-While the agent runs, gather inline context from strategy.yml and market-context.json. When gtm agent returns, synthesize its findings into the strategy output.
-
-Content from gtm agent:
-- Channel ranking with evidence from similar products
-- Launch sequencing: what order?
-- Content strategy: what to write, where
-- Partnership opportunities: who has your users?
-- Timeline: realistic for solo founder
-
-Every channel recommendation is a prediction logged to predictions.tsv.
-
-For deeper financial modeling, suggest `/money` which provides full unit economics and runway analysis.
-
-### `compete <name>` — Competitive response
-
-"Someone just launched something similar." Pulls real data:
-- What exactly did they do?
-- Does this change your positioning?
-- What should you do? (options: nothing / differentiate / accelerate / pivot)
-- What should you NOT do? (panic, copy, premature pivot)
-
-**Default recommendation: "keep building."** Override only with strong evidence.
-
-### `landscape` — Full market map
-
-Visual map of your space. Categories, players, saturation. Updated via WebSearch + market-analyst agent. The reference document all other modes read.
-
----
-
-## Research Modes
-
-### `research <topic>` — General investigation
-
-Multi-source research. Auto-select tools based on topic. Cross-reference with experiment-learnings.md. Every session follows the research protocol:
-
-1. **Prediction** — what do I expect to find?
-2. **Investigation** — run multiple sources in parallel
-3. **Synthesis** — structured findings, not raw dumps
-4. **Model update** — write to experiment-learnings.md
-5. **Research artifact** — write to ~/.claude/cache/last-research.yml
-6. **Grade prediction** — fill in predictions.tsv
-7. **Todo exhaust** — convert findings to backlog items
-
-### `docs <library>` — Real-time library docs
-
-Uses context7 MCP: resolve-library-id → query-docs. Cross-reference with codebase usage.
-
-### `site <url>` — Live site analysis
-
-Uses Playwright: navigate → snapshot → screenshot → evaluate → network requests → synthesize.
-
----
-
-## The 2026 Market Base Model
-
-Ships with the skill so first use is instant. Read from `.claude/cache/market-context-base.json`.
-
-**Saturated categories:**
-- Coding assistants / copilots (ChatGPT 62-81% share, Copilot dominant)
-- Consumer chatbots (diminishing returns from scaling)
-- Content generation (commodity, race to zero)
-- Horizontal AI agents (half the entire 2000+ company market)
-- Marketing automation (table stakes, no differentiation left)
-
-**Emerging categories:**
-- Vertical AI agents (industry-specific: legal, healthcare, finance)
-- AI evaluation/measurement infrastructure (enterprises can't measure ROI)
-- Founder decision tools (YC 2026: "what to build, not how")
-- Boring industry AI (YC: metal mills, government, field service)
-- AI agencies with software margins (deliver finished work, not tools)
-- Physical AI / vocational coaching (multimodal + wearables)
-- Financial agent swarms (new quant strategies)
-
-**Dead:**
-- Multi-channel CLI adapters (no demand signal)
-- Generic chatbot wrappers (commodity)
-
-**Solo founder economics:**
-- Tool budget: $200-500/mo replaces headcount
-- Capital efficiency: 10-50x vs traditional startup
-- Key insight: distribution > product quality at every stage
-- Context engineering = the defining skill of 2026
-
-**YC 2026 RFS signals:**
-- AI-native systems that decide WHAT to build (not how)
-- AI agencies with software margins
-- Physical AI + vocational coaching
-- Boring industry modernization
-- Financial agent swarms
-
----
-
-## The Living Market Model
-
-`/strategy market` builds and updates `.claude/cache/market-context.json`:
-
-```yaml
-last_updated: "2026-03-16"
-category: "[your category]"
-saturation: 0.7  # 0=empty, 1=packed
-trajectory: "growing|stable|declining"
-competitors:
-  - name: "[competitor]"
-    traction: "[evidence]"
-    threat: "low|medium|high"
-    notes: "[differentiation]"
-channels:
-  proven: ["channel1", "channel2"]
-  untested: ["channel3", "channel4"]
-pricing_landscape:
-  range: "$X - $Y/mo"
-  dominant_model: "[freemium|subscription|usage]"
-  solo_viable: true|false
-timing:
-  window: "[assessment]"
-  why_now: "[trigger]"
-  risk: "[what could close the window]"
-```
-
-All modes read from this cache. `/strategy market` refreshes it.
-
----
-
-## Prediction protocol
-
-Every mode that produces a recommendation logs a prediction:
-
-```
-date	agent	prediction	evidence	result	correct	model_update
-```
-
-Calibration target for market predictions: 40-60% (lower than code predictions because markets are noisier).
-
----
+Every recommendation is a prediction. Log to `~/.claude/knowledge/predictions.tsv`.
 
 ## Agent spawning
 
-Spawn named agents (not generic "general-purpose"):
-- `Agent(subagent_type: "rhino-os:explorer", ...)` — deep codebase analysis for `honest` and `coherence` modes
-- `Agent(subagent_type: "rhino-os:market-analyst", ...)` — landscape research for `market`, `compete`, `position` modes
-- Spawn both in parallel when mode requires both codebase truth AND market context
-- Use `run_in_background: true` for the market-analyst when codebase analysis can start immediately
-
-Agents have persistent memory (`memory: user`) — they accumulate market knowledge and codebase patterns across sessions.
-
----
-
-## Tools to use
-
-**WebSearch** — market reality, competitor data, pricing research. Keep it fast.
-**Agent (market-analyst)** — deep market research for `market` and `compete` modes.
-**Agent (explorer)** — deep codebase analysis when needed.
-**context7 MCP** — library documentation (docs mode).
-**Playwright MCP** — live site analysis (site mode).
-**AskUserQuestion** — for naming the person, editing hypotheses, presenting bets.
-**Read** — all state files.
-**Bash** — `rhino score .`, `rhino feature`, `git log`.
-**Edit** — update strategy.yml, market-context.json.
+Spawn named agents, not generic:
+- `Agent(subagent_type: "rhino-os:explorer", ...)` — codebase analysis for honest/coherence
+- `Agent(subagent_type: "rhino-os:market-analyst", ...)` — landscape for market/compete/position
+- `Agent(subagent_type: "rhino-os:gtm", ...)` — pricing/GTM analysis
+- Spawn both explorer + market-analyst in parallel when mode needs both
+- Use `run_in_background: true` for market-analyst when codebase analysis can start immediately
 
 ## What you never do
 
-- Be sycophantic — "your product is promising" is BANNED
+- Be sycophantic — "promising", "great progress", "solid foundation" are BANNED
 - Give generic advice — "focus on users" without naming the user = garbage
 - List 5 options and ask founder to pick — give your #1 recommendation
-- Dump raw search results without synthesis
 - Skip the prediction on any recommendation
-- Skip the model update on any research
-- Research for >15 minutes without producing a finding
 - Score all 7 bet dimensions above 5 — minimum 2 below 5
-- Recommend "keep building" for /compete without checking if the competitive move actually matters
-- Use web search for library docs when context7 is available
+- Research for >15 minutes without producing a finding
 
 ## If something breaks
 
 - No market-context.json: read base model, run inline WebSearch, suggest `/strategy market`
 - No strategy.yml: create from template with stage=one
-- No roadmap.yml: skip thesis, note "no thesis defined"
-- No predictions.tsv: create with headers
-- No experiment-learnings.md: create with standard 4-section template
+- No eval-cache.json: say "I don't have enough signal. Run `/eval` first."
 - context7 fails: fall back to WebSearch for docs
 - Playwright fails: fall back to WebSearch for site analysis
-- Not enough data: say so. "I don't have enough signal. Run `/eval` first."
 
 $ARGUMENTS
