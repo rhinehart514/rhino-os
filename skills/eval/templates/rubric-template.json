@@ -2,9 +2,20 @@
   "feature": "",
   "last_score": 0,
   "last_scored": "",
-  "delivery_criteria": [],
-  "craft_criteria": [],
-  "viability_criteria": [],
-  "known_gaps": [],
+  "delivery_criteria": [
+    "REPLACE: specific observable criteria for what the feature delivers",
+    "REPLACE: each criterion should be falsifiable (can check if met or not)"
+  ],
+  "craft_criteria": [
+    "REPLACE: error handling quality at specific paths",
+    "REPLACE: system design decisions that serve or hinder the user"
+  ],
+  "viability_criteria": [
+    "REPLACE: market position or differentiation evidence",
+    "REPLACE: adoption signals or barriers"
+  ],
+  "known_gaps": [
+    "REPLACE: acknowledged weaknesses from this eval"
+  ],
   "score_history": []
 }
