@@ -11,14 +11,14 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
 ### Skills (the product surface)
-19 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
-/plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product, /configure
+21 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
+/plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product, /configure, /money, /copy
 
 ### Agents
-6 custom agents in agents/: measurer, explorer, builder, reviewer, evaluator, market-analyst
+14 custom agents in agents/: measurer, explorer, builder, reviewer, evaluator, market-analyst, grader, debugger, refactorer, customer, founder-coach, consolidator, gtm, copywriter
 
 ### Intelligence Layer
-- **Symlinks**: mind/ files (identity, thinking, standards) loaded via .claude/rules/ on every conversation. self.md is project-local only — not symlinked globally to avoid contaminating other projects.
+- **Symlinks**: mind/ files (identity, thinking, standards, startup-patterns) loaded via .claude/rules/ on every conversation. self.md is project-local only — not symlinked globally to avoid contaminating other projects.
 - **Hooks**: 7 total — session_start (boot card), pre_compact (context recovery), post_edit (quality checks), post_skill (YAML validation), stop, post_commit, subagent_stop, pre_commit_check
 - **Learning loop**: predict → act → measure → update model → repeat
 
@@ -126,10 +126,10 @@ Two install modes, same capabilities:
 **Critical constraint**: `context: fork` and Agent spawning are MUTUALLY EXCLUSIVE. Forked skills run AS subagents and cannot spawn sub-subagents.
 
 **Two skill architectures:**
-- **Architecture A (Inline Orchestrator)**: No fork, spawns named agents. Skills: /go, /eval, /research, /strategy, /discover, /ideate, /taste, /retro, /roadmap, /ship, /openclaw
-- **Architecture B (Forked Task)**: Fork, does all work itself. Skills: /product, /configure
+- **Architecture A (Inline Orchestrator)**: No fork, spawns named agents. Skills: /go, /eval, /research, /strategy, /discover, /ideate, /taste, /retro, /roadmap, /ship, /openclaw, /product, /money, /copy
+- **Architecture B (Forked Task)**: Fork, does all work itself. Skills: /configure
 
-**9 agents**, all with `memory: user` (cross-session learning) and `maxTurns` (safety valve):
+**14 agents**, all with `memory: user` (cross-session learning) and `maxTurns` (safety valve):
 
 | Agent | Model | Turns | Background | Skills | Role |
 |-------|-------|-------|-----------|--------|------|
@@ -139,19 +139,36 @@ Two install modes, same capabilities:
 | market-analyst | opus | 20 | yes | - | Competitive/market research |
 | measurer | haiku | 15 | - | - | Runs scores, cheapest |
 | reviewer | haiku | 10 | - | product-lens | UX checklist, cheapest |
-| grader | sonnet | 10 | - | rhino-mind | **NEW** — auto-grades predictions |
-| debugger | sonnet | 15 | - | - | **NEW** — regression investigation |
-| refactorer | sonnet | 20 | - | rhino-mind | **NEW** — no-behavior-change cleanup |
+| grader | sonnet | 10 | - | rhino-mind | Auto-grades predictions |
+| debugger | sonnet | 15 | - | - | Regression investigation |
+| refactorer | sonnet | 20 | - | rhino-mind | No-behavior-change cleanup |
+| customer | sonnet | 20 | yes | rhino-mind | Customer signal synthesis |
+| founder-coach | opus | 10 | - | rhino-mind | Startup failure mode detection |
+| consolidator | sonnet | 15 | - | rhino-mind | Knowledge model maintenance |
+| gtm | opus | 25 | yes | - | Go-to-market strategy |
+| copywriter | opus | 20 | - | rhino-mind, product-lens | Positioning-aware product copy |
 
 Skills spawn agents by name: `Agent(subagent_type: "rhino-os:builder", ...)` — never generic `"general-purpose"`.
+
+**Startup awareness layer (v9.0):**
+- `mind/startup-patterns.md` loaded into every session via `.claude/rules/` symlink
+- 8 failure mode detection rules checkable from repo state
+- /plan runs startup pattern check before bottleneck diagnosis
+- /go has soft discovery gate (informational, non-blocking)
+- /ship has launch readiness checks for release-type ships
+- /eval uses customer-intel.json for viability scoring when available
 
 **Agent wiring across skills:**
 - /go → builder (worktree), measurer, reviewer, grader, debugger (background), refactorer (worktree)
 - /eval → evaluator (parallel per feature), measurer
 - /research → explorer, market-analyst (parallel)
-- /strategy → explorer, market-analyst (parallel)
-- /discover → explorer, market-analyst (parallel)
-- /retro → grader (batch mode)
+- /strategy → explorer, market-analyst (parallel), gtm (for gtm/price modes)
+- /discover → explorer, market-analyst, customer (parallel)
+- /retro → grader (batch mode), consolidator (post-grading)
+- /product → customer (background), founder-coach
+- /ideate → explorer, customer (background)
+- /copy → copywriter, market-analyst (for landing/pitch modes)
+- /money → gtm, market-analyst (parallel)
 
 **5 critical flow fixes (v8.3):**
 1. /onboard writes roadmap.yml + strategy.yml + eval-cache.json

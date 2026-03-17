@@ -281,17 +281,32 @@ Reads codebase to ground positioning in reality. Flags disconnects.
 
 ### `price` — Pricing intelligence
 
+Spawn the gtm agent for pricing-specific analysis:
+```
+Agent(subagent_type: "rhino-os:gtm", prompt: "Pricing analysis for [product]. Research competitor pricing pages, value metrics, willingness-to-pay signals. Focus on: what's the value metric, what do competitors charge, what model fits a solo founder at [stage]. Write to .claude/cache/gtm-strategy.json.", run_in_background: true)
+```
+
+Synthesize gtm findings with inline analysis:
 - What's the value metric? (per seat, per project, per query, flat)
 - What do competitors charge and why?
 - What's willingness-to-pay for THIS user at THIS stage?
 - Free vs freemium vs paid — what works here?
 - Price anchoring: what's the alternative cost?
 
-Pulls real pricing data via WebSearch. Outputs recommendation as prediction.
+Outputs recommendation as prediction. For deeper financial modeling, suggest `/money price`.
 
 ### `gtm` — Go-to-market playbook
 
-Distribution strategy based on category + stage + resources:
+Distribution strategy based on category + stage + resources.
+
+Spawn the gtm agent for deep GTM analysis:
+```
+Agent(subagent_type: "rhino-os:gtm", prompt: "Full GTM analysis for [product]. Stage: [stage]. Category: [category]. Read rhino.yml, market-context.json, customer-intel.json. Produce channel ranking, pricing recommendation, unit economics estimate, and launch sequence. Write to .claude/cache/gtm-strategy.json.", run_in_background: true)
+```
+
+While the agent runs, gather inline context from strategy.yml and market-context.json. When gtm agent returns, synthesize its findings into the strategy output.
+
+Content from gtm agent:
 - Channel ranking with evidence from similar products
 - Launch sequencing: what order?
 - Content strategy: what to write, where
@@ -299,6 +314,8 @@ Distribution strategy based on category + stage + resources:
 - Timeline: realistic for solo founder
 
 Every channel recommendation is a prediction logged to predictions.tsv.
+
+For deeper financial modeling, suggest `/money` which provides full unit economics and runway analysis.
 
 ### `compete <name>` — Competitive response
 

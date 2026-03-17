@@ -50,6 +50,7 @@ Ideas within a specific constraint or direction.
 - `.claude/plans/todos.yml` — backlog (what's been captured but not built?)
 - `.claude/plans/strategy.yml` — bottleneck, stage
 - `.claude/cache/market-context.json` — competitive landscape (if exists from /research market)
+- `.claude/cache/customer-intel.json` — customer signal, demand signals, unmet needs (if exists)
 - `.claude/cache/narrative.yml` — current positioning (what are we claiming?)
 - `git log --oneline -20` — what's actually been worked on
 - `~/.claude/cache/last-retro.yml` — recent wrong predictions (these point to real gaps)
@@ -138,6 +139,7 @@ Generate ideas that raise the feature's eval score. Each idea targets the weakes
 **Use AskUserQuestion** for presenting ideas + kill list. Ideation is collaborative.
 **Use WebSearch** for market patterns — "what's working in [adjacent space]?"
 **Use Agent (rhino-os:explorer)** for deep codebase analysis — spawn with `Agent(subagent_type: "rhino-os:explorer", ...)`.
+**Use Agent (rhino-os:customer)** for signal-weighted ideation — spawn with `Agent(subagent_type: "rhino-os:customer", prompt: "Research customer signal for [product/category]. Focus on: demand signals (what are people asking for?), unmet needs, competitor complaints. Write to .claude/cache/customer-intel.json.", run_in_background: true)`. Customer signal enriches evidence-weighted generation — demand signals from real users are higher-signal than market analysis alone.
 **Use Read** for all state files.
 **Use Edit** for materialization (rhino.yml, beliefs.yml, todos.yml).
 

@@ -255,6 +255,22 @@ Skills MUST choose one architecture. Having both `context: fork` AND `Agent` in 
 - ~~`maxTurns` on agents~~ — all 9 agents have safety valves (10-30 turns).
 - ~~/calibrate merged into /taste~~ — taste owns visual intelligence + calibration.
 
+### Done (v9.0 — Startup Agent Layer)
+
+- ~~5 new agents~~ — customer (sonnet, bg), founder-coach (opus), consolidator (sonnet), gtm (opus, bg), copywriter (opus). All with `memory: user` + `maxTurns`.
+- ~~`mind/startup-patterns.md`~~ — 8 failure mode detection rules loaded via `.claude/rules/` symlink. Makes all agents startup-aware.
+- ~~`/product` converted Architecture A~~ — removed `context: fork`, now spawns customer + founder-coach agents inline.
+- ~~`/discover` enhanced~~ — spawns customer agent alongside explorer + market-analyst.
+- ~~`/retro` enhanced~~ — spawns consolidator agent after grading for knowledge model maintenance.
+- ~~`/strategy` enhanced~~ — spawns gtm agent for `gtm` and `price` modes.
+- ~~`/go` soft discovery gate~~ — informational warning when building without customer signal.
+- ~~`/ship` launch readiness~~ — checks for GTM strategy, customer signal, narrative freshness on release ships.
+- ~~`/eval` customer-aware viability~~ — reads customer-intel.json for viability dimension scoring.
+- ~~`/plan` startup pattern check~~ — runs failure mode detection before bottleneck diagnosis.
+- ~~`/ideate` customer signal~~ — spawns customer agent for signal-weighted ideation.
+- ~~2 new skills~~ — `/money` (pricing, runway, unit economics, channels) and `/copy` (landing pages, pitch, outreach, release notes). Both are rich folder skills with references + templates.
+- Agent count: 9 → 14. Skill count: 19 → 21.
+
 ### Priority 1: Highest Leverage (would change behavior)
 
 1. **Plugin `settings.json` with `agent` key.** A plugin can make Claude boot into a persona. One agent definition could replace the entire `.claude/rules/` symlink architecture. rhino-os ships a default agent config that gives every session measurement awareness + prediction discipline without symlinks.

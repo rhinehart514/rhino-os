@@ -2,13 +2,14 @@
 name: product
 description: "Product thinking — from 'I want to build X' to 'here's who cares and why, here's what we've proven, here's what's delusional.' Works on new ideas AND existing products. The command that prevents you from building something nobody wants."
 argument-hint: "[user|assumptions|why|pitch|focus|signals|delight|market|coherence|\"I want to build...\"]"
-allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebSearch
-context: fork
+allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebSearch, Agent
 ---
 
 # /product
 
 **Two modes, one purpose: make sure you're building something that matters.**
+
+**When to use this:** Before building, after building, or when something feels off. `/product` asks WHETHER to build. `/ideate` asks WHAT. `/strategy` asks WHERE in the market. `/discover` asks WHAT SYSTEMS.
 
 **Mode 1 — New idea**: The founder says "I want to build a product that does X." Before a single line of code, `/product` pressure-tests the idea against market reality, names the person who cares, identifies the assumptions that could kill it, and produces a value hypothesis ready for `/onboard`.
 
@@ -131,6 +132,24 @@ When the codebase already exists with features, scores, and history.
 9. `.claude/plans/todos.yml` — backlog health
 10. `git log --oneline -20` — what's been worked on
 11. `README.md` — what the product says about itself
+12. `.claude/cache/customer-intel.json` — customer signal, themes (if exists)
+
+### Agent spawning (parallel, after state reads)
+
+Spawn customer and founder-coach agents to enrich product analysis:
+
+```
+Agent(subagent_type: "rhino-os:customer", prompt: "Research customer signal for [product]. Focus on: who actually uses this, what language they use, unmet needs, churn signals. Read rhino.yml for context.", run_in_background: true)
+Agent(subagent_type: "rhino-os:founder-coach", prompt: "Run failure mode detection against current repo state. Check all 8 patterns in startup-patterns.md. Report top 3 by severity.")
+```
+
+Incorporate customer findings into:
+- "Name the person" section: refine user definition with customer language
+- Assumption extraction: customer signal validates or contradicts demand assumptions
+
+Incorporate coach findings into:
+- The verdict section: include coach pattern warnings as supporting evidence
+- If coach detects "building without named person" — this becomes the #1 finding
 
 ### Stage-aware lens selection
 
@@ -236,6 +255,7 @@ Disconnects = the most important finding. A product that claims one thing and do
 **Use AskUserQuestion** for naming the person, editing the value hypothesis, and verdict discussion.
 **Use Read** for all state files.
 **Use Bash** for `rhino score .`, `rhino feature`, `git log`.
+**Use Agent** for customer signal (rhino-os:customer) and founder coaching (rhino-os:founder-coach).
 
 For output templates, see [reference.md](reference.md).
 

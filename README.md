@@ -1,128 +1,356 @@
 # rhino-os
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that makes your product measurably better every session.
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that turns Claude into a cofounder — measures your product, learns what works, builds autonomously, and thinks about customers, pricing, and distribution. Not just code quality. Product quality.
 
-## Try it (2 minutes)
+## Install
 
 ```bash
-# 1. Install
 claude /plugin marketplace add rhinehart514/rhino-os
 claude /plugin install rhino-os@rhino-marketplace
-
-# 2. Point it at your project
-cd ~/your-project
-claude
 ```
 
-```
-  ◆ rhino-os  ·  your-project
-  score       20/100  ████░░░░░░░░░░░░░░░░
-              assertions 2/10  ·  health 85
-```
-
-```
-> /plan
-  Bottleneck: auth — 0/3 assertions passing, weight 5
-  Task: implement signup flow, write tests, handle edge cases
-
-> /go
-  Building auth...
-  ✓ signup-completes        PASS
-  ✓ login-works             PASS
-  ✓ password-validation     PASS
-  Score: 20 → 50 ↑30
-
-  Building dashboard...
-  ✓ dashboard-loads         PASS
-  · data-displays           FAIL — empty state unhandled
-  Score: 50 → 60 ↑10
-```
-
-`/plan` finds what's broken. `/go` fixes it — keeping what passes, reverting what doesn't.
-
-That's it. Next session, it picks up where it left off, smarter than before.
-
----
-
-**No plugin system?** Install manually:
-
-```bash
-git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os
-cd ~/rhino-os && ./install.sh
-```
-
-Then: `cd ~/your-project && rhino init && claude`
+No plugin system? `git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os && cd ~/rhino-os && ./install.sh`
 
 **Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS/Linux, [jq](https://jqlang.github.io/jq/download/)
 
 ---
 
-## What happens
+## Walkthrough: Building a recipe app from scratch
 
-You talk. rhino-os does the right thing.
+You have an idea for a recipe sharing app. Here's what a real session looks like with rhino-os installed.
 
-| You say | It does |
-|---------|---------|
-| "what should I work on?" | `/plan` — finds the bottleneck |
-| "just build it" | `/go` — autonomous build loop |
-| "is this good?" | `/eval` — runs assertions, shows sub-scores |
-| "what could we build?" | `/ideate` — evidence-weighted ideas + kill list |
-| "am I building the right thing?" | `/product` — pressure-tests assumptions |
-| "ship it" | `/ship` — commit, push, deploy, release |
+### 1. Start with the idea — not the code
 
-19 commands total. Every one suggests what to do next. You don't need to memorize any of them.
+```
+> I want to build a recipe sharing app for home cooks
+```
+
+rhino-os matches your intent to `/product` automatically:
+
+```
+── verdict ────────────────────────────────
+  product clarity: 4/10
+  biggest risk: demand assumption — "home cooks want to share recipes"
+    untested. Every recipe app that failed assumed sharing was the draw.
+    The ones that survived (Paprika, Mela) focused on personal organization.
+
+  "You're building for 'home cooks' — that's 200 million people.
+   Name one. What's their Saturday morning look like?"
+
+  top assumption: people want to SHARE recipes (risk: 5, ignorance: 4)
+  #2: they'll use a new app instead of Notes/screenshots (risk: 4, ignorance: 4)
+
+  draft value hypothesis:
+    hypothesis: "Home cooks who collect recipes from 5+ sources want one
+                 place to save, organize, and cook from them"
+    user: "A home cook who has recipes in screenshots, bookmarks,
+           Instagram saves, and a physical notebook"
+
+/onboard    bootstrap the repo with this hypothesis
+/research   validate the top assumption before building
+```
+
+### 2. Bootstrap the project
+
+```
+> /onboard
+```
+
+rhino-os reads the value hypothesis, generates features with weights, plants assertions, and gives you a starting score:
+
+```
+◆ onboard — recipe-app
+
+  value: "Home cooks who collect recipes from 5+ sources want one
+          place to save, organize, and cook from them"
+  user: home cook with recipes scattered across 5+ sources
+
+  features:
+    recipe-import  w:5  — import from URL, photo, or text
+    recipe-viewer  w:4  — clean cook-mode display
+    collections    w:3  — organize by meal, cuisine, season
+    search         w:2  — find by ingredient or name
+
+  assertions planted: 12
+  score: 0/100
+
+/plan    find the bottleneck and start building
+```
+
+### 3. Find the bottleneck, start building
+
+```
+> what should I work on?
+```
+
+rhino-os runs `/plan`:
+
+```
+◆ plan
+
+  score: 0 · assertions: 0/12 · thesis: v1.0
+
+  ● Building Without a Named Person — warning
+    evidence: rhino.yml user is generic ("home cook")
+    "Name one human being and their situation before writing more code."
+
+  bottleneck: recipe-import at 0 — w:5, everything depends on it
+    d:0 c:0 v:0 — no code exists
+
+  move 1: build recipe-import — URL parsing + display
+    predict: "URL import will reach delivery_score 50+ in one session"
+    acceptance: url-extracts-title PASS, url-extracts-ingredients PASS
+
+  move 2: build recipe-viewer — cook-mode with step highlighting
+    depends on: recipe-import
+
+/go recipe-import    build it autonomously
+```
+
+Notice the startup pattern warning — rhino-os detected "building without a named person" from `mind/startup-patterns.md` and flagged it before you wrote any code.
+
+### 4. Build autonomously
+
+```
+> /go recipe-import
+```
+
+The `/go` loop: predict, build, measure, learn. It shows you the plan, waits for approval, then builds:
+
+```
+◆ go — recipe-import
+
+  ⚠ Building recipe-import with no customer signal.
+    Proceed / /discover first / /strategy user
+> Build it
+
+  predict: "URL import will reach delivery_score 50+"
+  because: "exploring — no prior data on this feature"
+
+  move 1: URL parsing + recipe extraction
+  ▾ commit — a1b2c3d
+    built: URL parser extracts title, ingredients, steps from common recipe sites
+    files: src/lib/parser.ts, src/components/RecipeImport.tsx
+    ✓ url-extracts-title        PASS
+    ✓ url-extracts-ingredients   PASS
+    · url-extracts-steps         FAIL — schema.org markup only, misses plain HTML
+
+  measure: recipe-import at 42 (d:48 c:40 v:35)
+  score: 0 → 35 ↑35
+
+  move 2: plain HTML fallback + error states
+  ▾ commit — c3d4e5f
+    ✓ url-extracts-steps         PASS
+    ✓ import-shows-error         PASS
+
+  measure: recipe-import at 58 (d:62 c:55 v:48)
+  score: 35 → 52 ↑17
+
+  grade: "URL import reached delivery 62, predicted 50+. Correct."
+  session: 2 moves, 2 kept, score 0→52
+```
+
+### 5. Check if the product is any good
+
+```
+> is this good?
+```
+
+rhino-os runs `/eval`:
+
+```
+◆ eval — 4 features
+
+  recipe-import  ████████████░░░░░░░░  58  d:62 c:55 v:48
+    plain HTML parsing fragile — breaks on non-English sites
+
+  recipe-viewer  ░░░░░░░░░░░░░░░░░░░░   0  d:0 c:0 v:0
+    no code exists
+
+  collections    ░░░░░░░░░░░░░░░░░░░░   0
+  search         ░░░░░░░░░░░░░░░░░░░░   0
+
+  beliefs: 5/12 passing
+  bottleneck: recipe-viewer at 0 — w:4, blocks the cook experience
+```
+
+### 6. Think about who this is actually for
+
+A few sessions in, you have a working import and viewer. Time to think about the business:
+
+```
+> who is this for really?
+```
+
+rhino-os runs `/product`:
+
+```
+── verdict ────────────────────────────────
+  product clarity: 6/10
+  stage: one (0 users)
+  biggest risk: demand — nobody has asked for this
+
+  ● Revenue Avoidance — warning
+    evidence: 3 features scoring 50+, no pricing section in rhino.yml
+    "You have working features and no pricing. Run /money price."
+
+  "The recipe import works. The viewer works. But you've never
+   talked to a home cook about whether they'd use this. The code
+   is ahead of the evidence."
+
+/discover    find customer signal before building more
+/money       pricing and distribution strategy
+```
+
+### 7. Figure out distribution and pricing
+
+```
+> /money price
+```
+
+The gtm agent researches competitor pricing while the market-analyst pulls real data:
+
+```
+◆ money — pricing
+
+  competitors:
+    Paprika    — $4.99 one-time — iOS/Android/Mac
+    Mela       — $2.99/mo — Apple ecosystem
+    Copy Me That — free + $3/mo premium
+    Whisk      — free (Samsung subsidiary)
+
+  recommend: freemium at $3/mo per user
+    free: 50 recipes, basic import
+    paid: unlimited, collections, cook-mode
+  why: matches Mela pricing, undercuts on platform (web-first)
+  risk: one-time purchase (Paprika) is strong competition
+
+  unit economics:
+    revenue/user: $3/mo
+    est. CAC: $5-15 (content marketing)
+    est. LTV: $36 (12mo × $3)
+    payback: 2-5 months
+    confidence: low (no retention data)
+```
+
+### 8. Write the landing page
+
+```
+> /copy landing
+```
+
+The copywriter agent reads your market context, customer signal, and value hypothesis:
+
+```
+◆ copy — landing
+
+  for: "A home cook with recipes in screenshots, bookmarks, and a notebook"
+
+⎯⎯ hero ⎯⎯
+
+  # All your recipes. One place.
+
+  Import from any URL. Organized automatically. Cook-mode for hands-free.
+
+  [Save your first recipe]
+
+  quality gate:
+    ✓ names person: home cook with scattered recipes
+    ✓ states change: one place instead of 5+ sources
+    ✓ differentiates: web-first (vs Apple-only Mela/Paprika)
+    ✓ slop-free
+```
+
+### 9. Keep going
+
+Every session, rhino-os picks up where you left off. The score compounds. The predictions get sharper. The startup pattern checks keep you honest.
+
+```
+> /plan
+
+  score: 68 · assertions: 9/12 · v1.0: 60% proven
+
+  ● Thesis Drift — warning
+    evidence: roadmap evidence unchanged 8 days
+    "Either the thesis is wrong or you're avoiding it."
+
+  bottleneck: search at 32 — d:35 c:30 v:28
+```
+
+---
+
+## Commands
+
+You don't need to memorize these. Just talk — rhino-os routes your intent.
+
+**Build**
+- `/plan` — find the bottleneck, propose what to work on
+- `/go` — autonomous build loop with prediction grading
+- `/eval` — score every feature 0-100 (delivery/craft/viability)
+- `/taste` — visual product intelligence via Playwright
+
+**Think**
+- `/product` — pressure-test assumptions, name the person
+- `/strategy` — market intelligence, honest diagnosis
+- `/discover` — what systems should this product have?
+- `/ideate` — evidence-weighted ideas + kill list
+- `/research` — gather evidence before deciding
+
+**Business**
+- `/money` — pricing, unit economics, channels, runway
+- `/copy` — landing pages, pitch, outreach, release notes
+- `/ship` — commit, push, deploy, GitHub releases
+
+**Manage**
+- `/feature` — define and track features
+- `/todo` — living backlog with decay and promotion
+- `/assert` — plant testable beliefs
+- `/retro` — grade predictions, update the knowledge model
+- `/roadmap` — version theses and external narrative
+- `/rhino` — dashboard + system status
 
 ## The score
 
-The score is the percentage of your assertions that pass. Not lint. Not code quality. **Does your product do what you said it should do?**
+Your score is the percentage of assertions that pass. Not lint. Not code quality. **Does your product do what you said it should do?**
 
-```
-  score       60/100  ████████████░░░░░░░░
-              assertions 6/10  ·  health 90
-              ↑40 from first session
-```
+Score goes up = you shipped value. Score drops = the change gets reverted.
 
-Score goes up → you're shipping value. Score drops → the change gets reverted. Simple.
+## 14 agents
 
-## It gets smarter
+Not just code agents. Startup agents.
 
-Most AI tools are stateless. Every session starts from zero.
+| Agent | Does | Model |
+|-------|------|-------|
+| builder | writes code in isolated worktrees | opus |
+| evaluator | deep feature eval with rubrics | opus |
+| founder-coach | detects startup failure modes | opus |
+| gtm | pricing, channels, unit economics | opus |
+| copywriter | positioning-aware product copy | opus |
+| explorer | researches unknowns | sonnet |
+| customer | synthesizes customer signal | sonnet |
+| consolidator | maintains the knowledge model | sonnet |
+| grader | grades predictions | sonnet |
+| debugger | investigates regressions | sonnet |
+| refactorer | cleanup without behavior changes | sonnet |
+| market-analyst | competitive research | opus |
+| measurer | runs scores | haiku |
+| reviewer | UX checklist | haiku |
 
-rhino-os predicts before it acts. Measures after. Updates its model when it's wrong. Over sessions, it learns what works for *your* project specifically.
+## It learns
+
+Most AI tools are stateless. rhino-os predicts before it acts, measures after, and updates its model when it's wrong.
 
 | Session | What happens |
 |---------|-------------|
 | 1 | Learns your project, generates assertions, baseline score |
-| 5 | Predictions cite past results, bottleneck finder knows what matters |
+| 5 | Predictions cite past results, patterns emerging |
 | 20 | Dead ends marked, patterns confirmed, not guessing anymore |
-
-70% prediction accuracy across 21 predictions. Built by using itself — score 20 to 93.
-
-## What's inside
-
-```
-19 slash commands    /plan /go /eval /taste /feature /todo /assert /product
-                     /ideate /research /strategy /roadmap /retro
-                     /rhino /ship /onboard /skill /calibrate /clone
-
-6 agents             builder  measurer  explorer
-                     reviewer  evaluator  market-analyst
-
-22 skills            auto-triggered behaviors + slash command definitions
-
-8 hooks              session start, pre-compact, post-edit, post-commit, etc.
-
-CLI                  rhino score .  rhino eval .  rhino taste
-                     rhino feature  rhino todo  rhino trail
-```
-
-Uses the open [Agent Skills](https://claude.com/blog/skills) format. Works in Claude Code, Cursor, Codex CLI, and Gemini CLI.
 
 ## Tested on
 
-- **rhino-os itself** — 20 → 93 over multiple sessions, 56/63 assertions passing
-- **commander.js** — 80/100 on first `rhino init`, zero manual configuration
+- **rhino-os itself** — score 20 to 93 across sessions, 59/66 assertions passing
+- **commander.js** — 80/100 on first `rhino init`, zero configuration
 
 ---
 
-[MIT](LICENSE) · Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch), [SWE-bench](https://www.swebench.com/), [DORA metrics](https://dora.dev/)
+[MIT](LICENSE)

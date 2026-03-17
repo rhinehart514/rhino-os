@@ -42,7 +42,7 @@ Past rubrics are your calibration anchor. If a rubric exists, your score must be
   - **Code craft:** error handling, architecture, code taste. When this breaks at 3am, will you know?
   - **System design:** Is the information architecture sound? Do routes/data flows/component hierarchy serve the user's mental model? Are layout decisions intentional or accidental? Does the abstraction level match the problem?
 
-- **viability** (20% weight) — Would this succeed in the world? Who are the alternatives? Is this novel enough to matter? If you were betting money on adoption, what odds?
+- **viability** (20% weight) — Would this succeed in the world? Who are the alternatives? Is this novel enough to matter? If you were betting money on adoption, what odds? When `.claude/cache/customer-intel.json` exists, use customer signal to inform viability scoring — demand signals raise viability, churn signals and unmet needs lower it.
 
 Overall = delivery × 0.5 + craft × 0.3 + viability × 0.2. Round to integer.
 
@@ -239,6 +239,7 @@ If `/eval taste` is explicitly requested, spawn the taste evaluation: use Skill 
 6. `.claude/plans/roadmap.yml` — thesis + evidence
 7. `.claude/plans/plan.yml` — active tasks
 8. `.claude/plans/todos.yml` — backlog by feature
+9. `.claude/cache/customer-intel.json` — customer signal for viability scoring (if exists)
 
 ## Cross-skill synthesis
 

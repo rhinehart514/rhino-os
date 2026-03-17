@@ -60,6 +60,19 @@ Read in parallel:
 7. `~/.claude/evals/discovery-learnings.md` — accumulated discovery intelligence
 8. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`)
 9. `git log --oneline -30` — recent work velocity
+10. `.claude/cache/customer-intel.json` — customer signal, themes, unmet needs (if exists)
+
+### Thread E: Customer Signal (background agent)
+
+Spawn customer agent for any mode that involves market or user understanding:
+```
+Agent(subagent_type: "rhino-os:customer", prompt: "Research customer signal for [product/category]. Focus on: unmet needs, language they use, churn signals from competitors, demand signals. Write to .claude/cache/customer-intel.json.", run_in_background: true)
+```
+
+Incorporate customer-intel.json findings into:
+- Stage 1 (1C): user journey should use customer language
+- Stage 2 (2B): systems map should reference customer demand signals
+- Stage 2 (2D): missing system recommendation should cite customer evidence
 
 Compute: product map, product completion %, bottleneck, shipping velocity (commits/30 days).
 
@@ -512,7 +525,8 @@ After every 3rd session: analyze outcomes, detect biases, calibrate. Write adjus
 **Grep/Glob** — codebase structure mapping
 **Agent (rhino-os:explorer)** — deep codebase analysis, spawn with `Agent(subagent_type: "rhino-os:explorer", ...)`
 **Agent (rhino-os:market-analyst)** — competitive systems analysis, spawn with `Agent(subagent_type: "rhino-os:market-analyst", ...)`
-Spawn both in parallel for `vs` and `systems` modes. Named agents have persistent memory across sessions.
+**Agent (rhino-os:customer)** — customer signal synthesis, spawn with `Agent(subagent_type: "rhino-os:customer", ..., run_in_background: true)`
+Spawn all three in parallel for `vs` and `systems` modes. Named agents have persistent memory across sessions.
 **AskUserQuestion** — for new product mode clarifications
 
 ## What You Never Do

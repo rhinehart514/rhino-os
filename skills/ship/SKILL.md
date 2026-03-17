@@ -109,6 +109,19 @@ Before every ship, READ deploy-history.json:
 - Read deploy-history.json — compute deploy confidence
 - If deploy confidence <60%: require explicit confirmation via AskUserQuestion
 
+#### Launch readiness checks (for `release` type only)
+
+If this is a release ship (not hotfix or PR), run soft launch readiness checks:
+
+```
+  launch readiness:
+    [✓|·] GTM strategy — [exists/missing] (.claude/cache/gtm-strategy.json)
+    [✓|·] customer signal — [exists/missing] (.claude/cache/customer-intel.json)
+    [✓|·] narrative — [fresh/stale/missing] (.claude/cache/narrative.yml)
+```
+
+These are **informational only** — they do not block the ship. Missing items are surfaced as `·` bullets in the pre-flight output so the founder can decide whether to address them before releasing.
+
 ### 2. Stage and commit
 
 - Stage relevant files (never `git add -A` blindly)

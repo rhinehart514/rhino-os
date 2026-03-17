@@ -129,7 +129,25 @@ Output section (insert between state and bottleneck):
   suggested: [task from research]
 ```
 
-### 5. Bottleneck diagnosis (eval-grounded)
+### 5. Startup pattern check
+
+Read `mind/startup-patterns.md` failure mode rules. Check current state against each rule:
+- `config/rhino.yml` → user field (rule 1: building without named person)
+- `eval-cache.json` → craft vs delivery scores (rule 2: polishing before delivering)
+- `eval-cache.json` → features in 30-60 range (rule 3: feature sprawl)
+- `predictions.tsv` → count in last 7 days (rule 4: prediction starvation)
+- `strategy.yml` → freshness (rule 5: strategy avoidance)
+- `roadmap.yml` → evidence staleness (rule 6: thesis drift)
+
+If any pattern triggers, include it in the diagnosis section:
+```
+  ● [Pattern Name] — [evidence]
+    "[one-sentence intervention from startup-patterns.md]"
+```
+
+Startup pattern warnings appear between the state summary and the bottleneck diagnosis.
+
+### 6. Bottleneck diagnosis (eval-grounded)
 
 The eval scores are the truth. Not maturity labels, not beliefs about quality — the 0-100 score from the top-engineer judge.
 
@@ -147,12 +165,12 @@ What the sub-scores tell you about what to work on:
 **Delta awareness**: features trending `worse` in eval-deltas.json get priority over stable features at the same score.
 **Assertion gate**: failing `block` severity = FIRST tasks.
 
-### 6. Thesis-aware move generation
+### 7. Thesis-aware move generation
 **Version completion >80%**: if the current thesis is nearly proven, the FIRST recommendation should be `/roadmap bump` — define the next thesis before starting new work. Surface this prominently in the output.
 
 **Thesis-informed moves**: when proposing moves, check the current version's `evidence_needed` for `todo` or `partial` items. At least one move should directly advance an unproven evidence item. Tag these moves with `advances: [evidence_id]` (e.g., `advances: first-go`). Moves that advance the thesis AND fix the product bottleneck get highest priority.
 
-### 6b. Unknown territory check
+### 7b. Unknown territory check
 
 Before proposing a move for a feature, check `experiment-learnings.md` Unknown Territory section. If the feature's weakest dimension matches an unknown, flag it:
 
@@ -164,10 +182,10 @@ If `last-research.yml` exists but is >24h old, show:
 
 Do NOT silently ignore stale research. Surface it with a warning and let the founder decide. Moves targeting features with unresolved unknowns should be deprioritized unless the founder explicitly overrides.
 
-### 7. Founder alignment (use AskUserQuestion)
+### 8. Founder alignment (use AskUserQuestion)
 Present your diagnosis with options. Surface relevant backlog items.
 
-### 8. Write moves (use TaskCreate)
+### 9. Write moves (use TaskCreate)
 Include `advances: [evidence_id]` on moves that target thesis evidence items.
 For each move (1-2 moves, not 3-5 tasks):
 - A move = feature-level intent with prediction + acceptance criteria tied to eval assertions
@@ -178,10 +196,10 @@ For each move (1-2 moves, not 3-5 tasks):
 
 Also write `.claude/plans/plan.yml` as a snapshot.
 
-### 9. Exit plan mode
+### 10. Exit plan mode
 Call ExitPlanMode with the plan summary. User approves or adjusts.
 
-### 10. Output the plan
+### 11. Output the plan
 
 ## Output format
 

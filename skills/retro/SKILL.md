@@ -113,8 +113,18 @@ For wrong predictions:
   - Existing pattern disproven → move to Dead Ends
   - Uncertain pattern confirmed → promote to Known (if 3+ experiments)
 
-### 6. Detect staleness + prune
-Scan experiment-learnings.md:
+### 6. Consolidate knowledge model
+
+After grading, spawn the consolidator agent to maintain experiment-learnings.md:
+
+```
+Agent(subagent_type: "rhino-os:consolidator", prompt: "Consolidate experiment-learnings.md. [N] predictions graded this session. [M] patterns flagged stale. Merge duplicates, promote uncertain→known where 3+ experiments confirm, flag stale entries, revive zombie dead ends.")
+```
+
+The consolidator handles: duplicate merging, uncertain→known promotion, stale flagging, zombie dead end revival, and boundary condition tightening. Its findings appear in the retro output under a "consolidation" section.
+
+### 7. Detect staleness + prune (post-consolidation)
+Scan experiment-learnings.md (after consolidator has run):
 - Known Patterns: any entry >30 days without new evidence? Flag as potentially stale.
 - Dead Ends: any entry that keeps showing up in recent predictions? Flag as "revisiting dead end."
 - Unknown Territory: entries that have been unknown for >30 days without a first experiment? Flag as neglected.
@@ -124,7 +134,7 @@ Scan experiment-learnings.md:
 2. Dead ends >60 days with no citations in predictions.tsv → move to `## Archived Dead Ends`
 3. Report: "N stale patterns — consider re-testing or archiving"
 
-### 7. Check eval score transitions
+### 8. Check eval score transitions
 Review recent work and determine if any features have meaningfully changed eval score. Use eval-cache.json score thresholds:
 - <30: minimal — code may not exist or doesn't deliver the claim
 - 30-49: early — code exists but significant gaps
@@ -133,22 +143,22 @@ Review recent work and determine if any features have meaningfully changed eval 
 - 85+: strong — fully delivers, edge cases handled
 Propose score-based status updates in the output. Don't auto-write — let the founder confirm.
 
-### 8. Compute accuracy
+### 9. Compute accuracy
 - Total graded predictions
 - Correct (yes=1, partial=0.5, no=0)
 - Accuracy = correct / total
 - Assessment: 50-70% = well-calibrated, >70% = too safe, <50% = model needs work
 
-### 9. Todo exhaust
+### 10. Todo exhaust
 Wrong predictions = work that needs doing. For each prediction graded `no` or `partial`:
 - If the prediction was about a feature → write todo: `"[feature]: rethink [what was wrong]"` with `source: /retro`
 - If the prediction revealed a dead end → check todos.yml for items pursuing that approach, suggest killing them
 - If a pattern moved from Known → Dead End → write todo: `"update code relying on [dead pattern]"` with `source: /retro`
 
-### 10. Write retro-health.json
+### 11. Write retro-health.json
 After every retro run, update `.claude/cache/retro-health.json` with computed metrics (see State Artifacts below).
 
-### 11. Write retro artifact
+### 12. Write retro artifact
 Write `~/.claude/cache/last-retro.yml` so /ideate and /plan can read it:
 ```yaml
 date: YYYY-MM-DD

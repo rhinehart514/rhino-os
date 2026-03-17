@@ -5,28 +5,35 @@
     "email": "rhinehart514@gmail.com"
   },
   "metadata": {
-    "description": "Your product gets measurably better every session. 9 agents, 21 skills, prediction-driven learning loop.",
+    "description": "Your product gets measurably better every session. 14 agents, 21 skills, startup intelligence layer.",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "8.3.2",
+      "version": "9.0.0",
       "source": "./",
-      "description": "Agent-orchestrated product intelligence for Claude Code — 9 agents with memory, parallel evaluation, self-healing build loop, 21 skills. Auto-updates supported.",
+      "description": "A cofounder in your terminal. 14 agents that measure your product, build autonomously, and think about customers, pricing, and distribution — not just code. Score 0-100 tells you if your product got better. Predictions learn what works. /plan finds the bottleneck. /go builds it. /money prices it. /copy writes the landing page.",
       "author": {
         "name": "Jacob Rhinehart"
       },
       "keywords": [
         "product",
         "measurement",
-        "learning",
+        "founder",
+        "cofounder",
+        "startup",
         "eval",
-        "autonomous",
         "scoring",
         "predictions",
         "strategy",
-        "founder"
+        "pricing",
+        "landing-page",
+        "copy",
+        "gtm",
+        "autonomous",
+        "agents",
+        "learning-loop"
       ],
       "category": "productivity",
       "tags": [
@@ -34,7 +41,11 @@
         "measurement",
         "autonomous-building",
         "learning-loop",
-        "founder-tools"
+        "founder-tools",
+        "startup-intelligence",
+        "pricing",
+        "distribution",
+        "customer-research"
       ],
       "homepage": "https://github.com/rhinehart514/rhino-os",
       "repository": "https://github.com/rhinehart514/rhino-os",

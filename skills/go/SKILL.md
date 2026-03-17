@@ -48,6 +48,20 @@ Autonomous creation loop. Plan, predict, build, measure, learn — no human in t
 
 **Compute the product map** → bottleneck, dependency order. If no tasks/plan exist, target the bottleneck.
 
+### Soft discovery gate
+
+Before entering the build loop, check if the target feature has customer signal:
+
+If target feature has no eval data AND `.claude/cache/customer-intel.json` doesn't exist AND `~/.claude/cache/last-discovery.yml` doesn't mention the feature:
+
+Present via AskUserQuestion:
+> "Building [feature] with no customer signal. This is fine for exploration, but viability score may suffer."
+> Options: "Build it" / "/discover first" / "/strategy user"
+
+If founder proceeds, log prediction: `"Building [feature] without discovery will produce viability_score <50 because no customer signal grounds the value delivery"`
+
+This gate is **informational only** — it does not block. If `agents.autonomy` is `autonomous` or `full-auto`, skip the gate entirely (still log the prediction).
+
 ---
 
 ## The Loop

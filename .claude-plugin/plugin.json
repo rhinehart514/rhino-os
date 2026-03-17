@@ -1,7 +1,7 @@
 {
   "name": "rhino-os",
-  "version": "8.3.2",
-  "description": "Your product gets measurably better every session. Measurement, predictions, and autonomous building that compounds across sessions.",
+  "version": "9.0.0",
+  "description": "A cofounder in your terminal. 14 agents that measure your product, build autonomously, and think about customers, pricing, and distribution. Score 0-100 tells you if your product got better.",
   "author": {
     "name": "Jacob Rhinehart",
     "email": "rhinehart514@gmail.com"
@@ -12,14 +12,18 @@
   "keywords": [
     "product",
     "measurement",
-    "learning",
+    "founder",
+    "cofounder",
+    "startup",
     "eval",
-    "autonomous",
     "scoring",
     "predictions",
     "strategy",
-    "founder",
-    "cofounder"
+    "pricing",
+    "copy",
+    "agents",
+    "autonomous",
+    "learning-loop"
   ],
   "skills": "./skills/",
   "agents": [
@@ -31,6 +35,11 @@
     "./agents/market-analyst.md",
     "./agents/grader.md",
     "./agents/debugger.md",
-    "./agents/refactorer.md"
+    "./agents/refactorer.md",
+    "./agents/customer.md",
+    "./agents/founder-coach.md",
+    "./agents/consolidator.md",
+    "./agents/gtm.md",
+    "./agents/copywriter.md"
   ]
 }

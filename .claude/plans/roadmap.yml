@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v8.3.01
+current: v9.0
 
 versions:
 
@@ -195,7 +195,8 @@ versions:
     thesis: "Agent-orchestrated skills with named agents, parallel execution, and self-healing build loop"
     tier: minor
     parent: v8.0
-    status: active
+    status: proven
+    proven: 2026-03-17
     goal: "9 named agents (builder, explorer, evaluator, market-analyst, measurer, reviewer, grader, debugger, refactorer) with memory, model tiers, and maxTurns. Skills spawn agents by name. Two architectures: inline orchestrator (spawns agents) and forked task (isolated work). Fork+Agent mutually exclusive."
     summary: "Agent architecture formalized. 9 agents with memory:user + maxTurns. Skills preload via skills key. /go auto-grades via grader, spawns debugger on regression, routes cleanup to refactorer. /eval parallel evaluators per feature. /research spawns explorer + market-analyst. 5 critical flow fixes."
     evidence_needed:
@@ -222,23 +223,27 @@ versions:
     summary: "Visual output UX overhaul. All 5 user-facing hooks rewritten with colored voice.md symbols (⚠/●/✓). 6 missing reference.md output templates created (ship, onboard, clone, skill, openclaw, discover). 2 existing reference.md files fixed for OUTPUT_FORMAT.md compliance (product, taste)."
 
   v9.0:
-    thesis: "Plugin marketplace distribution — someone finds rhino-os, installs it, gets value"
+    thesis: "rhino-os operates on the startup, not just the code"
     tier: major
-    status: future
-    goal: "claude plugin install rhino-os works end-to-end. No git clone, no install.sh, no shell profile changes."
+    status: active
+    goal: "5 new agents that think about customers, distribution, pricing, copy, and founder behavior. Zero of the 9 previous agents operated on the startup itself. Now 14 agents cover both code and business."
+    summary: "Startup agent layer. 5 new agents (customer, founder-coach, consolidator, gtm, copywriter). 2 new skills (/money, /copy). mind/startup-patterns.md with 8 failure mode detection rules loaded into every session. Soft gates in /go and /ship. /product converted from Architecture B to A (spawns agents). /discover, /retro, /strategy, /eval, /plan, /ideate all enhanced with startup awareness. Agent count 9→14, skill count 19→21."
     evidence_needed:
-      - id: plugin-structure
-        question: "Is the plugin structure complete and valid?"
-        status: proven
-        evidence: "plugin.json, hooks.json, skills/ exist. install.sh plugin guards added. PLUGIN_INSTALL.md created. Claude Code /plugin install is a production feature — .claude-plugin format is the real standard."
-      - id: first-external-install
-        question: "Can someone install via plugin system and get value?"
-        status: testing
-        evidence: "Plugin install flow documented. /plugin marketplace add + /plugin install commands ready. Untested on a fresh Claude Code instance."
-      - id: marketplace-listing
-        question: "Is the marketplace listing compelling enough to try?"
-        status: proven
-        evidence: "marketplace.json has description, keywords, author, homepage. PLUGIN_INSTALL.md has full install guide with scopes, commands table, what-gets-installed breakdown."
+      - id: customer-signal
+        question: "Does the customer agent produce signal that changes product decisions?"
+        status: todo
+      - id: coach-detects
+        question: "Does the founder-coach correctly detect failure modes from repo state?"
+        status: todo
+      - id: consolidator-prunes
+        question: "Does the consolidator agent actually improve experiment-learnings.md quality?"
+        status: todo
+      - id: money-grounded
+        question: "Does /money produce pricing recommendations grounded in real competitor data?"
+        status: todo
+      - id: copy-quality
+        question: "Does /copy pass its own quality gate (names person, states change, differentiates, slop-free)?"
+        status: todo
 
   # Version tiers: major (new thesis), minor (improvement within thesis), patch (bug fix/polish)
   # Future theses emerge from evidence. /roadmap ideate when ready.
