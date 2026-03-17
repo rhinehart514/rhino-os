@@ -34,17 +34,6 @@
         ]
       }
     ],
-    "PostCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/post_compact.sh"
-          }
-        ]
-      }
-    ],
     "SessionEnd": [
       {
         "matcher": "",
