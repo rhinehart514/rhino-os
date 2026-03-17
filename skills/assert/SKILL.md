@@ -197,7 +197,7 @@ v8.0: **89%** pass rate · health: **B**
 
 ### `coverage [feature]` → dimension coverage map
 
-Maps assertion coverage per feature against the value/quality/ux dimensions from eval-cache. Answers: "Where are the blind spots?"
+Maps assertion coverage per feature against the delivery/craft/viability dimensions from eval-cache. Answers: "Where are the blind spots?"
 
 **1. Read state:**
 - `lens/product/eval/beliefs.yml` — all assertions

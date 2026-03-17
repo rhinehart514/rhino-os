@@ -146,10 +146,10 @@ Scores render as a big number with a 20-char bar and supporting dimensions:
 Standard feature row format for product maps and dashboards:
 
 ```
-  scoring    ████████████████████  w:5  58  v:62 q:50 u:60  ↑4
-  commands   ████████████░░░░░░░░  w:5  70  v:75 q:65 u:68  ↑2
-  learning   ██████░░░░░░░░░░░░░░  w:4  48  v:55 q:40 u:48  ↓3  ←
-  install    ████████████████████  w:3  68  v:70 q:60 u:72  —
+  scoring    ████████████████████  w:5  58  d:62 c:50 v:60  ↑4
+  commands   ████████████░░░░░░░░  w:5  70  d:75 c:65 v:68  ↑2
+  learning   ██████░░░░░░░░░░░░░░  w:4  48  d:55 c:40 v:48  ↓3  ←
+  install    ████████████████████  w:3  68  d:70 c:60 v:72  —
   docs       ████████████░░░░░░░░  w:3
 ```
 
@@ -162,7 +162,7 @@ Standard feature row format for product maps and dashboards:
 - Bar: 20 `█`/`░` characters, proportional to maturity (planned=0%, building=33%, working=66%, polished=100%)
 - `w:N` — feature weight (1-5)
 - Score — composite number when eval-cache exists
-- `v:N q:N u:N` — value/quality/ux sub-dimensions (optional, only when eval-cache has them)
+- `d:N c:N v:N` — delivery/craft/viability sub-dimensions (optional, only when eval-cache has them)
 - Delta: `↑N` / `↓N` / `—`
 - `←` marks the bottleneck (lowest maturity x highest weight)
 - Features without eval data show name + bar + weight only

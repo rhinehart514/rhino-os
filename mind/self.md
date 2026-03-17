@@ -10,8 +10,8 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 - `/taste <url>` — visual product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Market-calibrated, persistent memory, auto-creates todos, self-improving. Status: operational. Legacy CLI: `rhino taste` (1-5 scale, backward compat).
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
-### Commands (the product surface)
-18 slash commands, each with explicit output templates and state awareness:
+### Skills (the product surface)
+18 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
 /plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product
 
 ### Agents
@@ -51,21 +51,21 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 
 rhino tracks product completion across multiple signals, not just score:
 
-**Feature maturity** (the primary signal):
-- `planned` (0%) → `building` (33%) → `working` (66%) → `polished` (100%)
+**Eval-driven completion** (the primary signal):
+- `/eval` scores each feature 0-100 across three dimensions: delivery (50%), craft (30%), viability (20%)
 - Each feature has a `weight` (1-5) indicating importance to the value hypothesis
-- Product completion = weighted average of feature maturities
-- Auto-detected from assertions + code, or manually set in rhino.yml
+- Product completion = sum(eval_score × weight) / sum(weight × 100)
+- Maturity is a computed label from eval score: 0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven
 
 **Completion signals** (all aggregated in /rhino dashboard):
-- Feature maturity × weight → product completion %
+- Eval score × weight → product completion %
 - Assertion pass rate → value delivery %
 - Todo done/total → backlog clearance %
 - Plan tasks completed/total → session momentum %
 - Roadmap evidence proven/total → thesis progress %
 - Prediction accuracy → model quality %
 
-**Dependency graph**: features can declare `depends_on: [other_feature]`. The bottleneck is always the lowest-maturity, highest-weight feature. Dependencies determine build order.
+**Dependency graph**: features can declare `depends_on: [other_feature]`. The bottleneck is the lowest eval score among highest-weight features. Dependencies determine build order.
 
 **Visualization**: /rhino renders a product map with bars, weights, bottleneck markers, and dependency arrows. /plan includes a compact version.
 
@@ -91,8 +91,8 @@ Bump auto-detection: thesis changed → major, new features/evidence → minor, 
 
 ## What I Would Change About Myself
 - The learning feature should be the smartest part of the system. It's the worst.
-- Commands should read state uniformly — right now /plan reads 9 sources, /eval reads 2.
-- The CLI (bin/) should serve the commands, not the other way around. Commands are the product.
+- Skills should read state uniformly — right now /plan reads 9 sources, /eval reads 2.
+- The CLI (bin/) should serve the skills, not the other way around. Skills are the product.
 - Mind files are loaded but never validated — no mechanism to check if they actually influenced behavior.
 
 ## Available MCP Tools
@@ -102,17 +102,18 @@ Bump auto-detection: thesis changed → major, new features/evidence → minor, 
 
 ## Plugin Surface (what rhino-os extends in Claude Code)
 
+Skills ARE the commands. Each skill lives in `skills/*/SKILL.md` — there is no separate `commands/` directory.
+
 Two install modes, same capabilities:
 
 **Plugin mode** (`CLAUDE_PLUGIN_ROOT` set):
 - `skills/rhino-mind/SKILL.md` — mind files concatenated into a single skill
-- `commands/*.md` — slash commands delivered via plugin system
+- `skills/*/SKILL.md` — slash commands delivered as skills via plugin system
 - `hooks/hooks.json` — hook definitions referencing hooks/*.sh
 - MCP tools — context7, playwright, Vercel (when available)
 
 **Manual install** (legacy symlinks):
 - `~/.claude/rules/` — mind files symlinked as system context
-- `~/.claude/commands/` — slash commands symlinked
 - `settings.json` — hook configuration pointing to hooks/*.sh
 - MCP tools — context7, playwright, Vercel (when available)
 
@@ -120,15 +121,54 @@ Two install modes, same capabilities:
 - `~/.claude/knowledge/` — predictions.tsv, experiment-learnings.md (persistent learning)
 - `~/.claude/cache/` — research artifacts, score cache (cross-command communication)
 
-## Untapped Claude Code Capabilities
+## Agent Architecture (v8.3)
 
-rhino-os uses a fraction of what Claude Code offers. Full reference: `skills/CAPABILITIES.md`.
+**Critical constraint**: `context: fork` and Agent spawning are MUTUALLY EXCLUSIVE. Forked skills run AS subagents and cannot spawn sub-subagents.
 
-**Skills:** `context: fork` (isolated subagent context — expensive skills like /eval taste shouldn't pollute main context), `allowed-tools` (readonly skills shouldn't Write), `model` override (haiku for /todo, opus for /product), cross-tool portability (AgentSkills.io — skills work in Cursor/Gemini CLI too).
+**Two skill architectures:**
+- **Architecture A (Inline Orchestrator)**: No fork, spawns named agents. Skills: /go, /eval, /research, /strategy, /discover, /ideate, /taste, /retro, /roadmap, /ship, /openclaw
+- **Architecture B (Forked Task)**: Fork, does all work itself. Skills: /product
 
-**Agents:** `memory: user` (agents that learn patterns across sessions natively), `isolation: worktree` (/go should build in a worktree, merge on keep, discard on revert), agent teams (shared tasks + inter-agent messaging — Anthropic built a 100K-line compiler with 16 coordinated agents).
+**9 agents**, all with `memory: user` (cross-session learning) and `maxTurns` (safety valve):
 
-**Hooks:** Using 8 of 22 available events. `UserPromptSubmit` could auto-route intent to skills. `TaskCompleted` could enforce quality gates in /go loops. `PreToolUse` can modify tool inputs. `SessionEnd` could auto-log sessions.
+| Agent | Model | Turns | Background | Skills | Role |
+|-------|-------|-------|-----------|--------|------|
+| builder | opus | 30 | - | rhino-mind, product-lens | Writes code, worktree isolation |
+| explorer | sonnet | 25 | yes | rhino-mind | Researches unknowns, multi-source |
+| evaluator | opus | 20 | - | rhino-mind | Deep feature eval, rubric generation |
+| market-analyst | opus | 20 | yes | - | Competitive/market research |
+| measurer | haiku | 15 | - | - | Runs scores, cheapest |
+| reviewer | haiku | 10 | - | product-lens | UX checklist, cheapest |
+| grader | sonnet | 10 | - | rhino-mind | **NEW** — auto-grades predictions |
+| debugger | sonnet | 15 | - | - | **NEW** — regression investigation |
+| refactorer | sonnet | 20 | - | rhino-mind | **NEW** — no-behavior-change cleanup |
+
+Skills spawn agents by name: `Agent(subagent_type: "rhino-os:builder", ...)` — never generic `"general-purpose"`.
+
+**Agent wiring across skills:**
+- /go → builder (worktree), measurer, reviewer, grader, debugger (background), refactorer (worktree)
+- /eval → evaluator (parallel per feature), measurer
+- /research → explorer, market-analyst (parallel)
+- /strategy → explorer, market-analyst (parallel)
+- /discover → explorer, market-analyst (parallel)
+- /retro → grader (batch mode)
+
+**5 critical flow fixes (v8.3):**
+1. /onboard writes roadmap.yml + strategy.yml + eval-cache.json
+2. /rhino defers bottleneck to /plan (plan is authoritative)
+3. /go auto-grades predictions via grader agent
+4. /eval spawns parallel evaluators per feature + suggests /taste for web products
+5. /plan detects unknowns → suggests /research before building
+
+**Merged:** /calibrate → /taste (taste owns its calibration via /taste calibrate)
+
+## Remaining Untapped Capabilities
+
+Full reference: `skills/CAPABILITIES.md`.
+
+**New CC features (discovered 2026-03-17):** LSP tool (50ms code navigation), /simplify pattern (3 parallel review agents), /batch pattern (worktree decomposition), CronCreate (periodic monitoring), auto-memory (may overlap experiment-learnings.md), plugin settings.json agent key, PostCompact hook, MCP elicitation.
+
+**Hooks:** Using 8 of 22 available events. Priority additions: PostCompact (context rebuild), SessionEnd (auto session logging), TaskCompleted (quality gate for /go), InstructionsLoaded (validate mind files loaded).
 
 **Composites:** The `/batch` pattern (ships with Claude Code) decomposes work into N units, spawns agents in isolated worktrees, each opens a PR. This is the architecture for composite skills — parallel orchestration, not sequential chaining.
 

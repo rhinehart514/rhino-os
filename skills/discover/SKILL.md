@@ -52,15 +52,18 @@ Launch SIMULTANEOUSLY:
 
 Read in parallel:
 1. `config/rhino.yml` — value hypothesis, user, features, weights
-2. `.claude/plans/roadmap.yml` — current thesis and evidence
-3. `.claude/plans/strategy.yml` — current bottleneck (if exists)
-4. `.claude/plans/todos.yml` — backlog items
-5. `~/.claude/evals/discovery-history.tsv` — past recommendations and outcomes
-6. `~/.claude/evals/discovery-learnings.md` — accumulated discovery intelligence
-7. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`)
-8. `git log --oneline -30` — recent work velocity
+2. `.claude/cache/eval-cache.json` — **per-feature scores + sub-scores (d/c/v)**. This is the ground truth for system maturity. A feature scoring 42 with quality:35 is a DIFFERENT problem than 42 with value:35.
+3. `.claude/plans/roadmap.yml` — current thesis and evidence
+4. `.claude/plans/strategy.yml` — current bottleneck, market diagnosis, competitors
+5. `.claude/plans/todos.yml` — backlog items
+6. `~/.claude/evals/discovery-history.tsv` — past recommendations and outcomes
+7. `~/.claude/evals/discovery-learnings.md` — accumulated discovery intelligence
+8. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`)
+9. `git log --oneline -30` — recent work velocity
 
 Compute: product map, product completion %, bottleneck, shipping velocity (commits/30 days).
+
+**Eval grounding:** Every system in the map should reference its eval score if it maps to a feature. A system without a score is a hypothesis. A system with a score is a measurement. Discovery recommendations that ignore eval scores are ungrounded.
 
 ### Thread B: Live Product (if dev server running)
 
@@ -91,14 +94,16 @@ One paragraph. Who it's for, what it does, what stage it's at. If `new` mode, th
 
 ### 1B: What systems exist?
 
-Map current systems from features in rhino.yml + codebase scan:
+Map current systems from features in rhino.yml + eval-cache sub-scores:
 
 ```
 systems:
-  ✓ [system] — [maturity], weight:[N], [what it does]
-  ✓ [system] — [maturity], weight:[N], [what it does]
-  · [system] — planned, weight:[N], [not built yet]
+  ✓ [system] — [maturity], weight:[N], eval:[score] (d:[N] c:[N] v:[N])
+  ✓ [system] — [maturity], weight:[N], eval:[score] (d:[N] c:[N] v:[N])
+  · [system] — planned, weight:[N], no eval data
 ```
+
+**The eval score IS the system maturity.** Not a label — the actual score from the judge. A feature scoring 42 is not mature regardless of any label. Use eval scores to ground every system assessment.
 
 ### 1C: What's the user journey?
 
@@ -119,6 +124,16 @@ The single most important place where the product says one thing but does anothe
 ## Stage 2: Ideate Systems (70% of effort)
 
 This is the core. **What systems should this product have?**
+
+### Cross-reference /strategy
+
+If `strategy.yml` exists, read it. Strategy knows the market — discover should build ON that:
+- **Strategy bottleneck** → discover should prioritize systems that unblock it
+- **Strategy stage** → discover should size recommendations appropriately (stage one = small, fast systems)
+- **Strategy competitors** → discover should check which systems competitors have that we lack
+- **Strategy "you're avoiding"** → discover should confront the same avoidance, not route around it
+
+If strategy says the bottleneck is "first-loop" and discover recommends a growth system, that's a contradiction. Name it.
 
 ### 2A: The Systems Map
 
@@ -152,9 +167,10 @@ For each:
 ```
 ▸ **[System Name]** — [core|enabler|growth|intelligence|trust]
   does: [what the user gets from this system — one sentence]
+  eval: [score] (d:[N] c:[N] v:[N]) — or "no code" if missing
+  weakest: [which sub-score drags it down and why — from eval evidence]
   depends on: [other systems]
   enables: [what breaks or is weaker without this]
-  exists: [yes (maturity) | partial | no]
   market: [table stakes | differentiating | novel]
   size: [S/M/L]
   priority: [1-5] — based on dependency order + value delivery
@@ -494,8 +510,9 @@ After every 3rd session: analyze outcomes, detect biases, calibrate. Write adjus
 **context7** — library/framework docs
 **playwright** — live product analysis
 **Grep/Glob** — codebase structure mapping
-**Agent (explorer)** — deep codebase analysis
-**Agent (market-analyst)** — competitive systems analysis
+**Agent (rhino-os:explorer)** — deep codebase analysis, spawn with `Agent(subagent_type: "rhino-os:explorer", ...)`
+**Agent (rhino-os:market-analyst)** — competitive systems analysis, spawn with `Agent(subagent_type: "rhino-os:market-analyst", ...)`
+Spawn both in parallel for `vs` and `systems` modes. Named agents have persistent memory across sessions.
 **AskUserQuestion** — for new product mode clarifications
 
 ## What You Never Do

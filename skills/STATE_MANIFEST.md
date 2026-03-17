@@ -5,7 +5,7 @@ Skills read project state to make informed decisions. This manifest documents th
 ## Source Tiers
 
 ### T1 — Always Read (core identity)
-- `config/rhino.yml` — value hypothesis, features (maturity/weight/depends_on), mode, stage
+- `config/rhino.yml` — value hypothesis, features (weight/depends_on), mode, stage
 - `.claude/plans/roadmap.yml` — current thesis, version, evidence_needed
 - `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions, accuracy
 
@@ -28,27 +28,18 @@ Skills read project state to make informed decisions. This manifest documents th
 - `~/.claude/cache/last-research.yml` — recent research findings + suggested tasks
 - `~/.claude/cache/last-retro.yml` — recent retro results + model updates
 
-## Maturity Transition Rubric
+## Maturity Threshold Rubric
 
-Features move through four maturity stages. Criteria are consistent across all skills:
+Feature maturity is computed from eval scores, not manually declared:
 
-### planned → building
-Code exists for the feature. At least one file in the feature's `code:` paths contains implementation (not just scaffolding or empty exports).
+| Eval Score | Maturity | Meaning |
+|------------|----------|---------|
+| 0-29 | planned | Does not exist or fundamentally broken |
+| 30-49 | building | Half-built, skeleton is there |
+| 50-69 | working | It works, delivers on claim |
+| 70-89 | polished | Solid, ships and works well |
+| 90+ | proven | Genuinely excellent, externally validated |
 
-### building → working
-- >50% of the feature's assertions pass
-- Core user flow is functional end-to-end
-- No crash-level bugs in the happy path
+**Maturity is a computed label, not a manual field.** Run `/eval` to update scores. The maturity label follows automatically.
 
-### working → polished
-- 100% of the feature's assertions pass
-- Edge cases handled (error states, empty states, loading states)
-- No TODO/FIXME markers in feature code
-- Code is reviewed or self-reviewed against standards
-
-### polished → proven
-- External validation: someone other than the author has used it successfully
-- OR: 3+ sessions without regression (assertions stayed green)
-- The feature delivers measurable value (not just "it works")
-
-**Reference this rubric from**: /retro (step 6), /strategy (graduation criteria), /ship (pre-flight maturity check), /feature (status transitions), /go (maturity updates in session summary).
+**Reference this rubric from**: /eval (score→maturity mapping), /rhino (dashboard maturity labels), /plan (bottleneck diagnosis), /feature (maturity display), /ship (pre-flight check).

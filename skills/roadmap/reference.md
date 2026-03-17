@@ -260,7 +260,7 @@ measurement loop on their own project without help.
 
 - Plugin install mode — one-command setup via Claude Code marketplace
 - 17 slash commands with intelligent cross-recommendations
-- Per-feature scoring with value/quality/UX breakdown
+- Per-feature scoring with delivery/craft/viability breakdown
 - Autonomous build loop (/go) with speculative branching [BETA]
 
 ### v8.0.3

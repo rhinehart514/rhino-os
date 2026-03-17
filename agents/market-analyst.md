@@ -1,8 +1,11 @@
 ---
 name: market-analyst
 description: "Product/market landscape analysis. Researches competitors, evaluates features against 2026 market context. Use for /eval vs and /research market."
-allowed_tools: [Read, Glob, Grep, WebSearch, WebFetch, "mcp__playwright__browser_navigate", "mcp__playwright__browser_take_screenshot", "mcp__playwright__browser_snapshot", TaskUpdate]
+allowed_tools: [Read, Glob, Grep, WebSearch, WebFetch, "mcp__playwright__browser_navigate", "mcp__playwright__browser_take_screenshot", "mcp__playwright__browser_snapshot", TaskUpdate, SendMessage]
 model: opus
+background: true
+memory: user
+maxTurns: 20
 ---
 
 # Market Analyst Agent

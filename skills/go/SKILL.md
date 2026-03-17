@@ -39,7 +39,7 @@ Autonomous creation loop. Plan, predict, build, measure, learn — no human in t
 5. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known patterns, dead ends
 6. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — recent predictions
 7. `.claude/cache/eval-cache.json` — per-feature scores + sub-scores (baseline)
-8. `config/rhino.yml` features section — maturity, weight, depends_on
+8. `config/rhino.yml` features section — weight, depends_on
 
 **Compute the product map** → bottleneck, dependency order. If no tasks/plan exist, target the bottleneck.
 
@@ -92,6 +92,16 @@ Read state → Pick move → Predict → <HARD-GATE> → Build → Measure → S
 ### 1. Pick the move
 A move = a feature-level intent. Not a single-file tweak. TaskList for existing tasks. Promoted todos = founder's explicit priority.
 
+#### Cleanup/Refactor Routing
+
+If the next task is a cleanup or slop-reduction task (identified by todo source containing 'evaluator' or 'slop', or tagged as cleanup/refactor), spawn the refactorer instead of the builder:
+
+```
+Agent(subagent_type: "rhino-os:refactorer", isolation: "worktree", prompt: "[cleanup task description]. Hard constraint: all assertions must pass before AND after changes. Score must not drop.")
+```
+
+The refactorer works in a worktree and has a constraint the builder does not: no behavior changes allowed. It can restructure, simplify, delete dead code, and reduce complexity — but the product must behave identically. Assertions are the verification gate. If assertions change (even improving), the refactorer overstepped — that is builder work, not refactorer work.
+
 ### 2. Predict
 ```
 I predict: [specific outcome, with numbers]
@@ -128,7 +138,7 @@ In beta mode: MANDATORY. Wait for response.
 1. Identify 2 approaches
 2. Spawn each with worktree isolation:
    ```
-   Agent(subagent_type: "general-purpose", isolation: "worktree", prompt: "[approach + acceptance criteria + 'run rhino eval . --feature X --fresh --samples 1']")
+   Agent(subagent_type: "rhino-os:builder", isolation: "worktree", prompt: "[approach + acceptance criteria + 'run rhino eval . --feature X --fresh --samples 1']")
    ```
 3. Claude Code handles worktree creation automatically
 4. When both complete: compare scores, keep winner, discard loser (automatic)
@@ -144,10 +154,14 @@ In beta mode: MANDATORY. Wait for response.
 ### 4. Measure
 Run `rhino eval . --feature [name] --fresh` after each commit.
 
+**Read the sub-scores, not just the total.** The eval judge is a top engineer — trust the sub-score breakdown to understand WHAT changed:
+
 - **Assertion regressed** (was passing, now failing) → revert. No negotiation.
 - **Assertion progressed** (was failing, now passing) → keep.
-- **Sub-scores**: check value_score, quality_score, ux_score individually. A value regression is worse than a quality regression.
+- **Sub-score awareness**: which dimension were you targeting? If you targeted quality and quality went up but ux went down, that might be fine. If the dimension you targeted didn't move, the approach isn't working.
+- **Value regression is worse than quality regression.** Value means the feature stopped delivering. Quality means it got more fragile. At stage one, value regression = revert, quality regression = maybe acceptable.
 - **Score dropped but assertions held** → keep (value > health).
+- **Score flat after 3 commits** → stop. The approach is exhausted. Read the eval evidence field — it tells you WHY the score isn't moving.
 
 ### 5. BETA: Two-Stage Review
 
@@ -178,16 +192,33 @@ assertions stable + reviewer REVERT    → revert (no value gained, reviewer fou
 assertions regressed                   → revert (always, regardless of reviewer)
 ```
 
+#### Regression Debugging
+
+When assertions regress, BEFORE reverting, spawn the debugger to investigate:
+
+```
+Agent(subagent_type: "rhino-os:debugger", prompt: "Score dropped from [before] to [after] after commit [hash]. Assertion [name] regressed. Investigate root cause. Check git diff, trace the failing code path, form hypotheses.", run_in_background: true)
+```
+
+The debugger runs in background while /go reverts and continues. Its findings arrive as SendMessage with root cause analysis and a suggested fix todo. The debugger has memory — it remembers past regressions and their causes. Pattern: if the same assertion regresses twice, the debugger's second analysis is sharper because it already has context from the first failure.
+
 ### 7. BETA: Mechanical Prediction Grading
 
 **The prediction MUST be graded before moving to the next move.** This is not optional.
 
-After measuring, fill in the prediction result:
+Spawn the grader agent to handle prediction grading:
+```
+Agent(subagent_type: "rhino-os:grader", prompt: "Grade the prediction I just made: [prediction text]. The build result was: [measurement result]. Check git log and eval cache for evidence.")
+```
+
+The grader agent fills in:
 - `result` column: what actually happened (specific, measurable)
 - `correct` column: `yes`, `no`, or `partial`
 - `model_update` column: what changed about the model (required when wrong, empty when right)
 
-If wrong, also update experiment-learnings.md — move patterns between Known/Uncertain/Unknown/Dead Ends.
+If wrong, the grader also updates experiment-learnings.md — moving patterns between Known/Uncertain/Unknown/Dead Ends.
+
+The grader agent has memory — it learns what "correct" and "wrong" mean for this project across sessions.
 
 A prediction that was never graded = a prediction that taught nothing. The learning loop breaks here more than anywhere else.
 
@@ -207,7 +238,11 @@ TaskUpdate → completed. Pick next move. Loop.
 ## Crash Recovery
 
 - **Trivial** (syntax error, missing import): fix inline, retry once
-- **Fundamental** (missing package, design flaw): skip task, log why
+- **Fundamental** (missing package, design flaw): spawn debugger for diagnosis before skipping:
+  ```
+  Agent(subagent_type: "rhino-os:debugger", prompt: "Build crashed on [task]. Error: [error message]. Diagnose whether this is fixable or a fundamental blocker. Check dependencies, imports, and design assumptions.", run_in_background: true)
+  ```
+  Skip the task, log why. The debugger's findings inform whether to retry later.
 - **3 consecutive crashes**: stop the loop, ask founder
 - **Worktree failure**: fall back to building in main working tree (safe mode behavior)
 
@@ -221,10 +256,12 @@ Not every step needs the same model or agent:
 | Pick move | direct (main context) | Needs full session context |
 | Predict | direct (main context) | Needs experiment-learnings |
 | Build (safe) | direct | Single-agent, main worktree |
-| Build (speculate) | Agent per approach, isolated worktrees | Parallel, independent |
-| Measure | Bash (`rhino eval .`) | Mechanical |
-| Adversarial review | feature-dev:code-reviewer agent | Independent, honest |
-| Prediction grading | direct (main context) | Needs prediction + result |
+| Build (speculate) | rhino-os:builder per approach, isolated worktrees | Parallel, independent, has memory |
+| Measure | rhino-os:measurer or Bash (`rhino eval .`) | Mechanical, sonnet-cheap |
+| Adversarial review | rhino-os:reviewer | Independent, honest, haiku-cheap |
+| Prediction grading | rhino-os:grader | Has memory, learns grading patterns across sessions |
+| Regression debugging | rhino-os:debugger (background) | Runs async during revert, has memory of past regressions |
+| Cleanup/refactor | rhino-os:refactorer (worktree) | No behavior changes allowed, assertions must hold |
 | Model update | direct (main context) | Needs experiment-learnings |
 
 ## Session Log
@@ -244,11 +281,11 @@ score_before: 58
 score_after: 66
 delta: +8
 predictions:
-  - text: "error boundary hardening will raise quality_score from 50 to 65+"
+  - text: "error boundary hardening will raise craft_score from 50 to 65+"
     correct: partial
-    model_update: "quality improved +8 but error paths in subprocess calls still unhandled"
+    model_update: "craft improved +8 but error paths in subprocess calls still unhandled"
 features_changed:
-  scoring: {before: 58, after: 66, value: [62,68], quality: [50,58], ux: [60,65]}
+  scoring: {before: 58, after: 66, delivery: [62,68], craft: [50,58], viability: [60,65]}
 learnings:
   - "speculative branching produced 2 viable approaches — winner was +4 over loser"
   - "adversarial review caught a silent failure at eval.sh:720 that measurement missed"

@@ -2,7 +2,9 @@
 name: measurer
 description: "Scores and evaluates the product. Runs rhino score, eval, taste. Cannot edit files. Use for honest measurement."
 allowed_tools: [Read, Glob, Grep, "Bash(rhino *)", "Bash(git log *)", "Bash(git diff *)", TaskUpdate, SendMessage]
-model: sonnet
+model: haiku
+memory: user
+maxTurns: 15
 ---
 
 # Measurer Agent

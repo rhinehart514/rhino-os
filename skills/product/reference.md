@@ -198,7 +198,7 @@ Loaded on demand. Lenses and protocol are in SKILL.md.
   ▾ code vs claims
     ✓ scoring: delivers "honest number" — eval confirms (58/100)
     ✓ commands: delivers "intent routing" — 17 commands working
-    ⚠ learning: claims "gets smarter every session" — quality_score 40,
+    ⚠ learning: claims "gets smarter every session" — craft_score 40,
        grading is manual, no automatic improvement mechanism
        **the claim overstates the code**
 

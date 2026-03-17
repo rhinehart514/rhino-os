@@ -364,7 +364,8 @@ if [[ ${#FEATURES[@]} -gt 0 ]]; then
 # Each feature declares what it delivers and for whom.
 # rhino eval reads these and has Claude judge the gap.
 #
-# maturity: planned → building → working → polished
+# Maturity computed from eval scores (not manual):
+#   0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven
 # weight: 1-5 (importance to value hypothesis)
 # depends_on: [feature_name] (what must work first)
 features:"
@@ -401,68 +402,13 @@ features:"
         feat_weight=$(_get_feat_weight "$feat")
         [[ -z "$feat_weight" || ! "$feat_weight" =~ ^[1-5]$ ]] && feat_weight=1
 
-        # --- Infer maturity from code + test presence ---
-        feat_maturity="building"
-        if [[ -f "$feat_path" ]]; then
-            # File feature — check for associated tests
-            feat_base=$(basename "$feat_path" | sed 's/\.[^.]*$//')
-            feat_dir=$(dirname "$feat_path")
-            has_tests=false
-            # Check common test patterns: *.test.*, *.spec.*, __tests__/*, test/*
-            for test_pattern in \
-                "${feat_dir}/${feat_base}.test."* \
-                "${feat_dir}/${feat_base}.spec."* \
-                "${feat_dir}/__tests__/${feat_base}."* \
-                "test/${feat_base}."* \
-                "tests/${feat_base}."* \
-                "test/test-${feat_base}."* \
-                "test/test_${feat_base}."*; do
-                # shellcheck disable=SC2086
-                if ls $test_pattern 2>/dev/null | head -1 | grep -q .; then
-                    has_tests=true
-                    break
-                fi
-            done
-            if [[ "$has_tests" == true ]]; then
-                feat_maturity="working"
-            else
-                feat_maturity="building"
-            fi
-        elif [[ -d "$feat_path" ]]; then
-            # Directory feature — check if it has source files and test files
-            has_code=false
-            has_tests=false
-            if find "$feat_path" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) -not -name '*.test.*' -not -name '*.spec.*' -print -quit 2>/dev/null | grep -q .; then
-                has_code=true
-            fi
-            if find "$feat_path" -type f \( -name '*.test.*' -o -name '*.spec.*' \) -print -quit 2>/dev/null | grep -q .; then
-                has_tests=true
-            fi
-            # Also check for __tests__ or test subdirs within the feature dir
-            if [[ "$has_tests" != true ]] && find "$feat_path" -type d -name '__tests__' -print -quit 2>/dev/null | grep -q .; then
-                has_tests=true
-            fi
-
-            if [[ "$has_code" == true && "$has_tests" == true ]]; then
-                feat_maturity="working"
-            elif [[ "$has_code" == true ]]; then
-                feat_maturity="building"
-            else
-                feat_maturity="planned"
-            fi
-        else
-            # Path doesn't exist — aspirational feature
-            feat_maturity="planned"
-        fi
-
         FEATURES_YAML+="
   ${feat}:
     delivers: \"${delivers_text}\"
     for: \"${for_text}\"
     code: [\"${feat_path}\"]
     status: active
-    weight: ${feat_weight}
-    maturity: ${feat_maturity}"
+    weight: ${feat_weight}"
         FEATURE_COUNT=$((FEATURE_COUNT + 1))
     done
 
@@ -506,10 +452,10 @@ features:"
         done
 
         if [[ -n "$deps" ]]; then
-            # Append depends_on line after the maturity line for this feature
+            # Append depends_on line after the weight line for this feature
             FEATURES_YAML=$(printf '%s' "$FEATURES_YAML" | awk -v feat="  ${feat}:" -v depline="    depends_on: [${deps}]" '
                 $0 == feat { in_feat=1 }
-                in_feat && /^    maturity:/ { print; print depline; in_feat=0; next }
+                in_feat && /^    weight:/ { print; print depline; in_feat=0; next }
                 { print }
             ')
         fi
@@ -887,26 +833,8 @@ if [[ -z "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
         done
     done
 
-    # 3b-ii. Symlink commands into .claude/commands/
-    mkdir -p .claude/commands
-    # Lens commands first (lower priority)
-    for lens_cmd_dir in "$RHINO_DIR"/lens/*/commands; do
-        [[ ! -d "$lens_cmd_dir" ]] && continue
-        for cmd_file in "$lens_cmd_dir"/*.md; do
-            [[ ! -f "$cmd_file" ]] && continue
-            name="$(basename "$cmd_file")"
-            # Skip if core command with same name exists
-            [[ -f "$RHINO_DIR/.claude/commands/$name" ]] && continue
-            ln -sf "$cmd_file" ".claude/commands/$name"
-        done
-    done
-    # Core commands (higher priority — overwrite lens if same name)
-    # Use commands/ directly (not .claude/commands/ which are symlinks themselves)
-    for cmd_file in "$RHINO_DIR"/commands/*.md; do
-        [[ ! -f "$cmd_file" ]] && continue
-        name="$(basename "$cmd_file")"
-        ln -sf "$cmd_file" ".claude/commands/$name"
-    done
+    # 3b-ii. Skills are commands — plugin system handles routing
+    # No command symlinks needed. skills/*/SKILL.md are auto-discovered.
 
     # 3b-iii. Generate .claude/settings.json
     SETTINGS_TARGET=".claude/settings.json"
@@ -968,7 +896,7 @@ else
 fi
 
 # 3b-iv. Append to .gitignore
-GITIGNORE_ENTRIES=(".claude/rules/" ".claude/commands/" ".claude/settings.json" ".claude/knowledge/" ".claude/cache/" ".claude/plans/" ".claude/scores/")
+GITIGNORE_ENTRIES=(".claude/rules/" ".claude/settings.json" ".claude/knowledge/" ".claude/cache/" ".claude/plans/" ".claude/scores/")
 if [[ ! -f .gitignore ]]; then
     printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > .gitignore
 else

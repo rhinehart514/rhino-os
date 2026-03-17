@@ -5,11 +5,11 @@ argument-hint: "[name|new|detect] [name]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch
 ---
 
-!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, value: .value.value_score, quality: .value.quality_score, ux: .value.ux_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
+!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, delivery: .value.delivery_score, craft: .value.craft_score, viability: .value.viability_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
 
 # /feature
 
-Features are named parts of your product. Each has its own assertions, its own pass rate, its own score with decomposed sub-scores (value/quality/ux).
+Features are named parts of your product. Each has its own assertions, its own pass rate, its own score with decomposed sub-scores (delivery/craft/viability).
 
 ## Routing
 
@@ -27,17 +27,17 @@ Only show features with status `active` or `proven`. Skip `killed` and `archived
 ---
 
 ### No arguments → list all features
-Run `rhino feature`. Read `config/rhino.yml` for maturity, weight, depends_on. Read `.claude/cache/eval-cache.json` for sub-scores (value_score, quality_score, ux_score) and deltas. Show maturity and weight alongside pass rates. Give one opinion: "**[worst feature]** needs attention" — worst = lowest maturity among highest-weight features.
+Run `rhino feature`. Read `config/rhino.yml` for weight, depends_on. Read `.claude/cache/eval-cache.json` for sub-scores (delivery_score, craft_score, viability_score) and deltas. Show eval score and weight alongside pass rates. Give one opinion: "**[worst feature]** needs attention" — worst = lowest eval score among highest-weight features.
 
 ### Feature name(s) → show status + suggest next action
 One or more names: `/feature auth`, `/feature auth scoring cli`.
 
 For each, run `rhino feature [name]`. Also read:
-- `config/rhino.yml` for maturity, weight, depends_on
+- `config/rhino.yml` for weight, depends_on
 - `.claude/cache/eval-cache.json` for sub-scores and delta
 - `.claude/cache/rubrics/<name>.json` for rubric (if exists)
 
-Show maturity bar, weight, dependencies (upstream and downstream), sub-score breakdown.
+Show eval score bar, weight, dependencies (upstream and downstream), sub-score breakdown.
 - All passing → green
 - Some failing → list them
 - No assertions → define what it must do
@@ -84,7 +84,6 @@ features:
     for: "[who they said uses it]"
     code: ["path/to/file1", "path/to/dir/"]
     weight: [1-5]
-    maturity: planned
     depends_on: [feature_name]  # if applicable
 ```
 
@@ -123,8 +122,8 @@ For transition criteria, see the **Maturity Transition Rubric** in [STATE_MANIFE
 ## State to read (parallel)
 
 Before presenting results, read:
-1. `config/rhino.yml` — feature definitions (delivers/for/code/maturity/weight/depends_on)
-2. `.claude/cache/eval-cache.json` — sub-scores (value_score, quality_score, ux_score), deltas
+1. `config/rhino.yml` — feature definitions (delivers/for/code/weight/depends_on)
+2. `.claude/cache/eval-cache.json` — sub-scores (delivery_score, craft_score, viability_score), deltas
 3. `.claude/cache/rubrics/<feature>.json` — per-feature rubric (if exists, for detail view)
 4. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions relevant to this feature
 5. `.claude/plans/roadmap.yml` — check if feature is referenced in thesis evidence

@@ -14,14 +14,14 @@ accuracy trend: 45% → 55% → 63% ████████████░░�
 
   ⎯⎯ grading ⎯⎯
 
-  ✓ "error boundary hardening will raise quality_score from 50 to 65" → quality_score 58 (partial)
+  ✓ "error boundary hardening will raise craft_score from 50 to 65" → craft_score 58 (partial)
     actual: +8 not +15. Subprocess paths still open.
 
   ✗ "auto-grade will work via session_start hook" → hook too fragile, reverted (no)
     model update: session_start hook confirmed fragile → Known Pattern
     todo: [learning] rethink auto-grade approach (not via hooks)    /retro  [new]
 
-  · "trend visualization will raise value_score 62→72" → value_score 68 (partial)
+  · "trend visualization will raise delivery_score 62→72" → delivery_score 68 (partial)
     actual: +6 not +10. Inline sparkline helped but less than expected.
 
   ⎯⎯ accuracy ⎯⎯
@@ -31,9 +31,9 @@ accuracy trend: 45% → 55% → 63% ████████████░░�
 
   ⎯⎯ sub-score insights ⎯⎯
 
-  most predicted: quality_score (5 predictions) — 40% correct (too optimistic about error handling)
-  least predicted: ux_score (1 prediction) — blind spot
-  best calibrated: value_score (3 predictions) — 67% correct
+  most predicted: craft_score (5 predictions) — 40% correct (too optimistic about error handling)
+  least predicted: viability_score (1 prediction) — blind spot
+  best calibrated: delivery_score (3 predictions) — 67% correct
 
   ⎯⎯ stale knowledge (2 entries) ⎯⎯
 
@@ -43,14 +43,14 @@ accuracy trend: 45% → 55% → 63% ████████████░░�
 ▾ pruned
   · Moved "copy changes have 80% keep rate" to Stale Patterns (45 days)
 
-▾ maturity updates (proposed)
-  · scoring: working → working (quality_score still <60)
-  · commands: working → working (stable but not all assertions passing)
+▾ score updates (proposed)
+  · scoring: 58 — craft_score still <60
+  · commands: 70 — stable but not all assertions passing
 
 ▾ model updates
   ▸ "session_start hook is fragile" Uncertain → Known (2 experiments now confirm)
   ▸ "inline visualization > separate commands" added to Uncertain
-  ▸ "quality_score optimism" added to Known: predictions about quality_score overshoot by ~40%
+  ▸ "craft_score optimism" added to Known: predictions about craft_score overshoot by ~40%
 
 ▾ todos captured
   · [learning] rethink auto-grade approach (not via hooks)           /retro  [new]
@@ -74,8 +74,8 @@ artifact: ~/.claude/cache/last-retro.yml
   score: 58 → 66 ↑8 · ROI: 2.7 points/move
 
 ▾ predictions
-  ✓ "error boundary hardening will raise quality_score +15" → +8 (partial)
-  ✓ "sparkline will raise value_score +10" → +6 (partial)
+  ✓ "error boundary hardening will raise craft_score +15" → +8 (partial)
+  ✓ "sparkline will raise delivery_score +10" → +6 (partial)
   ✗ "auto-grade via hook" → reverted (no)
 
   session accuracy: **33%** (1/3) — below target, predictions too aggressive
@@ -93,7 +93,7 @@ artifact: ~/.claude/cache/last-retro.yml
     verdict: **working** — all predictions graded before next move
 
 ▾ session learnings
-  · quality_score predictions overshoot by ~40% (3 experiments now)
+  · craft_score predictions overshoot by ~40% (3 experiments now)
   · speculative branching helps when approaches are genuinely different
   · adversarial review catches fragility that assertion pass/fail misses
 
@@ -120,9 +120,9 @@ artifact: ~/.claude/cache/last-retro.yml
   trend: ↑ from 55% over last 5 sessions
 
   by dimension:
-    value_score predictions:   67% correct (3/4.5)
-    quality_score predictions: 40% correct (2/5) — too optimistic
-    ux_score predictions:      100% (1/1) — insufficient data
+    delivery_score predictions:   67% correct (3/4.5)
+    craft_score predictions: 40% correct (2/5) — too optimistic
+    viability_score predictions:      100% (1/1) — insufficient data
 
 /retro          full retro with grading
 /plan           make predictions for next session
@@ -206,17 +206,17 @@ artifact: .claude/cache/retro-health.json
 
   ⎯⎯ by dimension ⎯⎯
 
-  value_score:     67% (3/4.5)  █████████████░░░░░░░░  well-calibrated
-  quality_score:   40% (2/5)    ████████░░░░░░░░░░░░░  **overconfident** — overshoot ~40%
-  ux_score:        100% (1/1)   ████████████████████░  insufficient data
+  delivery_score:     67% (3/4.5)  █████████████░░░░░░░░  well-calibrated
+  craft_score:   40% (2/5)    ████████░░░░░░░░░░░░░  **overconfident** — overshoot ~40%
+  viability_score:        100% (1/1)   ████████████████████░  insufficient data
   approach:        50% (2/4)    ██████████░░░░░░░░░░░  well-calibrated
   maturity:        —  (0/0)     ░░░░░░░░░░░░░░░░░░░░  blind spot
 
   ⎯⎯ insights ⎯⎯
 
-  worst: **quality_score** at 40% (5 predictions) — systematically overestimate improvements
-  best: **value_score** at 67% (4 predictions) — good model of value delivery
-  blind spots: **docs**, **ux_score**, **maturity** — zero predictions, unknown accuracy
+  worst: **craft_score** at 40% (5 predictions) — systematically overestimate improvements
+  best: **delivery_score** at 67% (4 predictions) — good model of value delivery
+  blind spots: **docs**, **viability_score**, **maturity** — zero predictions, unknown accuracy
 
 /retro          full retro with grading
 /retro auto     auto-grade the backlog
@@ -236,7 +236,7 @@ artifact: .claude/cache/retro-health.json
   ⎯⎯ mechanical (high confidence) ⎯⎯
 
   ✓ "raise scoring from 32 to 45" → score-cache: 48 (yes)
-  · "quality_score will improve +10" → eval-delta: +6 (partial)
+  · "craft_score will improve +10" → eval-delta: +6 (partial)
 
   ⎯⎯ proposed (needs review) ⎯⎯
 
@@ -285,21 +285,20 @@ graded_count: 3
 wrong_predictions:
   - prediction: "auto-grade via hook"
     feature: learning
-    dimension: quality_score
+    dimension: craft_score
     todo_created: "rethink auto-grade approach"
 stale_patterns:
   - "copy changes have 80% keep rate — 45 days"
 dead_ends_archived: 1
 model_updates:
   - "session_start hook fragility → Known"
-  - "quality_score predictions overshoot 40% → Known"
+  - "craft_score predictions overshoot 40% → Known"
 unknowns_surfaced:
   - "navigation patterns still untested"
-maturity_proposals:
+score_proposals:
   - feature: scoring
-    from: working
-    to: working
-    reason: "quality_score still <60"
+    score: 58
+    reason: "craft_score still <60"
 todos_created: 2
 todos_killed: 1
 ```

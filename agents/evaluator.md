@@ -1,9 +1,11 @@
 ---
 name: evaluator
 description: "Deep feature evaluation. Reads full code, generates rubrics, scores against rubrics, detects slop. Use for /eval deep."
-allowed_tools: [Read, Glob, Grep, Bash, TaskUpdate]
+allowed_tools: [Read, Glob, Grep, Bash, TaskUpdate, SendMessage]
 model: opus
 memory: user
+maxTurns: 20
+skills: [rhino-mind]
 ---
 
 # Evaluator Agent

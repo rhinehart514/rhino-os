@@ -296,19 +296,10 @@ beliefs:
 
   # ── commands / correctness ──
 
-  - id: commands-have-descriptions
-    belief: "Every command has a description in its frontmatter"
-    type: self_check
-    metric: commands-have-descriptions
-    feature: commands
-    quality: correctness
-    layer: infrastructure
-    severity: warn
-
   - id: plan-has-recovery
     belief: "Plan command handles failure"
     type: file_check
-    path: ".claude/commands/plan.md"
+    path: "skills/plan/SKILL.md"
     contains: "If something breaks"
     feature: commands
     quality: correctness
@@ -318,42 +309,11 @@ beliefs:
   - id: go-has-recovery
     belief: "Go command handles failure"
     type: file_check
-    path: ".claude/commands/go.md"
+    path: "skills/go/SKILL.md"
     contains: "If something breaks"
     feature: commands
     quality: correctness
     layer: infrastructure
-    severity: warn
-
-  # ── commands / craft ──
-
-  - id: commands-are-intuitive
-    belief: "The slash commands make sense to a new user"
-    type: llm_judge
-    path: "commands"
-    prompt: "Read these command files. Would a new user understand what /plan, /go, /eval, /feature, and /ship do from their descriptions? Are the names intuitive?"
-    feature: commands
-    quality: craft
-    layer: ux
-    severity: warn
-
-  # ── commands / completeness ──
-
-  - id: commands-complete
-    belief: "Slash commands cover the full founder workflow"
-    type: feature_review
-    feature: commands
-    quality: completeness
-    layer: logic
-    path: "commands"
-    capabilities:
-      - "/plan finds the bottleneck and proposes tasks"
-      - "/go runs the autonomous build loop"
-      - "/eval runs assertions and shows pass/fail"
-      - "/feature lists and views features"
-      - "/ship commits, pushes, deploys"
-      - "/init bootstraps a new project"
-      - "/research explores unknown territory"
     severity: warn
 
   # ════════════════════════════════════════════════════════
@@ -463,7 +423,7 @@ beliefs:
   - id: plan-references-go
     belief: "/plan output references /go — commands don't exist in isolation"
     type: file_check
-    path: "commands/plan.md"
+    path: "skills/plan/SKILL.md"
     contains: "/go"
     feature: commands
     quality: completeness
@@ -473,7 +433,7 @@ beliefs:
   - id: plan-references-eval
     belief: "/plan output references /eval — measurement is part of planning"
     type: file_check
-    path: "commands/plan.md"
+    path: "skills/plan/SKILL.md"
     contains: "/eval"
     feature: commands
     quality: completeness
@@ -496,7 +456,7 @@ beliefs:
   - id: commands-have-next-recommendations
     belief: "At least 10 command files contain next-command recommendations"
     type: command_check
-    command: test $(grep -rl '/plan\|/go\|/eval\|/ship\|/roadmap' commands/*.md | wc -l) -ge 10
+    command: test $(grep -rl '/plan\|/go\|/eval\|/ship\|/roadmap' skills/*/SKILL.md | wc -l) -ge 10
     feature: commands
     quality: completeness
     layer: ux
@@ -505,7 +465,7 @@ beliefs:
   - id: commands-recommend-existing
     belief: "Commands only recommend slash commands that exist as files"
     type: command_check
-    command: for cmd in plan go eval feature ship init research ideate rhino roadmap retro assert strategy todo clone skill product; do test -f "commands/${cmd}.md" || exit 1; done
+    command: for cmd in plan go eval feature ship onboard research ideate rhino roadmap retro assert strategy todo clone skill product; do test -f "skills/${cmd}/SKILL.md" || exit 1; done
     feature: commands
     quality: correctness
     layer: logic
@@ -695,7 +655,7 @@ beliefs:
   - id: ideate-differentiates
     belief: "ideate.md explains when to use /ideate vs other commands"
     type: file_check
-    path: "commands/ideate.md"
+    path: "skills/ideate/SKILL.md"
     contains: "When to use"
     feature: commands
     quality: craft
@@ -705,7 +665,7 @@ beliefs:
   - id: product-differentiates
     belief: "product.md explains when to use /product vs other commands"
     type: file_check
-    path: "commands/product.md"
+    path: "skills/product/SKILL.md"
     contains: "When to use"
     feature: commands
     quality: craft
@@ -715,7 +675,7 @@ beliefs:
   - id: research-differentiates
     belief: "research.md explains when to use /research vs other commands"
     type: file_check
-    path: "commands/research.md"
+    path: "skills/research/SKILL.md"
     contains: "When to use"
     feature: commands
     quality: craft
@@ -739,79 +699,10 @@ beliefs:
   - id: roadmap-mentions-tier-types
     belief: "roadmap.md documents major/minor/patch version tiers"
     type: file_check
-    path: "commands/roadmap.md"
+    path: "skills/roadmap/SKILL.md"
     contains: "MAJOR"
     feature: docs
     quality: completeness
     layer: ux
     severity: warn
 
-  # ════════════════════════════════════════════════════════
-  # STRATEGIST — unified strategic brain
-  # ════════════════════════════════════════════════════════
-
-  - id: strategist-skill-exists
-    belief: "strategist skill file exists with full mode routing"
-    type: command_check
-    command: test -f skills/strategist/SKILL.md && grep -q 'bet' skills/strategist/SKILL.md && grep -q 'market' skills/strategist/SKILL.md && grep -q 'position' skills/strategist/SKILL.md
-    feature: strategist
-    quality: correctness
-    layer: infrastructure
-    severity: block
-
-  - id: strategist-base-market-model
-    belief: "Base market model ships with the skill for instant first use"
-    type: command_check
-    command: test -f .claude/cache/market-context-base.json && python3 -c "import json; d=json.load(open('.claude/cache/market-context-base.json')); assert 'saturated' in d['landscape']; assert 'emerging' in d['landscape']"
-    feature: strategist
-    quality: correctness
-    layer: infrastructure
-    severity: warn
-
-  - id: strategist-anti-sycophancy
-    belief: "strategist skill enforces anti-sycophancy rules"
-    type: file_check
-    path: "skills/strategist/SKILL.md"
-    contains: "minimum 2 below 5"
-    feature: strategist
-    quality: craft
-    layer: logic
-    severity: warn
-
-  - id: strategist-logs-predictions
-    belief: "strategist bet mode logs predictions to predictions.tsv"
-    type: file_check
-    path: "skills/strategist/SKILL.md"
-    contains: "predictions.tsv"
-    feature: strategist
-    quality: correctness
-    layer: logic
-    severity: warn
-
-  - id: strategist-reads-codebase
-    belief: "strategist grounds analysis in code reality, not just market data"
-    type: file_check
-    path: "skills/strategist/SKILL.md"
-    contains: "rhino.yml"
-    feature: strategist
-    quality: correctness
-    layer: logic
-    severity: warn
-
-  - id: strategist-has-7-dimensions
-    belief: "bet scorer evaluates ideas against 7 named dimensions"
-    type: command_check
-    command: grep -c 'Market gap\|Timing\|Founder.*fit\|Distribution\|Business model\|Defensibility\|Evidence' skills/strategist/SKILL.md | awk '{exit ($1 >= 7 ? 0 : 1)}'
-    feature: strategist
-    quality: completeness
-    layer: logic
-    severity: warn
-
-  - id: strategist-absorbs-three-skills
-    belief: "strategist covers research, product thinking, and strategic diagnosis"
-    type: command_check
-    command: grep -q 'research' skills/strategist/SKILL.md && grep -q 'coherence' skills/strategist/SKILL.md && grep -q 'honest' skills/strategist/SKILL.md
-    feature: strategist
-    quality: completeness
-    layer: logic
-    severity: warn

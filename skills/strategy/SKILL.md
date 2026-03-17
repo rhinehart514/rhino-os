@@ -3,7 +3,6 @@ name: strategy
 description: "Use when you need market intelligence, honest diagnosis, bet scoring, or competitive response. The product strategist in your terminal."
 argument-hint: "[bet <idea>|market <domain>|position|price|gtm|compete <name>|honest|coherence|user|research <topic>|docs <lib>|site <url>]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch, WebFetch, Agent
-context: fork
 ---
 
 # /strategy
@@ -14,14 +13,15 @@ Not a chatbot giving generic advice. Reads your code, your metrics, your predict
 
 ## When to use /strategy vs other commands
 
-| Command | Question | Scope |
-|---------|----------|-------|
-| `/strategy` | What should we build given the market? Where are we honestly? | Outward + inward |
-| `/ideate` | What specific features should we build next? | Feature-level |
-| `/plan` | What should I work on right now? | Task-level |
-| `/eval` | Is my product actually good? | Measurement |
+| Command | Question | Grounded in |
+|---------|----------|-------------|
+| `/eval` | How good is each feature? (0-100) | Code review by top engineer |
+| `/strategy` | Given the scores + market, what matters? | Eval sub-scores + market intelligence |
+| `/discover` | What systems should exist? What's missing? | Eval scores + systems thinking |
+| `/plan` | What should I work on right now? | Strategy bottleneck + eval weakness |
+| `/go` | Build it autonomously | Eval keep/revert decisions |
 
-`/strategy` is the thinking layer. `/ideate` is the action layer. `/plan` is the execution layer. `/eval` is the measurement layer.
+The flow: `/eval` measures → `/strategy` diagnoses (what matters given the market) → `/discover` ideates (what systems to build) → `/plan` prioritizes (what to do first) → `/go` builds → `/eval` re-measures. Every skill reads eval scores. Strategy and discover share the diagnosis — strategy knows the market, discover knows the systems.
 
 ## Routing
 
@@ -72,7 +72,7 @@ Combines strategic diagnosis with market intelligence. Reads everything:
 ### 1. Read state (parallel)
 
 **Internal state:**
-1. `config/rhino.yml` — features, maturity, weight, depends_on, value hypothesis
+1. `config/rhino.yml` — features, weight, depends_on, value hypothesis
 2. `.claude/cache/eval-cache.json` — sub-scores + deltas per feature
 3. `.claude/plans/strategy.yml` — current diagnosis, stage, bottleneck
 4. `.claude/plans/roadmap.yml` — thesis + evidence progress
@@ -85,20 +85,29 @@ Combines strategic diagnosis with market intelligence. Reads everything:
 9. `.claude/cache/market-context.json` — market model (if exists)
 10. `.claude/cache/market-context-base.json` — base market intelligence (ships with skill)
 
-### 2. Diagnose honestly
+### 2. Diagnose honestly (eval-grounded)
+
+**Eval reality check:** Read eval-cache.json sub-scores for every active feature. The eval scores are the ground truth — not maturity labels, not the founder's belief about quality. Sort features by score, worst first.
+
+For the worst 3 features, look at sub-scores:
+- **delivery dragging** (d < c and d < v) → the feature exists but delivers nothing. Strategic question: should this feature exist at all?
+- **craft dragging** (c < d and c < v) → delivers value but is fragile. Strategic question: is this a ticking time bomb or acceptable at this stage?
+- **viability dragging** (v < d and v < c) → works but users struggle. Strategic question: does this block adoption?
 
 **Stage-appropriate check:** Is current work appropriate for current stage?
-- Stage one: anything not "get one person to use this" is potentially wasted
+- Stage one: anything not "get one person to use this" is potentially wasted. High-delivery, low-craft is FINE at stage one. Polishing (v:70, c:70, d:40) before delivery is confirmed = wasted work.
 - Stage some: anything not retention-focused is premature
 - Stage many: anything not growth/distribution is wasted
 
-**Work-to-impact ratio:** What was built in last 5 sessions? How much moved the bottleneck?
+**Work-to-impact ratio:** What was built in last 5 sessions? Check eval deltas — did the scores actually move? If 5 sessions of work and scores are flat, the approach is wrong regardless of how much code was written.
 
-**Feature sprawl:** >3 features at "building" simultaneously = spreading too thin.
+**Feature sprawl:** >3 features at "building" simultaneously = spreading too thin. Check eval — features with scores and no recent delta are being neglected.
 
 **Measurement health:** Predictions graded? Accuracy 50-70%? If 95% → too safe. If 20% → broken model.
 
 **Market position:** Category saturation, competitive pressure, timing window.
+
+**Cross-reference /discover:** If `~/.claude/cache/last-discovery.yml` exists and is <7 days old, read it. Does the discovery recommendation align with where eval shows weakness? If discover recommended building system X but eval shows system Y is the weakest, name the tension.
 
 ### 3. Deliver the assessment
 
@@ -109,23 +118,27 @@ Combines strategic diagnosis with market intelligence. Reads everything:
   category: [where you sit in the market]
   saturation: [low/medium/high] — [evidence]
 
-  bottleneck: [the one thing]
+  eval reality:
+    worst:  [feature] at [score] — [which sub-score drags it: d/c/v] — [one-line why]
+    best:   [feature] at [score] — [what makes it strong]
+    trend:  [improving/flat/declining] over last [N] sessions
+
+  bottleneck: [the one thing — grounded in eval sub-scores, not guesses]
   market window: [timing assessment]
 
   competitors:
   ▸ [name] — [threat level] — [why]
-  ▸ [name] — [threat level] — [why]
 
   "[One paragraph. What a cofounder would say. Anti-sycophantic.
-   Names the hard truth. Market-informed. One opinion.]"
+   Names the hard truth. Market-informed. Grounded in the actual scores.]"
 
-  ● You're avoiding: [the thing]
-  ● This doesn't matter yet: [premature work]
-  ● The real risk is: [failure mode]
+  ● You're avoiding: [the thing — cite the eval score that proves it]
+  ● This doesn't matter yet: [premature work — cite stage vs sub-score]
+  ● The real risk is: [failure mode — what the scores say will break first]
 
   /strategy bet [idea]   score a product bet
-  /strategy market       deep landscape dive
-  /ideate                generate feature ideas
+  /discover              what systems are missing
+  /eval                  refresh the scores
 ```
 
 ### 4. Update strategy.yml
@@ -406,12 +419,13 @@ Calibration target for market predictions: 40-60% (lower than code predictions b
 
 ## Agent spawning
 
-For complex research, spawn specialized agents:
-- **explorer agent**: deep codebase analysis
-- **market-analyst agent**: landscape research, competitive analysis
-- **general-purpose agents**: parallel research threads
+Spawn named agents (not generic "general-purpose"):
+- `Agent(subagent_type: "rhino-os:explorer", ...)` — deep codebase analysis for `honest` and `coherence` modes
+- `Agent(subagent_type: "rhino-os:market-analyst", ...)` — landscape research for `market`, `compete`, `position` modes
+- Spawn both in parallel when mode requires both codebase truth AND market context
+- Use `run_in_background: true` for the market-analyst when codebase analysis can start immediately
 
-Agents report back via SendMessage. Their `todo:` prefixed messages get written to todos.yml.
+Agents have persistent memory (`memory: user`) — they accumulate market knowledge and codebase patterns across sessions.
 
 ---
 

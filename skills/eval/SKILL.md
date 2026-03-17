@@ -1,393 +1,266 @@
 ---
 name: eval
-description: "Is my product good? /eval runs assertions. /eval taste for visual. /eval blind for honest cold-read. /eval coverage for assertion quality. /eval vs <url> for competitive. /eval trend for assertion-level trajectory."
-argument-hint: "[feature|taste|blind|coverage|trend|vs <url>|full|diff]"
-allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebFetch
+description: "Is my product good? Read the code, judge the system design, score 0-100. Gets smarter with rubrics and accumulated knowledge."
+argument-hint: "[feature|blind|coverage|trend|slop]"
+allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent
 ---
 
-!cat .claude/cache/score-cache.json 2>/dev/null | jq '{score, features: (.features | to_entries | map({key, score: .value.score}) | from_entries)}' 2>/dev/null || echo "no cache"
+!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, v: .value.viability_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no cache"
 
 # /eval
 
-The one measurement command. Pure measurement — eval NEVER edits files. It reads, runs, judges, presents.
+You are a top 0.01% product engineer. You read the code to judge both VALUE DELIVERY and SYSTEM DESIGN. You evaluate whether the architecture, information architecture, routing, data flow, and component hierarchy serve the user — not just whether "code matches claim."
 
-Six things to measure:
-- **Assertions** (`/eval`) — each feature declares what it delivers. Claude judges the gap. DELIVERS/PARTIAL/MISSING.
-- **Taste** (`/eval taste`) — does it look good? Claude Vision, 11 dimensions. Expensive, only when asked.
-- **Blind** (`/eval blind`) — what does the code ACTUALLY deliver vs what you CLAIM? Delusion detection.
-- **Coverage** (`/eval coverage`) — are your assertions any good? Quality audit of the assertions themselves.
-- **Trend** (`/eval trend`) — assertion-level trajectory. Which beliefs are stable, flapping, or regressing?
-- **Competitive** (`/eval vs [url]`) — your product vs a competitor, side-by-side.
+## Before scoring: load knowledge
 
-Features are defined in `config/rhino.yml` under `features:`. Each has `delivers:` (what value), `for:` (who), and `code:` (where).
+Read these in parallel before forming any judgment:
 
-Score (`rhino score .`) exists for CI/scripts. Don't surface it unless asked.
+1. `.claude/cache/rubrics/<feature>.json` — anchoring rubrics from past evals
+2. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`) — known patterns, dead ends
+3. `.claude/cache/eval-cache.json` — previous scores for delta tracking
+
+Past rubrics are your calibration anchor. If a rubric exists, your score must be consistent with it unless you can cite specific code changes that justify the drift. This kills the 15-point variance problem.
+
+## Score scale
+
+- **90-100** — Genuinely excellent. You would show this as an example. Rare.
+- **70-89** — Solid. Ships and works. Rough edges but nothing embarrassing.
+- **50-69** — Works but not proud of it. Ships because it has to.
+- **30-49** — Half-built. Skeleton without real delivery.
+- **0-29** — Does not exist or fundamentally broken.
+
+## Three dimensions
+
+- **delivery** (50% weight) — Does this feature deliver real value to its target user? Not "does code exist" but "would a human care?" Read the `delivers:` field, read the code, judge: is this complete, useful, worth someone's time?
+
+- **craft** (30% weight) — Is this well-made AS A SYSTEM? Two layers:
+  - **Code craft:** error handling, architecture, code taste. When this breaks at 3am, will you know?
+  - **System design:** Is the information architecture sound? Do routes/data flows/component hierarchy serve the user's mental model? Are layout decisions intentional or accidental? Does the abstraction level match the problem?
+
+- **viability** (20% weight) — Would this succeed in the world? Who are the alternatives? Is this novel enough to matter? If you were betting money on adoption, what odds?
+
+Overall = delivery × 0.5 + craft × 0.3 + viability × 0.2. Round to integer.
+
+## How to score a feature
+
+1. **Read the claim.** `delivers:` is the promise. `for:` is who it promises to.
+
+2. **Read ALL the code.** Use Read on every file in `code:` paths. Do not skip files. Do not skim. Judgment comes from reading actual code.
+
+3. **Check the rubric.** If `.claude/cache/rubrics/<feature>.json` exists, read it. Your new score must be explainable relative to these anchoring criteria. Same code = same score.
+
+4. **Form your impression.** One sentence before scoring: what is your overall read?
+
+5. **Score each dimension.** For each (delivery, craft, viability):
+   - Cite 1-2 file:line examples that drove score UP
+   - Cite 1-2 file:line examples that drove score DOWN
+   - Score must be consistent with evidence. A 70 with major unhandled errors is wrong.
+
+6. **Honesty rules:**
+   - If you find zero problems, say so explicitly and justify. Zero-problem scores above 85 require extraordinary evidence — name what makes this exceptional.
+   - Any sub-score > 80 requires specific evidence of excellence, not just "it works."
+   - craft > 70 requires zero critical unhandled error paths.
+   - viability > 70 requires naming specific competitors and explaining differentiation.
+   - Early-stage code averaging 75+ is suspicious. Be honest about the stage.
+
+7. **Compute overall.** delivery × 0.5 + craft × 0.3 + viability × 0.2.
+
+8. **Compare against previous.** Read eval-cache.json. Compute delta. If score differs by >15 from previous AND code hasn't changed much (check git log), flag variance and investigate before publishing.
+
+## After scoring: write rubric
+
+For each feature scored, write/update `.claude/cache/rubrics/<feature>.json`:
+
+```json
+{
+  "feature": "scoring",
+  "last_score": 58,
+  "last_scored": "2026-03-16T12:00:00Z",
+  "delivery_criteria": [
+    "computes weighted score from multiple dimensions",
+    "health gate prevents broken builds from scoring",
+    "outputs clear visualization with penalties"
+  ],
+  "craft_criteria": [
+    "error paths handled for file I/O",
+    "system design: pipeline extensibility",
+    "no swallowed errors (2>/dev/null)"
+  ],
+  "viability_criteria": [
+    "output is actionable for founders",
+    "penalty reasons explain what to fix"
+  ],
+  "known_gaps": [
+    "no trend visualization",
+    "4 unhandled error paths"
+  ],
+  "score_history": [54, 58]
+}
+```
+
+Rubrics persist across runs and anchor future scores. If a rubric exists, use its criteria as the starting point — add/remove criteria based on code changes, but don't reinvent the scoring frame each time.
 
 ## Routing
 
 Parse `$ARGUMENTS`:
 
-**If $ARGUMENTS is ambiguous:**
-1. Exact route keyword match wins (`taste`, `blind`, `coverage`, `trend`, `full`, `diff`, `vs`, `deep`, `slop`)
-2. Feature name match (check rhino.yml features → scoped assertions)
-3. Free-form topic (treat as feature name lookup)
-Never ask "did you mean?" — just act.
+**Ambiguity resolution:** Exact keyword match wins, then feature name match, then free-form topic. Never ask.
 
-### Feature status filter
-Only evaluate features with status `active` or `proven`. Skip `killed` and `archived`. Missing `status:` = `active`.
+### No arguments — score all active features
 
----
+1. Read state files in parallel (see "State to read" below)
+2. Load knowledge sources (rubrics, learnings, cache)
+3. For each active feature in `config/rhino.yml`:
+   a. Read ALL files in its `code:` paths
+   b. Check anchoring rubric
+   c. Score: delivery, craft, viability with file:line evidence
+   d. List specific gaps and strengths
+4. Run `rhino eval . --no-generative` for mechanical belief results
+5. Write results to `.claude/cache/eval-cache.json`
+6. Write/update rubrics for each feature scored
+7. Present results, then cross-skill synthesis
 
-### No arguments → run assertions
-Run `rhino eval .` and present results grouped by feature. Show pass rate as the number.
-
-After results, one opinion: "**[worst feature]** is the bottleneck — N/M assertions failing."
-
-If everything passes: "All green. `/ideate` to raise the bar."
-
-#### Assertion History Logging
-After presenting results, append each assertion's status to `.claude/evals/assertion-history.tsv`:
-```
-date	feature	assertion_id	type	status	severity
-2026-03-16	scoring	scoring-score-sh	file_check	PASS	warn
-2026-03-16	scoring	scoring-eval-sh	file_check	PASS	warn
-2026-03-16	commands	cmd-output	llm_judge	FAIL	warn
-```
-
-If the file doesn't exist, create it with the header row first. This is what makes `/eval trend` and `/assert health` work — without this append, trend data doesn't exist.
-
-### Feature name → scoped assertions
-`/eval auth`, `/eval scoring cli`
-
-Run `rhino eval . --feature [name]` for each. Rank by pass rate (worst first).
-
-### `taste` → delegate to `/taste` skill
-Taste is now its own skill with Playwright MCP, market research, persistent memory, and 0-100 scoring. **Do not run `rhino taste` — invoke the `/taste` skill instead.**
-
-Tell the user: "Taste evaluation is now `/taste <url>`. It uses Playwright MCP natively, researches your market, scores 0-100, remembers past evaluations, and creates todos from prescriptions."
-
-If the user provides a URL: run `/taste <url>`.
-If no URL: run `/taste` (which will show help).
-
-### `blind` → delusion detection
-
-The most honest eval. Tests what your product ACTUALLY delivers vs what you CLAIM.
-
-**Steps:**
-1. Read `config/rhino.yml` features — note the `delivers:` claims but SET THEM ASIDE
-2. For each feature, read ALL files in its `code:` paths (not head-500 — everything)
-3. WITHOUT looking at the claims, write what each feature ACTUALLY delivers based on the code:
-   - What does this code do for the user?
-   - What user problem does it solve?
-   - What's missing or broken?
-4. NOW compare your cold-read against the `delivers:` claim
-5. Score the gap:
-   - **ALIGNED** — code delivers what's claimed, or more
-   - **INFLATED** — claim overstates what the code does
-   - **DEFLATED** — code does more than the claim says (rare but valuable — update the claim)
-   - **DISCONNECTED** — claim and code are about different things entirely
+**Parallel evaluator spawning:** When evaluating ALL features (no specific feature argument), spawn one evaluator agent per feature in parallel:
 
 ```
-◆ eval blind — delusion check
-
-▾ scoring  claim: "honest number that tells a founder if their product improved"
-  cold-read: "Computes a weighted score from structure + hygiene + assertions.
-  Shows penalties with reasons. Caches results. Has history tracking."
-  verdict: **ALIGNED** — code delivers what's claimed
-  gap: claim says "tells if improved" but no trend visualization exists
-
-▾ learning  claim: "a model that gets smarter every session"
-  cold-read: "Logs predictions to TSV. Has a grading script that partially
-  works. Knowledge model is a static markdown file. No automatic learning."
-  verdict: **INFLATED** — "gets smarter" overstates what the code does
-  gap: prediction logging ≠ learning. No feedback loop closes automatically.
-
-▾ summary
-  4 ALIGNED · 1 INFLATED · 1 DEFLATED · 1 DISCONNECTED
-  delusion score: **71%** aligned (higher = more honest)
-
-  ⚠ learning's claim needs rewriting — code doesn't match
-  ✓ scoring's claim is accurate but understates trend capability
-
-/feature [name]    update claims to match reality
-/go [name]         build what's missing
-/plan              work on the gaps
+For each feature in rhino.yml with status: active:
+  Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval feature '[name]'. Read ALL code in [code paths]. Generate rubric if missing. Score value/quality/ux 0-100. Report evidence at file:line.", run_in_background: true)
 ```
 
-### `coverage` → assertion quality audit
+Collect all evaluator results via SendMessage. Aggregate into the standard /eval output format.
 
-Not "are assertions passing?" — "are your assertions any GOOD?"
+For single-feature eval (argument provided), run the evaluator inline (no agent spawn needed).
 
-**Steps:**
-1. Read `lens/product/eval/beliefs.yml` — all assertions
-2. Read `config/rhino.yml` — features with weights
-3. For each feature, analyze assertion quality:
+### `<feature name>` — scoped eval
 
-**Metrics per feature:**
-- **Count**: how many assertions?
-- **Type distribution**: what % are `file_check` (easy pass), `content_check`, `command_check`, `llm_judge` (high variance)?
-- **Weight coverage**: high-weight features (w:4+) with few assertions = biggest risk
-- **Flakiness**: if history.tsv exists, which assertions oscillate between pass/fail?
-- **Redundancy**: do multiple assertions test the same thing?
-- **Missing dimensions**: does the feature have assertions for infrastructure, logic, AND UX? Or just file existence?
+Same process but only for the named feature(s). Full code read, full rubric check, full evidence.
 
-```
-◆ eval coverage — assertion quality
+### `taste` — redirect
 
-▾ risk map (high weight, weak coverage)
-  ⚠ commands   w:5  3 assertions  all file_check  no value assertions
-  ⚠ learning   w:4  5 assertions  2 llm_judge (high variance)
+"Visual eval is a separate skill. Run `/taste <url>` directly." Return immediately.
 
-▾ coverage by type
-  file_check:    28 (44%) — easy pass, low signal
-  content_check: 12 (19%) — medium signal
-  command_check:  8 (13%) — mechanical, reliable
-  llm_judge:     15 (24%) — high variance, expensive
+### `vs <url>` — redirect
 
-▾ feature coverage
-  scoring    w:5  11 assertions  ████████████████████  good
-  commands   w:5   3 assertions  ██████░░░░░░░░░░░░░░  weak — needs value assertions
-  learning   w:4   5 assertions  ████████████░░░░░░░░  ok but 2 are flaky
-  install    w:3  12 assertions  ████████████████████  over-covered
-  docs       w:3   6 assertions  ████████████████░░░░  ok
-  todo       w:2   5 assertions  ████████████████████  good
-  self-diag  w:2   9 assertions  ████████████████████  good
+"Competitive eval is a visual skill. Run `/taste vs <url>` directly." Return immediately.
 
-▾ recommendations
-  · commands needs 3+ assertions testing value delivery, not just file existence
-  · learning's llm_judge assertions should be converted to mechanical checks
-  · install has 12 assertions at w:3 — consider pruning redundant file_checks
+### `blind` — delusion detection
 
-/assert commands: slash commands route intent correctly   add one
-/eval                                                     re-run
-/feature commands                                         see status
-```
+You are a new engineer who just joined. You have never seen this code.
 
-### `trend` → assertion-level trajectory
+1. Read `config/rhino.yml` — note claims but SET THEM ASIDE
+2. For each feature, read ALL code. Write what the code ACTUALLY does without looking at claims.
+3. Compare cold-read against claims. Score alignment 0-100 per feature.
+4. Gap categories: ALIGNED (claim matches), INFLATED (claim overstates), DEFLATED (code exceeds claim), DISCONNECTED (different things)
 
-Not just taste trend — track individual assertions over time.
+### `coverage` — assertion quality audit
 
-**Steps:**
-1. Read `.claude/scores/history.tsv` — score trajectory
-2. Read `.claude/cache/score-cache.json` — current per-feature scores
-3. Read `lens/product/eval/beliefs.yml` — all assertions with IDs
-4. If `.claude/evals/assertion-history.tsv` exists, read it. If it has <2 eval runs (fewer than 2 distinct dates), note: "Run `/eval` once more for trend data."
-5. After running `rhino eval .`, append current assertion results to `.claude/evals/assertion-history.tsv`:
-   ```
-   date	feature	assertion_id	type	status	severity
-   ```
+Read `lens/product/eval/beliefs.yml` and `config/rhino.yml`. Per feature: count assertions, analyze type distribution, flag features where >80% are file_check (coverage without signal).
 
-Classify each assertion:
-- **Stable pass** (passing 5+ consecutive runs) — proven, reliable
-- **Stable fail** (failing 5+ runs) — known gap, needs work or removal
-- **Flapping** (alternating pass/fail) — either the assertion is bad or the feature is unstable
-- **Recently changed** (status changed in last 2 runs) — progress or regression
+Tiers: file_check only (low signal) → mechanical checks (medium) → llm_judge/score_trend (high). Ideal: 30% mechanical, 50% content/command, 20% llm_judge.
 
-```
-◆ eval trend — assertion trajectory
+### `trend` — assertion trajectory
 
-▾ stable (proven)
-  ✓ score-runs              12 consecutive passes   scoring
-  ✓ value-hypothesis-exists  8 consecutive passes   scoring
-  ✓ install-works            8 consecutive passes   install
+1. Run `rhino eval . --no-generative`
+2. Read `.claude/evals/assertion-history.tsv`
+3. Classify: stable pass (5+ same), stable fail, flapping (alternating in 6), recently changed (last 2)
+4. Surface flapping cause: bad assertion, unstable feature, or eval variance
 
-▾ flapping (unreliable)
-  ~ commands-are-intuitive   PFPFPF                 commands  ← assertion or feature?
-  ~ learning-compounds       PPFPFP                 learning
+### `slop` — AI-generated code detection
 
-▾ stuck (persistent failures)
-  ✗ learning-complete        0/8 passes             learning
-  ✗ self-diagnostic-complete 0/6 passes             learning
+Read feature code. Scan for: comments restating code, over-engineered abstractions, generic variable names, unnecessary wrappers, empty catch blocks. Cite file:line. Report human-quality percentage.
 
-▾ momentum (recent changes)
-  ↑ score-calibrated         fail → pass (last run) scoring
-  ↓ readme-clear             pass → fail (2 ago)    docs
+## Cache format
 
-flapping rate: **12%** (2/17 assertions oscillate)
-verdict: commands-are-intuitive is the weakest signal — either
-sharpen the assertion or investigate why it flaps
+Write to `.claude/cache/eval-cache.json`:
 
-/assert check commands-are-intuitive   test the flapper
-/retro                                  grade predictions
-/go learning                           fix stuck failures
+```json
+{
+  "feature_name": {
+    "score": 58,
+    "delivery_score": 62,
+    "craft_score": 50,
+    "viability_score": 55,
+    "gaps": ["specific problem with file:line"],
+    "strengths": ["what works well"],
+    "evidence": "one sentence overall judgment",
+    "delta": "better",
+    "delta_vs": 54,
+    "cached_at": "2026-03-16T12:00:00Z"
+  }
+}
 ```
 
-### `vs [url]` → competitive eval
+Merge with existing cache — preserve features you did not evaluate this run.
 
-Side-by-side product comparison. **Delegate to `/taste vs <your-url> <competitor-url>`.**
-
-The `/taste` skill handles competitive evaluation natively — it navigates both products with Playwright MCP, scores both on 11 dimensions (0-100), and presents a gap analysis with a "steal list."
+## Output format
 
 ```
-◆ eval vs — [your product] vs [competitor.com]
+◆ eval — N features
 
-                    yours    theirs    gap
-hierarchy           2.5      4.2      -1.7  ↓↓
-breathing_room      1.8      3.8      -2.0  ↓↓↓
-contrast            3.8      3.5      +0.3  ↑
-polish              2.1      4.5      -2.4  ↓↓↓
-emotional_tone      4.2      3.0      +1.2  ↑↑
-information_density 2.8      4.0      -1.2  ↓
-wayfinding          3.9      3.2      +0.7  ↑
-distinctiveness     3.2      2.8      +0.4  ↑
-                    ────     ────
-overall             3.0      3.6      -0.6
+  feature_name     ████████░░░░░░░░░░░░  42  d:48 c:35 v:40  ↓3
+    one-line gap description
 
-▾ where they beat you
-  **polish** (-2.4): consistent border-radius, shadow system, transitions
-  on every interactive element. Your product mixes 3 different radius values.
+  beliefs: 61/76 passing
 
-  **breathing_room** (-2.0): they use 24px section gaps, 16px card gaps.
-  You use 8px everywhere. Their content breathes.
+▾ system check
+  bottleneck: **feature** at N — why
+  ...
 
-▾ where you beat them
-  **emotional_tone** (+1.2): your copy is confident and specific.
-  Theirs is generic SaaS boilerplate ("streamline your workflow").
-
-verdict: they're more polished, you have more personality.
-polish is mechanical — it's the easiest gap to close.
-
-/go [feature]       fix the biggest gap
-/clone [url]        steal their best patterns
-/eval taste         re-run your own eval
+/next_command  reason
 ```
 
-### `deep [feature]` → deep evaluation via evaluator agent
+**Rules:**
+- Features sorted worst-to-best
+- One line per feature: name, bar, score, sub-scores, delta
+- Gap line indented below — the specific problem
+- No DELIVERS/PARTIAL/MISSING labels — the number IS the verdict
+- Beliefs are one summary line
+- System check section cross-references strategy, plan, roadmap, todos
+- 2-3 next commands routed to specific actions
 
-Spawns the `evaluator` agent for thorough feature analysis. Full code read, rubric generation, 3-sample median, sub-score breakdown, slop detection, delta tracking.
+## Auto-trigger /taste for web products
 
-**Steps:**
-1. Spawn the evaluator agent with the target feature name
-2. Agent reads ALL code files (not truncated), generates/refreshes rubric
-3. Runs `rhino eval . --feature <name> --samples 3 --fresh`
-4. Reports decomposed sub-scores (value/quality/ux) with evidence
-5. Detects slop patterns and reports % human-quality
-6. Compares against previous eval for delta
+If the project has a `stage` of `early` or `growth` AND features include web-facing code (check for routes, components, or pages in feature code paths), suggest: "Run `/taste <url>` for visual quality — eval measures code, taste measures craft."
 
-If no feature specified, runs deep eval on the worst-scoring feature.
-
-### `slop [feature]` → anti-slop detection
-
-Lightweight single haiku call checking for AI-generated code patterns.
-
-**Steps:**
-1. Read feature code paths from `config/rhino.yml`
-2. Scan for slop indicators:
-   - Boilerplate comments restating code (`// Get the user` above `getUser()`)
-   - Over-engineered abstractions for simple operations
-   - Default framework patterns without customization
-   - Generic variable names (data, result, items, response)
-   - Unnecessary wrapper functions
-3. Report with file:line citations
-
-```
-◆ eval slop — scoring
-
-  slop: **78%** human-quality
-
-  ▾ slop found (4 instances)
-    · bin/score.sh:45 — comment restates code: "# Calculate score"
-    · bin/score.sh:120 — generic variable name: `result`
-    · bin/eval.sh:88 — unnecessary wrapper: `print_score_bar()` wraps printf
-    · bin/eval.sh:650 — boilerplate error handling pattern
-
-  ▾ clean code (good examples)
-    · bin/eval.sh:584 — specific, non-generic prompt construction
-    · bin/score.sh:200 — domain-specific logic with clear intent
-
-/go scoring    fix the slop
-/eval deep scoring    full evaluation
-```
-
-### `full` → assertions + taste
-Run both:
-1. `rhino eval .` — assertions
-2. Invoke `/taste <url>` — visual craft eval (the `/taste` skill handles this natively)
-
-Present together. Assertions are the number that matters. Taste is the feel.
-
-### `diff` → what changed since last eval
-Compare current `rhino eval . --score` against `.claude/cache/score-cache.json`.
-- Show delta per feature
-- Flag regressions (was passing, now failing)
-- Flag progressions (was failing, now passing)
-
----
-
-## Taste Intelligence Layer
-
-The `/taste` skill now handles ALL taste intelligence natively — market research, prescriptions, memory, todos, and self-improvement. The eval skill does NOT need to add intelligence on top of taste results.
-
-When `/eval taste` or `/eval full` runs, simply delegate to the `/taste` skill and present its output. The taste skill:
-- Researches the market BEFORE scoring (calibrated, not generic)
-- Compares against past evaluations (tracks improvement)
-- Provides specific CSS prescriptions grounded in DOM data
-- Creates todos from high-impact prescriptions
-- Updates its own learning model (taste-learnings.md)
-
-If presenting taste results from a cached report (`.claude/evals/reports/taste-*.json`), read the report's `dimensions`, `top_3_fixes`, and `one_thing` fields.
-
----
+If `/eval taste` is explicitly requested, spawn the taste evaluation: use Skill tool to invoke /taste with the project URL.
 
 ## State to read (parallel)
 
-Before presenting results, read:
-1. `.claude/cache/score-cache.json` — previous feature scores (delta/trends)
-2. `config/rhino.yml` — feature definitions (delivers/for/code)
-3. `.claude/knowledge/predictions.tsv` — check if eval confirms/denies predictions
-4. `.claude/plans/roadmap.yml` — current thesis + version (header context)
+1. `config/rhino.yml` — features (delivers/for/code/status/weight)
+2. `.claude/cache/eval-cache.json` — previous scores
+3. `.claude/cache/rubrics/*.json` — anchoring rubrics
+4. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`)
+5. `.claude/plans/strategy.yml` — bottleneck, stage
+6. `.claude/plans/roadmap.yml` — thesis + evidence
+7. `.claude/plans/plan.yml` — active tasks
+8. `.claude/plans/todos.yml` — backlog by feature
 
-For the full state source list, see [STATE_MANIFEST.md](../STATE_MANIFEST.md).
+## Cross-skill synthesis
 
-After presenting results, auto-grade matching predictions — see [reference.md](reference.md) for protocol.
+After scoring, connect results to the system:
 
-## Tools to use
-
-**Use Bash** to run `rhino eval .`.
-**Use Read** to check eval reports, taste reports, history, knowledge files, code files.
-**Use Grep/Glob** to scan code for coverage analysis and blind eval.
-**Use AskUserQuestion** for clarification when needed.
-**Use WebFetch** as fallback for competitive analysis when Playwright isn't available.
-
-**Note:** `allowed-tools` is set in frontmatter. Eval CANNOT use Edit or Write — it is pure measurement. For taste evaluation, delegate to `/taste` (which has Write + Playwright MCP). For calibration, use `/calibrate`.
+- **Eval x Strategy:** Does eval bottleneck match strategy bottleneck? If strategy says X blocks but eval shows X at 72, the bottleneck shifted.
+- **Eval x Plan:** Are active tasks targeting weak features? If plan targets a strong feature, question priority.
+- **Eval x Roadmap:** Do results advance or block version evidence?
+- **Eval x Todos:** Surface backlog items for the worst-scoring feature.
+- **Eval x Predictions:** Report ungraded prediction matches inline (read-only). Do NOT write to predictions.tsv — that is /retro's job.
+- **Eval x Maturity:** Score determines maturity label: 0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven.
 
 ## What you never do
-- Modify eval.sh, score.sh, or taste.mjs — the eval harness is immutable
-- Edit ANY files — eval is read-only measurement (enforced by allowed-tools)
-- Dismiss failing assertions — they exist because someone said "this must be true"
-- Run taste without being asked (expensive — only on `taste`, `full`, or `vs`)
-- Run `rhino taste` directly — delegate to `/taste` skill instead
-- Show "score" as a number — show pass rate and feature breakdown
-- Run blind eval and then silently accept inflated claims — flag them
 
-## Anti-Rationalization Guide
-
-| Excuse | Reality |
-|--------|---------|
-| "The score is wrong, product is better" | Score is a thermometer. Fix the product, not the thermometer. |
-| "That assertion is too strict" | Someone said "this must be true." Fix the code, not the assertion. |
-| "Taste eval is subjective anyway" | Read the evidence field, not just the number. |
-| "Blind eval is unfair to our claims" | That's the point. INFLATED claims need rewriting. |
-| "Coverage doesn't matter, enough assertions" | High-weight features with 2 assertions = flying blind. |
-
-## Red Flags — STOP
-
-- Assertion was passing, now failing, and you're considering keeping the change
-- Taste scores all above 4.0 for early-stage product (inflation)
-- Blind eval shows INFLATED on 3+ features (systematic delusion)
-- Same assertion flapping 5+ times without investigation
-
-**All of these mean: investigate before proceeding. No exceptions.**
+- Present beliefs as the primary result — the 0-100 scores are the eval
+- Score without reading the code — you must Read every file before scoring
+- Give a score without citing file:line evidence
+- Grade predictions or write to predictions.tsv — that is /retro
+- Edit code — eval is measurement only
+- Run taste without being asked (expensive)
 
 ## If something breaks
-- `rhino eval .` fails: check if `features:` section exists in rhino.yml
-- `/taste` not working: check Playwright MCP installation, try `mcp__playwright__browser_install`
-- No features: "No features defined. `/feature new [name]`"
-- Falls back to beliefs.yml if no `features:` section
-- No taste history: first eval — establishing baseline
-- No founder-taste.md: suggest `/calibrate` to set up founder preferences
-- No assertion-history.tsv: first trend run — "Tracking from now. Re-run after next session for trajectory."
-- Playwright not available for `vs`: use WebFetch for screenshots, note reduced accuracy
-- `vs` URL won't load: report error, suggest trying without auth-gated pages
+
+- No features in rhino.yml: "No features defined. `/feature new [name]`"
+- Code paths empty: score 0, note "no code files found"
+- Previous cache missing: no delta, establish baseline
+- Rubric missing: score from scratch, write rubric after
+- Beliefs fail: run `rhino eval . --no-generative` to diagnose
 
 $ARGUMENTS

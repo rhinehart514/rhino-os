@@ -2,7 +2,7 @@
 name: product
 description: "Product thinking — from 'I want to build X' to 'here's who cares and why, here's what we've proven, here's what's delusional.' Works on new ideas AND existing products. The command that prevents you from building something nobody wants."
 argument-hint: "[user|assumptions|why|pitch|focus|signals|delight|market|coherence|\"I want to build...\"]"
-allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebSearch, Agent
+allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebSearch
 context: fork
 ---
 
@@ -168,7 +168,7 @@ If not: trace from code.
 Trace: code → feature → assertion → signal → hypothesis. Flag:
 - **Orphaned code**: files not in any feature's `code:` list
 - **Orphaned features**: high-weight features with no assertions
-- **Dead weight**: w:4+ features at `planned` maturity (important but untouched)
+- **Dead weight**: w:4+ features with eval < 30 (important but untouched)
 - **Value leaks**: features that exist but don't connect to the hypothesis
 
 #### 3. Assumptions (risk audit)
@@ -180,14 +180,14 @@ Extract every assumption. Rank by risk × ignorance. Cross-reference with:
 **The top 3 assumptions get inline WebSearch validation.**
 
 #### 4. Focus (kill exercise)
-"If you could only keep 2 features, which 2?" Check weights. Check maturity. Check what's actually been worked on (git log).
+"If you could only keep 2 features, which 2?" Check weights. Check eval scores. Check what's actually been worked on (git log).
 
 Cross-reference with `/ideate`'s kill list if recent.
 
 #### 5. Signals (measurement gap)
 For each signal in rhino.yml: is it instrumented? When was it last checked? What's the current value?
 
-Connect to eval sub-scores: value_score is the closest proxy for signal health.
+Connect to eval sub-scores: delivery_score is the closest proxy for signal health.
 
 #### 6. Delight (craft moment)
 The 10 seconds where value is delivered. Is there personality? Would someone screenshot this and share it? If not — why not?
@@ -232,8 +232,7 @@ Disconnects = the most important finding. A product that claims one thing and do
 
 ## Tools to use
 
-**Use WebSearch** for market reality (new idea) and assumption validation (existing product). Keep it fast — 30 seconds per query max.
-**Use Agent (market-analyst)** for deep market research when `/product market` is requested.
+**Use WebSearch** for market reality (new idea) and assumption validation (existing product). Keep it fast — 30 seconds per query max. For deep market research, suggest the user run `/research market` first — it has agent access for parallel investigation.
 **Use AskUserQuestion** for naming the person, editing the value hypothesis, and verdict discussion.
 **Use Read** for all state files.
 **Use Bash** for `rhino score .`, `rhino feature`, `git log`.

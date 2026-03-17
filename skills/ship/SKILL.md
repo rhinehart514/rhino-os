@@ -26,7 +26,7 @@ Parse `$ARGUMENTS`:
 | Input | Action |
 |-------|--------|
 | (none) | Full flow: pre-flight → commit → push → deploy → verify → log |
-| `dry` or `check` | Pre-flight only — score, assertions, secrets, maturity, deploy confidence |
+| `dry` or `check` | Pre-flight only — score, assertions, secrets, eval scores, deploy confidence |
 | `hotfix` | Skip score check, fast-path commit → push → deploy → log |
 | `release [tag]` | Create GitHub release with auto-generated notes from roadmap |
 | `pr [base]` | Open PR with roadmap-derived description |
@@ -39,7 +39,7 @@ Parse `$ARGUMENTS`:
 
 1. `rhino score .` — current score
 2. `.claude/cache/eval-cache.json` — per-feature sub-scores + deltas
-3. `config/rhino.yml` — features (maturity/weight), mode, deploy config
+3. `config/rhino.yml` — features (weight), mode, deploy config
 4. `.claude/plans/roadmap.yml` — current thesis + version (for release context)
 5. `.claude/cache/narrative.yml` — current external narrative (for release notes)
 6. `.claude/cache/changelog.md` — pre-generated changelog (if exists)
@@ -54,7 +54,7 @@ Parse `$ARGUMENTS`:
 | deploy-history | `.claude/cache/deploy-history.json` | R+W | Deployment log |
 | eval-cache | `.claude/cache/eval-cache.json` | R | Pre-flight sub-scores |
 | score-cache | `.claude/cache/score-cache.json` | R | Current score |
-| rhino.yml | `config/rhino.yml` | R | Features, maturity, deploy config |
+| rhino.yml | `config/rhino.yml` | R | Features, weight, deploy config |
 | roadmap.yml | `.claude/plans/roadmap.yml` | R | Thesis, version |
 | narrative | `.claude/cache/narrative.yml` | R | Release notes |
 | changelog | `.claude/cache/changelog.md` | R+W | Version changelog |
@@ -103,8 +103,8 @@ Before every ship, READ deploy-history.json:
 - Check `git diff --stat` — flag large changesets (>20 files)
 - Check block-severity assertions — failing = hard stop (see Anti-rationalization)
 - Check warn-severity assertions — failing = explicit acknowledge required
-- Check feature maturity — `planned`/`building` features = warn
-- Check dependency maturity — upstream deps not `working`+ = warn
+- Check feature eval score — features scoring <50 = warn
+- Check dependency eval scores — upstream deps scoring <50 = warn
 - Compute product completion % and version completion %
 - Read deploy-history.json — compute deploy confidence
 - If deploy confidence <60%: require explicit confirmation via AskUserQuestion
@@ -242,7 +242,7 @@ Creates a proper GitHub release with auto-generated notes from the roadmap. This
 
 ### What's new
 - [user-facing change derived from evidence item]
-- [user-facing change derived from feature maturity transition]
+- [user-facing change derived from feature eval score improvement]
 - [user-facing change]
 
 ### What we learned
@@ -275,7 +275,7 @@ Creates a PR with a roadmap-aware description. Not just "what changed" — "why 
 [Which thesis evidence item or bottleneck this addresses]
 
 ## Features affected
-- [feature] ([maturity]) — [sub-score change if measurable]
+- [feature] (eval:[score]) — [sub-score change if measurable]
 
 ## Evidence
 - [assertion pass/fail changes]
@@ -310,7 +310,7 @@ These fire during pre-flight and before any deploy action. They are not suggesti
 |--------|-------|----------|
 | "Ship with failing assertions" | Block-severity assertions failing | **Hard stop.** "Block-severity assertions are failing. Fix them or downgrade severity. Shipping past failures doesn't make them go away." |
 | "Ship with warnings" | Warn-severity assertions failing | Require explicit acknowledge via AskUserQuestion: "[N] warn-severity assertions failing. Ship anyway?" |
-| "Ship building-maturity features" | Any affected feature at `building` maturity | Flag: "Feature [name] is still building. Ship anyway only if this is a hotfix for something else." |
+| "Ship low-scoring features" | Any affected feature with eval < 50 | Flag: "Feature [name] scores below 50. Ship anyway only if this is a hotfix for something else." |
 | "Rollback without investigation" | Rollback route triggered | Every rollback MUST produce a todo with root cause. "What broke and why?" is not optional. |
 | "Deploy confidence below 60%" | `(assertion_pass_rate x last_3_success_rate x 100) < 60` | Require explicit confirmation: "Deploy confidence is [N]%. Are you sure?" |
 | "Frequent rollbacks" | 2+ of last 5 deploys were rolled back | Flag: "Rollback rate is high ([N]/5). Consider `/eval` before shipping." |
@@ -369,7 +369,7 @@ These fire during pre-flight and before any deploy action. They are not suggesti
 
   ▾ release notes (published)
     ## Eval scoring engine upgrade
-    Multi-sample median scoring, decomposed sub-scores (value/quality/UX),
+    Multi-sample median scoring, decomposed sub-scores (delivery/craft/viability),
     per-feature rubrics, and structured output via API.
 
     ### What's new

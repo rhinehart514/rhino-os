@@ -25,7 +25,7 @@ Includes decay check and smart promote suggestion.
   ⚠ lj-06 — 18 days in backlog, no action. Promote, kill, or /research?
 
 ▾ smart promote
-  Promoting **km-04** would target **learning**'s quality_score (40) — your weakest dimension.
+  Promoting **km-04** would target **learning**'s craft_score (40) — your weakest dimension.
 
 /todo promote km-04    activate the suggestion
 /todo done ag-01       mark complete
@@ -153,7 +153,7 @@ Includes decay check and smart promote suggestion.
 ```
 ◆ todo — learning (3 items, 1 active)
 
-  eval: 48/100 (v:55 q:40 u:48) — quality_score is weakest
+  eval: 48/100 (d:55 c:40 v:48) — craft_score is weakest
 
 ▸ active
   ▸ auto-grade predictions on session start                     [ag-01]

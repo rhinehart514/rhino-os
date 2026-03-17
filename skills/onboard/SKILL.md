@@ -73,10 +73,27 @@ For each feature, create 2-3 mechanical assertions in `beliefs.yml`:
 Create initial files so the loop works from session one:
 - `.claude/knowledge/predictions.tsv` — header row if doesn't exist
 - `.claude/knowledge/experiment-learnings.md` — standard template if doesn't exist
-- `.claude/plans/strategy.yml` — stage: one, bottleneck: first-loop
-- `.claude/plans/roadmap.yml` — v1.0 thesis: "[the value hypothesis]" with 2-3 evidence items derived from features
 
-This means `/plan`, `/go`, `/retro`, and `/strategy` all work immediately. No "run X first to set up Y."
+Write `.claude/plans/strategy.yml`:
+```yaml
+stage: mvp
+bottleneck: "unknown — run /plan to diagnose"
+last_updated: [today's date in YYYY-MM-DD]
+```
+
+Write `.claude/plans/roadmap.yml`:
+```yaml
+current_version: "v0.1"
+thesis: "[the value hypothesis from rhino.yml — restate it here]"
+evidence:
+  - item: "Score improves after first /go session"
+    status: unproven
+  - item: "Assertions pass rate > 50% within 3 sessions"
+    status: unproven
+previous_versions: []
+```
+
+This means `/plan`, `/go`, `/retro`, `/rhino`, and `/strategy` all work immediately. No "run X first to set up Y."
 
 ### 7. First eval
 
@@ -85,6 +102,8 @@ rhino eval .
 ```
 
 Show results with sub-score breakdown if available. This is the stranger's first real signal — make it count.
+
+After running the baseline eval, write the eval output to `.claude/cache/eval-cache.json` so `/rhino` and `/plan` can read sub-scores immediately without requiring a separate eval run. Create `.claude/cache/` if it doesn't exist.
 
 ### 8. Present the result
 

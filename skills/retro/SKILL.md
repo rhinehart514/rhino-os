@@ -54,7 +54,7 @@ Read these simultaneously:
 5. `.claude/cache/eval-cache.json` — per-feature sub-scores + deltas (evidence for grading score predictions)
 6. `.claude/cache/eval-deltas.json` — delta history across sessions
 7. `.claude/plans/strategy.yml` — unknowns that predictions might resolve
-8. `config/rhino.yml` features section — maturity, weight (for product completion context)
+8. `config/rhino.yml` features section — weight (for product completion context)
 9. `.claude/plans/todos.yml` — todo completion rate + sources
 10. `~/.claude/cache/last-research.yml` — recent research findings
 11. `.claude/sessions/*.yml` — recent session logs (for `session` route)
@@ -66,7 +66,13 @@ Read these simultaneously:
 ## Steps (full retro — no arguments)
 
 ### 1. Auto-grade with grade.sh (mechanical first pass)
-Run `bash bin/grade.sh` first. This mechanically grades any predictions with extractable directional claims (e.g., "raise X from N to M") by comparing against score-cache.json. Review the auto-grades for correctness. Then manually grade the remainder that grade.sh couldn't handle.
+Run `bash bin/grade.sh` first. This mechanically grades any predictions with extractable directional claims (e.g., "raise X from N to M") by comparing against score-cache.json. Review the auto-grades for correctness.
+
+For predictions that can't be mechanically graded (no numeric target, no directional claim), spawn the grader agent:
+```
+Agent(subagent_type: "rhino-os:grader", prompt: "Batch grade all ungraded predictions in predictions.tsv. For each, check git log, eval-cache, and experiment-learnings for evidence of outcome.")
+```
+The grader agent handles the qualitative grading that would otherwise require inline manual review. It has memory — it learns grading patterns across sessions, improving consistency over time.
 
 ### 2. Find remaining ungraded predictions
 Predictions where `correct` column (5th) is still empty after grade.sh. For each:
@@ -113,13 +119,14 @@ Scan experiment-learnings.md:
 2. Dead ends >60 days with no citations in predictions.tsv → move to `## Archived Dead Ends`
 3. Report: "N stale patterns — consider re-testing or archiving"
 
-### 7. Check maturity transitions
-Review recent work and determine if any features should change maturity. Use the **Maturity Transition Rubric** in [STATE_MANIFEST.md](../STATE_MANIFEST.md) for consistent criteria:
-- planned→building: code exists for the feature
-- building→working: >50% assertions pass, core flow functional
-- working→polished: 100% assertions pass, edge cases handled, no TODOs in feature code
-- polished→proven: external validation or 3+ sessions without regression
-Propose maturity updates in the output. Don't auto-write — let the founder confirm.
+### 7. Check eval score transitions
+Review recent work and determine if any features have meaningfully changed eval score. Use eval-cache.json score thresholds:
+- <30: minimal — code may not exist or doesn't deliver the claim
+- 30-49: early — code exists but significant gaps
+- 50-69: functional — core flow works, some gaps remain
+- 70-84: solid — delivers well, minor issues
+- 85+: strong — fully delivers, edge cases handled
+Propose score-based status updates in the output. Don't auto-write — let the founder confirm.
 
 ### 8. Compute accuracy
 - Total graded predictions
@@ -151,15 +158,15 @@ model_updates:
   - "Moved X from Uncertain → Known"
 unknowns_surfaced:
   - "new unknown from grading"
-maturity_proposals:
+score_proposals:
   - feature: scoring
-    from: working
-    to: polished
+    from: 68
+    to: 85
     reason: "100% assertions, tests exist"
 wrong_predictions:
   - prediction: "auto-grade via hook"
     feature: learning
-    dimension: quality_score
+    dimension: craft_score
     todo_created: "rethink auto-grade approach"
 todos_created: 2
 todos_killed: 1
@@ -199,7 +206,7 @@ Write `.claude/cache/retro-health.json` with: `last_retro_date`, `grading_latenc
 ## Steps (dimensions route)
 
 ### 1. Categorize all graded predictions
-For each graded prediction, extract: **feature** (match against rhino.yml), **dimension** (value_score, quality_score, ux_score, maturity, approach, etc.), **type** (score/feature/approach/meta/other).
+For each graded prediction, extract: **feature** (match against rhino.yml), **dimension** (delivery_score, craft_score, viability_score, approach, etc.), **type** (score/feature/approach/meta/other).
 
 ### 2. Compute accuracy per feature
 Total predictions, correct count, accuracy %, 20-char bar. Features with 0 predictions = blind spots.
@@ -279,7 +286,7 @@ Scan experiment-learnings.md:
 - `.claude/cache/eval-cache.json` — per-feature sub-scores
 - `.claude/cache/eval-deltas.json` — score deltas across sessions
 - `.claude/plans/strategy.yml` — unknowns, bottleneck
-- `config/rhino.yml` — features, maturity, weight
+- `config/rhino.yml` — features, weight
 - `.claude/plans/todos.yml` — todo state
 - `~/.claude/cache/last-research.yml` — recent research
 - `.claude/sessions/*.yml` — session logs

@@ -385,20 +385,16 @@ cmd_doctor() {
     done
     $mind_ok && _pass "mind files in ~/.claude/rules/"
 
-    # 4. Command files in ~/.claude/commands/
-    local cmd_count=0 broken_cmd=0
-    for f in "$HOME/.claude/commands"/*.md; do
-        [[ ! -L "$f" ]] && continue
-        cmd_count=$((cmd_count + 1))
-        if [[ ! -e "$f" ]]; then
-            broken_cmd=$((broken_cmd + 1))
-            _fail "broken symlink: $f"
-        fi
+    # 4. Skills in skills/*/SKILL.md
+    local skill_count=0
+    for f in "$RHINO_DIR"/skills/*/SKILL.md; do
+        [[ ! -f "$f" ]] && continue
+        skill_count=$((skill_count + 1))
     done
-    if [[ $cmd_count -ge 5 && $broken_cmd -eq 0 ]]; then
-        _pass "commands in ~/.claude/commands/ ($cmd_count linked)"
-    elif [[ $cmd_count -lt 5 ]]; then
-        _fail "only $cmd_count commands linked (expected 5+)"
+    if [[ $skill_count -ge 10 ]]; then
+        _pass "skills available ($skill_count found)"
+    else
+        _fail "only $skill_count skills found (expected 10+)"
     fi
 
     # 5. All symlinks valid (agents, bin tools)

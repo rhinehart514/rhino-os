@@ -77,7 +77,7 @@ When showing the backlog, if no items are active, suggest the highest-leverage i
 
 1. Read `.claude/cache/eval-cache.json` — get per-feature sub-scores
 2. Find the bottleneck feature (lowest score × highest weight)
-3. Find the bottleneck dimension (lowest of value/quality/ux for that feature)
+3. Find the bottleneck dimension (lowest of delivery/craft/viability for that feature)
 4. Find backlog todos tagged to that feature
 5. Suggest: "Promoting **[title]** would target **[feature]**'s **[dimension]** ([score])"
 

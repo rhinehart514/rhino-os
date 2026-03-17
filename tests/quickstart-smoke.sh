@@ -74,7 +74,7 @@ check "lens/product/scoring/score-product.sh exists" "[ -f '$RHINO_DIR/lens/prod
 check "lens/product/config/rhino-product.yml exists" "[ -f '$RHINO_DIR/lens/product/config/rhino-product.yml' ]"
 check "lens/product/corpus/ exists" "[ -d '$RHINO_DIR/lens/product/corpus' ]"
 check "lens/product/mind/ has files" "ls '$RHINO_DIR/lens/product/mind/'*.md >/dev/null 2>&1"
-check "lens/product/commands/ has files" "ls '$RHINO_DIR/lens/product/commands/'*.md >/dev/null 2>&1"
+check "lens/product/eval/beliefs.yml has assertions" "grep -q 'id:' '$RHINO_DIR/lens/product/eval/beliefs.yml'"
 
 # --- Mind files ---
 echo "-- Mind (identity) --"
@@ -83,16 +83,10 @@ check "mind/thinking.md exists" "[ -f '$RHINO_DIR/mind/thinking.md' ]"
 check "mind/standards.md exists" "[ -f '$RHINO_DIR/mind/standards.md' ]"
 check "mind/self.md exists" "[ -f '$RHINO_DIR/mind/self.md' ]"
 
-# --- Slash commands (base) ---
-echo "-- Slash commands (base) --"
-for cmd in plan go strategy research retro; do
-    check ".claude/commands/$cmd.md exists" "[ -f '$RHINO_DIR/.claude/commands/$cmd.md' ]"
-done
-
-# --- Lens commands ---
-echo "-- Slash commands (lens) --"
-for cmd in critique ship assert evolve; do
-    check "lens/product/commands/$cmd.md exists" "[ -f '$RHINO_DIR/lens/product/commands/$cmd.md' ]"
+# --- Skills ---
+echo "-- Skills --"
+for skill in plan go eval taste feature rhino research ideate strategy retro assert ship todo product; do
+    check "skills/$skill/SKILL.md exists" "[ -f '$RHINO_DIR/skills/$skill/SKILL.md' ]"
 done
 
 # --- CLI subcommands ---

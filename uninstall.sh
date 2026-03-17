@@ -111,7 +111,7 @@ else
     [[ -n "$PROFILE" ]] && echo -e "    ${DIM}Reload your shell: source $PROFILE${NC}"
     echo ""
     echo -e "  ${DIM}Project-local .claude/ files are left in place.${NC}"
-    echo -e "  ${DIM}Delete .claude/rules/, .claude/commands/, and .claude/settings.json${NC}"
+    echo -e "  ${DIM}Delete .claude/rules/ and .claude/settings.json${NC}"
     echo -e "  ${DIM}from individual projects to fully remove.${NC}"
 fi
 echo ""

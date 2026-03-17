@@ -17,7 +17,7 @@ No subprocess. No Node dependency. No `claude -p`. Claude IS the runtime AND the
 ## Key Files
 
 - `skills/taste/SKILL.md` — the skill definition (this is the product)
-- `commands/taste.md` — command routing
+- `skills/taste/SKILL.md` — skill definition and routing
 - `.claude/evals/reports/taste-*.json` — evaluation reports (written by skill)
 - `.claude/evals/taste-history.tsv` — score history (appended by skill)
 - `.claude/evals/taste-learnings.md` — accumulated intelligence (updated by skill)

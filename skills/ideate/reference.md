@@ -9,7 +9,7 @@ Loaded on demand. Protocol and routing are in SKILL.md.
 ```
 ◆ ideate
 
-  v8.0: **43%** · product: **64%** · bottleneck: **learning** (building, w:4, q:40)
+  v8.0: **43%** · product: **64%** · bottleneck: **learning** (building, w:4, c:40)
   thesis: "Someone who isn't us can complete a loop without help"
   unproven: first-go · return
 
@@ -23,7 +23,7 @@ Loaded on demand. Protocol and routing are in SKILL.md.
     tutorial — a signpost. One screen, three commands, done.
     who: stranger who just ran /onboard and sees a score but doesn't know
     what to do next.
-    changes: value_score on commands +10, directly proves "reach-plan" evidence
+    changes: delivery_score on commands +10, directly proves "reach-plan" evidence
     costs: 1 session. Defers learning feature work.
     kills it: users skip guidance and explore on their own anyway
     draft assertions:
@@ -31,14 +31,14 @@ Loaded on demand. Protocol and routing are in SKILL.md.
       - commands: /plan is reachable within 2 commands of /onboard
 
   ▸ **Mechanical prediction grading** — from sub-score gap
-    evidence: learning quality_score is 40 (lowest across all features).
+    evidence: learning craft_score is 40 (lowest across all features).
     Known Pattern: "prediction grading is manual, breaks the learning loop."
     16 predictions, only 10 graded.
     what: `bin/grade.sh` reads predictions.tsv, matches against eval-cache
     scores and git log, fills in result/correct for directional claims
     automatically. Runs on session start.
     who: the learning system itself — compounds across sessions.
-    changes: learning quality_score 40→55+, directly proves "first-go" evidence
+    changes: learning craft_score 40→55+, directly proves "first-go" evidence
     costs: 1 session. Requires touching session_start hook (Known fragile).
     kills it: predictions too vague to grade mechanically
     draft assertions:
@@ -53,7 +53,7 @@ Loaded on demand. Protocol and routing are in SKILL.md.
     session's data: what was built, what improved, what's next. Copyable
     for Slack/Discord/standup.
     who: founder who needs to tell someone what happened this week.
-    changes: commands value_score +5, new capability for /rhino
+    changes: commands delivery_score +5, new capability for /rhino
     costs: small — extends existing dashboard, doesn't block anything
     kills it: founders don't share status updates with anyone (solo = no audience)
     draft assertions:
@@ -82,18 +82,18 @@ Which ideas to commit? Which kills to confirm? (pick numbers or "all")
 ```
 ◆ ideate — learning
 
-  learning: 48/100 (v:55 q:40 u:48) — weakest: **quality_score 40**
-  maturity: building → target: working (needs >50% assertions + core flow)
+  learning: 48/100 (d:55 c:40 v:48) — weakest: **craft_score 40**
+  eval: 48 → target: 60+ (needs >50% assertions + core flow)
   rubric: integrity axis says "all file I/O paths handled" for 80
   backlog: 3 todos tagged to learning
 
-▾ ideas (targeting quality_score)
+▾ ideas (targeting craft_score)
 
   ▸ **Wrap prediction grading in error handling**
     evidence: 4 unhandled paths in grade.sh (from rubric check)
     what: try/catch around file reads, handle empty predictions.tsv,
     handle malformed rows gracefully.
-    changes: quality_score 40→55
+    changes: craft_score 40→55
     costs: half a session
     kills it: error handling is already there and the rubric is wrong
 
@@ -102,15 +102,15 @@ Which ideas to commit? Which kills to confirm? (pick numbers or "all")
     grading out of the hook and into a standalone script reduces blast radius.
     what: bin/grade.sh becomes independently callable. Hook calls it but
     failure doesn't break boot.
-    changes: quality_score 40→50, reduces fragility risk
+    changes: craft_score 40→50, reduces fragility risk
     costs: half a session, touches hook (known risky)
     kills it: the hook isn't actually the problem — grading logic is
 
 ▾ kill list
 
   ✗ **kill todo [km-04] "knowledge model pruning"**
-    reason: pruning doesn't help quality_score, which is the bottleneck.
-    Defer until learning reaches working maturity.
+    reason: pruning doesn't help craft_score, which is the bottleneck.
+    Defer until learning reaches 60+.
 
 Which to commit?
 

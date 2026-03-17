@@ -35,10 +35,10 @@ The home screen. This is what the founder sees when they want to know where they
 3. Read `.claude-plugin/plugin.json` — version
 
 ### 3. Compute
-- Product completion % (weighted feature maturity)
-- Version completion % (evidence + features + todos for current thesis)
-- Bottleneck (lowest maturity × highest weight)
-- Dimension health (avg value/quality/ux across features)
+- Product completion % = sum(eval_score × weight) / sum(weight × 100) — from eval-cache
+- Version completion % (evidence_needed items from roadmap.yml)
+- Bottleneck = lowest eval score among highest-weight active features
+- Dimension health (avg delivery/craft/viability across features)
 
 ## State Artifacts
 
@@ -92,7 +92,7 @@ The dashboard has four zones. Each is dense, visual, and earns its space.
 
   score       **95**/100  ███████████████████░
               assertions 57/63  ·  health 85
-              value 62  ·  quality 52  ·  ux 59
+              delivery 62  ·  craft 52  ·  viability 55
 
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
@@ -103,10 +103,10 @@ The dashboard has four zones. Each is dense, visual, and earns its space.
 
   features    product: **64%**
 
-              scoring    ████████████████████  w:5  58  v:62 q:50 u:60  ↑4
-              commands   ████████████░░░░░░░░  w:5  70  v:75 q:65 u:68  ↑2
-              learning   ██████░░░░░░░░░░░░░░  w:4  48  v:55 q:40 u:48  ↓3  ←
-              install    ████████████████████  w:3  68  v:70 q:60 u:72  —
+              scoring    ████████████████████  w:5  58  d:62 c:50 v:55  ↑4
+              commands   ████████████░░░░░░░░  w:5  70  d:75 c:65 v:68  ↑2
+              learning   ██████░░░░░░░░░░░░░░  w:4  48  d:55 c:40 v:48  ↓3  ←
+              install    ████████████████████  w:3  68  d:70 c:60 v:72  —
               docs       ████████████░░░░░░░░  w:3
 
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
@@ -118,7 +118,7 @@ The dashboard has four zones. Each is dense, visual, and earns its space.
 
   ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  ◆ **learning** is the bottleneck (quality_score 40, building, w:4)
+  ◆ **learning** is the bottleneck (craft_score 40, building, w:4)
 
   /go learning      build the bottleneck
   /strategy         honest diagnosis
@@ -497,13 +497,24 @@ For power users who want to see the internals.
 
 ## One opinion (decision tree)
 
-After the dashboard, ONE bold recommendation. Check in order:
+After the dashboard, ONE bold recommendation.
+
+### Deference to /plan
+
+The bottleneck diagnosis in /plan is authoritative (14 sources). /rhino's opinion is a quick heuristic (8 sources). When they conflict, /plan wins.
+
+- If `plan.yml` exists and was updated within the last 24 hours, use its `bottleneck_feature` as the basis for the opinion instead of computing independently.
+- If `plan.yml` is stale (>24h) or missing, compute the opinion independently but note: "Opinion based on /rhino heuristic — run /plan for authoritative diagnosis."
+
+### Decision tree
+
+Check in order:
 
 1. Version completion >= 80% → "**v[X.Y] is ready.** `/roadmap bump` to graduate."
-2. Bottleneck is `planned` → "**Define [feature].** `/feature new [name]`"
-3. Bottleneck is `building` → "**[feature]** needs work. `/go [feature]`"
-4. Bottleneck is `working` + assertions failing → "**Fix [feature].** `/go [feature]`"
-5. All features `working`+ → "**Polish or expand.** `/ideate`"
+2. Bottleneck eval < 30 → "**Define [feature].** `/feature new [name]`"
+3. Bottleneck eval 30-49 → "**[feature]** needs work. `/go [feature]`"
+4. Bottleneck eval 50-69 + assertions failing → "**Fix [feature].** `/go [feature]`"
+5. All features eval 50+ → "**Polish or expand.** `/ideate`"
 6. Plan exists, tasks incomplete → "**Resume the plan.** `/go [feature]`"
 7. Predictions ungraded >5 → "**Learning loop is leaking.** `/retro`"
 8. Todos stale >3 → "**Backlog is rotting.** `/todo decay`"
@@ -515,7 +526,7 @@ After the dashboard, ONE bold recommendation. Check in order:
 After computing the opinion, check for meta-patterns across snapshots (requires 3+ entries in `rhino-snapshots.json`):
 
 - **Bottleneck stagnation**: same feature has been bottleneck for 3+ consecutive snapshots → "**[feature] has been the bottleneck for [N] sessions.** Current approach may be exhausted. `/strategy honest`"
-- **Score-product divergence**: score went up but product completion didn't move → "**Score improved but no feature matured** — are you optimizing the thermometer? `/eval coverage`"
+- **Score-product divergence**: score went up but product completion didn't move → "**Score improved but no feature eval score moved** — are you optimizing the thermometer? `/eval coverage`"
 - **Thesis stall**: thesis evidence hasn't progressed in 3+ snapshots → "**Thesis is stalling.** Evidence hasn't moved. Either `/research` the blockers or `/roadmap bump` to a new thesis."
 - **Learning decay**: prediction accuracy dropped below 40% → "**Model is degrading.** `/retro` before building more."
 - **All working, nothing proven**: all features at "working" but thesis evidence still unproven → "**Features work but thesis isn't proven.** Ship or pivot? `/strategy honest`"
@@ -529,7 +540,7 @@ When a meta-pattern fires, it REPLACES the standard opinion from the decision tr
 The dashboard is the most-seen surface. It must be honest:
 
 - **Score inflation**: if score jumps >15 points between snapshots without a feature maturing, flag: "Warning: Score jumped **+[N]** without feature improvement — investigate"
-- **Perpetual building**: if >3 features have been at "building" for 3+ snapshots, flag: "Warning: Feature sprawl — too many things in flight. `/strategy focus`"
+- **Perpetual building**: if >3 features have eval 30-49 for 3+ snapshots, flag: "Warning: Feature sprawl — too many things in flight. `/strategy focus`"
 - **Prediction avoidance**: if no predictions logged in 7+ days, the learning loop is dead — make this a prominent warning in the signals zone, not a minor signal line. Use: "**No predictions in [N] days — learning loop is dead.** `/plan` to restart."
 - **Todo graveyard**: if >10 backlog items and <20% completion rate, flag: "Warning: Backlog is a graveyard. `/todo decay`"
 

@@ -46,9 +46,9 @@ Loaded on demand. Strategic lens and steps are in SKILL.md.
     · Stop polishing commands — they work, they just need a user
 
   ▾ product map
-    scoring     w:5  ██████░░░░  working     58 (v:62 q:50 u:60) ↑4
-    commands    w:5  ██████░░░░  working     70 (v:75 q:65 u:68) ↑2
-    learning    w:4  ███░░░░░░░  building    48 (v:55 q:40 u:48) ↓3
+    scoring     w:5  ██████░░░░  working     58 (d:62 c:50 v:60) ↑4
+    commands    w:5  ██████░░░░  working     70 (d:75 c:65 v:68) ↑2
+    learning    w:4  ███░░░░░░░  building    48 (d:55 c:40 v:48) ↓3
     install     w:3  ██████████  polished    68 — but only tested once
     docs        w:3  ██████░░░░  working
     self-diag   w:2  ██████░░░░  working

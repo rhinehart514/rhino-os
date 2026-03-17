@@ -52,7 +52,6 @@ echo ""
 for dir in \
     "$CLAUDE_DIR/knowledge" \
     "$CLAUDE_DIR/rules" \
-    "$CLAUDE_DIR/commands" \
     "$CLAUDE_DIR/agents" \
     "$CONFIG_DIR"; do
     if [[ ! -d "$dir" ]]; then
@@ -102,44 +101,11 @@ else
     echo -e "    ${DIM}plugin mode — handled by skills/${NC}"
 fi
 
-# --- 3. Symlink commands → ~/.claude/commands/ (skip in plugin mode — handled by plugin system) ---
-if ! $PLUGIN_MODE; then
-    echo ""
-    echo -e "  ${BOLD}Commands${NC}"
-    echo ""
-    CMD_COUNT=0
-    for cmd_file in "$RHINO_DIR"/commands/*.md; do
-        [[ ! -f "$cmd_file" ]] && continue
-        name="$(basename "$cmd_file")"
-        dest="$CLAUDE_DIR/commands/$name"
-        if [[ -L "$dest" && "$(readlink "$dest")" == "$cmd_file" ]]; then
-            skip "~/.claude/commands/$name"
-        else
-            $DRY_RUN || ln -sf "$cmd_file" "$dest"
-            action "~/.claude/commands/$name"
-        fi
-        CMD_COUNT=$((CMD_COUNT + 1))
-    done
-    # Lens commands
-    for lens_cmd_dir in "$RHINO_DIR"/lens/*/commands; do
-        [[ ! -d "$lens_cmd_dir" ]] && continue
-        for cmd_file in "$lens_cmd_dir"/*.md; do
-            [[ ! -f "$cmd_file" ]] && continue
-            name="$(basename "$cmd_file")"
-            dest="$CLAUDE_DIR/commands/$name"
-            # Don't overwrite core commands
-            [[ -L "$dest" ]] && continue
-            $DRY_RUN || ln -sf "$cmd_file" "$dest"
-            action "~/.claude/commands/$name (lens)"
-            CMD_COUNT=$((CMD_COUNT + 1))
-        done
-    done
-    echo -e "    ${DIM}${CMD_COUNT} commands available${NC}"
-else
-    echo ""
-    echo -e "  ${BOLD}Commands${NC}"
-    echo -e "    ${DIM}plugin mode — handled by plugin system${NC}"
-fi
+# --- 3. Skills are the commands (plugin system handles routing) ---
+echo ""
+echo -e "  ${BOLD}Skills${NC}"
+SKILL_COUNT=$(find "$RHINO_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
+echo -e "    ${DIM}${SKILL_COUNT} skills available via plugin system${NC}"
 
 # --- 4. Symlink agents → ~/.claude/agents/ (skip in plugin mode) ---
 if ! $PLUGIN_MODE; then

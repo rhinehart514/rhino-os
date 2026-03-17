@@ -184,6 +184,13 @@ versions:
     proven: 2026-03-16
     summary: "/discover command (product discovery intelligence), rich visual output (bars/sparklines/screenshots), history logging wired into /eval and /taste, /rhino progress with trend views. Fixed symlinks: added discover/calibrate/openclaw/taste, removed dead strategist."
 
+  v8.2.3:
+    tier: patch
+    parent: v8.2
+    status: proven
+    proven: 2026-03-17
+    summary: "Eval-driven product completion. Dimensions renamed: value/quality/ux → delivery(50%)/craft(30%)/viability(20%). Maturity killed as manual field — now computed from eval scores (0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven). Product completion derived from eval scores × weight, not self-declared maturity. ~35 files updated, bin/eval.sh formula changed, init.sh maturity auto-detection removed."
+
   v9.0:
     thesis: "Plugin marketplace distribution — someone finds rhino-os, installs it, gets value"
     tier: major

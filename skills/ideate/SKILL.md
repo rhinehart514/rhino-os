@@ -27,7 +27,7 @@ Parse `$ARGUMENTS`:
 Full evidence read → generate ideas → kill list → present.
 
 ### Feature name → feature-level ideation
-Focus on one feature's weakest dimension. What would move it to the next maturity level?
+Focus on one feature's weakest dimension. What would raise its eval score?
 
 ### `wild` → high-conviction bets
 3 ideas that would fundamentally change the product. Not experiments — committed directions that burn bridges. Each must cite why NOW, not someday.
@@ -42,7 +42,7 @@ Ideas within a specific constraint or direction.
 
 ### 1. Read state (parallel)
 
-- `config/rhino.yml` — features, maturity, weight, depends_on, value hypothesis
+- `config/rhino.yml` — features, weight, depends_on, value hypothesis
 - `.claude/cache/eval-cache.json` — sub-scores + deltas per feature
 - `.claude/cache/rubrics/<feature>.json` — rubric gaps (if exists)
 - `.claude/knowledge/experiment-learnings.md` — Known Patterns, Dead Ends
@@ -62,7 +62,7 @@ Sources of ideas, ranked by signal strength:
 
 1. **Wrong predictions** — a prediction that failed reveals a real gap in understanding. Ideas that address WHY a prediction was wrong are highest-signal.
 
-2. **Sub-score gaps** — eval-cache shows which dimensions are weak. Low quality_score on a w:5 feature → specific ideas for error handling, edge cases. Low value_score → ideas for delivery gaps.
+2. **Sub-score gaps** — eval-cache shows which dimensions are weak. Low craft_score on a w:5 feature → specific ideas for error handling, edge cases. Low delivery_score → ideas for delivery gaps.
 
 3. **Market context** — what's working in adjacent products that we haven't tried? Use `.claude/cache/market-context.json` or quick WebSearch. Not "copy competitors" but "steal patterns that are proven elsewhere."
 
@@ -94,7 +94,7 @@ Show ideas with the kill list. Founder picks which to commit and which to kill. 
 ### 5. Materialize
 
 When the founder picks an idea:
-1. Write feature to `config/rhino.yml` (delivers, for, code, weight, maturity: planned, depends_on)
+1. Write feature to `config/rhino.yml` (delivers, for, code, weight, depends_on)
 2. Convert draft assertions to `beliefs.yml` — prefer mechanical over llm_judge
 3. Run baseline: `rhino eval . --feature [name] --fresh`
 4. Log prediction to predictions.tsv
@@ -128,16 +128,16 @@ When scoped to a feature, the protocol tightens:
 3. Read todos tagged to this feature — what's been captured?
 4. Read eval-cache delta — is this feature improving or stuck?
 
-Generate ideas that move the feature to the next maturity level. Each idea targets the weakest sub-score:
-- Low value_score → "code doesn't deliver the claim — here's what's missing"
-- Low quality_score → "error handling, edge cases, robustness gaps"
-- Low ux_score → "output clarity, user feedback, progressive disclosure"
+Generate ideas that raise the feature's eval score. Each idea targets the weakest sub-score:
+- Low delivery_score → "code doesn't deliver the claim — here's what's missing"
+- Low craft_score → "error handling, edge cases, robustness gaps"
+- Low viability_score → "output clarity, user feedback, progressive disclosure"
 
 ## Tools to use
 
 **Use AskUserQuestion** for presenting ideas + kill list. Ideation is collaborative.
 **Use WebSearch** for market patterns — "what's working in [adjacent space]?"
-**Use Agent (explorer)** for deep codebase analysis when needed.
+**Use Agent (rhino-os:explorer)** for deep codebase analysis — spawn with `Agent(subagent_type: "rhino-os:explorer", ...)`.
 **Use Read** for all state files.
 **Use Edit** for materialization (rhino.yml, beliefs.yml, todos.yml).
 

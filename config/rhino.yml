@@ -1,5 +1,5 @@
 # rhino.yml — Tunable parameters for rhino-os.
-# Keep this minimal. Most behavior lives in mind/ and .claude/commands/.
+# Keep this minimal. Most behavior lives in mind/ and skills/.
 
 # ── Project ─────────────────────────────────────────
 project:
@@ -77,19 +77,18 @@ go:
 
 # ── Features ─────────────────────────────────────────
 # Each feature declares what it delivers and for whom.
-# `rhino eval .` reads these and has Claude judge the gap
-# between claim and code. DELIVERS/PARTIAL/MISSING → score.
+# `rhino eval .` reads these and scores delivery/craft/viability.
 #
-# Maturity levels (auto-computed from assertions + code, or set manually):
-#   planned   — idea exists, no code yet
-#   building  — code in progress, not working end-to-end
-#   working   — delivers on its claim, assertions passing
-#   polished  — edge cases handled, tests exist, UX solid
+# Maturity is computed from eval scores (not manually set):
+#   0-29  = planned    — does not exist or fundamentally broken
+#   30-49 = building   — half-built, skeleton is there
+#   50-69 = working    — it works, delivers on claim
+#   70-89 = polished   — solid, ships and works well
+#   90+   = proven     — genuinely excellent
 #
 # Optional fields:
 #   depends_on: [feature_name]  — what must work first
 #   weight: 1-5                 — importance to value hypothesis (default: 1)
-#   maturity: planned|building|working|polished
 features:
   scoring:
     delivers: "honest number that tells a founder if their product improved"
@@ -98,7 +97,6 @@ features:
     commands: ["rhino score .", "rhino eval ."]
     status: active
     weight: 5
-    maturity: working
   learning:
     delivers: "a model that gets smarter every session — predictions, grading, knowledge updates, session trail"
     for: "the system itself — compounds over time"
@@ -106,7 +104,6 @@ features:
     commands: ["rhino trail"]
     status: active
     weight: 4
-    maturity: working
     depends_on: [scoring]
   self-diagnostic:
     delivers: "system health check — measures calibration, staleness, learning loop integrity"
@@ -117,16 +114,14 @@ features:
     killed_reason: "navel-gazing. useful bits folded into /retro. nobody outside us uses it."
     killed_date: 2026-03-16
     weight: 2
-    maturity: working
     depends_on: [scoring, learning]
   commands:
-    delivers: "slash commands that route founder intent to the right action"
+    delivers: "skills that route founder intent to the right action"
     for: "solo founder working in Claude Code"
-    code: [".claude/commands/plan.md", ".claude/commands/go.md", ".claude/commands/eval.md", ".claude/commands/taste.md", ".claude/commands/feature.md", ".claude/commands/init.md", ".claude/commands/ship.md", ".claude/commands/ideate.md", ".claude/commands/research.md", ".claude/commands/roadmap.md", ".claude/commands/rhino.md", ".claude/commands/clone.md", ".claude/commands/assert.md", ".claude/commands/retro.md", ".claude/commands/skill.md", ".claude/commands/strategy.md", ".claude/commands/todo.md", ".claude/commands/product.md"]
+    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md"]
     commands: ["rhino help"]
     status: active
     weight: 5
-    maturity: working
   install:
     delivers: "one-command setup — clone, run install.sh, everything works"
     for: "new user trying rhino-os for the first time"
@@ -134,70 +129,58 @@ features:
     commands: ["rhino init"]
     status: active
     weight: 3
-    maturity: polished
   todo:
     delivers: "persistent backlog that survives across sessions — capture, tag, prioritize, promote"
     for: "solo founder managing ideas across sessions"
-    code: ["bin/todo.sh", "commands/todo.md"]
+    code: ["bin/todo.sh", "skills/todo/SKILL.md"]
     commands: ["rhino todo"]
     status: active
     weight: 2
-    maturity: working
   docs:
     delivers: "clear explanation of what rhino-os is and how to use it"
     for: "someone who has never heard of rhino-os"
     code: ["README.md"]
     status: active
     weight: 3
-    maturity: working
-
-  strategist:
-    delivers: "full-stack product strategist — merged into /strategy"
-    for: "solo technical founder who needs a strategic advisor"
-    code: ["skills/strategy/SKILL.md"]
-    commands: ["/strategy"]
-    status: killed
-    killed_reason: "merged into /strategy. One entry point, all sub-commands preserved."
-    killed_date: 2026-03-16
-    weight: 5
-    maturity: planned
-    depends_on: [commands]
-
-  # ── v9 Skills (planned 2026-03-16) ─────────────────
+  # ── v9 Skills (killed 2026-03-16) ─────────────────
   yc:
     delivers: "pressure-tested YC applications, weekly updates with predictions, honest metrics tracking, demo day prep"
     for: "technical founders applying to or running YC companies"
     code: []
     commands: ["/yc apply", "/yc weekly", "/yc metrics", "/yc demo"]
-    status: active
+    status: killed
+    killed_reason: "aspirational — no code, no evidence, dragging product completion. Revisit when v8 is fully proven."
+    killed_date: 2026-03-16
     weight: 4
-    maturity: planned
   deep-research:
     delivers: "multi-agent research synthesis — parallel explorer + market-analyst + academic agents, confidence-rated findings, auto-logged to knowledge model"
     for: "any founder making build-vs-buy, architecture, or market decisions"
     code: []
     commands: ["/deep-research"]
-    status: active
+    status: killed
+    killed_reason: "aspirational — no code, no evidence. Revisit when v8 is fully proven."
+    killed_date: 2026-03-16
     weight: 3
-    maturity: planned
     depends_on: [commands]
   agent-eval:
     delivers: "evaluation of your Claude Code setup — skill coverage, agent effectiveness, hook latency, context efficiency"
     for: "anyone with 5+ skills who wonders if they're actually helping"
     code: []
     commands: ["/agent-eval"]
-    status: active
+    status: killed
+    killed_reason: "aspirational — no code, no evidence. Revisit when v8 is fully proven."
+    killed_date: 2026-03-16
     weight: 3
-    maturity: planned
     depends_on: [scoring]
   founder-os:
     delivers: "rhino-os loop generalized beyond code — fundraising, hiring, customers, weekly founder review"
     for: "solo technical founders who live in the terminal"
     code: []
     commands: ["/fundraise", "/hire", "/customers", "/weekly"]
-    status: active
+    status: killed
+    killed_reason: "aspirational — no code, no evidence. Revisit when v8 is fully proven."
+    killed_date: 2026-03-16
     weight: 5
-    maturity: planned
     depends_on: [yc, commands, learning]
 
 # ── Evals ────────────────────────────────────────────

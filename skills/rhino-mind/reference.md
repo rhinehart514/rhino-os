@@ -16,8 +16,8 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 - `rhino taste` — visual eval via Claude Vision, 11 dimensions. Status: operational.
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
-#### Commands (the product surface)
-17 slash commands, each with explicit output templates and state awareness:
+#### Skills (the product surface)
+17 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
 /plan, /go, /eval, /feature, /ideate, /research, /roadmap, /rhino, /ship
 
 #### Intelligence Layer
@@ -69,17 +69,18 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 
 ### Plugin Surface (what rhino-os extends in Claude Code)
 
+Skills ARE the commands. Each skill lives in `skills/*/SKILL.md` — there is no separate `commands/` directory.
+
 Two install modes, same capabilities:
 
 **Plugin mode** (`CLAUDE_PLUGIN_ROOT` set):
 - `skills/rhino-mind/SKILL.md` — mind files concatenated into a single skill
-- `commands/*.md` — slash commands delivered via plugin system
+- `skills/*/SKILL.md` — slash commands delivered as skills via plugin system
 - `hooks/hooks.json` — hook definitions referencing hooks/*.sh
 - MCP tools — context7, playwright, Vercel (when available)
 
 **Manual install** (legacy symlinks):
 - `~/.claude/rules/` — mind files symlinked as system context
-- `~/.claude/commands/` — slash commands symlinked
 - `settings.json` — hook configuration pointing to hooks/*.sh
 - MCP tools — context7, playwright, Vercel (when available)
 

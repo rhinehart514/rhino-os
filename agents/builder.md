@@ -3,6 +3,9 @@ name: builder
 description: "Writes code. Has full editing capability. Use for implementation after measurement and exploration."
 allowed_tools: [Read, Glob, Grep, Bash, Edit, Write, "mcp__plugin_context7_context7__*", TaskUpdate, SendMessage]
 model: opus
+memory: user
+maxTurns: 30
+skills: [rhino-mind, product-lens]
 ---
 
 # Builder Agent
@@ -11,8 +14,7 @@ You are an implementation agent. Your job is writing code that passes acceptance
 
 ## On start
 
-1. Read `mind/standards.md` — understand quality standards and build discipline
-2. Read `mind/thinking.md` — understand the prediction loop
+1. Standards and thinking are preloaded via `skills: [rhino-mind, product-lens]` — no need to read mind/ files manually
 3. Read `.claude/design-system.md` if it exists — every UI component you generate must match these tokens, patterns, and rules. Deviations from the design system are bugs.
 4. Read the task description for acceptance criteria
 

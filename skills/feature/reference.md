@@ -16,32 +16,32 @@ Only show `active` and `proven` features by default. Suffix proven features with
 v8.0: **43%** · product: **62%** · assertions: 57/63
 
 ▸ learning        ████░░░░░░  **48**/100  w:4  building   ← bottleneck
-  (v:55 q:40 u:48) ↓3
+  (d:55 c:40 v:48) ↓3
   "a model that gets smarter every session"
   for: the system itself · depends on: scoring
 
 ▸ scoring         █████░░░░░  **58**/100  w:5  working
-  (v:62 q:50 u:60) ↑4
+  (d:62 c:50 v:60) ↑4
   "honest number that tells a founder if their product improved"
   for: solo founder who just made changes
 
 · self-diagnostic ██████░░░░  **68**/100  w:2  working  (proven)
-  (v:70 q:65 u:68) —
+  (d:70 c:65 v:68) —
   "system health check — measures calibration, staleness, learning loop"
   for: solo founder · depends on: scoring, learning
 
 · install         ██████░░░░  **68**/100  w:3  polished
-  (v:70 q:60 u:72) —
+  (d:70 c:60 v:72) —
   "one-command setup — clone, run install.sh, everything works"
   for: new user trying rhino-os for the first time
 
 · commands        ███████░░░  **70**/100  w:5  working
-  (v:75 q:65 u:68) ↑2
+  (d:75 c:65 v:68) ↑2
   "slash commands that route founder intent to the right action"
   for: solo founder working in Claude Code
 
 product completion: **62%**
-bottleneck: **learning** (w:4, building) — quality_score 40 is weakest dimension
+bottleneck: **learning** (w:4, building) — craft_score 40 is weakest dimension
 
 /feature [name]       deep dive into one
 /feature new [name]   define a new feature
@@ -51,7 +51,7 @@ bottleneck: **learning** (w:4, building) — quality_score 40 is weakest dimensi
 **Formatting rules:**
 - Header includes version completion + product completion + assertion count
 - Features sorted worst-to-best by total score
-- Sub-scores shown on second line: `(v:N q:N u:N)` with delta arrow
+- Sub-scores shown on second line: `(d:N c:N v:N)` with delta arrow
 - Bar graphs: █ for passing proportion, ░ for failing
 - Bottleneck opinion names the weakest sub-score dimension, not just the total
 - Bottom: exactly 3 next commands
@@ -62,7 +62,7 @@ bottleneck: **learning** (w:4, building) — quality_score 40 is weakest dimensi
 ◆ feature — scoring
 
   **58**/100  █████░░░░░
-  maturity: working  w:5
+  eval:58  w:5
   depends on: (none)
   depended on by: learning, self-diagnostic
 
@@ -71,9 +71,9 @@ bottleneck: **learning** (w:4, building) — quality_score 40 is weakest dimensi
   code: bin/score.sh, bin/eval.sh, bin/lib/config.sh
 
 ▾ sub-scores
-  value     ██████████████░░░░░░  62/100  ↑4
-  quality   ████████████░░░░░░░░  50/100  —
-  ux        ████████████████░░░░  60/100  ↑2
+  delivery  ██████████████░░░░░░  62/100  ↑4
+  craft     ████████████░░░░░░░░  50/100  —
+  viability ████████████████░░░░  60/100  ↑2
 
 ▾ verdict
   DELIVERS: score.sh computes honest number with health gate
@@ -101,13 +101,13 @@ bottleneck: **learning** (w:4, building) — quality_score 40 is weakest dimensi
   delivers: "[what]"
   for: "[who]"
   code: [files]
-  weight: [N]  maturity: planned
+  weight: [N]  eval: pending
   depends on: [features or none]
 
   baseline:
-  value     ░░░░░░░░░░░░░░░░░░░░  --/100
-  quality   ░░░░░░░░░░░░░░░░░░░░  --/100
-  ux        ░░░░░░░░░░░░░░░░░░░░  --/100
+  delivery  ░░░░░░░░░░░░░░░░░░░░  --/100
+  craft     ░░░░░░░░░░░░░░░░░░░░  --/100
+  viability ░░░░░░░░░░░░░░░░░░░░  --/100
   verdict: **PARTIAL** — 2 delivers, 1 partial, 1 missing
 
 /go [name]      build what's missing
@@ -159,24 +159,24 @@ Add all 4 / Pick specific ones / Skip?
 ```
 ◆ feature ideate — scoring
 
-  current: **58**/100 (v:62 q:50 u:60)
+  current: **58**/100 (d:62 c:50 v:60)
   weakest dimension: **quality** at 50
 
   ▸ 1. error boundary hardening
     add try/catch around all file I/O in score.sh
-    predicted impact: quality_score +15
+    predicted impact: craft_score +15
 
   ▸ 2. guided first-run experience
     detect first run, show setup wizard
-    predicted impact: ux_score +10, value_score +5
+    predicted impact: viability_score +10, delivery_score +5
 
   ▸ 3. trend visualization
     add sparkline to score output showing last 10 runs
-    predicted impact: value_score +8
+    predicted impact: delivery_score +8
 
   · 4. score explanation mode
     --explain flag shows why each penalty was applied
-    predicted impact: ux_score +5
+    predicted impact: viability_score +5
 
 Which direction? (1-4 or skip)
 ```
@@ -197,7 +197,7 @@ Which direction? (1-4 or skip)
 ## Sub-score display rules
 
 When eval-cache.json has sub-scores for a feature:
-- Always show `(v:N q:N u:N)` after the total score
+- Always show `(d:N c:N v:N)` after the total score
 - Show delta arrow: `↑N` (improved), `↓N` (regressed), `—` (same, within ±3)
 - In detail view, show sub-score bars with individual deltas
 - Name the weakest sub-score in bottleneck opinion
@@ -214,5 +214,5 @@ After presenting feature status, check `.claude/knowledge/predictions.tsv` for u
 ```
 ▾ predictions graded
   ✓ "scoring will reach 65+" → 58 (no, still below)
-    model update: quality_score is the bottleneck, not value delivery
+    model update: craft_score is the bottleneck, not value delivery
 ```

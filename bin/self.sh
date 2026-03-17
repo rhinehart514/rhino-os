@@ -315,32 +315,27 @@ fi
 CURRENT_SYSTEM="act"
 
 # commands-depth (5 pts): slash commands are substantive, not stubs
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-    CMD_DIR="$RHINO_DIR/commands"
-else
-    CMD_DIR=".claude/commands"
-    [[ ! -d "$CMD_DIR" ]] && CMD_DIR="$HOME/.claude/commands"
-fi
-if [[ -d "$CMD_DIR" ]]; then
+SKILL_DIR="$RHINO_DIR/skills"
+if [[ -d "$SKILL_DIR" ]]; then
     STUB_COUNT=0
-    CMD_COUNT=0
-    for cmd_file in "$CMD_DIR"/*.md; do
-        [[ ! -f "$cmd_file" ]] && continue
-        CMD_COUNT=$((CMD_COUNT + 1))
-        lines=$(wc -l < "$cmd_file" 2>/dev/null | tr -d ' ')
+    SKILL_COUNT=0
+    for skill_file in "$SKILL_DIR"/*/SKILL.md; do
+        [[ ! -f "$skill_file" ]] && continue
+        SKILL_COUNT=$((SKILL_COUNT + 1))
+        lines=$(wc -l < "$skill_file" 2>/dev/null | tr -d ' ')
         if [[ "$lines" -lt 20 ]]; then
             STUB_COUNT=$((STUB_COUNT + 1))
         fi
     done
-    if [[ "$CMD_COUNT" -eq 0 ]]; then
-        check_fail "commands-depth" "no slash commands found" 5
+    if [[ "$SKILL_COUNT" -eq 0 ]]; then
+        check_fail "skills-depth" "no skills found" 5
     elif [[ "$STUB_COUNT" -gt 0 ]]; then
-        check_warn "commands-depth" "$STUB_COUNT/$CMD_COUNT commands are stubs (<20 lines)" 2 5
+        check_warn "skills-depth" "$STUB_COUNT/$SKILL_COUNT skills are stubs (<20 lines)" 2 5
     else
-        check_pass "commands-depth" "$CMD_COUNT commands, all substantive" 5
+        check_pass "skills-depth" "$SKILL_COUNT skills, all substantive" 5
     fi
 else
-    check_fail "commands-depth" "no commands directory" 5
+    check_fail "skills-depth" "no skills directory" 5
 fi
 
 # hook-health (5 pts): hooks resolve and are executable
@@ -748,11 +743,11 @@ if [[ "$EVAL_MODE" == "true" ]]; then
         echo "help-works:fail:rhino help produced no output"
     fi
 
-    # commands-have-descriptions: every .md in commands/ has description: in frontmatter
-    _cmd_dir="$RHINO_DIR/.claude/commands"
+    # skills-have-descriptions: every SKILL.md in skills/ has description: in frontmatter
+    _skill_dir="$RHINO_DIR/skills"
     _cmd_total=0; _cmd_ok=0
-    if [[ -d "$_cmd_dir" ]]; then
-        for _cf in "$_cmd_dir"/*.md; do
+    if [[ -d "$_skill_dir" ]]; then
+        for _cf in "$_skill_dir"/*/SKILL.md; do
             [[ ! -f "$_cf" ]] && continue
             _cmd_total=$((_cmd_total + 1))
             if head -5 "$_cf" | grep -q 'description:'; then
@@ -761,11 +756,11 @@ if [[ "$EVAL_MODE" == "true" ]]; then
         done
     fi
     if [[ "$_cmd_total" -eq 0 ]]; then
-        echo "commands-have-descriptions:fail:no command files"
+        echo "skills-have-descriptions:fail:no skill files"
     elif [[ "$_cmd_ok" -eq "$_cmd_total" ]]; then
-        echo "commands-have-descriptions:pass:${_cmd_ok}/${_cmd_total} have descriptions"
+        echo "skills-have-descriptions:pass:${_cmd_ok}/${_cmd_total} have descriptions"
     else
-        echo "commands-have-descriptions:fail:$((_cmd_total - _cmd_ok))/${_cmd_total} missing description"
+        echo "skills-have-descriptions:fail:$((_cmd_total - _cmd_ok))/${_cmd_total} missing description"
     fi
 
     # install-exists: install.sh exists and is executable

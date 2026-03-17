@@ -5,7 +5,7 @@ argument-hint: "[feature...|brainstorm|critique|task text]"
 allowed-tools: Read, Bash, Grep, Glob, EnterPlanMode, ExitPlanMode, AskUserQuestion, TaskCreate, TaskList
 ---
 
-!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, value: .value.value_score, quality: .value.quality_score, ux: .value.ux_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
+!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, d: .value.delivery_score, c: .value.craft_score, v: .value.viability_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
 !cat .claude/plans/plan.yml 2>/dev/null | head -20 || echo "no plan"
 
 # /plan
@@ -44,7 +44,7 @@ If `$ARGUMENTS` looks like a task (e.g., `/plan fix the login bug`), capture it:
 - `/plan [feature]` (you) → reads state, finds bottleneck, writes tasks
 - `/go [feature]` → autonomous build loop. BETA: speculative branching, adversarial review. Use `--safe` for proven sequential loop.
 - `/feature [name]` → define and manage features, sub-score breakdown
-- `/eval [feature|deep|slop]` → measurement stack, sub-scores (value/quality/ux), rubrics
+- `/eval [feature|deep|slop]` → measurement stack, sub-scores (delivery/craft/viability), rubrics
 - `/research [topic]` → explore unknowns, update knowledge model
 - `/ideate [feature|wild]` → creative divergence, brainstorm possibilities
 - `/ship` → deploy
@@ -83,7 +83,7 @@ Call EnterPlanMode. All reads, no writes until the plan is approved.
 ### 2. Read state (parallel)
 Read these simultaneously:
 1. `rhino score .` + `.claude/cache/score-cache.json` (per-feature breakdown)
-2. `.claude/cache/eval-cache.json` — per-feature sub-scores (value_score, quality_score, ux_score) + deltas
+2. `.claude/cache/eval-cache.json` — per-feature sub-scores (delivery_score, craft_score, viability_score) + deltas
 3. `rhino feature` — per-feature pass rates, identify worst
 4. `.claude/plans/plan.yml` — previous plan
 5. `rhino todo` — backlog items, active todos, feature tags
@@ -92,15 +92,15 @@ Read these simultaneously:
 8. `git log --oneline -10`
 9. TaskList — any existing tasks
 10. `.claude/plans/strategy.yml` — stage, bottleneck
-11. `config/rhino.yml` features section — maturity, weight, depends_on for completion map
+11. `config/rhino.yml` features section — weight, depends_on for completion map
 12. `~/.claude/cache/last-research.yml` — recent research findings (if exists). Incorporate suggested_tasks and findings into move proposals. Research-informed moves get priority.
 13. `.claude/plans/roadmap.yml` — current thesis, evidence_needed items and their status. Identify unproven evidence items for the current version.
 14. `.claude/cache/eval-deltas.json` — delta history (trend across sessions, not just last eval)
 
-**Compute product completion** from the features:
-- Each feature: maturity_pct × weight (planned=0, building=33, working=66, polished=100)
-- Product completion = sum(maturity_pct × weight) / sum(100 × weight)
-- Bottleneck = lowest-maturity feature with highest weight
+**Compute product completion** from eval-cache:
+- Each feature: eval_score from `.claude/cache/eval-cache.json` (0 if no cache)
+- Product completion = sum(eval_score × weight) / sum(weight × 100)
+- Bottleneck = lowest eval score among highest-weight active features
 
 **Compute version completion** from roadmap.yml:
 - Find the current version's `evidence_needed` items
@@ -129,18 +129,40 @@ Output section (insert between state and bottleneck):
   suggested: [task from research]
 ```
 
-### 5. Bottleneck diagnosis
-**Sub-score first**: when eval-cache has sub-scores, find the lowest sub-score (value_score, quality_score, ux_score) across highest-weight features. That dimension in that feature = first priority.
-**Layer-first** (fallback when no sub-scores): find the lowest layer score (infrastructure/logic/ux) across all features.
-**Infrastructure gates**: if any feature has infrastructure < 3, its logic and ux are capped at 2. Fix infra first.
-**Assertion gate**: failing `block` severity = FIRST tasks.
-**Ladder** (when no scores at all): product definition → UX flow → core functionality → communication
+### 5. Bottleneck diagnosis (eval-grounded)
+
+The eval scores are the truth. Not maturity labels, not beliefs about quality — the 0-100 score from the top-engineer judge.
+
+**Sub-score diagnosis**: Read eval-cache sub-scores for the highest-weight features. The bottleneck is NOT "the lowest scoring feature" — it's the lowest sub-score of the highest-weight feature that's blocking the current thesis.
+
+What the sub-scores tell you about what to work on:
+- **delivery dragging** (d < c and d < v) → the feature exists but doesn't deliver real value. Task: complete the implementation, not polish it.
+- **craft dragging** (c < d and c < v) → delivers value but is fragile or rough. Task: error handling, edge cases, polish. At stage one, this might be acceptable — check strategy.yml stage.
+- **viability dragging** (v < d and v < c) → works but wouldn't survive in the market. Task: differentiation, competitive positioning, novelty.
+
+**Cross-reference strategy**: Read strategy.yml bottleneck. Does the eval bottleneck match the strategy bottleneck? If strategy says "first-loop" and eval says "learning quality:35 is worst" — are they the same thing? Name the connection or the disconnect.
+
+**Cross-reference discover**: If `~/.claude/cache/last-discovery.yml` exists and is <7 days old, read its recommendation. Does the discovery align with the eval bottleneck?
+
 **Delta awareness**: features trending `worse` in eval-deltas.json get priority over stable features at the same score.
+**Assertion gate**: failing `block` severity = FIRST tasks.
 
 ### 6. Thesis-aware move generation
 **Version completion >80%**: if the current thesis is nearly proven, the FIRST recommendation should be `/roadmap bump` — define the next thesis before starting new work. Surface this prominently in the output.
 
 **Thesis-informed moves**: when proposing moves, check the current version's `evidence_needed` for `todo` or `partial` items. At least one move should directly advance an unproven evidence item. Tag these moves with `advances: [evidence_id]` (e.g., `advances: first-go`). Moves that advance the thesis AND fix the product bottleneck get highest priority.
+
+### 6b. Unknown territory check
+
+Before proposing a move for a feature, check `experiment-learnings.md` Unknown Territory section. If the feature's weakest dimension matches an unknown, flag it:
+
+> **Warning: Unknown blocks this**: "[unknown description]" — run `/research [feature]` before building.
+
+If `last-research.yml` exists but is >24h old, show:
+
+> **Warning: Stale research** ([N] days old): [topic]. Consider `/research` to refresh or accept findings as-is.
+
+Do NOT silently ignore stale research. Surface it with a warning and let the founder decide. Moves targeting features with unresolved unknowns should be deprioritized unless the founder explicitly overrides.
 
 ### 7. Founder alignment (use AskUserQuestion)
 Present your diagnosis with options. Surface relevant backlog items.

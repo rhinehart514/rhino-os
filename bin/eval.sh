@@ -65,6 +65,9 @@ FEATURE_RESULTS=""
 # Per-quality tracking (quality_dim:pass:warn:fail accumulated as lines)
 QUALITY_RESULTS=""
 
+# Assertion history (date\tfeature\tid\ttype\tstatus\tseverity — written to .claude/evals/assertion-history.tsv)
+ASSERTION_HISTORY=""
+
 # Per-layer tracking (feature~layer:pass:warn:fail accumulated as lines)
 LAYER_RESULTS=""
 
@@ -235,14 +238,10 @@ fi
 
 # no-dead-skills
 SKILLS_MISSING_RECOVERY=0
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-    _SKILL_CMD_DIR="$RHINO_DIR/commands"
-else
-    _SKILL_CMD_DIR=".claude/commands"
-fi
-for skill in "$_SKILL_CMD_DIR"/*.md; do
+_SKILL_DIR="$RHINO_DIR/skills"
+for skill in "$_SKILL_DIR"/*/SKILL.md; do
     [[ ! -f "$skill" ]] && continue
-    if ! grep -q 'If something breaks' "$skill" 2>/dev/null; then
+    if ! grep -q 'If something breaks\|Errors' "$skill" 2>/dev/null; then
         SKILLS_MISSING_RECOVERY=$((SKILLS_MISSING_RECOVERY + 1))
     fi
 done
@@ -395,14 +394,35 @@ EVAL_CACHE_DIR=".claude/cache"
 EVAL_CACHE_FILE="$EVAL_CACHE_DIR/eval-cache.json"
 BELIEFS_CACHE_FILE="$EVAL_CACHE_DIR/beliefs-cache.json"
 
+# Shared score formula: gen_avg - belief_penalty, or beliefs-only fallback
+# Args: $1=gen_count $2=gen_sum $3=pass $4=warn $5=fail $6=has_block_fail (true/false)
+# Outputs: score integer (or empty if no data)
+compute_eval_score() {
+    local _gen_count="$1" _gen_sum="$2" _pass="$3" _warn="$4" _fail="$5" _has_block="${6:-false}"
+    local _total=$((_pass + _warn + _fail))
+
+    if [[ "$_has_block" == "true" ]]; then
+        echo 0
+    elif [[ "$_gen_count" -gt 0 ]]; then
+        local _gen_avg=$((_gen_sum / _gen_count))
+        local _penalty=$((_warn * 3 + _fail * 5))
+        local _score=$((_gen_avg - _penalty))
+        [[ "$_score" -lt 0 ]] && _score=0
+        echo "$_score"
+    elif [[ "$_total" -gt 0 ]]; then
+        echo $(( (_pass * 100 + _warn * 50) / _total ))
+    fi
+}
+
 # Read features from rhino.yml using simple YAML parsing
 # Outputs lines: feature_name|delivers|for|code_path1,code_path2|cmd1,cmd2
+# Filters: skips features with status: killed or status: archived
 parse_features() {
     local config_file="config/rhino.yml"
     [[ ! -f "$config_file" ]] && return
 
     local in_features=false
-    local current_feat="" current_delivers="" current_for="" current_code="" current_commands=""
+    local current_feat="" current_delivers="" current_for="" current_code="" current_commands="" current_status=""
     local in_code=false in_commands=false
 
     while IFS= read -r line; do
@@ -416,11 +436,10 @@ parse_features() {
 
         # Detect end of features section (new top-level key)
         if [[ "$in_features" == true ]] && echo "$line" | grep -qE '^[a-z]'; then
-            # Emit last feature
-            if [[ -n "$current_feat" ]]; then
+            if [[ -n "$current_feat" && "$current_status" != "killed" && "$current_status" != "archived" ]]; then
                 echo "${current_feat}|${current_delivers}|${current_for}|${current_code}|${current_commands}"
-                current_feat=""
             fi
+            current_feat=""
             in_features=false
             continue
         fi
@@ -430,7 +449,7 @@ parse_features() {
         # New feature (2-space indent, key with colon, no value)
         if echo "$line" | grep -qE '^  [a-z][a-z0-9_-]*:$'; then
             # Emit previous feature
-            if [[ -n "$current_feat" ]]; then
+            if [[ -n "$current_feat" && "$current_status" != "killed" && "$current_status" != "archived" ]]; then
                 echo "${current_feat}|${current_delivers}|${current_for}|${current_code}|${current_commands}"
             fi
             current_feat=$(echo "$line" | sed 's/^[[:space:]]*//;s/:[[:space:]]*$//')
@@ -438,6 +457,15 @@ parse_features() {
             current_for=""
             current_code=""
             current_commands=""
+            current_status=""
+            in_code=false
+            in_commands=false
+            continue
+        fi
+
+        # status:
+        if echo "$line" | grep -q '^\s*status:'; then
+            current_status=$(echo "$line" | sed 's/.*status: *//;s/^"//;s/"$//')
             in_code=false
             in_commands=false
             continue
@@ -516,8 +544,8 @@ parse_features() {
     done < "$config_file"
 
     # Emit last feature
-    if [[ -n "$current_feat" ]]; then
-        echo "${current_feat}|${current_delivers}|${current_for}|${current_code}"
+    if [[ -n "$current_feat" && "$current_status" != "killed" && "$current_status" != "archived" ]]; then
+        echo "${current_feat}|${current_delivers}|${current_for}|${current_code}|${current_commands}"
     fi
 }
 
@@ -659,7 +687,8 @@ generate_feature_rubric() {
 
     mkdir -p "$rubric_dir"
 
-    local rubric_prompt="You are generating a specific evaluation rubric for a software feature. This rubric will be used by another LLM to score the feature accurately.
+    local rubric_prompt
+    rubric_prompt="You are one of the best product engineers alive, generating a scoring rubric for a specific feature. This rubric will calibrate another engineer. Make it specific to THIS code.
 
 Feature: \"${feat_name}\"
 Claim: \"${delivers}\"
@@ -668,18 +697,18 @@ Target user: \"${for_whom}\"
 Code sample (first 2000 chars):
 $(echo "$code_context" | head -c 2000)
 
-Generate a rubric with 4 axes. For EACH axis, describe:
-1. What 80/100 looks like for THIS specific feature (not generic)
-2. What 40/100 looks like for THIS specific feature
-3. 2-3 specific things to check (file patterns, function names, error paths)
+Generate a rubric with 4 axes. For EACH axis:
+1. What would genuinely impress you (80+) for THIS feature
+2. What would disappoint you (40) for THIS code
+3. 2-3 concrete things to check (file patterns, function names, code paths)
 
 Axes:
-- SPEC_ALIGNMENT: Does code match the claim? What specific promises must be met?
-- INTEGRITY: What error paths exist in this code? What edge cases matter?
-- UX: What does good output look like for this specific feature?
-- ANTI_SLOP: What would generic AI-generated code look like vs genuine implementation?
+- VALUE: Does this feature deliver real value? Complete implementation vs half-built skeleton?
+- QUALITY: Would you trust this code at 3am? What breaks? Where did someone think vs just compile?
+- UX: What does using this feel like? Does it feel like the builder uses their own product?
+- TASTE: Does this code have taste? Complexity appropriate? Abstractions earned? Or generated slop?
 
-Output ONLY a JSON object — no markdown fences:
+Output ONLY a JSON object:
 {\"spec_alignment\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]},\"integrity\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]},\"ux\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]},\"anti_slop\":{\"check_80\":\"...\",\"check_40\":\"...\",\"specifics\":[\"...\"]}}"
 
     local api_key="${ANTHROPIC_API_KEY:-}"
@@ -719,7 +748,7 @@ Output ONLY a JSON object — no markdown fences:
 }
 
 # Full product quality audit — evaluates whether a feature is genuinely good
-# Returns JSON: {"value_score":N,"quality_score":N,"ux_score":N,"score":N,"verdict":"...","gaps":[...],"strengths":[...],"evidence":"..."}
+# Returns JSON: {"delivery_score":N,"craft_score":N,"viability_score":N,"score":N,"verdict":"...","gaps":[...],"strengths":[...],"evidence":"..."}
 run_logic_research() {
     local feat_name="$1"
     local delivers="$2"
@@ -746,7 +775,12 @@ ${rubric_content}
         fi
     fi
 
-    local prompt="You are a product quality auditor. Your job is to find real problems. You evaluate whether this feature is genuinely good — not whether files exist or code compiles. Output ONLY a single JSON object — no markdown fences, no commentary before or after.
+    local prompt
+    prompt="You are one of the best product engineers alive. You have built features at companies people actually use — not enterprise middleware, real products that users love. You have shipped code that handles 10M requests, and you have shipped MVPs in a weekend that got their first 1000 users. You know what good looks like at every stage.
+
+You grade the way you would assess a feature if you were deciding whether to join this startup or invest in it. Not by counting files or checking boxes — by reading the code and forming a judgment: is this good? Is this the work of someone who knows what they are doing? Would users love this?
+
+You are tough but fair. You respect scrappy code that delivers real value over polished code that does not. You respect simplicity. You hate over-engineering, you hate code that claims to do things it does not, and you hate silent failures. You have seen enough code to know the difference between code that works and code that is good.
 
 Feature: \"${feat_name}\"
 Claim: \"${delivers}\"
@@ -755,51 +789,54 @@ Target user: \"${for_whom}\"
 Code:
 ${code_context}
 
-AUDIT PROTOCOL:
+WHAT THE SCORES MEAN:
+- 90-100: Genuinely excellent. You would show this to other engineers as an example. Rare.
+- 70-89: Solid. Ships and works. A good engineer built this. Rough edges but nothing embarrassing.
+- 50-69: It works but you would not be proud of it. Ships because it has to.
+- 30-49: Half-built. Skeleton is there but does not really deliver.
+- 0-29: Does not exist or fundamentally broken.
 
-1. VALUE DELIVERY (value_score, 0-100)
-   - Does this code actually deliver what the claim promises?
-   - Would the target user get real value from this?
-   - Is there a complete path from 'user wants X' to 'user gets X'?
-   - For each promise in the claim: cite file:line that delivers it, or mark MISSING.
+GRADE THESE THREE DIMENSIONS:
 
-2. QUALITY & ROBUSTNESS (quality_score, 0-100)
-   - Error handling: what happens when things go wrong? Trace every external call (file I/O, API, subprocess, shell command). List caught vs unhandled.
-   - Edge cases: empty input, missing files, malformed data, concurrent access, first-run vs nth-run.
-   - Silent failures: find || true, 2>/dev/null without fallback, empty catch blocks, swallowed errors.
-   - Code contradictions: code that contradicts its own comments, docs, or other code paths.
+1. DELIVERY (delivery_score, 0-100)
+   Does this feature deliver real value to the target user? Not does-a-file-exist — does the LOGIC work end-to-end?
+   - Would the target user get something they actually care about? Would they come back?
+   - Is this a complete feature or a half-finished skeleton with TODOs?
+   - Does it solve the problem better than doing nothing? Better than the obvious alternative?
+   - How does this compare to the best implementations you have seen of similar features?
+   - Cite file:line for what works and what is missing.
 
-3. USER EXPERIENCE (ux_score, 0-100)
-   - Output quality: is the output clear, well-formatted, actionable?
-   - Feedback: does the user know what happened and what to do next?
-   - Error messages: helpful or cryptic? Does a failure tell the user how to fix it?
-   - Progressive disclosure: right level of detail for the target user?
+2. CRAFT (craft_score, 0-100)
+   Is this well-made? Judge both the code quality AND the experience quality:
+   - Code: error handling, robustness, architecture fit, readability — does it read like someone who cares?
+   - Experience: when it works, is the output clear and useful? When it fails, do you know why?
+   - Robustness: first run, empty state, bad input, missing dependencies — does it handle reality?
+   - Taste: does this feel like craft or like it was generated? Would you be proud to show it?
+   - Cite file:line for the best and worst parts.
 
-SCORING RUBRIC (0-100 per dimension, use these anchors exactly):
-- 80-100: Dimension fully satisfied. REQUIRES: zero critical gaps in this dimension, all relevant promises met with cited evidence.
-- 60-79: Mostly satisfied. Core path works. Minor gaps exist. No critical failures in this dimension.
-- 40-59: Partially satisfied. Happy path may work but significant gaps remain in this dimension.
-- 20-39: Dimension has code but doesn't deliver. Major gaps. Core promises broken or stubbed.
-- 0-19: No matching implementation for this dimension, or fundamentally broken.
+3. VIABILITY (viability_score, 0-100)
+   Would this survive contact with the market? Judge adoption odds and competitive position:
+   - Is there a real audience for this? How many people would actually use it?
+   - What are the alternatives? Is this meaningfully better than what already exists?
+   - Is there something novel here — a new approach, a unique angle, a fresh combination?
+   - Would someone choose this over the obvious alternative? Why?
+   - Cite specific evidence of viability or lack thereof.
 ${rubric_section}
-SCORING PROCEDURE — follow these steps in order:
-1. List each promise in the claim. For each, cite file:line evidence or mark MISSING.
-2. Count: promises_met / promises_total. This anchors your value_score.
-3. Count unhandled error paths (I/O, subprocess, API calls without error handling). This anchors quality_score.
-4. Assess output clarity and user feedback. This anchors ux_score.
-5. Output all three scores as separate integers. DO NOT compute a weighted total — the caller does that.
-6. Apply integrity checks below.
+PROCEDURE:
+1. Read all the code. Form an overall impression first — good, bad, somewhere in between.
+2. Score each dimension based on your judgment. Trust your instincts — you have seen enough code.
+3. For each score, cite 1-2 specific file:line examples that drove your judgment up or down.
+4. List the specific gaps (problems) and strengths.
+5. DO NOT compute a weighted total — the caller does that.
 
-INTEGRITY RULES — violating these means YOUR audit is unreliable:
-- You MUST find at least 2 genuine problems. If you found 0, you didn't look hard enough. Penalty: cap all scores at 60.
-- Evidence MUST cite file:line. Vague claims like 'handles errors well' = audit failure.
-- If code contains 2>/dev/null or || true and you report 0 silent failures, you missed them. Penalty: quality_score -10.
-- Any score > 80 requires you to explain what makes this dimension genuinely excellent, not just 'it works'.
-- quality_score > 70 requires zero unhandled error paths in code that does I/O.
-- A growth-stage product should average 45-65 per dimension. If you're averaging higher, you're inflating.
+INTEGRITY:
+- You MUST find real problems. If you found zero, you did not look hard enough.
+- Every gap must cite file:line. Vague praise or criticism = lazy review.
+- Be honest about what stage this code is at. A weekend MVP scoring 85 is suspicious.
+- You are grading against the best you have seen, not against average. 70 is genuinely good.
 
 Output ONLY this JSON object — no markdown fences, no text before or after:
-{\"value_score\":55,\"quality_score\":50,\"ux_score\":60,\"verdict\":\"PARTIAL\",\"gaps\":[\"specific problem with file:line evidence\"],\"strengths\":[\"what genuinely works well\"],\"evidence\":\"1-2 sentence summary of the audit\"}"
+{\"delivery_score\":55,\"craft_score\":50,\"viability_score\":45,\"gaps\":[\"specific problem with file:line evidence\"],\"strengths\":[\"what genuinely works well\"],\"evidence\":\"1-2 sentence overall judgment\"}"
 
     local api_key="${ANTHROPIC_API_KEY:-}"
     local result=""
@@ -826,19 +863,18 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
                     tool_choice:{type:"tool",name:"audit_result"},
                     tools:[{
                         name:"audit_result",
-                        description:"Product quality audit result with decomposed sub-scores",
+                        description:"Top 0.01% product engineer code review — subjective judgment grounded in deep experience",
                         input_schema:{
                             type:"object",
                             properties:{
-                                value_score:{type:"integer",description:"Value delivery score 0-100"},
-                                quality_score:{type:"integer",description:"Quality & robustness score 0-100"},
-                                ux_score:{type:"integer",description:"User experience score 0-100"},
-                                verdict:{type:"string",enum:["DELIVERS","PARTIAL","MISSING"]},
-                                gaps:{type:"array",items:{type:"string"}},
-                                strengths:{type:"array",items:{type:"string"}},
-                                evidence:{type:"string"}
+                                delivery_score:{type:"integer",description:"Delivery 0-100: does this feature deliver real value to the target user?"},
+                                craft_score:{type:"integer",description:"Craft 0-100: is this well-made — both code quality and experience quality?"},
+                                viability_score:{type:"integer",description:"Viability 0-100: would this survive the market — alternatives, novelty, adoption odds?"},
+                                gaps:{type:"array",items:{type:"string"},description:"Specific problems with file:line citations"},
+                                strengths:{type:"array",items:{type:"string"},description:"What genuinely works well"},
+                                evidence:{type:"string",description:"1-2 sentence overall judgment"}
                             },
-                            required:["value_score","quality_score","ux_score","verdict","gaps","strengths","evidence"]
+                            required:["delivery_score","craft_score","viability_score","gaps","strengths","evidence"]
                         }
                     }],
                     messages:[{role:"user",content:$prompt}]
@@ -908,8 +944,8 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
             return
         fi
 
-        # Try 5: grep any single-line JSON object containing "value_score" or "score"
-        json_part=$(echo "$cleaned" | grep -o '{[^}]*"value_score"[^}]*}' | head -1)
+        # Try 5: grep any single-line JSON object containing "delivery_score" or "score"
+        json_part=$(echo "$cleaned" | grep -o '{[^}]*"delivery_score"[^}]*}' | head -1)
         [[ -z "$json_part" ]] && json_part=$(echo "$cleaned" | grep -o '{[^}]*"score"[^}]*}' | head -1)
         if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
             echo "$json_part" | jq -c . | _apply_logic_antisycophancy
@@ -918,25 +954,25 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
 
         # Try 6: last resort — extract sub-scores or single score from free text and build JSON
         local extracted_value extracted_quality extracted_ux extracted_verdict
-        extracted_value=$(echo "$cleaned" | grep -oE '"value_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
-        extracted_quality=$(echo "$cleaned" | grep -oE '"quality_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
-        extracted_ux=$(echo "$cleaned" | grep -oE '"ux_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_value=$(echo "$cleaned" | grep -oE '"delivery_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_quality=$(echo "$cleaned" | grep -oE '"craft_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_ux=$(echo "$cleaned" | grep -oE '"viability_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         extracted_verdict=$(echo "$cleaned" | grep -oE '"verdict"\s*:\s*"[A-Z]+"' | head -1 | grep -oE '"[A-Z]+"$' | tr -d '"')
         if [[ -n "$extracted_value" ]]; then
-            echo "{\"value_score\":${extracted_value},\"quality_score\":${extracted_quality:-${extracted_value}},\"ux_score\":${extracted_ux:-${extracted_value}},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
+            echo "{\"delivery_score\":${extracted_value},\"craft_score\":${extracted_quality:-${extracted_value}},\"viability_score\":${extracted_ux:-${extracted_value}},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
         # Legacy fallback: single score
         local extracted_score
         extracted_score=$(echo "$cleaned" | grep -oE '"score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         if [[ -n "$extracted_score" ]]; then
-            echo "{\"value_score\":${extracted_score},\"quality_score\":${extracted_score},\"ux_score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
+            echo "{\"delivery_score\":${extracted_score},\"craft_score\":${extracted_score},\"viability_score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
     fi
 
     # Fallback: couldn't parse at all
-    echo '{"value_score":30,"quality_score":30,"ux_score":30,"score":30,"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed"}'
+    echo '{"delivery_score":30,"craft_score":30,"viability_score":30,"score":30,"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed"}'
 }
 
 # Anti-sycophancy filter for audit results (0-100 scale)
@@ -947,51 +983,51 @@ _apply_logic_antisycophancy() {
     input=$(cat)
 
     # Extract sub-scores (fall back to legacy .score if sub-scores missing)
-    local value_score quality_score ux_score
-    value_score=$(echo "$input" | jq -r '.value_score // empty' 2>/dev/null)
-    quality_score=$(echo "$input" | jq -r '.quality_score // empty' 2>/dev/null)
-    ux_score=$(echo "$input" | jq -r '.ux_score // empty' 2>/dev/null)
+    local delivery_score craft_score viability_score
+    delivery_score=$(echo "$input" | jq -r '.delivery_score // empty' 2>/dev/null)
+    craft_score=$(echo "$input" | jq -r '.craft_score // empty' 2>/dev/null)
+    viability_score=$(echo "$input" | jq -r '.viability_score // empty' 2>/dev/null)
 
     # Legacy fallback: if no sub-scores, derive from single .score
-    if [[ -z "$value_score" || -z "$quality_score" || -z "$ux_score" ]]; then
+    if [[ -z "$delivery_score" || -z "$craft_score" || -z "$viability_score" ]]; then
         local legacy_score
         legacy_score=$(echo "$input" | jq -r '.score // 50' 2>/dev/null)
         [[ "$legacy_score" -le 5 ]] && legacy_score=$((legacy_score * 20))
-        value_score="${value_score:-$legacy_score}"
-        quality_score="${quality_score:-$legacy_score}"
-        ux_score="${ux_score:-$legacy_score}"
-        input=$(echo "$input" | jq -c --argjson v "$value_score" --argjson q "$quality_score" --argjson u "$ux_score" \
-            '.value_score = $v | .quality_score = $q | .ux_score = $u')
+        delivery_score="${delivery_score:-$legacy_score}"
+        craft_score="${craft_score:-$legacy_score}"
+        viability_score="${viability_score:-$legacy_score}"
+        input=$(echo "$input" | jq -c --argjson v "$delivery_score" --argjson q "$craft_score" --argjson u "$viability_score" \
+            '.delivery_score = $v | .craft_score = $q | .viability_score = $u')
     fi
 
     # Normalize: if any score came back on 1-5 scale, convert to 0-100
-    [[ "$value_score" -le 5 ]] && value_score=$((value_score * 20))
-    [[ "$quality_score" -le 5 ]] && quality_score=$((quality_score * 20))
-    [[ "$ux_score" -le 5 ]] && ux_score=$((ux_score * 20))
+    [[ "$delivery_score" -le 5 ]] && delivery_score=$((delivery_score * 20))
+    [[ "$craft_score" -le 5 ]] && craft_score=$((craft_score * 20))
+    [[ "$viability_score" -le 5 ]] && viability_score=$((viability_score * 20))
 
     local gap_count
     gap_count=$(echo "$input" | jq -r '.gaps | length // 0' 2>/dev/null)
 
     # 0 gaps found → auditor didn't look hard enough. Cap all at 60.
     if [[ "$gap_count" -eq 0 ]]; then
-        [[ "$value_score" -gt 60 ]] && value_score=60
-        [[ "$quality_score" -gt 60 ]] && quality_score=60
-        [[ "$ux_score" -gt 60 ]] && ux_score=60
+        [[ "$delivery_score" -gt 60 ]] && delivery_score=60
+        [[ "$craft_score" -gt 60 ]] && craft_score=60
+        [[ "$viability_score" -gt 60 ]] && viability_score=60
         input=$(echo "$input" | jq -c '.gaps += ["integrity: 0 problems found — audit was not thorough enough"]')
     fi
 
     # Any sub-score > 80 with gaps → cap that sub-score at 75
     if [[ "$gap_count" -gt 0 ]]; then
-        [[ "$value_score" -gt 80 ]] && value_score=75
-        [[ "$quality_score" -gt 80 ]] && quality_score=75
-        [[ "$ux_score" -gt 80 ]] && ux_score=75
+        [[ "$delivery_score" -gt 80 ]] && delivery_score=75
+        [[ "$craft_score" -gt 80 ]] && craft_score=75
+        [[ "$viability_score" -gt 80 ]] && viability_score=75
     fi
 
     # Any sub-score > 70 with 3+ gaps → cap at 65
     if [[ "$gap_count" -ge 3 ]]; then
-        [[ "$value_score" -gt 70 ]] && value_score=65
-        [[ "$quality_score" -gt 70 ]] && quality_score=65
-        [[ "$ux_score" -gt 70 ]] && ux_score=65
+        [[ "$delivery_score" -gt 70 ]] && delivery_score=65
+        [[ "$craft_score" -gt 70 ]] && craft_score=65
+        [[ "$viability_score" -gt 70 ]] && viability_score=65
     fi
 
     # Stage cap: read project stage from rhino.yml
@@ -1006,12 +1042,12 @@ _apply_logic_antisycophancy() {
             mature) stage_cap=95 ;;
         esac
     fi
-    [[ "$value_score" -gt "$stage_cap" ]] && value_score="$stage_cap"
-    [[ "$quality_score" -gt "$stage_cap" ]] && quality_score="$stage_cap"
-    [[ "$ux_score" -gt "$stage_cap" ]] && ux_score="$stage_cap"
+    [[ "$delivery_score" -gt "$stage_cap" ]] && delivery_score="$stage_cap"
+    [[ "$craft_score" -gt "$stage_cap" ]] && craft_score="$stage_cap"
+    [[ "$viability_score" -gt "$stage_cap" ]] && viability_score="$stage_cap"
 
-    # Compute weighted total in bash (not LLM): value*0.4 + quality*0.3 + ux*0.3
-    local score=$(( value_score * 40 / 100 + quality_score * 30 / 100 + ux_score * 30 / 100 ))
+    # Compute weighted total in bash (not LLM): delivery*0.5 + craft*0.3 + viability*0.2
+    local score=$(( delivery_score * 50 / 100 + craft_score * 30 / 100 + viability_score * 20 / 100 ))
 
     # Stage cap on total too
     [[ "$score" -gt "$stage_cap" ]] && score="$stage_cap"
@@ -1022,8 +1058,8 @@ _apply_logic_antisycophancy() {
     fi
 
     # Write all scores back
-    input=$(echo "$input" | jq -c --argjson v "$value_score" --argjson q "$quality_score" --argjson u "$ux_score" --argjson s "$score" \
-        '.value_score = $v | .quality_score = $q | .ux_score = $u | .score = $s')
+    input=$(echo "$input" | jq -c --argjson v "$delivery_score" --argjson q "$craft_score" --argjson u "$viability_score" --argjson s "$score" \
+        '.delivery_score = $v | .craft_score = $q | .viability_score = $u | .score = $s')
 
     echo "$input"
 }
@@ -1054,16 +1090,16 @@ run_generative_eval() {
         cached=$(check_eval_cache "$feat_name")
 
         local verdict="" gaps="" evidence="" feat_score=""
-        local value_score="" quality_score="" ux_score=""
+        local delivery_score="" craft_score="" viability_score=""
 
         if [[ -n "$cached" && "$cached" != "" ]]; then
             verdict=$(echo "$cached" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
             gaps=$(echo "$cached" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
             evidence=$(echo "$cached" | jq -r '.evidence // ""' 2>/dev/null)
             feat_score=$(echo "$cached" | jq -r '.score // 50' 2>/dev/null)
-            value_score=$(echo "$cached" | jq -r '.value_score // empty' 2>/dev/null)
-            quality_score=$(echo "$cached" | jq -r '.quality_score // empty' 2>/dev/null)
-            ux_score=$(echo "$cached" | jq -r '.ux_score // empty' 2>/dev/null)
+            delivery_score=$(echo "$cached" | jq -r '.delivery_score // empty' 2>/dev/null)
+            craft_score=$(echo "$cached" | jq -r '.craft_score // empty' 2>/dev/null)
+            viability_score=$(echo "$cached" | jq -r '.viability_score // empty' 2>/dev/null)
         else
             # Gather code and call Claude
             local code_context
@@ -1099,17 +1135,17 @@ run_generative_eval() {
                 gaps=$(echo "$judge_result" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
                 evidence=$(echo "$judge_result" | jq -r '.evidence // ""' 2>/dev/null)
                 feat_score=$(echo "$judge_result" | jq -r '.score // 50' 2>/dev/null)
-                value_score=$(echo "$judge_result" | jq -r '.value_score // empty' 2>/dev/null)
-                quality_score=$(echo "$judge_result" | jq -r '.quality_score // empty' 2>/dev/null)
-                ux_score=$(echo "$judge_result" | jq -r '.ux_score // empty' 2>/dev/null)
+                delivery_score=$(echo "$judge_result" | jq -r '.delivery_score // empty' 2>/dev/null)
+                craft_score=$(echo "$judge_result" | jq -r '.craft_score // empty' 2>/dev/null)
+                viability_score=$(echo "$judge_result" | jq -r '.viability_score // empty' 2>/dev/null)
             else
                 verdict="MISSING"
                 gaps="no code files found"
                 evidence=""
                 feat_score=0
-                value_score=0
-                quality_score=0
-                ux_score=0
+                delivery_score=0
+                craft_score=0
+                viability_score=0
             fi
         fi
 
@@ -1142,17 +1178,21 @@ run_generative_eval() {
         GENERATIVE_COUNT=$((GENERATIVE_COUNT + 1))
         GENERATIVE_SUM=$((GENERATIVE_SUM + feat_score))
 
-        # Accumulate for display
+        # Accumulate for display (include sub-scores)
         if [[ "$SCORE_MODE" != "true" ]]; then
-            GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}")
+            local _sub_scores=""
+            [[ -n "$delivery_score" && "$delivery_score" != "null" ]] && _sub_scores="d:${delivery_score}"
+            [[ -n "$craft_score" && "$craft_score" != "null" ]] && _sub_scores="${_sub_scores:+${_sub_scores} }c:${craft_score}"
+            [[ -n "$viability_score" && "$viability_score" != "null" ]] && _sub_scores="${_sub_scores:+${_sub_scores} }v:${viability_score}"
+            GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}|${_sub_scores}")
         fi
 
         # Build cache entry with sub-scores and delta
         $cache_first || cache_json+=","
         local cache_extras=""
-        [[ -n "$value_score" ]] && cache_extras+=",\"value_score\":${value_score}"
-        [[ -n "$quality_score" ]] && cache_extras+=",\"quality_score\":${quality_score}"
-        [[ -n "$ux_score" ]] && cache_extras+=",\"ux_score\":${ux_score}"
+        [[ -n "$delivery_score" ]] && cache_extras+=",\"delivery_score\":${delivery_score}"
+        [[ -n "$craft_score" ]] && cache_extras+=",\"craft_score\":${craft_score}"
+        [[ -n "$viability_score" ]] && cache_extras+=",\"viability_score\":${viability_score}"
         [[ -n "$delta" ]] && cache_extras+=",\"delta\":\"${delta}\""
         [[ -n "$delta_vs" ]] && cache_extras+=",\"delta_vs\":${delta_vs}"
         cache_json+="\"$feat_name\":{\"verdict\":$(echo "$verdict" | jq -Rs .),\"gaps\":$(if [[ -n "$gaps" ]]; then echo "$gaps" | jq -Rs 'split("; ") | map(select(length > 0))'; else echo '[]'; fi),\"evidence\":$(echo "$evidence" | jq -Rs .),\"score\":${feat_score:-50}${cache_extras},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
@@ -1172,25 +1212,15 @@ run_generative_eval() {
     if command -v jq &>/dev/null; then
         local delta_entry
         delta_entry=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        local delta_json="{\"timestamp\":\"${delta_entry}\",\"features\":{"
-        local delta_first=true
-        echo "$cache_json" | jq -r 'to_entries[] | "\(.key)|\(.value.score // 0)|\(.value.delta // "unknown")|\(.value.delta_vs // "")"' 2>/dev/null | while IFS='|' read -r dname dscore ddelta ddvs; do
-            [[ -z "$dname" ]] && continue
-            $delta_first || delta_json+=","
-            delta_json+="\"${dname}\":{\"score\":${dscore},\"delta\":\"${ddelta}\",\"vs\":${ddvs:-null}}"
-            delta_first=false
-        done
-        delta_json+="}}"
+        # Build delta JSON using jq directly (avoids subshell variable mutation bug)
+        local delta_features_json
+        delta_features_json=$(echo "$cache_json" | jq -c '[to_entries[] | {key: .key, value: {score: (.value.score // 0), delta: (.value.delta // "unknown"), vs: (.value.delta_vs // null)}}] | from_entries' 2>/dev/null) || delta_features_json="{}"
+        local delta_json
+        delta_json=$(jq -nc --arg ts "$delta_entry" --argjson feats "$delta_features_json" '{timestamp: $ts, features: $feats}')
 
         # Append to delta history (keep last 50 entries)
         if [[ -f "$delta_file" ]]; then
-            local existing
-            existing=$(jq -c '.' "$delta_file" 2>/dev/null)
-            if [[ -n "$existing" ]]; then
-                echo "$existing" | jq -c --argjson new "$delta_json" '. + [$new] | .[-50:]' > "${delta_file}.tmp" 2>/dev/null && mv "${delta_file}.tmp" "$delta_file" 2>/dev/null || true
-            else
-                echo "[$delta_json]" > "$delta_file" 2>/dev/null || true
-            fi
+            jq -c --argjson new "$delta_json" '. + [$new] | .[-50:]' "$delta_file" > "${delta_file}.tmp" 2>/dev/null && mv "${delta_file}.tmp" "$delta_file" 2>/dev/null || echo "[$delta_json]" > "$delta_file" 2>/dev/null || true
         else
             echo "[$delta_json]" > "$delta_file" 2>/dev/null || true
         fi
@@ -1458,7 +1488,7 @@ ${judge_context}"
                         local judge_payload
                         judge_payload=$(jq -n \
                             --arg prompt "$belief_prompt" \
-                            --arg context "$(echo "$judge_context" | head -100)" \
+                            --arg context "$(echo "$judge_context" | head -500)" \
                             '{model:"claude-haiku-4-5-20251001",max_tokens:100,temperature:0,messages:[{role:"user",content:("Evaluate this code. Answer ONLY pass or fail on the first line, then a one-sentence reason on the second line.\n\nQuestion: " + $prompt + "\n\nCode:\n" + $context)}]}')
                         local judge_response
                         judge_response=$(curl -s "https://api.anthropic.com/v1/messages" \
@@ -1510,7 +1540,7 @@ ${judge_context}"
                 fi
             elif [[ -n "$belief_feature" ]]; then
                 # Auto-discover: find files related to this feature
-                review_context=$(grep -rl "$belief_feature" bin/ .claude/commands/ lens/ config/ 2>/dev/null | grep -v node_modules | head -8 | while read -r f; do
+                review_context=$(grep -rl "$belief_feature" bin/ skills/ lens/ config/ 2>/dev/null | grep -v node_modules | head -8 | while read -r f; do
                     echo "=== $f ==="
                     head -150 "$f" 2>/dev/null
                 done)
@@ -1800,6 +1830,13 @@ ${review_context}"
     local _layer="${belief_layer:-unscoped}"
     LAYER_RESULTS="${LAYER_RESULTS}${_feat}~${_layer}:${_dp}:${_dw}:${_df}
 "
+    # Track assertion history (for /eval trend)
+    local _ah_status="PASS"
+    if [[ "$_df" -gt 0 ]]; then _ah_status="FAIL"
+    elif [[ "$_dw" -gt 0 ]]; then _ah_status="WARN"
+    fi
+    ASSERTION_HISTORY="${ASSERTION_HISTORY}$(date '+%Y-%m-%d')\t${_feat}\t${belief_id}\t${belief_type:-unknown}\t${_ah_status}\twarn
+"
 }
 
 # === beliefs.yml checks ===
@@ -1986,6 +2023,16 @@ if [[ -f "$BELIEFS_FILE" ]]; then
 
     # Process last belief
     process_belief
+fi
+
+# === Write assertion history (for /eval trend) ===
+if [[ -n "$ASSERTION_HISTORY" && "$SCORE_MODE" != "true" ]]; then
+    ASSERTION_HISTORY_FILE=".claude/evals/assertion-history.tsv"
+    mkdir -p "$(dirname "$ASSERTION_HISTORY_FILE")"
+    if [[ ! -f "$ASSERTION_HISTORY_FILE" ]]; then
+        printf 'date\tfeature\tassertion_id\ttype\tstatus\tseverity\n' > "$ASSERTION_HISTORY_FILE"
+    fi
+    printf '%b' "$ASSERTION_HISTORY" >> "$ASSERTION_HISTORY_FILE"
 fi
 
 # === --score mode: output single integer, per-feature JSON, or combined JSON ===
@@ -2198,14 +2245,7 @@ if [[ "$SCORE_MODE" == "true" ]]; then
         fi
     fi
 
-    # ── Score formula ──
-    # Primary signal: generative feature audit scores (0-100 each, from LLM)
-    # Modifier: belief failures deduct from the score
-    # No generative data: beliefs-only fallback (degraded — flag it)
-    #
-    # Stage caps (from anti-sycophancy): mvp≤65, early≤75, growth≤85, mature≤95
-    # Block severity failure: score = 0 regardless
-    _eval_score=""
+    # ── Score formula (uses shared compute_eval_score) ──
     _has_block_fail=false
     for _entry in "${BELIEF_FAILS[@]+"${BELIEF_FAILS[@]}"}"; do
         if echo "$_entry" | grep -q '|block$'; then
@@ -2213,21 +2253,7 @@ if [[ "$SCORE_MODE" == "true" ]]; then
             break
         fi
     done
-
-    if [[ "$_has_block_fail" == true ]]; then
-        _eval_score=0
-    elif [[ "$GENERATIVE_COUNT" -gt 0 ]]; then
-        # Generative avg is the score. Belief failures are deductions.
-        _gen_avg=$((GENERATIVE_SUM / GENERATIVE_COUNT))
-        # Deduct for belief failures: -3 per warn, -5 per fail (non-block)
-        _belief_penalty=$((WARN * 3 + FAIL * 5))
-        _eval_score=$((_gen_avg - _belief_penalty))
-        [[ "$_eval_score" -lt 0 ]] && _eval_score=0
-    elif [[ "$BELIEFS_TOTAL" -gt 0 ]]; then
-        # Beliefs-only: mechanical assertions are the score
-        # No cap — beliefs are deterministic and trustworthy
-        _eval_score=$(( (PASS * 100 + WARN * 50) / BELIEFS_TOTAL ))
-    fi
+    _eval_score=$(compute_eval_score "$GENERATIVE_COUNT" "$GENERATIVE_SUM" "$PASS" "$WARN" "$FAIL" "$_has_block_fail")
 
     # Aggregate per-quality results (global, across all features)
     _bq_tmpdir=$(mktemp -d)
@@ -2269,17 +2295,9 @@ fi
 
 # === Display (voice.md format) ===
 if [[ "$SCORE_MODE" != "true" ]]; then
-    # Compute display score (same formula as --score mode)
+    # Compute display score (shared formula)
     BELIEFS_TOTAL=$((PASS + WARN + FAIL))
-    _display_score=""
-    if [[ "$GENERATIVE_COUNT" -gt 0 ]]; then
-        _gen_avg=$((GENERATIVE_SUM / GENERATIVE_COUNT))
-        _belief_penalty=$((WARN * 3 + FAIL * 5))
-        _display_score=$((_gen_avg - _belief_penalty))
-        [[ "$_display_score" -lt 0 ]] && _display_score=0
-    elif [[ "$BELIEFS_TOTAL" -gt 0 ]]; then
-        _display_score=$(( (PASS * 100 + WARN * 50) / BELIEFS_TOTAL ))
-    fi
+    _display_score=$(compute_eval_score "$GENERATIVE_COUNT" "$GENERATIVE_SUM" "$PASS" "$WARN" "$FAIL" "false")
 
     # Aggregate layer results for display
     _display_layer_tmpdir=$(mktemp -d)
@@ -2321,10 +2339,10 @@ if [[ "$SCORE_MODE" != "true" ]]; then
     echo -e "$SEP"
     echo ""
 
-    # Features section — each feature gets a score and its top gap
+    # Features section — score, sub-scores, gap
     if [[ ${#GENERATIVE_DISPLAY[@]} -gt 0 ]]; then
         echo -e "  ${BOLD}features${NC}"
-        printf '%s\n' "${GENERATIVE_DISPLAY[@]}" | sort -t'|' -k2 -n | while IFS='|' read -r _fname _fscore _fdelivers _fgaps; do
+        printf '%s\n' "${GENERATIVE_DISPLAY[@]}" | sort -t'|' -k2 -n | while IFS='|' read -r _fname _fscore _fdelivers _fgaps _fsub; do
             # Color by score band
             if [[ "$_fscore" -ge 70 ]]; then
                 _score_color="${GREEN}"
@@ -2341,9 +2359,14 @@ if [[ "$SCORE_MODE" != "true" ]]; then
             for ((i=0; i<_filled; i++)); do _fbar+="█"; done
             for ((i=0; i<_empty; i++)); do _fbar+="░"; done
 
-            printf "  %-16s %b%s%b  %b%-3s%b\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC"
+            # Score line with sub-scores
+            if [[ -n "$_fsub" ]]; then
+                printf "  %-16s %b%s%b  %b%-3s%b  ${DIM}%s${NC}\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC" "$_fsub"
+            else
+                printf "  %-16s %b%s%b  %b%-3s%b\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC"
+            fi
 
-            # Show gap (always — the gap is the point)
+            # Show gap
             if [[ -n "$_fgaps" && "$_fgaps" != "null" ]]; then
                 _desc="$_fgaps"
                 [[ ${#_desc} -gt 60 ]] && _desc="${_desc:0:57}..."

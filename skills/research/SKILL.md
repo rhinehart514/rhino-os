@@ -3,7 +3,6 @@ name: research
 description: "Gather evidence (HOW to decide). /research picks the top unknown. /research auth digs into a feature. /research docs <lib> pulls real-time docs. /research site <url> analyzes a live site. Produces findings, not ideas — use /ideate for brainstorming."
 argument-hint: "[feature|docs <lib>|site <url>|competitor <name>|market|history|gaps|\"topic\"]"
 allowed-tools: Read, Bash, Grep, Glob, Agent, WebSearch, WebFetch
-context: fork
 ---
 
 # /research
@@ -73,9 +72,9 @@ Pick the unknown with the highest information value **relative to the product ma
 Deep dive: maturity, weight, dependencies, assertions, codebase trace, library docs via context7, WebSearch for best practices.
 
 **Sub-score targeting**: read `.claude/cache/eval-cache.json` for this feature's sub-scores. Focus research on the weakest dimension:
-- Low value_score → "is the code actually delivering the claim? What's missing?"
-- Low quality_score → "what error paths exist? What edge cases matter?"
-- Low ux_score → "what does good output look like for this? What are best practices?"
+- Low delivery_score → "is the code actually delivering the claim? What's missing?"
+- Low craft_score → "what error paths exist? What edge cases matter?"
+- Low viability_score → "what does good output look like for this? What are best practices?"
 
 If a rubric exists (`.claude/cache/rubrics/<feature>.json`), use its specific checks to guide investigation.
 
@@ -100,7 +99,7 @@ WebSearch + playwright for features, pricing, UX. Map vs rhino-os approach.
 Spawns the **market-analyst agent** for comprehensive landscape research:
 
 ```
-Agent(subagent_type: "general-purpose", prompt: "Run market analysis...", name: "market-analyst")
+Agent(subagent_type: "rhino-os:market-analyst", prompt: "Run market analysis for [domain]. Search for competing products, capture screenshots, build market context. Write results to .claude/cache/market-context.json.", name: "market-analyst")
 ```
 
 The agent searches for competing products, captures screenshots, builds a market context document. Results written to `.claude/cache/market-context.json` and fed into rubric generation for more calibrated feature scoring.
@@ -210,12 +209,13 @@ Convert findings into backlog items:
 **Cross-reference with existing todos**: read `.claude/plans/todos.yml` before writing. If research-sourced todos from previous sessions are piling up (3+ open todos from `/research` source), flag: "Research is producing more todos than the build loop is consuming. Consider `/go [feature]` to clear the backlog before adding more."
 
 ### 8. Agent spawning
-For complex research, spawn specialized agents:
-- **explorer agent**: for deep codebase analysis (tracing dependencies, mapping architecture)
-- **market-analyst agent**: for `market` and `competitor` routes
-- **general-purpose agents**: for parallel research threads (e.g., research competitors AND codebase simultaneously)
+For complex research, spawn named agents (not generic "general-purpose"):
+- `Agent(subagent_type: "rhino-os:explorer", ...)` — deep codebase analysis (tracing dependencies, mapping architecture)
+- `Agent(subagent_type: "rhino-os:market-analyst", ...)` — `market` and `competitor` routes
+- Spawn both in parallel when the research question spans codebase AND market (e.g., "how does our approach compare?")
+- Use `run_in_background: true` for agents whose results aren't needed immediately
 
-Agents report back via SendMessage. Their `todo:` prefixed messages get written to todos.yml.
+Agents report back via SendMessage. Their `todo:` prefixed messages get written to todos.yml. Named agents have memory (`memory: user`) — they remember patterns from prior research sessions.
 
 For multi-source protocol details, research artifact format, and output templates, see [reference.md](reference.md).
 

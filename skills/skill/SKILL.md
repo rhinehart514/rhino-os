@@ -7,7 +7,7 @@ allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
 
 # /skill
 
-**The difference:** Claude Code has commands — `.claude/commands/*.md` prompt files. Anyone can make one. rhino-os has skills — commands that are **measured**.
+**The difference:** Claude Code has commands — simple prompt files. Anyone can make one. rhino-os has skills — `skills/*/SKILL.md` files that are **measured**.
 
 A Claude Code command is a prompt. A rhino-os skill is a prompt that knows if it's good.
 
@@ -15,7 +15,7 @@ A Claude Code command is a prompt. A rhino-os skill is a prompt that knows if it
 |---|---|---|
 | Prompt file | ✓ | ✓ |
 | Assertions that test it | | ✓ |
-| Sub-scores (value/quality/ux) | | ✓ |
+| Sub-scores (delivery/craft/viability) | | ✓ |
 | Per-feature rubric | | ✓ |
 | Maturity tracking | | ✓ |
 | Agent wiring (todo exhaust) | | ✓ |
@@ -73,7 +73,7 @@ Not just names — show which skills are measured and how they're doing.
 ◆ skill — 18 skills
 
   ⎯⎯ measured (feature in rhino.yml) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  /eval          ████████████░░░░░░░░  working   w:5  58 (v:62 q:50 u:60)
+  /eval          ████████████░░░░░░░░  working   w:5  58 (d:62 c:50 v:60)
   /plan          ████████████░░░░░░░░  working   w:5
   /go            ██████░░░░░░░░░░░░░░  building  w:4  BETA
   /feature       ████████████░░░░░░░░  working   w:5
@@ -425,7 +425,7 @@ Show the skill's full measurement profile:
 
   ⎯⎯ measurement ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
   feature: scoring (w:5, working)
-  score: 58/100 (v:62 q:50 u:60) ↑4
+  score: 58/100 (d:62 c:50 v:60) ↑4
   assertions: 10/11 passing
   rubric: .claude/cache/rubrics/scoring.json (fresh)
 

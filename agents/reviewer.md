@@ -3,6 +3,9 @@ name: reviewer
 description: "Post-build quality reviewer. Checks against product standards and UX checklist. Cannot edit files."
 allowed_tools: [Read, Glob, Grep, "Bash(git diff *)", "Bash(git log *)", "Bash(rhino score *)", TaskUpdate, SendMessage]
 model: haiku
+memory: user
+maxTurns: 10
+skills: [product-lens]
 ---
 
 # Reviewer Agent

@@ -179,7 +179,6 @@ my-plugin/
 │   └── plugin.json          # manifest (required)
 ├── skills/                  # SKILL.md files
 ├── agents/                  # agent .md files
-├── commands/                # command .md files (legacy)
 ├── hooks/
 │   └── hooks.json           # hook definitions
 └── .mcp.json                # MCP server config
@@ -235,25 +234,54 @@ This is the pattern — not sequential command chaining, but **parallel agent or
 
 ## What This Means for rhino-os
 
-### Immediate Opportunities (use existing features better)
+### Critical Constraint: `context: fork` and Agent Spawning Are Mutually Exclusive
 
-1. **`context: fork` on expensive skills.** /eval taste, /research, /clone should run in isolated context to protect the main conversation.
-2. **`model: haiku` on cheap skills.** /assert list, /todo show, /rhino don't need opus. Save tokens.
-3. **`allowed-tools` on readonly skills.** /eval, /strategy, /retro shouldn't be able to Write files during analysis phase.
-4. **`memory: user` on agents.** Builder and reviewer agents that learn codebase patterns across sessions.
-5. **`isolation: worktree` on /go.** Build in a worktree, merge on keep, discard on revert. Clean.
+A forked skill runs AS a subagent. Subagents CANNOT spawn sub-subagents. This means:
+- **Architecture A (Inline Orchestrator)**: No fork, CAN spawn agents. Use for skills that coordinate agents: /go, /eval, /research, /strategy, /discover, /ideate
+- **Architecture B (Forked Task)**: Fork, CANNOT spawn agents. Use for expensive isolated work: /product, /calibrate, /taste (when not orchestrating)
 
-### Medium-Term Opportunities (new capabilities)
+Skills MUST choose one architecture. Having both `context: fork` AND `Agent` in allowed-tools is a bug.
 
-6. **`UserPromptSubmit` hook for intent routing.** Auto-route "is this good?" to /eval before Claude even processes the message. Currently in CLAUDE.md instructions — could be a hook.
-7. **`TaskCompleted` hook as quality gate.** Block /go loop tasks from completing if assertions regressed. Mechanical enforcement.
-8. **`PostCompact` hook for context rebuild.** We save context pre-compaction but don't rebuild post-compaction.
-9. **Agent teams for /batch-style composite skills.** /audit spawns taste-agent + eval-agent + product-agent in parallel, synthesizes results.
-10. **`SessionEnd` hook for session logging.** Auto-write session summary to `.claude/sessions/` without manual /go reference.md logic.
+### Done (v8.3)
 
-### Big Bets (new product surface)
+- ~~`context: fork` on expensive skills~~ — /product uses fork. /research, /strategy removed fork (need agents).
+- ~~`model: haiku` on cheap skills~~ — measurer→haiku, reviewer→haiku.
+- ~~`memory: user` on agents~~ — all 9 agents have `memory: user`.
+- ~~`background: true` on agents~~ — explorer and market-analyst always run in background.
+- ~~`/batch` pattern for /go~~ — builder + refactorer agents use worktree isolation.
+- ~~Parallel evaluator spawning~~ — /eval spawns evaluator per feature in parallel.
+- ~~Named agent references~~ — all skills use `rhino-os:<agent>`, never `"general-purpose"`.
+- ~~`skills` preloading on agents~~ — builder, explorer, evaluator, reviewer, refactorer, grader have skills injected.
+- ~~`maxTurns` on agents~~ — all 9 agents have safety valves (10-30 turns).
+- ~~/calibrate merged into /taste~~ — taste owns visual intelligence + calibration.
 
-11. **Composite skills using `context: fork` + agent orchestration.** /pulse, /prove, /speedrun as real agent-orchestrated workflows, not sequential command calls.
-12. **Cross-tool portability via AgentSkills.io.** rhino-os skills working in Cursor and Gemini CLI. Massively expands TAM.
-13. **Marketplace distribution with version pinning.** `claude plugin install rhino-os@v8.0.3` with guaranteed compatibility.
-14. **The "/batch for product" pattern.** Decompose a feature into N tasks, spawn N agents in worktrees, each builds one piece, human reviews PRs. /go but parallel.
+### Priority 1: Highest Leverage (would change behavior)
+
+1. **Plugin `settings.json` with `agent` key.** A plugin can make Claude boot into a persona. One agent definition could replace the entire `.claude/rules/` symlink architecture. rhino-os ships a default agent config that gives every session measurement awareness + prediction discipline without symlinks.
+
+2. **Agent SDK for eval (rewrite bin/eval.sh).** The 15pt variance in LLM-judged feature scores is the #1 measurement problem. Fix: rewrite the judge as Python/TypeScript using the Anthropic API with temperature=0, structured output schema, rubric-anchored prompts. Directly eliminates JSON parsing bugs and non-determinism. Cost: ~$0.03/eval run on Haiku.
+
+3. **`UserPromptSubmit` hook for intent routing.** The intent routing table in CLAUDE.md is instructions Claude reads and follows. A hook makes it deterministic — "is this good?" mechanically routes to /eval before Claude processes the message. No reliance on Claude reading the table correctly.
+
+4. **`TaskCompleted` hook as quality gate.** Blocks /go loop tasks from completing if assertions regressed. Currently /go has instructional checks; a hook makes it a mechanical gate that can't be bypassed. The difference between "the skill says check assertions" and "the system won't let you continue."
+
+5. **`SessionEnd` hook for auto session logging.** Write session summary, capture ungraded predictions, log to `.claude/sessions/`. Currently manual — the grader agent helps but the session capture itself is still opt-in.
+
+6. **`prompt` hook handler on `SubagentStop`.** rhino-os only uses `command` hooks (shell scripts). A `prompt` hook is a lightweight LLM evaluation — "did this agent follow rhino-os standards?" Free quality enforcement on every agent completion. Zero shell scripts needed.
+
+### Priority 2: Medium-Term (extend what works)
+
+7. **LSP tool on evaluator agent.** 50ms go-to-definition vs 30-60s grep. Add LSP to evaluator's allowed-tools for dramatically better code navigation during /eval. Supports 11+ languages.
+8. **`PostCompact` hook for context rebuild.** We save context pre-compaction but don't rebuild post-compaction. PostCompact should re-inject the state bar + recent eval results.
+9. **`InstructionsLoaded` hook.** Validate mind files actually loaded (currently no way to know if identity.md/thinking.md failed to inject).
+10. **CronCreate for periodic monitoring.** /go could schedule periodic score checks during build loops instead of manual check-ins. Session-scoped, up to 50 tasks.
+11. **Auto-memory unification.** Claude Code has native `~/.claude/memory/`. All 9 agents have `memory: user`. Does this overlap with experiment-learnings.md? If agent memory captures the same patterns, the manual knowledge model becomes redundant.
+12. **MCP elicitation for interactive /eval.** /eval could ask the founder structured quality questions during scoring instead of pure LLM judgment. Blends human signal with mechanical measurement.
+13. **Skill-scoped hooks.** /go could have an on-complete hook that runs assertions. Skills can have their own lifecycle hooks — not just global ones.
+14. **`allowed-tools` on readonly skills.** /eval analysis phase, /retro shouldn't be able to Write files.
+
+### Priority 3: Big Bets (new product surface)
+
+15. **Cross-tool portability via AgentSkills.io.** rhino-os skills working in Cursor and Gemini CLI. Massively expands TAM.
+16. **Marketplace distribution with version pinning.** `claude plugin install rhino-os@v8.0.3` with guaranteed compatibility.
+17. **Agent teams for composite skills.** Experimental in Claude Code. /audit spawns taste + eval + product agents that communicate directly with each other — not just report back to the orchestrating skill.

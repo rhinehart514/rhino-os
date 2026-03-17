@@ -11,12 +11,12 @@ Loaded on demand. Loop logic and routing are in SKILL.md.
 ```
 ◆ move 1 — error boundary hardening
 
-  predict: quality_score +15 (50→65) from wrapping file I/O in try/catch
+  predict: craft_score +15 (50→65) from wrapping file I/O in try/catch
   because: Known Pattern — error handling is mechanical, high keep rate
   wrong if: subprocess calls need different error handling than file I/O
 
-  result:  quality_score +8 (50→58). File I/O paths covered, subprocess paths still open.
-  verdict: ✓ kept (scoring 58 → 63, v:62→68 q:50→58 u:60→65)
+  result:  craft_score +8 (50→58). File I/O paths covered, subprocess paths still open.
+  verdict: ✓ kept (scoring 58 → 63, d:62→68 c:50→58 v:60→65)
 
   graded: **partial** — subprocess error handling needs separate approach
   model update: file I/O and subprocess error handling are different patterns (Uncertain)
@@ -27,19 +27,19 @@ Loaded on demand. Loop logic and routing are in SKILL.md.
 ```
 ◆ move 2 — trend visualization  [SPECULATIVE]
 
-  predict: value_score +10 from adding sparkline to score output
+  predict: delivery_score +10 from adding sparkline to score output
   because: Exploring — no data on visualization impact
   wrong if: users don't look at score output at all
 
   ▾ speculative branching (2 approaches)
     branch A: inline ASCII sparkline in score output
       agent: worktree-a (builder)
-      result: value_score +6 (62→68), quality_score -2 (58→56)
+      result: delivery_score +6 (62→68), craft_score -2 (58→56)
       reviewer: KEEP — clean implementation, minor string formatting issue
 
     branch B: separate `rhino trend` command with full chart
       agent: worktree-b (builder)
-      result: value_score +3 (62→65), quality_score +0 (58→58)
+      result: delivery_score +3 (62→65), craft_score +0 (58→58)
       reviewer: KEEP_WITH_FIXES — missing error handling for empty history
 
   winner: **branch A** (+6 value vs +3, quality regression is minor)
@@ -86,11 +86,11 @@ Loaded on demand. Loop logic and routing are in SKILL.md.
   install    ████████████████████  polished  w:3
 
 ▾ what changed
-  ✓ move 1: error boundary hardening (+5 scoring, q:50→58)
-  ✓ move 2: trend visualization via sparkline (+6 scoring, v:62→68) [speculated, branch A won]
+  ✓ move 1: error boundary hardening (+5 scoring, c:50→58)
+  ✓ move 2: trend visualization via sparkline (+6 scoring, d:62→68) [speculated, branch A won]
   ✗ move 3: auto-grade predictions (reverted — reviewer caught hook fragility)
 
-▾ maturity updates
+▾ score updates
   · scoring: working → working (improved but not all assertions passing yet)
 
 ▾ model updates
@@ -153,7 +153,7 @@ Key fields for beta tracking:
 - `speculated: N` — how many moves used speculative branching
 - `adversarial_overrides: N` — times measurement overruled reviewer
 - `adversarial_catches: N` — times reviewer caught problems measurement missed
-- `features_changed` includes sub-score breakdown: `{before, after, value: [before,after], quality: [before,after], ux: [before,after]}`
+- `features_changed` includes sub-score breakdown: `{before, after, delivery: [before,after], craft: [before,after], viability: [before,after]}`
 
 ## Beta feature tracking
 

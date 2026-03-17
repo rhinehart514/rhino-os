@@ -27,7 +27,7 @@ Read `project.mode` from `config/rhino.yml`:
 
 Every route reads these first:
 1. `.claude/plans/roadmap.yml` — theses, evidence, version history
-2. `config/rhino.yml` — features (maturity/weight/depends_on), mode, value hypothesis
+2. `config/rhino.yml` — features (weight/depends_on), mode, value hypothesis
 3. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions mentioning the thesis or current version
 4. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known/uncertain/unknown/dead patterns
 5. `git log --oneline -20` — recent work (commit timestamps for velocity)
@@ -74,13 +74,13 @@ Write reflection, show version list, one forward-looking thought.
 
 Not a list — a diagnosis. For each evidence item in the current version:
 
-1. **Map evidence to features.** Which rhino.yml features, if matured, would prove this evidence item? Check `delivers:` text against evidence `question:` text. A `working`+ feature with matching scope = strong evidence.
+1. **Map evidence to features.** Which rhino.yml features, if improved, would prove this evidence item? Check `delivers:` text against evidence `question:` text. A feature scoring 60+ with matching scope = strong evidence.
 
 2. **Score provability.** For each `todo` or `partial` evidence item:
-   - Which features relate to it? What's their maturity?
+   - Which features relate to it? What's their eval score?
    - Are there predictions about it? What do they say?
    - Is the bottleneck blocking it?
-   - Estimate: `ready` (features working, just needs validation), `close` (features building, one session away), `blocked` (depends on something at `planned`), `unknown` (no related features or data)
+   - Estimate: `ready` (features scoring 60+, just needs validation), `close` (features scoring 30-59, one session away), `blocked` (depends on something scoring <30), `unknown` (no related features or data)
 
 3. **Recommend the first experiment.** The most provable evidence item = the one with the most supporting feature maturity and the fewest blockers. Suggest a concrete action: "Run /go on [feature] and check if [evidence question] is answered."
 
@@ -142,7 +142,7 @@ Generate a human-readable changelog from the roadmap. Not git commits — thesis
 2. For each version, extract: what changed for the USER (not what code changed)
 3. Translate internal language to external language:
    - "thesis proven" → "now supports..."
-   - "feature matured to working" → "added..."
+   - "feature reached 60+" → "added..."
    - "evidence item disproven" → "removed..." or "changed approach to..."
    - "Known Pattern confirmed" → (don't surface — internal)
 

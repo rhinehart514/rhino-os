@@ -37,7 +37,7 @@ topic: [what was researched]
 mode: [docs|site|feature|free-form|claude-code|competitor|top-unknown]
 product_completion: [current %]
 targets_feature: [feature name this research is about]
-targets_maturity: [what maturity transition this enables, e.g., "building → working"]
+targets_score: [what eval score improvement this enables, e.g., "40 → 60"]
 findings:
   - finding: [one-line summary]
     source: [context7|web|playwright|codebase|knowledge]
@@ -46,10 +46,10 @@ suggested_tasks:
   - [task description for /plan to pick up]
 suggested_assertions:
   - [testable belief for beliefs.yml]
-suggested_maturity_updates:
+suggested_score_updates:
   - feature: [name]
-    from: [current maturity]
-    to: [suggested new maturity]
+    current_score: [N]
+    expected_score: [N]
     reason: [why this research justifies the update]
 model_updates:
   - section: [Known|Uncertain|Unknown|Dead Ends]
@@ -64,10 +64,10 @@ model_updates:
 ◆ research — scoring
 
   product: **64%** · bottleneck: **learning** (building, w:4)
-  scoring: 58/100 (v:62 q:50 u:60) — weakest: **quality_score 50**
+  scoring: 58/100 (d:62 c:50 v:60) — weakest: **craft_score 50**
   predict: error handling patterns will reveal 3+ unhandled paths
-  because: Known Pattern — quality_score correlates with error path coverage
-  targeting: scoring quality_score 50 → 65
+  because: Known Pattern — craft_score correlates with error path coverage
+  targeting: scoring craft_score 50 → 65
   sources: codebase, context7, web
 
 ▾ findings
@@ -84,11 +84,11 @@ model_updates:
 
 ▾ what this changes
   · next build session: wrap the 4 subprocess calls in explicit error checks
-  · pattern confirmed: quality_score tracks error path coverage (Known)
+  · pattern confirmed: craft_score tracks error path coverage (Known)
   · scoring: working → working (still needs UX work after quality fix)
 
 ▾ model update
-  Known:     "quality_score tracks error path coverage" confirmed (3rd experiment)
+  Known:     "craft_score tracks error path coverage" confirmed (3rd experiment)
   Uncertain: "trap-based cleanup improves robustness" (needs testing)
   Dead ends: none
 
@@ -97,7 +97,7 @@ model_updates:
 ▾ actionable
   · task: "wrap 4 subprocess calls in score.sh with error handling" → captured as todo
   · assert: "scoring: all subprocess calls have error handling"
-  · next: test if fixing these 4 paths actually raises quality_score
+  · next: test if fixing these 4 paths actually raises craft_score
 
 ▾ todos captured
   · [scoring] wrap subprocess calls in score.sh with error handling    /research  [new]
@@ -116,7 +116,7 @@ model_updates:
   product: **64%** · bottleneck: **learning** (building, w:4)
   predict: prediction accuracy improves across sessions when experiment-learnings is cited
   because: Exploring — zero data on cross-session compounding
-  targeting: learning quality_score 40 → unknown (exploratory)
+  targeting: learning craft_score 40 → unknown (exploratory)
   sources: knowledge, codebase, web
 
 ▾ findings
