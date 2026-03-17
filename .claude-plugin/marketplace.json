@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "8.2.1",
+      "version": "8.2.2",
       "source": "./",
       "description": "Learning plugin for Claude Code — measurement, predictions, and autonomous building that compounds across sessions. 21 commands, 6 agents, 22 skills. Auto-updates supported.",
       "author": {

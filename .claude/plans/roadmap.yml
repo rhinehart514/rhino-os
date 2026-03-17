@@ -177,6 +177,13 @@ versions:
     proven: 2026-03-16
     summary: "Fixed duplicate hooks loading in plugin mode — hooks/hooks.json is auto-discovered by Claude Code plugin system, manifest.hooks reference was redundant. Bumped plugin.json to 8.2.1. Full referential integrity audit: all 6 agents, 22 skills, 8 hooks, 18 commands, 13 bin scripts verified present."
 
+  v8.2.2:
+    tier: patch
+    parent: v8.2
+    status: proven
+    proven: 2026-03-16
+    summary: "/discover command (product discovery intelligence), rich visual output (bars/sparklines/screenshots), history logging wired into /eval and /taste, /rhino progress with trend views. Fixed symlinks: added discover/calibrate/openclaw/taste, removed dead strategist."
+
   v9.0:
     thesis: "Plugin marketplace distribution — someone finds rhino-os, installs it, gets value"
     tier: major
