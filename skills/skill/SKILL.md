@@ -7,549 +7,66 @@ allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
 
 # /skill
 
-**The difference:** Claude Code has commands — simple prompt files. Anyone can make one. rhino-os has skills — `skills/*/SKILL.md` files that are **measured**.
+Manages the skill lifecycle: create, inspect, audit, remove. A rhino-os skill is a **measured folder** — prompt + scripts + references + assertions. Not just a markdown file.
 
-A Claude Code command is a prompt. A rhino-os skill is a prompt that knows if it's good.
+## Skill folder structure
 
-| | Claude Code command | rhino-os skill |
-|---|---|---|
-| Prompt file | ✓ | ✓ |
-| Assertions that test it | | ✓ |
-| Sub-scores (delivery/craft/viability) | | ✓ |
-| Per-feature rubric | | ✓ |
-| Maturity tracking | | ✓ |
-| Agent wiring (todo exhaust) | | ✓ |
-| Becomes a defensible claim in /roadmap narrative | | ✓ |
+This skill is a **folder**. Read these on demand:
 
-When you `/skill create`, you don't just get a file — you get the file wired into the measurement system. The skill can't hide from its own quality score.
+- `scripts/skill-scan.sh` — lists all skills with file counts, descriptions, last modified
+- `scripts/skill-quality.sh` — grades each skill for completeness (gotchas, scripts, references, templates)
+- `references/skill-anatomy.md` — what makes a good skill per Anthropic guide
+- `reference.md` — output templates for all modes
+- `audit-checklist.md` — 16-check quality audit matrix
+- `gotchas.md` — real failure modes. **Read before creating or auditing.**
 
 ## Routing
 
 | Input | Action |
 |-------|--------|
-| `list` or (none) | Show all skills with maturity + pass rates |
-| `create <name>` | Crystallize a pattern into a measured skill |
-| `install <url>` | Install external skill from git repo |
-| `remove <name>` | Remove a skill |
+| `list` or (none) | Run `skill-scan.sh` then show all skills with maturity + pass rates |
+| `create <name>` | Evidence check → overlap check → create measured skill |
+| `install <url>` | Install external skill, wire into measurement |
+| `remove <name>` | Remove skill, mark killed in rhino.yml |
 | `info <name>` | Show skill details, assertions, sub-scores |
-| `health` | Skill health dashboard — tier classification, line counts, measurement status |
-| `audit` | Full quality audit across all skills — format compliance, state artifacts, anti-rationalization |
-| `overlap <name>` | Check proposed skill name against existing skills for route overlap |
+| `health` | Run `skill-scan.sh` + `skill-quality.sh` → tier classification dashboard |
+| `audit` | Full 16-check quality audit — spawn explorer agents in parallel batches |
+| `overlap <name>` | Check proposed name against existing skills for route overlap |
 
-**Ambiguity resolution:** Exact keyword match wins. If the argument matches a skill name and no keyword, default to `info <name>`. Never ask "did you mean?" — just act.
+## The protocol
 
----
+### Step 1: Mechanical scan (always first)
 
-## State Artifacts
+Run `bash ${CLAUDE_SKILL_DIR}/scripts/skill-scan.sh` for the skill inventory. For `health` or `audit`, also run `bash ${CLAUDE_SKILL_DIR}/scripts/skill-quality.sh` for completeness grades.
 
-| Artifact | Path | Read/Write | Purpose |
-|----------|------|------------|---------|
-| skill-health | `.claude/cache/skill-health.json` | R+W | Per-skill health metrics |
-| eval-cache | `.claude/cache/eval-cache.json` | R | Per-feature scores |
-| rhino.yml | `config/rhino.yml` | R | Features, weights |
-| beliefs.yml | `lens/product/eval/beliefs.yml` | R+W | Assertions |
-| rubrics | `.claude/cache/rubrics/*.json` | R | Rubric data per feature |
+### Step 2: Read gotchas
 
----
+Read `gotchas.md` before creating or auditing.
 
-## Skill Quality Tiers
+### Step 3: Route-specific logic
 
-Every skill falls into one of four tiers. These drive `/skill health` classification and `/skill audit` grading.
+- **create**: 3-question evidence gate → overlap check → write SKILL.md + wire into rhino.yml + seed assertions. See `references/skill-anatomy.md` for folder structure guidance.
+- **audit**: Spawn explorer agents in parallel batches per `audit-checklist.md`. Write results to `.claude/cache/skill-audit.json`.
+- **health**: Classify each skill into thick/thin/stub/dead tiers. Write to `.claude/cache/skill-health.json`.
+- **info/list/overlap/install/remove**: See `reference.md` for output templates.
 
-- **Thick** (>300 lines, 5+ routes, assertions exist, reference.md exists, anti-rationalization section, degraded modes): Full intelligence. The gold standard. Self-aware, self-measuring, self-correcting.
-- **Thin** (missing 2+ of the above): Functional but not self-aware. Can't detect its own quality. Works today, drifts tomorrow.
-- **Stub** (missing 3+ or <100 lines): Placeholder. Either build it out or kill it. Stubs that survive 30 days become dead weight.
-- **Dead** (unmeasured for 30+ days, no assertions, no recent usage): Candidate for removal. Not earning its keep.
+### Step 4: Output
 
-The goal is not "all thick." Some skills should stay thin — low-weight, narrow scope, infrequent use. But high-weight skills (w:4-5) that are thin or stub? That's a quality gap.
-
----
-
-## `/skill list`
-
-Not just names — show which skills are measured and how they're doing.
-
-```
-◆ skill — 18 skills
-
-  ⎯⎯ measured (feature in rhino.yml) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  /eval          ████████████░░░░░░░░  working   w:5  58 (d:62 c:50 v:60)
-  /plan          ████████████░░░░░░░░  working   w:5
-  /go            ██████░░░░░░░░░░░░░░  building  w:4  BETA
-  /feature       ████████████░░░░░░░░  working   w:5
-
-  ⎯⎯ unmeasured (no feature entry) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  /clone         no assertions · no feature entry
-  /calibrate     no assertions · no feature entry
-
-  ⎯⎯ context (auto-loaded) ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  rhino-mind     loaded every session
-  product-lens   loaded for product eval
-
-/skill create <name>    create a measured skill
-/skill info <name>      inspect one
-/skill health           tier breakdown
-```
-
-## `/skill create <name>` — the main event
-
-Skills emerge from observed patterns, not empty templates. This command creates a skill AND wires it into measurement from day one.
-
-### Step 1: Evidence check
-
-Skills must be earned. Ask the founder:
-
-1. "What pattern have you seen that deserves its own skill?"
-   (Something that keeps mattering across sessions — not a hypothesis, an observation)
-2. "What would this skill do that existing skills don't?"
-   (The specific gap. If it overlaps with an existing skill, merge instead.)
-3. "Show me an example — a moment where having this skill would have changed a decision."
-   (Concrete evidence. If they can't point to one, it's too early.)
-
-If the founder can't answer #3: "This might not be ready. Keep watching for the pattern."
-
-**Validation:**
-- Has the pattern recurred across 3+ sessions?
-- Can you name what it specifically does (not "quality" — something like "API response consistency")?
-- Does an existing skill already cover this? Run `/skill overlap <name>` before proceeding.
-
-### Step 2: Overlap check (mandatory)
-
-Before creating, run the overlap detection logic from `/skill overlap`. If >50% route overlap with an existing skill, stop and recommend adding a route to the existing skill instead.
-
-### Step 3: Create the skill
-
-Once evidence is clear and overlap is <50%:
-
-1. Create `skills/<name>/SKILL.md` with:
-   - Frontmatter: name, description, argument-hint, allowed-tools
-   - Routing table
-   - State artifacts table
-   - State to read section
-   - Output format (reference OUTPUT_FORMAT.md)
-   - Anti-rationalization section
-   - "What you never do" section
-   - "If something breaks" section (degraded modes)
-
-2. Create `skills/<name>/reference.md` with output templates
-
-### Step 4: Wire into measurement (this is what makes it a rhino-os skill)
-
-3. **Feature entry** — add to `config/rhino.yml` under `features:`:
-   ```yaml
-   [name]:
-     delivers: "[what the founder said in question 1]"
-     for: "[who benefits]"
-     code: ["skills/<name>/SKILL.md", "skills/<name>/reference.md"]
-     weight: [1-5 based on centrality to value hypothesis]
-     maturity: planned
-   ```
-
-4. **Assertions** — add 2-3 to `beliefs.yml`:
-   - `file_check`: SKILL.md exists and has frontmatter
-   - `content_check`: SKILL.md contains routing table and recovery section
-   - `command_check` or `llm_judge`: the skill actually does what it claims
-
-5. **Baseline eval** — run `rhino eval . --feature <name> --fresh`
-
-6. **Todo** — write to todos.yml: "build [name] skill to working maturity" with `source: /skill create`
-
-### Step 5: Output
-
-```
-◆ skill create — <name>
-
-  emerged from: "[the pattern they described]"
-
-  ✓ skills/<name>/SKILL.md
-  ✓ skills/<name>/reference.md
-  ✓ config/rhino.yml — feature entry (w:[N], planned)
-  ✓ beliefs.yml — 3 assertions seeded
-  ✓ overlap check — <N%> overlap (clear)
-  ✓ baseline eval: PARTIAL — [N] passing
-
-  This skill is now measured. It has a score, assertions, and maturity
-  tracking. When it reaches working maturity, it becomes a defensible
-  claim in /roadmap narrative.
-
-/go <name>         build it to working
-/eval <name>       check current state
-/feature <name>    see the full breakdown
-```
-
----
-
-## `/skill health` — skill health dashboard
-
-Scan every skill directory, classify each by tier, surface measurement gaps.
-
-### How to compute health
-
-For each directory in `skills/*/SKILL.md`:
-
-1. **Line count** — `wc -l` on SKILL.md
-2. **Route count** — count rows in routing table (lines matching `| \`...\`` pattern in the routing section)
-3. **Assertion count** — grep `beliefs.yml` for assertions referencing this skill's files or feature name
-4. **Has reference.md** — check `skills/<name>/reference.md` exists
-5. **Has agent wiring** — check if any agent in `agents/` references this skill, or if SKILL.md mentions agent delegation
-6. **Output compliant** — SKILL.md contains: `◆` header in output examples, state bar pattern, ends with 3 bottom commands
-7. **Last eval score** — read from `.claude/cache/eval-cache.json` if feature exists
-8. **Last modified** — `stat -f %Sm` on SKILL.md
-9. **Anti-rationalization section** — SKILL.md contains "Anti-rationalization" or "anti-rationalization" heading/section
-10. **Degraded modes** — SKILL.md contains "If something breaks" or "degraded" section
-
-### Tier classification
-
-Apply quality tier definitions:
-- **Thick**: >300 lines AND 5+ routes AND assertions exist AND reference.md exists AND has anti-rationalization AND has degraded modes
-- **Thin**: missing 2+ of the thick criteria
-- **Stub**: missing 3+ of the thick criteria OR <100 lines
-- **Dead**: no assertions AND last modified >30 days ago AND no eval score
-
-### Skill Health Protocol
-
-After every `/skill health` run, write to `.claude/cache/skill-health.json`:
-```json
-{
-  "last_audit": "2026-03-16",
-  "skills": {
-    "eval": {
-      "lines": 382,
-      "routes": 9,
-      "assertions": 11,
-      "has_reference": true,
-      "has_agents": true,
-      "output_compliant": true,
-      "has_anti_rationalization": true,
-      "has_degraded_modes": true,
-      "last_score": 58,
-      "last_modified": "2026-03-16",
-      "tier": "thick"
-    }
-  },
-  "aggregate": {"thick": 5, "thin": 8, "stub": 3, "dead": 1}
-}
-```
-
-### Output
-
-```
-◆ skill health — [N] skills
-
-  thick: [N]  thin: [N]  stub: [N]  dead: [N]
-
-  ▾ thick (gold standard)
-    /eval       382 lines  9 routes  11 assertions  58/100
-    /strategy   453 lines  12 routes  8 assertions   —
-    /taste      484 lines  5 routes   6 assertions   72/100
-
-  ▾ thin (needs work)
-    /clone      114 lines  1 route   0 assertions   ⚠ no measurement
-    /calibrate  178 lines  4 routes  0 assertions   ⚠ unmeasured 15d
-
-  ▾ stub (build or kill)
-    /openclaw   61 lines   2 routes  0 assertions   ⚠ no reference.md
-
-  ▾ dead (kill or build)
-    /example    45 lines   0 assertions  ⚠ unmeasured 30d+
-
-/skill audit        full quality check
-/skill create       add a new measured skill
-/assert             add assertions to thin skills
-```
-
----
-
-## `/skill audit` — comprehensive quality audit
-
-Scan ALL skills against 16 quality checks in 4 categories. This is the quality gate for the entire skill system.
-
-### Architecture A (Inline Orchestrator): spawn 6 explorer agents in parallel batches
-
-| Batch | Skills | Rationale |
-|-------|--------|-----------|
-| 1 | /go, /eval, /research, /strategy | Orchestrators (spawn agents) |
-| 2 | /taste, /assert, /retro, /feature | Measurement skills |
-| 3 | /plan, /rhino, /roadmap, /todo | Planning/navigation |
-| 4 | /onboard, /ship, /clone, /skill | Creation skills |
-| 5 | /ideate, /discover, /product, /openclaw | Thinking/analysis |
-| 6 | /rhino-mind, /product-lens, /configure | Context/meta skills |
-
-Each batch: spawn `Agent(subagent_type: "rhino-os:explorer", prompt: "Audit these skills: [names]. Use the checklist at skills/skill/audit-checklist.md. Return per-skill results with file:line references for each failure.")` in parallel.
-
-### What to check (16 checks, 4 categories)
-
-Pass the audit checklist (`skills/skill/audit-checklist.md`) to each explorer agent.
-
-**Structural Quality (S1-S5):**
-- S1: Frontmatter completeness — name, description, argument-hint, allowed-tools all present
-- S2: Output format compliance — output examples contain ◆ header, state bar, ▾/▸/· markers, 3 bottom commands
-- S3: State awareness — "State Artifacts" or "State to read" section exists
-- S4: reference.md exists with >20 lines
-- S5: Degraded modes — "If something breaks" section with 2+ failure modes and specific recovery actions
-
-**Capability Usage (C1-C5):**
-- C1: Named agent refs — skills that spawn agents use `rhino-os:agent` format, never generic `"general-purpose"`
-- C2: Fork/Agent mutual exclusion — skills with `context: fork` don't reference Agent(), and agent-spawning skills don't have `context: fork`
-- C3: Tool access minimality — readonly skills don't have Write/Edit in allowed-tools
-- C4: Model override — skill reads `~/.claude/preferences.yml` for agent model tiers (if applicable)
-- C5: Anti-rationalization — section exists with domain-specific checks (not generic)
-
-**New Capabilities (N1-N4):**
-- N1: Could benefit from skill-scoped hooks? (skills with pre/post processing needs)
-- N2: Could benefit from LSP integration? (skills that navigate code heavily)
-- N3: Should use TaskCreate for persistent work items? (skills that produce multi-step work)
-- N4: Should read ~/.claude/preferences.yml? (skills that spawn agents or control output)
-
-**Communication Protocol (P1-P2):**
-- P1: Agent output format documented — skills using Agent() specify expected output format
-- P2: Todo directive parsing — skills that aggregate agent results parse todo directives
-
-### Scoring
-
-Each check: pass (✓), fail (✗), or recommendation (·). Recommendations are N-series checks — suggestions, not failures.
-
-Compliance % = ✓ / (✓ + ✗) across all skills. N-series checks count as recommendations, not failures.
-
-### After audit: write cache
-
-Write to `.claude/cache/skill-audit.json`:
-```json
-{
-  "last_audit": "YYYY-MM-DD",
-  "total_checks": 16,
-  "aggregate": {
-    "compliance_pct": 72,
-    "passing": 198,
-    "total": 275,
-    "by_category": {
-      "structural": {"passing": 78, "total": 95},
-      "capability": {"passing": 62, "total": 80},
-      "new_capabilities": {"passing": 35, "total": 60},
-      "communication": {"passing": 23, "total": 40}
-    }
-  },
-  "skills": {},
-  "top_recommendations": []
-}
-```
-
-### Output
-
-```
-◆ skill audit — [N]% compliant ([passing]/[total] checks)
-
-  ▾ structural quality (S1-S5)
-    ✓ S1: [N]/[total] skills have complete frontmatter
-    ✗ S2: [N] skills missing output format elements
-       /clone:45  /openclaw:23  ...
-    ✓ S3: [N]/[total] skills have state awareness
-    ✗ S4: [N] skills missing reference.md or <20 lines
-    ✓ S5: [N]/[total] skills have degraded modes
-
-  ▾ capability usage (C1-C5)
-    ✓ C1: all agent-spawning skills use named refs
-    ✗ C2: [N] skills have fork+Agent conflict
-    ✓ C3: tool access is minimal
-    · C4: [N] skills could benefit from preferences.yml
-    ✓ C5: [N]/[total] skills have domain-specific anti-rationalization
-
-  ▾ new capabilities (N1-N4)
-    · N1: [N] skills could benefit from hooks
-    · N2: [N] skills could benefit from LSP
-    · N3: [N] skills should use TaskCreate
-    · N4: [N] skills should read preferences.yml
-
-  ▾ communication protocol (P1-P2)
-    ✗ P1: [N] agent-spawning skills lack output format docs
-    ✓ P2: all applicable skills parse todo directives
-
-  ▾ worst offenders
-    /[name]     [N]/16 passing  [tier]
-    /[name]     [N]/16 passing  [tier]
-    /[name]     [N]/16 passing  [tier]
-
-  cache: .claude/cache/skill-audit.json (fresh)
-
-/go [weakest]       improve the weakest skill
-/assert             add missing assertions
-/skill health       per-skill tier breakdown
-```
-
----
-
-## `/skill overlap <name>` — route overlap detection
-
-Before creating a new skill, check if it duplicates existing capability. This is a HARD GATE — overlapping skills fragment intelligence instead of concentrating it.
-
-### How to detect overlap
-
-1. Read `$ARGUMENTS` as the proposed skill name
-2. Glob all `skills/*/SKILL.md` files
-3. For each existing skill, extract the routing table (lines between `## Routing` and the next `##` or `---`)
-4. Parse route keywords from each table row (the text in the Input column)
-5. Ask the founder: "What routes would `/[proposed name]` have?" (or infer from the name if obvious)
-6. Build a keyword set for the proposed skill: split route descriptions into normalized keywords
-7. For each existing skill, compute overlap: `|intersection| / |proposed keywords|`
-8. If any existing skill overlaps >50%, flag it
-
-### Decision logic
-
-- **<30% overlap**: clear to create. Mention the closest skill for awareness.
-- **30-50% overlap**: warn but allow. "Some overlap with /[existing] — consider whether a new route on /[existing] would be simpler."
-- **>50% overlap**: block creation. "This overlaps significantly with /[existing]. Add a route to /[existing] instead."
-
-### Output
-
-```
-◆ skill overlap — [proposed name]
-
-  checking against [N] existing skills...
-
-  ⚠ 65% overlap with /eval
-    shared routes: deep analysis, scoring, sub-scores
-    unique to proposed: [what's different]
-
-  recommendation: add a route to /eval instead of creating /[name]
-
-/eval               the skill that already covers this
-/skill create       proceed anyway (not recommended)
-```
-
-Or if clear:
-
-```
-◆ skill overlap — [proposed name]
-
-  checking against [N] existing skills...
-
-  ✓ no significant overlap detected
-    closest: /eval at 15% (shared keyword: "analysis")
-
-  clear to create.
-
-/skill create <name>    proceed with creation
-```
-
----
-
-## `/skill install <url>`
-
-```bash
-"$RHINO_DIR/bin/rhino" skill install "$URL"
-```
-
-After install:
-1. Read the installed skill's SKILL.md
-2. Run overlap check against existing skills — warn if >30%
-3. Check if it has a feature entry in rhino.yml — if not, create one
-4. Check if it has assertions — if not, generate 2-3 mechanical ones
-5. Run baseline eval
-6. Suggest `/onboard` to wire up hooks/mind files if needed
-
-**The install doesn't just add a file — it wires the skill into measurement.**
-
-## `/skill remove <name>`
-
-```bash
-"$RHINO_DIR/bin/rhino" skill remove "$NAME"
-```
-
-After removal:
-1. Mark the feature as `killed` in rhino.yml (don't delete — preserve history)
-2. Note assertions that are now orphaned
-3. Update skill-health.json to remove the entry
-4. Suggest `/onboard` to clean up
-
-## `/skill info <name>`
-
-Show the skill's full measurement profile:
-
-```
-◆ skill info — eval
-
-  description: "Is my product good? Sub-scores, rubrics, multi-sample median."
-  routes: deep · slop · taste · blind · coverage · trend · diff · vs
-  tier: thick (382 lines, 9 routes, 11 assertions, reference.md)
-  allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebFetch
-
-  ⎯⎯ measurement ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  feature: scoring (w:5, working)
-  score: 58/100 (d:62 c:50 v:60) ↑4
-  assertions: 10/11 passing
-  rubric: .claude/cache/rubrics/scoring.json (fresh)
-
-  ⎯⎯ quality checks ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  ✓ output format compliant
-  ✓ state artifacts declared
-  ✓ anti-rationalization section
-  ✓ degraded modes documented
-  ✗ no prediction logging references
-
-  ⎯⎯ files ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-  skills/eval/SKILL.md      (382 lines)
-  skills/eval/reference.md  (280 lines)
-
-/eval              run it
-/feature scoring   see the feature
-/go scoring        improve it
-```
-
----
-
-## Anti-Rationalization Checks
-
-Self-deception is the enemy of skill quality. These checks run implicitly during every `/skill` route.
-
-### "Creating a skill without evidence"
-The 3-question evidence check (Step 1 of create) is the first gate. Strengthen it: if the founder cannot point to 3+ sessions where the pattern appeared, STOP. "Skills emerge from patterns, not wishes. Keep watching for the pattern — if it matters, it'll keep showing up."
-
-### "Unmeasured skill at >30 days"
-If a skill has existed for a month without a feature entry + assertions, it's dead weight. Flag in `/skill list` and `/skill health`:
-"⚠ [name] has been unmeasured for [N] days. Either wire it into measurement or `/skill remove [name]`."
-
-### "Skill without reference.md"
-Output templates should be documented. Without reference.md, every run produces unpredictable output — the skill can't be evaluated consistently. Flag:
-"⚠ [name] has no reference.md — output is unpredictable across sessions."
-
-### "Overlapping skills"
-If `/skill overlap` detects >50% route overlap, block creation. Do not allow the founder to rationalize "but mine is slightly different." If the routes overlap, the intelligence should be concentrated, not fragmented:
-"This overlaps with /[existing]. Add a route to /[existing] instead of creating a new skill."
-
-### "All skills thin"
-If aggregate health shows >60% thin/stub/dead, the skill system itself is degraded. The quantity of skills is masking quality gaps. Flag:
-"Most skills are below quality bar. [N] of [total] are thin or worse. `/skill audit` to see specifics, then `/go [weakest]` to improve one."
-
-### "Thick skill without assertions"
-A skill can pass structural checks (lines, routes, reference.md) but still have zero assertions. Structure without measurement is theater. Flag:
-"⚠ [name] looks thick structurally but has 0 assertions — it can't prove it works."
-
----
+Use templates from `reference.md`. Every output ends with 3 next commands.
 
 ## What you never do
 
-- Create empty scaffold skills — evidence required
-- Create a skill without running overlap check first
-- Create a skill without wiring it into measurement (feature + assertions + baseline)
-- Install a skill without checking for measurement wiring
-- Delete feature entries on remove — mark killed, preserve history
-- Let unmeasured skills stay unmeasured — flag them in `/skill list` and `/skill health`
-- Classify a skill as "thick" when it lacks assertions — structure without measurement is theater
-- Ignore overlap >50% — always recommend merging as a route on the existing skill
-- Write skill-health.json without actually scanning the filesystem — no cached-only reads
+- Create skills without evidence (3+ sessions of the pattern recurring)
+- Create skills without overlap check
+- Create skills without measurement wiring (feature + assertions + baseline)
+- Classify "thick" without assertions — structure without measurement is theater
+- Let unmeasured skills survive 30+ days without flagging
 
 ## If something breaks
 
-### Degraded modes
-
-- **No skill-health.json** → generate fresh from filesystem scan. Glob all `skills/*/SKILL.md` files, count lines, check for reference.md, check beliefs.yml for assertions matching each skill. Write the result to `.claude/cache/skill-health.json` for next time.
-- **No beliefs.yml** → note "no assertions file — all skills unmeasured." Every skill classified as thin or worse. Suggest `/onboard` to set up the measurement system.
-- **No eval-cache.json** → skip scores in health output, show structural health only (lines, routes, reference.md, format compliance). Note "eval cache missing — run `rhino eval .` for scores."
-- **No rhino.yml features section** → note "no features defined — `/onboard` to set up." Skills can still be scanned structurally but won't have maturity/weight data.
-- **Install fails** → check URL is a valid git repo with SKILL.md. If not a git URL, check if it's a local path.
-- **Remove fails** → check `skills/` directory for exact name match. Show closest match if typo suspected.
-- **Founder can't articulate the pattern** → too early. Push back firmly: "This might not be ready. Keep watching for the pattern."
-- **Name collision** → show existing skill with `/skill info <name>` and suggest a different name or merging.
-- **skill-health.json is stale (>7 days)** → regenerate from filesystem before displaying. Note "cache was stale, regenerated."
+- No beliefs.yml: all skills unmeasured, suggest `/onboard`
+- No eval-cache.json: show structural health only, skip scores
+- No rhino.yml features: show scan data only, no maturity/weight
+- skill-health.json stale >7 days: regenerate from filesystem
 
 $ARGUMENTS
