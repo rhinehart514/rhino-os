@@ -1,6 +1,6 @@
 ---
 name: discover
-description: "Product discovery intelligence. Diagnose gaps, generate ideas, validate assumptions — one pass. Parallel agents, live product analysis, counterfactual reasoning, self-improving memory. /discover runs full. /discover auth scopes to a feature. /discover wild for moonshots. /discover vs for competitive."
+description: "Product discovery and systems ideation. What should this product be? What systems does it need? /discover maps systems, ideates what's missing, recommends what to build. /discover new for new products. /discover systems for audit. /discover wild for moonshots. /discover vs for competitive."
 ---
 
 # /discover — Product Discovery Intelligence

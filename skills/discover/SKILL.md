@@ -1,37 +1,31 @@
 ---
 name: discover
-description: "Product discovery intelligence. Diagnose gaps, generate ideas, validate assumptions — one pass. Parallel agents, live product analysis, counterfactual reasoning, self-improving memory. /discover runs full. /discover auth scopes to a feature. /discover wild for moonshots. /discover vs for competitive."
-argument-hint: "[feature|wild|vs|invert|\"topic\"]"
+description: "Product discovery and systems ideation. What should this product be? What systems does it need? What's the shape of the thing? Heavy on ideation — from 'I have an idea' to 'here are the systems, here's what matters, here's what to build first.' Works on new products AND existing ones."
+argument-hint: "[new \"idea\"|systems|wild|vs|invert|feature|\"topic\"]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch, Agent
 ---
 
-# /discover — Product Discovery Intelligence
+# /discover — Product Discovery & Systems Ideation
 
-One-pass product discovery. Diagnose → ideate → validate in a single session.
+The question isn't "what's broken?" — it's **"what should this product be made of?"**
 
-**This is not a template executor.** You are doing product discovery the way a cofounder with perfect memory and zero ego does it. You remember every past recommendation and whether it worked. You look at the actual product, not just the code. You tell the founder when nothing is worth building. You catch your own biases.
+/discover is the ideation engine. It figures out what systems a product needs, what the product should look like, what to build and in what order. It works on:
+
+- **New products**: "I have an idea for X" → here are the systems, the user journey, the MVP scope, the first thing to build
+- **Existing products**: "What should we add?" → here are the missing systems, the underweight areas, the next layer of value
+- **Product reshaping**: "This isn't working" → here's what the product should become instead
+
+**This is not gap analysis.** This is a cofounder whiteboarding what the product should be. Systems thinking, not bug hunting.
 
 **What makes this skill intelligent:**
-- **Parallel agents** — explorer + market-analyst run simultaneously during diagnosis
+- **Systems decomposition** — breaks any product idea into the systems that make it work
+- **Parallel agents** — explorer + market-analyst research simultaneously while you think
 - **Live product analysis** — playwright sees the actual product, not just code
-- **Counterfactual reasoning** — "what happens if we build nothing?" is always evaluated
-- **Causal chains** — traces WHY each gap exists, not just WHAT it is
-- **Contradiction detection** — finds where the product says one thing but does another
-- **Velocity calibration** — sizes ideas to the team's actual shipping speed
-- **Anti-sycophancy** — explicit mechanisms prevent just telling the founder what they want to hear
-- **Self-improving memory** — tracks recommendation outcomes and adjusts biases over time
-
-## When to use this vs individual commands
-
-| Command | When |
-|---------|------|
-| `/discover` | Starting point. What's wrong, what to build, is it worth it? |
-| `/product` | Deep product audit — all 7 lenses, no ideas |
-| `/ideate` | Direction is clear, you just need build ideas |
-| `/research` | Known specific unknown, just need data |
-| `/strategy` | Strategic positioning, stage diagnosis |
-
-`/discover` is the default session opener. When the founder says "what should we work on?" — run this, not `/plan`. `/plan` turns decisions into tasks. `/discover` makes the decision.
+- **Market-grounded ideation** — knows what exists, what's table stakes, what's novel
+- **Dependency mapping** — which systems enable which, what's the critical path
+- **Velocity calibration** — sizes everything to the team's actual shipping speed
+- **Anti-sycophancy** — tells the founder when an idea is bad, not just when it's good
+- **Self-improving memory** — tracks which recommendations got built and worked
 
 ## Routing
 
@@ -39,276 +33,202 @@ Parse `$ARGUMENTS`:
 
 | Input | Mode |
 |-------|------|
-| (none) | Full discovery — product-level |
-| Feature name | Scoped discovery for one feature |
-| `wild` | Moonshot — riskier ideas, bigger unknowns, <30% confidence |
-| `vs` | Competitive discovery — diagnose gaps relative to a competitor |
-| `invert` | Inversion mode — "what would make this product fail?" then defend against it |
-| `[any text]` | Constrained discovery around a topic or question |
+| (none) | Full discovery — what should this product be/become? |
+| `new "idea"` | New product ideation — decompose an idea into systems |
+| `systems` | Systems audit — what systems exist, what's missing, what's next |
+| Feature name | Scoped — what should this feature become? |
+| `wild` | Moonshot — riskier systems, bigger bets, <30% confidence |
+| `vs` | Competitive — what systems do competitors have that we don't? |
+| `invert` | Inversion — what systems would prevent this product from failing? |
+| `[any text]` | Constrained ideation around a topic or question |
 
 ---
 
-## Phase 0: Intelligence Gathering (parallel)
+## Phase 0: Context (parallel, fast)
 
-Before diagnosing, build the full picture. Launch these SIMULTANEOUSLY:
+Launch SIMULTANEOUSLY:
 
-### Thread A: Load Memory + State
+### Thread A: State
 
 Read in parallel:
+1. `config/rhino.yml` — value hypothesis, user, features, weights
+2. `.claude/plans/roadmap.yml` — current thesis and evidence
+3. `.claude/plans/strategy.yml` — current bottleneck (if exists)
+4. `.claude/plans/todos.yml` — backlog items
+5. `~/.claude/evals/discovery-history.tsv` — past recommendations and outcomes
+6. `~/.claude/evals/discovery-learnings.md` — accumulated discovery intelligence
+7. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`)
+8. `git log --oneline -30` — recent work velocity
 
-1. `~/.claude/evals/discovery-history.tsv` — past recommendations and outcomes
-2. `~/.claude/evals/discovery-learnings.md` — accumulated discovery intelligence
-3. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known patterns, unknowns, dead ends
-4. `~/.claude/cache/last-retro.yml` — recent retro findings (if exists)
-5. `.claude/plans/strategy.yml` — current bottleneck from /strategy (if exists)
-6. `config/rhino.yml` — value hypothesis, user, features
-7. `.claude/plans/roadmap.yml` — current thesis and unproven evidence
-8. `.claude/plans/todos.yml` — backlog items
-9. `git log --oneline -30` — recent work (30 commits — need velocity data)
-10. `git log --oneline --since="30 days ago" | wc -l` — shipping velocity (commits/month)
+Compute: product map, product completion %, bottleneck, shipping velocity (commits/30 days).
 
-Compute:
-- Product map (maturity × weight), product completion %, bottleneck
-- Shipping velocity: commits in last 30 days → ideas must be sized to this
-- Evidence decay: any "tested" assumption >30 days old decays to "anecdotal"
+### Thread B: Live Product (if dev server running)
 
-### Thread B: Live Product Analysis (when dev server is running)
+If playwright available AND dev server running:
+1. Navigate, snapshot, screenshot
+2. Walk 2-3 key routes
+3. Note: what's the first-time experience? Where's the value? Where does it end?
 
-If playwright is available AND a dev server is running (check `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000` or similar):
+### Thread C: Market (1 query max)
 
-1. `browser_navigate` to the product
-2. `browser_snapshot` — capture DOM structure
-3. `browser_take_screenshot` — see what the user sees
-4. Navigate to 2-3 key routes (from nav links)
-5. Note: what's the first thing a new user sees? Where do they get stuck? What's broken?
+1. Reuse `~/.claude/evals/taste-market.json` or `~/.claude/cache/market-context.json` if <7 days old
+2. If stale: WebSearch `"best [category] tools 2026"` (ONE query)
+3. Extract: what systems do top products have? What's table stakes? What's nobody doing?
 
-This gives you REAL product data for diagnosis, not just code analysis. If you can see the product, your diagnosis is grounded in experience, not inference.
+### Thread D: Backfill (if history exists)
 
-If no dev server: note "diagnosis from code only — recommend `/taste` for visual analysis" and proceed.
-
-### Thread C: Market Context (1 query max)
-
-1. Read `~/.claude/evals/taste-market.json` (reuse if <7 days old)
-2. Read `~/.claude/cache/market-context.json` (from market-analyst, reuse if <7 days old)
-3. If both stale: WebSearch for `"best [category from rhino.yml] tools 2026"` (ONE query)
-4. Extract: what do top products in this space do? What's table stakes? What's nobody doing?
-
-**You are now calibrated to THIS market. Ideas that are "innovative" in a vacuum but table stakes in the market get flagged.**
-
-### Thread D: Backfill Past Discoveries
-
-If `discovery-history.tsv` exists:
-
-1. For each row where `built` is empty:
-   - `git log --all --oneline --grep="[recommended idea name]"` — committed?
-   - If yes → `built=yes`, check `rhino feature [name]` pass rate → `succeeded=yes/no/partial`
-   - If no and >7 days old → `built=no`
-2. Compute track record: `built / total` and `succeeded / built`
-3. Identify:
-   - Which quadrants produce ideas that get built?
-   - Which gap types produce ideas that succeed?
-   - Is confidence calibration accurate? (do HIGH confidence ideas actually succeed more?)
-   - What's the recurring gap? (appears in 3+ discoveries)
-
-**Self-diagnosis flags** (shown in output if triggered):
-- Track record <30% built → "ideas may be too ambitious or misaligned with priorities"
-- Built >50% but succeeded <30% → "diagnosis may be off — ideas get built but don't work"
-- Confidence uncalibrated → "HIGH confidence ideas don't succeed more than LOW — adjusting"
+Check past recommendations: built? succeeded? Update discovery-history.tsv.
 
 ---
 
-## Stage 1: Diagnose
+## Stage 1: Understand (10% of effort)
 
-Not "what's wrong?" but "WHY is it wrong, and what's the cost of leaving it?"
+Quick orientation — not deep diagnosis. Just enough to ideate well.
 
-### 1A: Contradiction Detection (always first)
+### 1A: What is this product?
 
-Before lens analysis, scan for contradictions — places where the product says one thing but does another:
+One paragraph. Who it's for, what it does, what stage it's at. If `new` mode, this comes from the founder's description.
 
-- **Value vs features**: Does the value hypothesis name something the features don't deliver?
-- **User vs product**: Does the user definition describe someone the product doesn't serve?
-- **Thesis vs work**: Does the roadmap thesis claim something the recent git history doesn't pursue?
-- **Weight vs effort**: Are high-weight features getting less attention than low-weight ones?
-- **Assertions vs code**: Are passing assertions testing real value, or just structural presence?
+### 1B: What systems exist?
 
-Each contradiction is a gap candidate. Contradictions are higher priority than weaknesses because they indicate confusion about direction, not just incomplete work.
-
-### 1B: Three Lenses (two mandatory, one adaptive)
-
-#### Always: Assumptions (risk audit with causal tracing)
-
-Extract assumptions, but also trace WHY each exists:
+Map current systems from features in rhino.yml + codebase scan:
 
 ```
-assumption: "[Users want X]"
-risk: 4  evidence: none
-because: "value hypothesis states X, but no user has confirmed it"
-if wrong: "features A, B, C are all wasted — they only make sense if users want X"
-causal chain: hypothesis → feature A → assertions 1-5 → all invalidated
+systems:
+  ✓ [system] — [maturity], weight:[N], [what it does]
+  ✓ [system] — [maturity], weight:[N], [what it does]
+  · [system] — planned, weight:[N], [not built yet]
 ```
 
-Rank by **risk × ignorance** (same formula: risk 1-5, ignorance none=4/anecdotal=3/tested=2/proven=1).
+### 1C: What's the user journey?
 
-**Evidence decay**: any "tested" evidence older than 30 days automatically decays to "anecdotal". Markets move. What was true last month might not be true now.
-
-**Dead end filter**: cross-reference against Dead Ends in experiment-learnings.md. Assumptions depending on dead ends → flagged immediately.
-
-Surface top 3. Each gets the full causal chain, not just a label.
-
-#### Always: Focus (kill exercise with opportunity cost)
-
-For every feature, not just keep/defer/kill but the COST of each:
+Trace the path a user takes through the product. Where do systems connect? Where are dead ends? Where does value happen?
 
 ```
-✓ keep: scoring (w:5) — core value delivery
-  opportunity cost: 0 — must exist
-· defer: docs (w:3) — users don't read docs at this stage
-  freed: ~2 sessions of work → redirect to bottleneck
-✗ kill: [feature] — orphaned, no assertions, depends on dead end
-  freed: ~1 session + reduced cognitive load
+journey: discover → [system A] → [system B] → value moment → [return trigger?]
+dead ends: [where the journey stops with no next step]
+value moment: [where the user gets what they came for]
 ```
 
-Compute total opportunity cost of dead weight. "You're spending [N] sessions worth of attention on features that don't serve the thesis."
+### 1D: One contradiction (if any)
 
-#### Adaptive: Pick one more
-
-| Condition | Lens | Why |
-|-----------|------|-----|
-| Product completion <50% | **Who** (user journey) | Building for the wrong person? |
-| >30% signals unmeasured | **Signals** | Flying blind on value |
-| Product completion >70% | **Delight** | Core works, craft matters |
-| Value hypothesis empty/changed | **Pitch** | Can't pitch it = not clear |
-| Recurring gap (3+ discoveries) | **[That gap's lens]** | Structural, not tactical |
-| Playwright saw real problems | **UX** (from live analysis) | Actual user experience gaps |
-
-Each lens: 3-5 lines max. Surface gaps, don't elaborate.
-
-### 1C: The Counterfactual (always)
-
-Before generating ideas, answer: **"What happens if we build nothing for the next 2 weeks?"**
-
-- Does the product get worse? (competitors move, users churn, thesis expires)
-- Does it stay the same? (stable but stagnant — maybe that's fine)
-- Does it actually get better? (users adopt what's already there, feedback comes in)
-
-If the counterfactual is "nothing bad happens" — that changes the recommendation. Maybe the right move IS to wait, observe, and gather data instead of building.
-
-State the counterfactual explicitly in the output. This is the anti-sycophancy mechanism — it prevents the skill from always recommending action.
-
-### 1D: Gap Synthesis
-
-Synthesize contradictions + lenses + counterfactual into exactly 3 ranked gaps:
-
-```
-gaps:
-  1. [most dangerous — highest risk × ignorance, or contradiction, or recurring structural]
-  2. [highest leverage — gap in bottleneck or its dependencies]
-  3. [highest learning — gap in unknown territory]
-
-counterfactual: [what happens if we build nothing]
-```
+The single most important place where the product says one thing but does another. Just one — this isn't a diagnosis tool.
 
 ---
 
-## Stage 2: Ideate
+## Stage 2: Ideate Systems (70% of effort)
 
-Generate **3 ideas** from the gaps. But first, check if you should generate ideas at all.
+This is the core. **What systems should this product have?**
 
-### 2A: Should We Build?
+### 2A: The Systems Map
 
-Three conditions that produce a "build nothing" recommendation:
+Think about the product holistically. Not "what feature to add next" but "what are ALL the systems this product needs to deliver its value hypothesis?"
 
-1. **Counterfactual says wait**: "nothing bad happens if we wait" + no urgent thesis deadline
-2. **All gaps are research gaps**: every gap needs data, not code — route to `/research`
-3. **Past discoveries show pattern of unbuilt ideas**: track record <20% built → "we keep generating ideas but not building them — the problem isn't ideas, it's execution"
+Categories of systems to consider:
 
-If any of these trigger, skip Stage 2 and 3. Go directly to the discovery brief with "build nothing" recommendation and the reason.
+- **Core value systems** — the things that deliver the primary value. Without these, no product.
+- **Enabler systems** — things that make core systems work better (auth, data, config)
+- **Growth systems** — things that bring users back or bring new users (notifications, sharing, onboarding)
+- **Intelligence systems** — things that make the product smarter over time (analytics, learning, personalization)
+- **Trust systems** — things that make users feel safe (security, reliability, transparency)
 
-### 2B: Pre-ideation Filters
+For each system, think about:
+- What does this system DO for the user?
+- What other systems does it depend on?
+- What other systems depend on it?
+- How hard is it to build? (S/M/L)
+- Is this table stakes or differentiating?
 
-1. **Dead end filter**: touches Dead End → killed
-2. **Backlog dedup**: already in todos.yml → promote instead of generating
-3. **Past discovery dedup**: recommended before → check outcome. Not built → note why. Failed → don't retry unless failure mode changed. Succeeded → build on it.
-4. **Thesis alignment**: at least 1 idea MUST advance an unproven thesis evidence item
-5. **Velocity check**: read shipping velocity from Phase 0. An idea requiring 50 files of changes when the team ships 10 commits/month → too big. Break it down or flag as multi-session.
+### 2B: Generate the Full Map
 
-### 2C: Idea Generation
+Produce **5-8 systems** the product should have. Mix of:
+- Systems that already exist (with maturity assessment)
+- Systems that are missing but critical
+- Systems that don't exist anywhere in the market (novel)
+- Systems that should be killed or merged
 
-**3 ideas**, constrained:
-
-- Each addresses a specific gap from Stage 1 (cite gap #N)
-- At least 1 targets the bottleneck feature or dependencies
-- At least 1 advances an unproven thesis evidence item (tag: `advances: [evidence_id]`)
-- At least 1 targets Unknown Territory from experiment-learnings.md
-- Spread across innovation matrix — no clustering
-- If `wild`: all 3 Disruptive, <30% confidence
-- If `vs`: at least 1 "stolen" from competitor
-- If `invert`: ideas are defenses against the failure modes identified
-
-**Velocity-sized**: each idea includes estimated scope (S/M/L) based on shipping velocity:
-- S = 1-3 commits, ~1 session
-- M = 4-10 commits, ~2-3 sessions
-- L = 10+ commits, ~week+ — flag if velocity doesn't support this
-
-**Second-order effects**: for each idea, state not just what changes but what ELSE changes as a result:
-```
-first-order: scoring feature moves building → working
-second-order: /plan becomes more useful (reads scores), /go can auto-measure
-```
-
-### The Idea Brief (7 fields)
+For each:
 
 ```
-▸ **[Name]** — [quadrant] · gap #[N] · size: [S/M/L]
-  what: 2-3 sentences. Step-by-step interaction change.
-  changes: [feature] [maturity] → [next], [measurable difference]
-  second-order: [what else changes as a consequence]
-  kills it: [specific failure mode]
-  evidence: [cite experiment-learnings, past discovery, or "unknown territory"]
-  if wrong: [what you learn even if it fails]
-  draft assertions: 1-2 testable beliefs [type: file_check/content_check/llm_judge/etc.]
+▸ **[System Name]** — [core|enabler|growth|intelligence|trust]
+  does: [what the user gets from this system — one sentence]
+  depends on: [other systems]
+  enables: [what breaks or is weaker without this]
+  exists: [yes (maturity) | partial | no]
+  market: [table stakes | differentiating | novel]
+  size: [S/M/L]
+  priority: [1-5] — based on dependency order + value delivery
 ```
 
-### 2D: Idea Quality Gate
+### 2C: The Critical Path
 
-Score each against these. Failing 2+ → replace:
+From the systems map, identify the build order:
 
-| Criterion | Pass | Fail |
-|-----------|------|------|
-| Specific | Walks through interaction | "Improve [thing]" |
-| Grounded | Cites evidence or declares exploration | "I think this will work" |
-| Killable | Concrete failure mode | "It might not work" |
-| Measurable | Assertions are evaluable | Vague feelings |
-| Not dead end | Doesn't touch Dead Ends | Retries known failures |
-| Not duplicate | Not in todos/past discoveries | Already captured |
-| Velocity-fit | Size matches shipping velocity | Would take 3x the team's velocity |
-| Not table stakes | Market calibration says this is actually novel | Competitor already has it |
+```
+critical path:
+  1. [system] — must exist first, everything depends on it
+  2. [system] — unlocks the core value moment
+  3. [system] — makes value repeatable (return trigger)
+  4. [system] — growth/intelligence layer
+  ...
+```
 
-### 2E: Anti-sycophancy Check
+The critical path answers: **"If you could only build 3 systems, which 3?"**
 
-After generating, explicitly ask: "Am I recommending this because the evidence supports it, or because the founder will like hearing it?"
+### 2D: The Missing System
 
-Signals you're being sycophantic:
-- The idea sounds like what the founder worked on last session (confirmation bias)
-- The idea avoids the thing the founder clearly doesn't want to work on (avoidance bias)
-- You're framing a mediocre idea with enthusiastic language
-- The "kills it" field is soft ("might not resonate" instead of "depends on unproven assumption X")
+The single most impactful system that doesn't exist yet. This is the primary recommendation.
 
-If caught: note it in the output. "Bias check: I may be favoring [idea] because [reason]. Counter-evidence: [what argues against it]."
+```
+▸ **[Missing System]** — the biggest gap
+  why: [what the product can't do without it]
+  user story: [walk through the interaction — what does the user experience?]
+  changes: [what moves in the product map]
+  second-order: [what else improves as a consequence]
+  size: [S/M/L] — [N sessions at current velocity]
+  kills it: [what would make this system fail]
+  evidence: [market data, user behavior, codebase analysis, or "exploring"]
+  draft features:
+    - [feature 1] — [what it does]
+    - [feature 2] — [what it does]
+  draft assertions:
+    - [testable belief about this system]
+    - [another testable belief]
+```
 
-### 2F: The Riskiest Assumption
+### 2E: Two More Ideas
 
-Identify the single assumption that, if wrong, invalidates the recommended idea.
+Beyond the missing system, generate 2 more system-level ideas:
 
-"The recommended idea depends on [assumption]. If wrong: [consequence]. Evidence quality: [HIGH/MEDIUM/LOW]."
+- **One ambitious**: a system nobody in this space has. Novel. Might not work. High learning value.
+- **One practical**: a system that's table stakes but missing, or an existing system that needs to level up.
 
-This feeds Stage 3.
+Same format as 2D but briefer (skip draft features).
+
+### 2F: The Kill List
+
+Systems or features that should die. Not "defer" — kill. They're consuming attention without delivering value.
+
+```
+✗ kill: [system/feature] — [why it should die]
+  freed: [what resources/attention this releases]
+```
+
+### 2G: Anti-sycophancy Check
+
+After generating, explicitly check:
+- Am I recommending what the founder wants to hear?
+- Am I avoiding the hard system (the one that's boring but critical)?
+- Is the "ambitious" idea actually ambitious, or just shiny?
+- Would a stranger looking at this product agree with the systems map?
+
+If biased: flag it. "I may be favoring [X] because [reason]. The unsexy-but-correct answer might be [Y]."
 
 ---
 
-## Stage 3: Validate
+## Stage 3: Validate (20% of effort)
 
-Test the riskiest assumption inline. This is the step that turns /discover from "brainstorming session" into "intelligence briefing."
+Test the riskiest assumption behind the recommended system.
 
 ### 3A: Prediction
 
@@ -320,80 +240,43 @@ wrong if: [specific thing that would disprove this]
 
 Log to `.claude/knowledge/predictions.tsv`.
 
-### 3B: Multi-source Validation
+### 3B: Quick Validation
 
-Use the most appropriate source. One primary, one secondary max:
+2 minutes max. Use the most appropriate source:
 
-| Assumption type | Primary | Secondary |
-|-----------------|---------|-----------|
-| Library/framework feasibility | context7 (resolve-library-id → query-docs) | Codebase (Grep) |
-| Market/user behavior | WebSearch (2 queries max) | experiment-learnings |
-| Code feasibility | Grep/Read (trace code path) | context7 |
-| Visual/UX quality | playwright (live analysis) | WebSearch |
-| Competitive gap | WebSearch | playwright |
-| "Can this be built in [S/M/L]?" | Codebase trace + git log | context7 for library complexity |
+| Assumption type | Source |
+|-----------------|--------|
+| Library/framework feasibility | context7 (resolve-library-id → query-docs) |
+| Market/user behavior | WebSearch (2 queries max) |
+| Code feasibility | Grep/Read (trace code path) |
+| Visual/UX quality | playwright |
+| Competitive gap | WebSearch + playwright |
 
-**New in 2026: Code feasibility validation is real.** If the assumption is "we can add X to the codebase," actually trace the code path. Read the relevant files. Check if the abstraction supports it. Don't just say "probably" — look.
-
-### 3C: Evidence Quality Scoring
-
-- **HIGH** (mechanical): code path traced, docs confirm, measurable fact verified
-- **MEDIUM** (directional): blog posts agree, patterns suggest, partial code trace
-- **LOW** (anecdotal): one source, opinion-based, no code verification
-
-**Evidence → confidence mapping:**
-- HIGH evidence + passes validation → HIGH confidence recommendation
-- MEDIUM evidence + passes validation → MEDIUM confidence
-- LOW evidence → MEDIUM confidence max, regardless of outcome
-- First discovery session → MEDIUM confidence max (no history to calibrate against)
-
-### 3D: Time Limit
-
-2 minutes max. If it needs more:
-- Note "needs deep research"
-- Route to `/research [topic]` at the bottom
-- Do NOT delay the recommendation — recommend with the confidence you have
-
-### 3E: Output
+### 3C: Verdict
 
 ```
 tested: "[assumption]"
-predict: [what I expected]
-finding: [2-3 sentences of what I actually found]
-evidence: [HIGH/MEDIUM/LOW] — [what backs this up]
+finding: [2-3 sentences]
+evidence: [HIGH/MEDIUM/LOW]
 verdict: ✓ confirmed | ✗ invalidated | ◐ inconclusive
 ```
 
-If ✗ → the recommended idea changes. If ◐ → confidence drops. If ✓ → confidence holds or rises.
-
-Update experiment-learnings.md if the finding is new.
+If ✗ → recommendation changes. If ◐ → confidence drops, route to `/research`.
 
 ---
 
 ## Synthesis: The Discovery Brief
 
-### Recommendation Logic
-
-1. **Validation ✓** → recommend the validated idea
-2. **Validation ✗** → recommend next-best idea, note why primary was killed
-3. **Validation ◐** → recommend with MEDIUM confidence, route to `/research`
-4. **"Build nothing" triggered in 2A** → recommend waiting, with the trigger reason
-5. **All ideas killed** → recommend "explore unknown territory" — the only productive direction is learning
-
-### The Brief
-
 ```
 ── discovery ──────────────────────────────
-  recommend: **[idea name]** [or "build nothing — [why]" or "explore — [what]"]
-  confidence: [HIGH/MEDIUM/LOW] — [calibration reason]
+  recommend: **[system name]**
+  type: [core|enabler|growth|intelligence|trust]
+  confidence: [HIGH/MEDIUM/LOW] — [why]
   validated: [✓/✗/◐] "[assumption]" ([evidence quality])
-  moves: [feature] [current] → [next maturity]
-  second-order: [what else improves]
-  risk: [remaining killer]
-  size: [S/M/L] — [N sessions at current velocity]
-  thesis: [✓ advances [evidence_id] | · no thesis impact]
-  counterfactual: [cost of NOT building this]
-  bias check: [clean | flagged — [what bias was detected]]
+  size: [S/M/L] · ~[N] sessions
+  critical path position: [N of M]
+  thesis: [✓ advances [id] | · no thesis impact]
+  bias: [clean | flagged — [what]]
 ```
 
 ---
@@ -403,346 +286,238 @@ Update experiment-learnings.md if the finding is new.
 ```
 ◆ discover — [scope]
 
-  v[X.Y]: **[pct]%** · product: **[pct]%** · score: [N]
+  v[X.Y] · product: **[pct]%** · score: [N]
   thesis: "[current thesis]"
-  bottleneck: **[name]** ([maturity], w:[N])
-  velocity: [N] commits/month · past discoveries: [N→N built→N succeeded]
+  velocity: [N] commits/month
 
-⎯⎯ diagnose ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+⎯⎯ product ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  [if contradictions found]:
-  ⚠ contradiction: [value hypothesis says X but features do Y]
+  [one paragraph: what this product is, who it's for, what stage]
 
-  ▾ assumptions
-    · [assumption 1] — risk:[N] evidence:[level] ([age if decayed])
-      chain: [what breaks if wrong]
-    · [assumption 2] — risk:[N] evidence:[level]
-      chain: [what breaks]
-    · [assumption 3] — risk:[N] evidence:[level]
-      chain: [what breaks]
+  journey: [user path through the product]
+  value moment: [where value happens]
+  dead ends: [where journey stops]
 
-  ▾ focus
-    ✓ keep: [features] — [why]
-    · defer: [features] — frees [N sessions]
-    ✗ kill: [features] — frees [N sessions], [why dead]
+  [if contradiction]:
+  ⚠ [the one contradiction]
 
-  ▾ [adaptive lens]
-    [3-5 lines]
+⎯⎯ systems ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  [if live product analysis]:
-  ▾ seen (playwright)
-    [what a real user would experience — grounded in screenshots/DOM]
+  [the full systems map — 5-8 systems]
 
-  gaps:
-    1. [most dangerous — with causal chain]
-    2. [highest leverage — with bottleneck connection]
-    3. [highest learning — with unknown territory cite]
+  ▸ **[System]** — [type] · [exists?] · [market position] · [S/M/L]
+    does: [one sentence]
+    depends on: [systems]
+    priority: [N]
 
-  counterfactual: [what happens if we build nothing for 2 weeks]
+  [repeat for each system]
 
-  [if recurring]:
-  ⚠ recurring: "[gap]" × [N] discoveries — structural
+  critical path:
+    1. [system] — [why first]
+    2. [system] — [why second]
+    3. [system] — [why third]
 
-⎯⎯ ideate ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  kill:
+    ✗ [feature/system] — [why] · frees [what]
 
-  [if "build nothing" triggered]:
-  · build nothing — [reason]. Instead: [what to do — wait/research/observe]
-  [skip to discovery brief]
+⎯⎯ recommend ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  [if backlog promoted]:
-  ▸ promoted: [todo-id]: [title]
-
-  ▸ **[Idea 1]** — [quadrant] · gap #[N] · [S/M/L]
-    what: [2-3 sentences]
-    changes: [feature] [maturity] → [next]
-    second-order: [what else improves]
+  ▸ **[Missing System]** — [type] · [S/M/L]
+    why: [what the product can't do without it]
+    user story: [the interaction]
+    changes: [what moves]
+    second-order: [cascade]
     kills it: [failure mode]
     evidence: [cite]
-    if wrong: [what you learn]
-    draft assertions: [1-2 beliefs]
+    draft features:
+      · [feature 1]
+      · [feature 2]
+    draft assertions:
+      · [belief 1]
+      · [belief 2]
 
-  ▸ **[Idea 2]** — [quadrant] · gap #[N] · [S/M/L]
-    [same fields]
+  ▸ **[Ambitious]** — [type] · [S/M/L]
+    why: [novel, high learning value]
+    kills it: [failure mode]
 
-  ▸ **[Idea 3]** — [quadrant] · gap #[N] · [S/M/L]
-    [same fields]
+  ▸ **[Practical]** — [type] · [S/M/L]
+    why: [table stakes or level-up]
+    kills it: [failure mode]
 
-  [killed ideas]:
-  ✗ killed: [name] — [dead end | duplicate | past failure | table stakes]
-
-  [bias check]:
-  · bias: [clean | flagged — [what was detected + counter-evidence]]
+  bias: [clean | flagged — [what + counter-evidence]]
 
 ⎯⎯ validate ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
   testing: "[riskiest assumption]"
-  predict: [expected]
-  wrong if: [disproof condition]
-  source: [tools used]
-
-  · [finding — 2-3 sentences]
-
+  finding: [2-3 sentences]
   evidence: [HIGH/MEDIUM/LOW]
-  verdict: [✓/✗/◐] — [one line]
-  model: [experiment-learnings.md update]
+  verdict: [✓/✗/◐]
 
 ⎯⎯ discovery ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  recommend: **[idea name]**
-  confidence: [HIGH/MEDIUM/LOW] — [why]
-  validated: [✓/✗/◐] "[assumption]" ([evidence quality])
-  moves: [feature] [current] → [next maturity]
-  second-order: [cascade effects]
-  risk: [remaining killer]
-  size: [S/M/L] · ~[N] sessions at current velocity
-  thesis: [✓ advances [id] | · no thesis impact]
-  counterfactual: [cost of not building]
-  bias: [clean | flagged]
+  recommend: **[system]**
+  confidence: [level] — [why]
+  size: [S/M/L] · ~[N] sessions
+  critical path: [position]
+  thesis: [advances or not]
 
   [if past data]:
-  track record: [N]→[N] built→[N] succeeded ([pct]%)
-  [if self-diagnosis flagged]:
-  ⚠ [self-diagnosis message]
+  track record: [N]→[N built]→[N succeeded]
 
-/go [idea]           build the recommendation
+/go [system]         build the recommendation
 /research [topic]    dig deeper before building
-/product             full 7-lens audit
+/feature new [name]  register it as a feature
 ```
+
+---
+
+## New Product Mode (`/discover new "idea"`)
+
+When the founder has a product idea but no code yet:
+
+1. **Understand the idea**: ask clarifying questions if needed (AskUserQuestion)
+   - Who specifically is this for?
+   - What do they do today without this?
+   - What's the one thing that makes them try it?
+
+2. **Systems decomposition**: break the idea into 5-8 systems using the categories above
+
+3. **MVP scope**: which 2-3 systems constitute a minimum loveable product?
+   - Not minimum viable — minimum LOVEABLE. What's the smallest thing that delights?
+
+4. **Critical path**: build order for the MVP systems
+
+5. **Name the riskiest assumption**: the one thing that, if wrong, means this product shouldn't exist
+
+6. **Validate it**: same as Stage 3
+
+Output adds:
+```
+⎯⎯ new product ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+  idea: "[founder's description]"
+  for: [specific person]
+  today: [what they do without this]
+  hook: [why they'd try it]
+
+  mvp systems (minimum loveable):
+    1. [system] — [why essential]
+    2. [system] — [why essential]
+    3. [system] — [why essential]
+
+  defer to v2:
+    · [system] — [why not yet]
+
+  riskiest assumption: [the one that kills it]
+```
+
+---
+
+## Systems Audit Mode (`/discover systems`)
+
+Deep audit of what systems exist vs what's needed:
+
+1. Scan the entire codebase — not just rhino.yml features, but actual code structure
+2. Map every system (explicit features + implicit infrastructure)
+3. Rate each: maturity, weight, market position
+4. Identify gaps: systems that SHOULD exist but don't
+5. Identify bloat: systems that exist but shouldn't
+6. Produce the full systems map + critical path + recommendation
+
+This is the "step back and look at the whole board" mode.
 
 ---
 
 ## Inversion Mode (`/discover invert`)
 
-Instead of "what should we build?", ask: **"What would make this product fail?"**
+**"What would make this product fail?"** → then build the systems to prevent it.
 
-1. Enumerate failure modes:
-   - User never gets value (onboarding failure)
-   - User gets value once but never returns (no retention trigger)
-   - Competitor ships the same thing better (differentiation failure)
-   - Technical debt makes the product unmaintainable (foundation failure)
-   - The thesis is wrong (strategic failure)
-
-2. For each: rate likelihood (1-5) and current defense strength (none/weak/strong)
-
-3. The gap list becomes "highest-likelihood, weakest-defense failure modes"
-
-4. Ideas become defensive: "build [X] to prevent [failure mode]"
-
-This produces fundamentally different ideas than forward-looking discovery. Use it when forward discovery keeps producing incremental ideas, or when the product feels fragile.
-
-```
-◆ discover invert — [scope]
-
-  ...header...
-
-⎯⎯ failure modes ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-  · [failure 1] — likelihood:[N] defense:[none/weak/strong]
-    how it kills: [mechanism]
-  · [failure 2] — likelihood:[N] defense:[none/weak/strong]
-    how it kills: [mechanism]
-
-  most vulnerable: [failure mode with highest likelihood × weakest defense]
-
-⎯⎯ defend ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
-  [3 defensive ideas, same brief format]
-
-  ...validate + discovery brief as normal...
-```
+1. Enumerate failure modes (onboarding, retention, competition, tech debt, wrong thesis)
+2. Rate: likelihood × defense strength
+3. The most vulnerable failure mode → the missing defensive system
+4. Ideas become systems that prevent failure
 
 ---
 
-## Competitive Discovery (`/discover vs`)
+## Competitive Mode (`/discover vs`)
 
-1. Spawn **market-analyst agent** (background) to research the competitor:
-   - WebSearch for features, pricing, reviews
-   - playwright to snapshot their product (if public URL)
-   - Build competitive gap analysis
-
-2. While market-analyst runs, do normal Stage 1 diagnosis
-
-3. When market-analyst returns, inject competitive gaps into the gap list:
-   - "They have [X] and we don't" → gap candidate
-   - "We have [X] and they don't" → defensible advantage, don't waste effort here
-   - "Nobody has [X]" → opportunity
-
-4. Stage 2 ideation: at least 1 idea is "stolen" from their approach, adapted to this product
-
-Output adds:
-```
-  ▾ competitive gap
-    they have: [list]
-    we have: [list]
-    nobody has: [list]
-    steal: [specific thing worth adapting + how to adapt it]
-```
+1. Spawn **market-analyst agent** to research competitor systems
+2. Map their systems vs yours
+3. Identify: they have / we have / nobody has
+4. Recommend: steal (adapt their system) or leapfrog (build what nobody has)
 
 ---
 
 ## Artifact Pipeline
 
-### On every discovery session
+### On every session
 
-1. **Append to `~/.claude/evals/discovery-history.tsv`** (create with header if missing):
+1. **Append to `~/.claude/evals/discovery-history.tsv`**:
    ```
-   date	scope	gaps	recommended	quadrant	size	confidence	evidence_quality	validated	built	succeeded	velocity
-   ```
-   `built` and `succeeded` start empty — backfilled by future sessions.
-
-2. **Write `~/.claude/evals/reports/discovery-{YYYY-MM-DD}.json`**:
-   Full structured report including diagnosis, ideas, validation, recommendation, meta (velocity, contradictions, bias checks, counterfactual, past discovery backfill results).
-
-3. **Append to `~/.claude/evals/discovery-learnings.md`**:
-   ```markdown
-   ## <date> — <scope>
-
-   **Recommended**: <idea> (<quadrant>, <size>, confidence: <level>)
-   **Validated**: <✓/✗/◐> "<assumption>" (evidence: <quality>)
-   **Gaps**: <3 gaps>
-   **Contradictions**: <any found, or "none">
-   **Counterfactual**: <what happens if we don't build>
-   **Recurring**: <gaps that appeared before>
-   **Bias check**: <clean or flagged>
-   **Velocity**: <N commits/month, idea sized [S/M/L]>
-   **Learning**: <one sentence — what this teaches about this product's discovery patterns>
+   date	scope	systems_mapped	recommended	type	size	confidence	validated	built	succeeded	velocity
    ```
 
-4. **Write `~/.claude/cache/last-discovery.yml`** for /plan integration:
-   ```yaml
-   date: YYYY-MM-DD
-   scope: [scope]
-   gaps: [list]
-   contradictions: [list or empty]
-   counterfactual: [summary]
-   recommended_idea: [name]
-   confidence: [level]
-   size: [S/M/L]
-   validation:
-     assumption: [text]
-     result: [✓/✗/◐]
-     evidence_quality: [HIGH/MEDIUM/LOW]
-   suggested_tasks:
-     - [task for /plan]
-   suggested_assertions:
-     - [belief for beliefs.yml]
-   model_updates:
-     - section: [Known|Uncertain|Unknown|Dead Ends]
-       entry: [what changed]
-   ```
+2. **Write `~/.claude/evals/reports/discovery-{YYYY-MM-DD}.json`**: full report
+
+3. **Append to `~/.claude/evals/discovery-learnings.md`**: one paragraph on what was learned
+
+4. **Write `~/.claude/cache/last-discovery.yml`**: for /plan integration
 
 ---
 
-## Self-Improvement Protocol
+## Self-Improvement
 
-After every 3rd discovery session:
-
-1. **Outcome analysis** from discovery-history.tsv:
-   - Built rate by quadrant: "sustaining ideas get built 80%, radical ideas 20%"
-   - Success rate by gap type: "assumption-gap ideas succeed 60%, focus-gap ideas succeed 30%"
-   - Confidence calibration: "HIGH confidence → 70% success, MEDIUM → 40%, LOW → 20%"
-   - Size accuracy: "S ideas ship in 1 session 80% of the time, M ideas take 2x estimated"
-   - Velocity tracking: "shipping speed increased from 15 to 22 commits/month over 5 sessions"
-
-2. **Bias detection**:
-   - Do recommendations cluster in one quadrant? (should spread)
-   - Do contradictions keep getting ignored? (should be addressed)
-   - Is counterfactual ever "build nothing"? (if never, sycophancy suspected)
-   - Are killed ideas ever the right call? (if ideas never get killed, filters are too soft)
-
-3. **Calibration adjustments** (written to discovery-learnings.md):
-   ```
-   ## Calibration update — <date>
-
-   Built rate: [N]% (sustaining:[N]% radical:[N]% incremental:[N]% disruptive:[N]%)
-   Success rate: [N]% of built (assumption-gap:[N]% focus-gap:[N]% journey-gap:[N]%)
-   Confidence accuracy: HIGH=[N]% MEDIUM=[N]% LOW=[N]%
-   Size accuracy: S=[N]% on-time M=[N]% L=[N]%
-
-   Adjustments for next session:
-   - [specific bias to correct]
-   - [quadrant to favor/avoid based on data]
-   - [confidence threshold to adjust]
-   ```
+After every 3rd session: analyze outcomes, detect biases, calibrate. Write adjustments to discovery-learnings.md.
 
 ---
 
 ## Integrity Checks
 
-Apply after generating ideas, before presenting:
-
 | Check | Trigger | Action |
 |-------|---------|--------|
-| **SAFE_IDEAS** | All 3 Incremental/Sustaining | Force 1 into Radical/Disruptive |
-| **DEAD_END** | Touches Dead End | Kill + explain |
-| **DUPLICATE** | In todos/past discoveries | Promote existing |
-| **PAST_FAILURE** | Built before + failed | Kill unless failure mode changed |
-| **THESIS_BLIND** | No idea advances thesis | Force-generate one |
-| **BOTTLENECK_BLIND** | No idea targets bottleneck | Force-generate one |
-| **GENERIC** | "Improve X" without interaction walkthrough | Replace |
-| **NO_KILL** | Nothing filtered | Not critical enough — re-examine |
-| **RECURRING_IGNORE** | Recurring gap not addressed | Address or explain |
-| **TABLE_STAKES** | Market already has it | Flag — not novel |
-| **VELOCITY_MISMATCH** | All ideas are L when velocity is low | Downsize or break apart |
-| **SYCOPHANCY** | Idea matches founder's last session's work | Flag bias |
-| **CONTRADICTION_DODGE** | Contradictions found but ideas avoid them | Address the contradiction |
-
----
-
-## Materializing the Recommendation
-
-When the founder says "go" or picks:
-
-1. **Feature to `config/rhino.yml`** (if new): delivers, for, code (Glob scan), status: active, weight, maturity: planned, depends_on, origin: discover
-2. **Assertions to `lens/product/eval/beliefs.yml`**: auto-detect type, severity: warn
-3. **Baseline**: `rhino eval . --feature [name] --fresh`
-4. **Prediction**: `.claude/knowledge/predictions.tsv`
-5. **Discovery artifact**: `~/.claude/cache/last-discovery.yml`
-6. **Output**: `/feature new` template + "planted N assertions from discovery"
+| **NO_SYSTEMS** | Produced feature ideas instead of systems | Elevate to system level |
+| **ALL_CORE** | No enabler/growth/intelligence systems | Force diversity |
+| **NO_KILL** | Nothing killed | Not thinking critically enough |
+| **TABLE_STAKES_ONLY** | All systems are table stakes | Where's the differentiation? |
+| **NO_NOVEL** | No ambitious/novel system | Force one |
+| **SYCOPHANCY** | Recommending what founder worked on last | Flag bias |
+| **NO_USER_STORY** | Missing system has no interaction walkthrough | Add one |
+| **VELOCITY_MISMATCH** | All systems are L when velocity is low | Break down or phase |
 
 ---
 
 ## Tools
 
-**Read** — all state files
-**Bash** — `rhino score .`, `rhino feature`, `git log`, `curl` (dev server check)
-**WebSearch** — market calibration + assumption validation (3 queries max total)
-**context7** — library/framework docs (resolve-library-id → query-docs)
-**playwright** — live product analysis (navigate, snapshot, screenshot, evaluate)
-**Grep/Glob** — codebase feasibility tracing
-**Agent (explorer)** — deep codebase analysis when code feasibility needs tracing
-**Agent (market-analyst)** — competitive analysis in /discover vs mode
-**AskUserQuestion** — after discovery brief only
+**Read** — state files, codebase
+**Bash** — `rhino score .`, `rhino feature`, `git log`, `curl`
+**WebSearch** — market context (3 queries max)
+**context7** — library/framework docs
+**playwright** — live product analysis
+**Grep/Glob** — codebase structure mapping
+**Agent (explorer)** — deep codebase analysis
+**Agent (market-analyst)** — competitive systems analysis
+**AskUserQuestion** — for new product mode clarifications
 
 ## What You Never Do
 
-- Run all 7 product lenses — pick 3
-- Generate >3 ideas
-- Spend >2 minutes validating — flag for /research
-- Present equal options — recommend ONE
-- Skip validation
-- Skip memory read/write
-- Retry dead ends
-- Produce generic ideas
-- Report HIGH confidence without history + evidence + validation
-- Skip backfill
-- Recommend without evidence or exploration declaration
-- Ignore recurring gaps (3+ appearances = structural)
-- Ignore contradictions — they're the most important signal
-- Skip the counterfactual — "build nothing" is always a valid recommendation
-- Be sycophantic — catch yourself, flag it, present counter-evidence
+- Spend more time diagnosing than ideating
+- Produce feature-level ideas instead of system-level thinking
+- Generate >3 system recommendations (1 primary + 2 alternatives)
+- Skip the systems map — that's the whole point
+- Present equal options — recommend ONE system to build
+- Skip the kill list — something always needs to die
+- Produce generic systems ("improve UX" is not a system)
+- Be sycophantic — the founder needs to hear what's missing, not what's great
+- Skip market calibration — systems that are table stakes aren't worth celebrating
+- Ignore dependency order — building system C before system A is waste
 
 ## If Something Breaks
 
-- No value hypothesis → "Write `value.hypothesis` in rhino.yml first."
-- No features → "Run `/feature new [name]` first."
-- No experiment-learnings.md → skip dead end filter, research from scratch
-- No past discoveries → first session, establish baseline, MEDIUM confidence max
-- WebSearch/context7 fails → codebase-only validation, note "uncalibrated"
-- playwright unavailable → code-only diagnosis, recommend `/taste`
-- No dev server → skip live analysis, proceed from code
-- All ideas killed → "all obvious directions are exhausted. Explore unknown territory."
-- All ideas validated away → "nothing worth building now. Here's what would change the answer."
-- Founder picks idea the skill flagged as biased → note the flag, proceed anyway — founder overrides
+- No value hypothesis → ask what the product is for (AskUserQuestion)
+- No features → perfect for `new` mode — start from scratch
+- No codebase → also perfect for `new` mode
+- No market data → proceed with codebase-only analysis, note "uncalibrated"
+- playwright unavailable → code-only analysis, recommend `/taste`
+- All systems exist and are mature → "product is complete for this thesis. Time for `/roadmap bump`."
 
 $ARGUMENTS
