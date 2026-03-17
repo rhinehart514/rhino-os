@@ -5,6 +5,15 @@
 
 set -euo pipefail
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
 # Read hook input from stdin
 INPUT=$(cat)
 
@@ -27,4 +36,4 @@ fi
 # Append entry
 printf "%s\t%s\t%s\t%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$AGENT_NAME" "$AGENT_TYPE" "$DURATION" >> "$TSV_FILE"
 
-echo "agent $AGENT_NAME ($AGENT_TYPE) completed in ${DURATION}ms"
+echo -e "${DIM}✓ ${AGENT_NAME} (${AGENT_TYPE}) completed in ${DURATION}ms${NC}"

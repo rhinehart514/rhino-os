@@ -5,6 +5,15 @@
 
 set -euo pipefail
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
 # Read hook input from stdin
 INPUT=$(cat)
 
@@ -24,5 +33,5 @@ if echo "$COMMAND" | grep -q 'git commit' 2>/dev/null; then
 
     # Print committed hash
     HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "???")
-    echo "committed $HASH — score cache cleared"
+    echo -e "${GREEN}✓${NC} committed ${BOLD}$HASH${NC} ${DIM}— score cache cleared${NC}"
 fi

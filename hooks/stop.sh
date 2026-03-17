@@ -5,6 +5,15 @@
 
 set -euo pipefail
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
 CACHE_FILE=".claude/cache/score-cache.json"
 STALE_MINUTES=10
 SESSIONS_DIR=".claude/sessions"
@@ -90,10 +99,10 @@ if [[ -f "$CACHE_FILE" ]]; then
     total_uncommitted=$((changed_files + staged_files))
 
     if [[ $cache_age -gt $stale_seconds && $total_uncommitted -gt 0 ]]; then
-        echo "score cache is $((cache_age / 60))m stale with $total_uncommitted uncommitted changes — consider running rhino score ."
+        echo -e "${YELLOW}⚠${NC} score cache ${BOLD}$((cache_age / 60))m${NC} stale with $total_uncommitted uncommitted changes — run ${DIM}rhino score .${NC}"
     fi
 
     if [[ $total_uncommitted -gt 5 ]]; then
-        echo "$total_uncommitted uncommitted files — consider atomic commits"
+        echo -e "${YELLOW}⚠${NC} $total_uncommitted uncommitted files — consider atomic commits"
     fi
 fi

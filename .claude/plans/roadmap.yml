@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v8.2
+current: v8.3.01
 
 versions:
 
@@ -190,6 +190,36 @@ versions:
     status: proven
     proven: 2026-03-17
     summary: "Eval-driven product completion. Dimensions renamed: value/quality/ux → delivery(50%)/craft(30%)/viability(20%). Maturity killed as manual field — now computed from eval scores (0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven). Product completion derived from eval scores × weight, not self-declared maturity. ~35 files updated, bin/eval.sh formula changed, init.sh maturity auto-detection removed."
+
+  v8.3:
+    thesis: "Agent-orchestrated skills with named agents, parallel execution, and self-healing build loop"
+    tier: minor
+    parent: v8.0
+    status: active
+    goal: "9 named agents (builder, explorer, evaluator, market-analyst, measurer, reviewer, grader, debugger, refactorer) with memory, model tiers, and maxTurns. Skills spawn agents by name. Two architectures: inline orchestrator (spawns agents) and forked task (isolated work). Fork+Agent mutually exclusive."
+    summary: "Agent architecture formalized. 9 agents with memory:user + maxTurns. Skills preload via skills key. /go auto-grades via grader, spawns debugger on regression, routes cleanup to refactorer. /eval parallel evaluators per feature. /research spawns explorer + market-analyst. 5 critical flow fixes."
+    evidence_needed:
+      - id: agent-orchestration
+        question: "Do named agents with memory produce better results than generic agents?"
+        status: partial
+        evidence: "Architecture defined, all 9 agents wired. Untested in sustained multi-session use."
+      - id: output-consistency
+        question: "Does standardized visual output improve the user experience?"
+        status: proven
+        evidence: "OUTPUT_FORMAT.md canonical spec. All hooks use colored voice.md symbols. 20/20 skills have reference.md output templates. Agents have output contracts."
+      - id: parallel-eval
+        question: "Does spawning parallel evaluators per feature improve eval quality?"
+        status: todo
+      - id: self-healing-build
+        question: "Does the debugger+grader+refactorer trio make /go self-healing?"
+        status: todo
+
+  v8.3.01:
+    tier: patch
+    parent: v8.3
+    status: proven
+    proven: 2026-03-17
+    summary: "Visual output UX overhaul. All 5 user-facing hooks rewritten with colored voice.md symbols (⚠/●/✓). 6 missing reference.md output templates created (ship, onboard, clone, skill, openclaw, discover). 2 existing reference.md files fixed for OUTPUT_FORMAT.md compliance (product, taste)."
 
   v9.0:
     thesis: "Plugin marketplace distribution — someone finds rhino-os, installs it, gets value"
