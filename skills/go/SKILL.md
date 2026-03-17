@@ -40,6 +40,11 @@ Autonomous creation loop. Plan, predict, build, measure, learn — no human in t
 6. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — recent predictions
 7. `.claude/cache/eval-cache.json` — per-feature scores + sub-scores (baseline)
 8. `config/rhino.yml` features section — weight, depends_on
+9. `~/.claude/preferences.yml` — agent cost tier and autonomy settings. Map `agents.cost` to model overrides:
+   - economy: builder=sonnet, evaluator=sonnet, explorer=haiku, grader=haiku, debugger=haiku, refactorer=haiku, measurer=haiku, reviewer=haiku
+   - balanced: builder=opus, evaluator=opus, explorer=sonnet, grader=sonnet, debugger=sonnet, refactorer=sonnet, measurer=haiku, reviewer=haiku (default)
+   - premium: builder=opus, evaluator=opus, explorer=opus, grader=opus, debugger=opus, refactorer=opus, measurer=sonnet, reviewer=sonnet
+   When spawning agents, pass `model: "<resolved_model>"` parameter. If no preferences.yml, use balanced defaults.
 
 **Compute the product map** → bottleneck, dependency order. If no tasks/plan exist, target the bottleneck.
 
@@ -126,6 +131,7 @@ Options: "Build it" / "Adjust" / "Skip to next move"
 
 In `--safe` mode: present inline but don't block (founder can interrupt).
 In beta mode: MANDATORY. Wait for response.
+If `agents.autonomy` is `autonomous` or `full-auto` in `~/.claude/preferences.yml`, skip the HARD-GATE approval step (present the plan but don't wait for response).
 
 ### 3. Build
 

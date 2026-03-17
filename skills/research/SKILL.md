@@ -57,6 +57,12 @@ Never ask "did you mean?" — just act.
 | rhino.yml | `config/rhino.yml` | R | Features, weights |
 | todos | `.claude/plans/todos.yml` | W | Todo exhaust |
 
+**Read preferences:** `~/.claude/preferences.yml` — agent cost tier. Map `agents.cost` to model overrides for explorer and market-analyst:
+- economy: explorer=haiku, market-analyst=sonnet
+- balanced: explorer=sonnet, market-analyst=opus (default)
+- premium: explorer=opus, market-analyst=opus
+When spawning agents, pass `model: "<resolved_model>"` parameter. If no preferences.yml, use balanced defaults.
+
 ### No arguments → pick the top unknown
 
 Read the product map first:

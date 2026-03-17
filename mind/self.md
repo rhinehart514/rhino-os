@@ -11,8 +11,8 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
 ### Skills (the product surface)
-18 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
-/plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product
+19 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
+/plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product, /configure
 
 ### Agents
 6 custom agents in agents/: measurer, explorer, builder, reviewer, evaluator, market-analyst
@@ -127,7 +127,7 @@ Two install modes, same capabilities:
 
 **Two skill architectures:**
 - **Architecture A (Inline Orchestrator)**: No fork, spawns named agents. Skills: /go, /eval, /research, /strategy, /discover, /ideate, /taste, /retro, /roadmap, /ship, /openclaw
-- **Architecture B (Forked Task)**: Fork, does all work itself. Skills: /product
+- **Architecture B (Forked Task)**: Fork, does all work itself. Skills: /product, /configure
 
 **9 agents**, all with `memory: user` (cross-session learning) and `maxTurns` (safety valve):
 

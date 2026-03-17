@@ -60,6 +60,11 @@ Read these simultaneously:
 11. `.claude/sessions/*.yml` — recent session logs (for `session` route)
 12. `.claude/cache/retro-health.json` — learning system health metrics (for `health` route)
 13. `.claude/cache/score-cache.json` — latest scores (for `auto` route)
+14. `~/.claude/preferences.yml` — agent cost tier. Map `agents.cost` to model override for grader agent:
+    - economy: grader=haiku
+    - balanced: grader=sonnet (default)
+    - premium: grader=opus
+    When spawning the grader agent, pass `model: "<resolved_model>"` parameter. If no preferences.yml, use balanced defaults.
 
 ---
 

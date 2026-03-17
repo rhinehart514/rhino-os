@@ -18,6 +18,11 @@ Read these in parallel before forming any judgment:
 1. `.claude/cache/rubrics/<feature>.json` — anchoring rubrics from past evals
 2. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`) — known patterns, dead ends
 3. `.claude/cache/eval-cache.json` — previous scores for delta tracking
+4. `~/.claude/preferences.yml` — agent cost tier. Map `agents.cost` to model override for evaluator agent:
+   - economy: evaluator=sonnet
+   - balanced: evaluator=opus (default)
+   - premium: evaluator=opus
+   When spawning evaluator agents, pass `model: "<resolved_model>"` parameter. If no preferences.yml, use balanced defaults.
 
 Past rubrics are your calibration anchor. If a rubric exists, your score must be consistent with it unless you can cite specific code changes that justify the drift. This kills the 15-point variance problem.
 

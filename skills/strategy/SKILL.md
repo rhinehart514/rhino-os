@@ -84,6 +84,11 @@ Combines strategic diagnosis with market intelligence. Reads everything:
 **External state:**
 9. `.claude/cache/market-context.json` — market model (if exists)
 10. `.claude/cache/market-context-base.json` — base market intelligence (ships with skill)
+11. `~/.claude/preferences.yml` — agent cost tier. Map `agents.cost` to model overrides for explorer and market-analyst:
+    - economy: explorer=haiku, market-analyst=sonnet
+    - balanced: explorer=sonnet, market-analyst=opus (default)
+    - premium: explorer=opus, market-analyst=opus
+    When spawning agents, pass `model: "<resolved_model>"` parameter. If no preferences.yml, use balanced defaults.
 
 ### 2. Diagnose honestly (eval-grounded)
 

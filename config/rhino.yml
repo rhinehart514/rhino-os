@@ -74,6 +74,8 @@ build:
 go:
   plateau_threshold: 3
   # taste_every_n moved to lens/product/config/rhino-product.yml
+# User preferences: ~/.claude/preferences.yml (agent cost, output verbosity, go gates)
+# Run /configure to change. Project rhino.yml is the source of truth for project-level settings.
 
 # ── Features ─────────────────────────────────────────
 # Each feature declares what it delivers and for whom.
