@@ -2,164 +2,76 @@
 name: feature
 description: "Use when defining, viewing, or detecting features and their maturity"
 argument-hint: "[name|new|detect] [name]"
-allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch
+allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion, WebSearch, Agent
 ---
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, delivery: .value.delivery_score, craft: .value.craft_score, viability: .value.viability_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
 
 # /feature
 
-Features are named parts of your product. Each has its own assertions, its own pass rate, its own score with decomposed sub-scores (delivery/craft/viability).
+Features are named parts of your product. Each has assertions, pass rates, sub-scores (delivery/craft/viability), weights, and dependencies.
+
+## Skill folder structure
+
+This skill is a **folder**, not just this file. Read on demand:
+
+- `scripts/feature-map.sh` — shows all features with scores, weights, dependencies, maturity (run first for list views)
+- `scripts/feature-health.sh [name]` — per-feature health: score trend, assertion pass rate, todo count, last touched
+- `scripts/dependency-graph.sh` — dependency chain visualization, blocked feature detection
+- `references/feature-lifecycle.md` — maturity stages and what moves each transition
+- `references/feature-design.md` — how to define a good feature, common mistakes
+- `templates/feature-template.yml` — copy-paste template for rhino.yml
+- `reference.md` — output formatting templates
+- `gotchas.md` — real failure modes. **Read before creating or killing features.**
 
 ## Routing
 
-Parse `$ARGUMENTS` and route:
+Parse `$ARGUMENTS`:
 
-**If $ARGUMENTS is ambiguous:**
-1. Exact route keyword match wins (`new`, `detect`)
-2. Feature name match (check rhino.yml features → show status)
-3. Free-form topic (treat as feature name lookup)
-Never ask "did you mean?" — just act.
+| Argument | Action |
+|----------|--------|
+| (none) | Run `scripts/feature-map.sh` → format per `reference.md` → bottleneck opinion |
+| `[name]` | Run `scripts/feature-health.sh [name]` → detail view with sub-scores, deps, verdict |
+| `[name] [name]...` | Multi-feature: health for each, identify weakest |
+| `new [name]` | AskUserQuestion for delivers/for/code/weight/depends_on → write to rhino.yml → baseline eval |
+| `detect` | Glob/Grep scan → cross-ref rhino.yml → AskUserQuestion to confirm → write |
+| `[name] status [value]` | Lifecycle transition: active/proven/killed/archived |
+| `[name] ideate` | Weakest sub-score → 3-4 improvement ideas via AskUserQuestion |
+| `[name] research` | WebSearch + codebase scan → findings + recommendations |
 
-### Feature status filter
-Only show features with status `active` or `proven`. Skip `killed` and `archived` unless explicitly requested. Missing `status:` = `active`.
+**Ambiguity rule:** exact keyword > feature name match > free-form lookup. Never ask "did you mean?" — just act.
 
----
-
-### No arguments → list all features
-Run `rhino feature`. Read `config/rhino.yml` for weight, depends_on. Read `.claude/cache/eval-cache.json` for sub-scores (delivery_score, craft_score, viability_score) and deltas. Show eval score and weight alongside pass rates. Give one opinion: "**[worst feature]** needs attention" — worst = lowest eval score among highest-weight features.
-
-### Feature name(s) → show status + suggest next action
-One or more names: `/feature auth`, `/feature auth scoring cli`.
-
-For each, run `rhino feature [name]`. Also read:
-- `config/rhino.yml` for weight, depends_on
-- `.claude/cache/eval-cache.json` for sub-scores and delta
-- `.claude/cache/rubrics/<name>.json` for rubric (if exists)
-
-Show eval score bar, weight, dependencies (upstream and downstream), sub-score breakdown.
-- All passing → green
-- Some failing → list them
-- No assertions → define what it must do
-
-Multiple features → show all, identify weakest.
-
-### `detect` → find features in the codebase
-
-1. Run `rhino feature detect` to get the initial list of detected modules
-2. For each detected module, read 2-3 key files to understand what it does:
-   - Entry point or main file (index.ts, main file, etc.)
-   - Any test files or config files
-3. Draft `delivers:` and `for:` descriptions from actual code reading (not guessing)
-4. Estimate `weight:` based on centrality to the value hypothesis in rhino.yml:
-   - Core to hypothesis → w:5
-   - Supports core flow → w:3-4
-   - Peripheral/utility → w:1-2
-5. Cross-reference against existing `config/rhino.yml` features — skip already-declared ones
-6. Present findings via AskUserQuestion: "Found N undeclared features — add all / pick / skip?"
-7. For selected features: write to rhino.yml `features:` section, run `rhino eval . --feature [name] --fresh` for baseline
-
-### `new [name]` → commit to building a specific feature
-
-This is the DO step — you've decided what to build and you're tracking it. If you're not sure what to build yet, try `/ideate` first. If you're not sure the direction is right, try `/product` first.
-
-**Use AskUserQuestion** to understand:
-
-```
-1. "What does [name] deliver to the user?"
-   (The specific value. Not "handles auth" but "users can sign up, log in, and reset their password")
-2. "Who specifically uses this?"
-   (End users | Admins | Developers | The system itself)
-3. "What code files are involved?" — options from codebase scan
-4. "How important is this to the value hypothesis? (1-5)" → weight
-5. "Does this depend on any existing features?" → depends_on
-```
-
-Write to `config/rhino.yml` under `features:`:
-
-```yaml
-features:
-  [name]:
-    delivers: "[what they said it delivers]"
-    for: "[who they said uses it]"
-    code: ["path/to/file1", "path/to/dir/"]
-    weight: [1-5]
-    depends_on: [feature_name]  # if applicable
-```
-
-Then:
-1. Run `rhino eval . --feature [name] --fresh` for baseline (gets sub-scores)
-2. Output verdict with sub-score breakdown
-
-### `[name] research` → explore the feature's codebase and context
-
-**Use WebSearch + codebase exploration** to understand:
-1. Scan the codebase: find all files related to the feature (grep for name, trace imports, map dependencies)
-2. Check external context: WebSearch for best practices, competitor approaches
-3. Map what exists vs what's missing: which assertions pass? which don't? why?
-4. Present findings with AskUserQuestion
-5. Generate recommendations: new assertions, refactoring suggestions, or tasks
-
-### `[name] status [value]` → lifecycle transition
-
-Transition a feature's lifecycle status. Valid values: `active`, `proven`, `killed`, `archived`.
-
-1. Validate the value is one of: active / proven / killed / archived
-2. If `killed`: use AskUserQuestion to ask for the reason. Add `killed_reason:` and `killed_date:` to the feature entry
-3. Update the feature's `status:` field in `config/rhino.yml`
-4. Output: `[name] → [value]` with confirmation
-
-For transition criteria, see the **Maturity Transition Rubric** in [STATE_MANIFEST.md](../STATE_MANIFEST.md).
-
-### `[name] ideate` → brainstorm possibilities
-
-1. Read the feature's current state (assertions, code, pass rate, sub-scores)
-2. Identify weakest sub-score dimension — focus ideas there
-3. Generate 3-4 ideas for improving or extending the feature
-4. Present with AskUserQuestion showing what the code/experience would look like
-5. Based on selection, generate assertions and tasks for the chosen direction
+**Status filter:** only show `active` and `proven` features. Skip `killed`/`archived` unless explicitly requested.
 
 ## State to read (parallel)
 
-Before presenting results, read:
-1. `config/rhino.yml` — feature definitions (delivers/for/code/weight/depends_on)
-2. `.claude/cache/eval-cache.json` — sub-scores (delivery_score, craft_score, viability_score), deltas
-3. `.claude/cache/rubrics/<feature>.json` — per-feature rubric (if exists, for detail view)
-4. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions relevant to this feature
-5. `.claude/plans/roadmap.yml` — check if feature is referenced in thesis evidence
+1. `config/rhino.yml` — feature definitions
+2. `.claude/cache/eval-cache.json` — sub-scores, deltas
+3. `.claude/cache/rubrics/<feature>.json` — per-feature rubric (detail view)
+4. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — relevant predictions
+5. `.claude/plans/roadmap.yml` — thesis evidence references
 
-For the full state source list, see [STATE_MANIFEST.md](../STATE_MANIFEST.md).
+## Tools
 
-## Tools to use
-
-**Use Bash** to run `rhino feature`, `rhino eval . --feature [name]`.
-**Use Read** to check rhino.yml, eval-cache, rubrics, predictions.
-**Use Grep/Glob** for codebase scanning in `detect` and `research` routes.
-**Use Edit** to write feature entries to rhino.yml.
-**Use AskUserQuestion** for `new` interviews, `detect` confirmation, `ideate` selection.
-**Use WebSearch** for `research` route external context.
-
-## System awareness
-- `/feature [name]` (you) → define, manage, detect features
-- `/eval [feature|deep|slop]` → run measurement stack (assertions, sub-scores, rubrics)
-- `/ideate [feature|wild]` → brainstorm possibilities
-- `/research [feature|topic]` → deep-dive research
-- `/plan [feature]` → plan work for a feature
-- `/go [feature]` → autonomous build loop
-
-For output templates and formatting examples, see [reference.md](reference.md).
+- **Bash**: run scripts, `rhino feature`, `rhino eval . --feature [name]`
+- **Read**: rhino.yml, eval-cache, rubrics, predictions
+- **Grep/Glob**: codebase scanning for `detect` and `research`
+- **Edit**: write feature entries to rhino.yml
+- **AskUserQuestion**: `new` interviews, `detect` confirmation, `ideate` selection
+- **WebSearch**: `research` route external context
 
 ## What you never do
-- Output raw CLI output without formatting — use the output templates
-- Create features without asking what they deliver (use AskUserQuestion)
-- Skip the baseline eval after creating a new feature
+
+- Output raw CLI output without formatting — use `reference.md` templates
+- Create features without asking what they deliver
+- Skip baseline eval after creating a new feature
 - Show scores without sub-score breakdown when eval-cache has them
+- Let maturity labels diverge from eval scores (read `references/feature-lifecycle.md`)
 
 ## If something breaks
-- `rhino feature` fails: read rhino.yml directly and list features under `features:` section
-- No features in rhino.yml: suggest `/feature new [name]` to define one
-- Falls back to beliefs.yml if no `features:` section in rhino.yml
-- No eval-cache.json: run `rhino eval .` first to populate
-- WebSearch fails: skip external context, work with codebase only
+
+- `rhino feature` fails → read rhino.yml directly, list `features:` section
+- No eval-cache.json → run `rhino eval .` first
+- Scripts fail → fall back to reading state files directly and formatting manually
 
 $ARGUMENTS
