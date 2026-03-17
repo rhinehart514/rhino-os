@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "8.3.01",
+      "version": "8.3.02",
       "source": "./",
       "description": "Agent-orchestrated product intelligence for Claude Code — 9 agents with memory, parallel evaluation, self-healing build loop, 21 skills. Auto-updates supported.",
       "author": {

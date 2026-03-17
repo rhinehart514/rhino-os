@@ -55,6 +55,9 @@
 - **Auto-graded** (2026-03-13): Score prediction wrong (100 vs 95). YAML parser is different-fragile, not simpler — sed/grep single-line extraction breaks on multi-line scalars and complex quoting. The determinism claim was aspirational, not tested.
 - **Auto-graded** (2026-03-14): Prediction was about an action that was never taken. The learning eval gap (infrastructure assertions, no value assertions) remains. Project-local knowledge is still a valid idea but was deprioritized.
 
+
+- **Auto-graded** (2026-03-17): Named agent references are wasted — skills bypass them. memory:user only on 1/6 agents. Agent teams completely unused despite native support.
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?

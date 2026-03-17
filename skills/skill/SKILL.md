@@ -260,70 +260,120 @@ After every `/skill health` run, write to `.claude/cache/skill-health.json`:
 
 ---
 
-## `/skill audit` — full quality audit
+## `/skill audit` — comprehensive quality audit
 
-Scan ALL skills for compliance against the thick skill standard. This is the quality gate for the entire skill system.
+Scan ALL skills against 16 quality checks in 4 categories. This is the quality gate for the entire skill system.
 
-### What to check
+### Architecture A (Inline Orchestrator): spawn 6 explorer agents in parallel batches
 
-For each skill directory in `skills/*/SKILL.md`:
+| Batch | Skills | Rationale |
+|-------|--------|-----------|
+| 1 | /go, /eval, /research, /strategy | Orchestrators (spawn agents) |
+| 2 | /taste, /assert, /retro, /feature | Measurement skills |
+| 3 | /plan, /rhino, /roadmap, /todo | Planning/navigation |
+| 4 | /onboard, /ship, /clone, /skill | Creation skills |
+| 5 | /ideate, /discover, /product, /openclaw | Thinking/analysis |
+| 6 | /rhino-mind, /product-lens, /configure | Context/meta skills |
 
-**Output format compliance:**
-- Header uses `◆ name — scope` pattern in output examples
-- State bar appears after header in output examples (e.g., `score: X  assertions: Y/Z  maturity: W`)
-- Section markers use `⎯⎯` or `▾` patterns
-- Output examples end with 3 bottom commands (lines starting with `/`)
+Each batch: spawn `Agent(subagent_type: "rhino-os:explorer", prompt: "Audit these skills: [names]. Use the checklist at skills/skill/audit-checklist.md. Return per-skill results with file:line references for each failure.")` in parallel.
 
-**State artifact declarations:**
-- Skill contains a "State Artifacts" table (or equivalent "State to read" section)
-- Table lists paths, read/write access, and purpose
+### What to check (16 checks, 4 categories)
 
-**Anti-rationalization sections:**
-- Skill contains explicit self-deception checks
-- Checks are specific to the skill's domain (not generic)
+Pass the audit checklist (`skills/skill/audit-checklist.md`) to each explorer agent.
 
-**Degraded mode paths:**
-- Skill has "If something breaks" or equivalent section
-- Each failure mode has a specific recovery action (not just "error")
+**Structural Quality (S1-S5):**
+- S1: Frontmatter completeness — name, description, argument-hint, allowed-tools all present
+- S2: Output format compliance — output examples contain ◆ header, state bar, ▾/▸/· markers, 3 bottom commands
+- S3: State awareness — "State Artifacts" or "State to read" section exists
+- S4: reference.md exists with >20 lines
+- S5: Degraded modes — "If something breaks" section with 2+ failure modes and specific recovery actions
 
-**Prediction logging:**
-- Skill's major decisions reference prediction tracking
-- Output suggests prediction-worthy actions
+**Capability Usage (C1-C5):**
+- C1: Named agent refs — skills that spawn agents use `rhino-os:agent` format, never generic `"general-purpose"`
+- C2: Fork/Agent mutual exclusion — skills with `context: fork` don't reference Agent(), and agent-spawning skills don't have `context: fork`
+- C3: Tool access minimality — readonly skills don't have Write/Edit in allowed-tools
+- C4: Model override — skill reads `~/.claude/preferences.yml` for agent model tiers (if applicable)
+- C5: Anti-rationalization — section exists with domain-specific checks (not generic)
+
+**New Capabilities (N1-N4):**
+- N1: Could benefit from skill-scoped hooks? (skills with pre/post processing needs)
+- N2: Could benefit from LSP integration? (skills that navigate code heavily)
+- N3: Should use TaskCreate for persistent work items? (skills that produce multi-step work)
+- N4: Should read ~/.claude/preferences.yml? (skills that spawn agents or control output)
+
+**Communication Protocol (P1-P2):**
+- P1: Agent output format documented — skills using Agent() specify expected output format
+- P2: Todo directive parsing — skills that aggregate agent results parse todo directives
 
 ### Scoring
 
-Compliance % = (checks passing / total checks) across all skills. Report both aggregate and per-skill.
+Each check: pass (✓), fail (✗), or recommendation (·). Recommendations are N-series checks — suggestions, not failures.
+
+Compliance % = ✓ / (✓ + ✗) across all skills. N-series checks count as recommendations, not failures.
+
+### After audit: write cache
+
+Write to `.claude/cache/skill-audit.json`:
+```json
+{
+  "last_audit": "YYYY-MM-DD",
+  "total_checks": 16,
+  "aggregate": {
+    "compliance_pct": 72,
+    "passing": 198,
+    "total": 275,
+    "by_category": {
+      "structural": {"passing": 78, "total": 95},
+      "capability": {"passing": 62, "total": 80},
+      "new_capabilities": {"passing": 35, "total": 60},
+      "communication": {"passing": 23, "total": 40}
+    }
+  },
+  "skills": {},
+  "top_recommendations": []
+}
+```
 
 ### Output
 
 ```
-◆ skill audit — [N]% compliant
+◆ skill audit — [N]% compliant ([passing]/[total] checks)
 
-  ▾ output format
-    ✓ 12/18 skills have proper header (◆ name — scope)
-    ✗ 6 skills missing state bar after header
-    ✓ 15/18 skills end with 3 bottom commands
+  ▾ structural quality (S1-S5)
+    ✓ S1: [N]/[total] skills have complete frontmatter
+    ✗ S2: [N] skills missing output format elements
+       /clone:45  /openclaw:23  ...
+    ✓ S3: [N]/[total] skills have state awareness
+    ✗ S4: [N] skills missing reference.md or <20 lines
+    ✓ S5: [N]/[total] skills have degraded modes
 
-  ▾ state artifacts
-    ✓ 8/18 skills declare state artifacts table
-    ✗ 10 skills have no artifact declarations
+  ▾ capability usage (C1-C5)
+    ✓ C1: all agent-spawning skills use named refs
+    ✗ C2: [N] skills have fork+Agent conflict
+    ✓ C3: tool access is minimal
+    · C4: [N] skills could benefit from preferences.yml
+    ✓ C5: [N]/[total] skills have domain-specific anti-rationalization
 
-  ▾ anti-rationalization
-    ✓ 5/18 skills have anti-rationalization section
-    ✗ 13 skills lack self-deception checks
+  ▾ new capabilities (N1-N4)
+    · N1: [N] skills could benefit from hooks
+    · N2: [N] skills could benefit from LSP
+    · N3: [N] skills should use TaskCreate
+    · N4: [N] skills should read preferences.yml
 
-  ▾ degraded modes
-    ✓ 14/18 skills have "if something breaks" section
-    ✗ 4 skills fail silently on missing data
+  ▾ communication protocol (P1-P2)
+    ✗ P1: [N] agent-spawning skills lack output format docs
+    ✓ P2: all applicable skills parse todo directives
 
   ▾ worst offenders
-    /clone        1/5 checks passing  ⚠ stub
-    /calibrate    2/5 checks passing  ⚠ thin
-    /openclaw     0/5 checks passing  ⚠ stub
+    /[name]     [N]/16 passing  [tier]
+    /[name]     [N]/16 passing  [tier]
+    /[name]     [N]/16 passing  [tier]
 
-/skill health       per-skill breakdown
+  cache: .claude/cache/skill-audit.json (fresh)
+
 /go [weakest]       improve the weakest skill
 /assert             add missing assertions
+/skill health       per-skill tier breakdown
 ```
 
 ---
