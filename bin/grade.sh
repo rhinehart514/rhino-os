@@ -69,6 +69,54 @@ get_total_score() {
     fi
 }
 
+# Get a feature's eval sub-score (delivery_score, craft_score, viability_score)
+get_feature_sub_score() {
+    local feature="$1" sub="$2"
+    if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
+        local score
+        score=$(jq -r ".\"$feature\".${sub} // empty" "$CACHE_FILE" 2>/dev/null)
+        [[ -z "$score" ]] && score=$(jq -r ".features.\"$feature\".${sub} // empty" "$CACHE_FILE" 2>/dev/null)
+        echo "$score"
+    fi
+}
+
+# Get assertion pass rate from eval-cache or score-cache
+get_assertion_pass_rate() {
+    if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
+        local pass total rate
+        pass=$(jq -r '.assertion_pass_count // empty' "$CACHE_FILE" 2>/dev/null)
+        total=$(jq -r '.assertion_total_count // empty' "$CACHE_FILE" 2>/dev/null)
+        if [[ -n "$pass" && -n "$total" && "$total" -gt 0 ]]; then
+            rate=$((pass * 100 / total))
+            echo "$rate"
+            return
+        fi
+        # Fallback: score-cache.json
+        local score_cache="${CACHE_FILE%/*}/score-cache.json"
+        if [[ -f "$score_cache" ]]; then
+            pass=$(jq -r '.assertion_pass_count // .beliefs_passing // empty' "$score_cache" 2>/dev/null)
+            total=$(jq -r '.assertion_total_count // .beliefs_total // empty' "$score_cache" 2>/dev/null)
+            if [[ -n "$pass" && -n "$total" && "$total" -gt 0 ]]; then
+                rate=$((pass * 100 / total))
+                echo "$rate"
+                return
+            fi
+        fi
+    fi
+}
+
+# Get score delta: compare current score to score at prediction date
+get_score_delta() {
+    local pred_date="$1"
+    local current
+    current=$(get_total_score)
+    [[ -z "$current" || ! "$current" =~ ^[0-9]+$ ]] && return
+    local baseline
+    baseline=$(find_score_at_date "$pred_date")
+    [[ -z "$baseline" || ! "$baseline" =~ ^[0-9]+$ ]] && return
+    echo "$((current - baseline))"
+}
+
 # Find the score closest to a given date in history.tsv
 # History columns: timestamp build structure product capabilities hygiene project_type
 # Returns min(build, structure, hygiene) as the composite score (matches score.sh formula)
@@ -98,6 +146,17 @@ find_score_at_date() {
         if (best != "") print best
     }
     ' "$HISTORY_FILE"
+}
+
+# Helper: check if a word is a valid feature name (not a function word)
+_is_feature_name() {
+    local word="$1"
+    case "$word" in
+        will|the|this|that|its|and|but|for|not|has|was|are|can|may|our|all|any|how|who|with|from|into|also|very|just|only|then|than|when|what|which|each|some|most|such|much)
+            return 1 ;;
+        *)
+            return 0 ;;
+    esac
 }
 
 # Extract claim components from prediction text.
@@ -186,44 +245,121 @@ parse_claim() {
         direction="contains"
         feature="${BASH_REMATCH[1]}"
 
-    # --- TIER 4: Directional patterns (feature name must be 3+ chars to avoid "the", "this", etc.) ---
+    fi
 
-    # Pattern: "X will improve/increase/decrease/drop" (directional, no numbers)
-    elif [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+(will[[:space:]]+)?(improve|increase|raise|grow|rise) ]]; then
-        direction="directional_up"
-        feature="${BASH_REMATCH[1]}"
-    elif [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+(will[[:space:]]+)?(decrease|drop|lower|decline|shrink|fall) ]]; then
-        direction="directional_down"
-        feature="${BASH_REMATCH[1]}"
+    # --- TIER 4: Directional patterns (post-chain, since feature name validation can fail) ---
+    if [[ -z "$direction" ]]; then
+        # Try "X will improve/increase" with valid feature name
+        if [[ "$claim_text" =~ ([a-zA-Z_.-][a-zA-Z_.-][a-zA-Z_.-]+)[[:space:]]+will[[:space:]]+(improve|increase|raise|grow|rise) ]]; then
+            local _feat="${BASH_REMATCH[1]}"
+            if _is_feature_name "$_feat"; then
+                direction="directional_up"
+                feature="$_feat"
+            fi
+        fi
+        # Try "X improve/increase" (no "will")
+        if [[ -z "$direction" && "$claim_text" =~ ([a-zA-Z_.-][a-zA-Z_.-][a-zA-Z_.-]+)[[:space:]]+(improve|increase|raise|grow|rise) ]]; then
+            local _feat2="${BASH_REMATCH[1]}"
+            if _is_feature_name "$_feat2"; then
+                direction="directional_up"
+                feature="$_feat2"
+            fi
+        fi
+        # Try "X will decrease/drop"
+        if [[ -z "$direction" && "$claim_text" =~ ([a-zA-Z_.-][a-zA-Z_.-][a-zA-Z_.-]+)[[:space:]]+will[[:space:]]+(decrease|drop|lower|decline|shrink|fall) ]]; then
+            local _feat3="${BASH_REMATCH[1]}"
+            if _is_feature_name "$_feat3"; then
+                direction="directional_down"
+                feature="$_feat3"
+            fi
+        fi
+        # Try "X decrease/drop" (no "will")
+        if [[ -z "$direction" && "$claim_text" =~ ([a-zA-Z_.-][a-zA-Z_.-][a-zA-Z_.-]+)[[:space:]]+(decrease|drop|lower|decline|shrink|fall) ]]; then
+            local _feat4="${BASH_REMATCH[1]}"
+            if _is_feature_name "$_feat4"; then
+                direction="directional_down"
+                feature="$_feat4"
+            fi
+        fi
+        # No-subject fallback: "will drop" / "will decrease"
+        if [[ -z "$direction" && "$claim_text" =~ will[[:space:]]+(drop|decrease|lower) ]]; then
+            direction="drop"
+        fi
+        # No-subject fallback: "will improve" / "will increase"
+        if [[ -z "$direction" && "$claim_text" =~ will[[:space:]]+(improve|increase) ]]; then
+            direction="raise"
+        fi
 
-    # --- TIER 4b: No-subject directional (fallback when no 3+ char feature name found) ---
+    # --- TIER 4.5: Qualitative patterns (adjective/verb/noun claims) ---
 
-    # Pattern: "will drop" / "will decrease" (no subject)
-    elif [[ "$claim_text" =~ will[[:space:]]+(drop|decrease|lower) ]]; then
-        direction="drop"
-    # Pattern: "will improve" / "will increase" (no subject)
-    elif [[ "$claim_text" =~ will[[:space:]]+(improve|increase) ]]; then
-        direction="raise"
+        # "will be [adjective]" — qualitative comparison claim
+        # better, faster, simpler, cleaner, easier, more reliable, more accurate, higher, lower
+        if [[ -z "$direction" && "$claim_text" =~ will[[:space:]]+be[[:space:]]+(better|faster|simpler|cleaner|easier|smoother|stronger|more[[:space:]]+reliable|more[[:space:]]+accurate|more[[:space:]]+stable|more[[:space:]]+honest|higher|lower) ]]; then
+            local _adj="${BASH_REMATCH[1]}"
+            # Try to extract subject before "will be"
+            if [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+will[[:space:]]+be[[:space:]]+ ]]; then
+                feature="${BASH_REMATCH[1]}"
+                _is_feature_name "$feature" || feature=""
+            fi
+            case "$_adj" in
+                lower) direction="qualitative_down" ;;
+                *)     direction="qualitative_up" ;;
+            esac
+        fi
+
+        # "should [verb]" — expectation claim checked via assertions
+        if [[ -z "$direction" && "$claim_text" =~ should[[:space:]]+(work|pass|succeed|improve|hold|transfer|apply|scale|run|compile|build) ]]; then
+            direction="should_verb"
+            local _verb="${BASH_REMATCH[1]}"
+            # Try to extract subject before "should"
+            if [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+should ]]; then
+                feature="${BASH_REMATCH[1]}"
+                _is_feature_name "$feature" || feature=""
+            fi
+        fi
+
+        # "expect [noun]" — expectation claim checked via score delta
+        if [[ -z "$direction" && "$claim_text" =~ expect[[:space:]]+(improvement|regression|increase|decrease|drop|gain|decline|progress|growth|stability) ]]; then
+            local _noun="${BASH_REMATCH[1]}"
+            case "$_noun" in
+                regression|decrease|drop|decline) direction="expect_down" ;;
+                stability) direction="expect_stable" ;;
+                *) direction="expect_up" ;;
+            esac
+            # Try to extract subject before "expect"
+            if [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+expect ]]; then
+                feature="${BASH_REMATCH[1]}"
+                _is_feature_name "$feature" || feature=""
+            fi
+        fi
+        # Also handle "I expect" / "we expect" form
+        if [[ -z "$direction" && "$claim_text" =~ (I|we)[[:space:]]+expect[[:space:]]+(improvement|regression|increase|decrease|drop|gain|decline|progress|growth|stability) ]]; then
+            local _noun2="${BASH_REMATCH[2]}"
+            case "$_noun2" in
+                regression|decrease|drop|decline) direction="expect_down" ;;
+                stability) direction="expect_stable" ;;
+                *) direction="expect_up" ;;
+            esac
+        fi
+    fi
 
     # --- TIER 5: Broad patterns (lowest priority) ---
-
-    # Pattern: "N sessions/days/weeks/months to..." (time-based — can check elapsed)
-    elif [[ "$claim_text" =~ ([0-9]+)[[:space:]]+(sessions?|days?|weeks?|months?) ]]; then
-        direction="time_based"
-        to_val="${BASH_REMATCH[1]}"
-        feature="${BASH_REMATCH[2]}"
-    # Pattern: "will produce/generate/create" (output claim — boolean)
-    elif [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+(will[[:space:]]+)?(produce|generate|create|enable|reduce|eliminate) ]]; then
-        direction="will_work"
-        feature="${BASH_REMATCH[1]}"
-    # Pattern: "will be the highest/best/hardest/most" (superlative — can't auto-grade)
-    elif [[ "$claim_text" =~ will[[:space:]]+be[[:space:]]+the[[:space:]]+(highest|best|hardest|most|lowest|worst|easiest) ]]; then
-        direction="superlative"
-    # Causal fallback: if we stripped "because" earlier and nothing matched, try the stripped claim as boolean
-    elif [[ "$claim_text" != "$text" ]]; then
-        if [[ "$claim_text" =~ (will[[:space:]]+)?(work|succeed|pass|ship|land|hold|transfer|get) ]]; then
-            direction="causal_bool"
-            feature="causal"
+    if [[ -z "$direction" ]]; then
+        if [[ "$claim_text" =~ ([0-9]+)[[:space:]]+(sessions?|days?|weeks?|months?) ]]; then
+            direction="time_based"
+            to_val="${BASH_REMATCH[1]}"
+            feature="${BASH_REMATCH[2]}"
+        elif [[ "$claim_text" =~ ([a-zA-Z_.-][a-zA-Z_.-][a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(produce|generate|create|enable|reduce|eliminate) ]]; then
+            direction="will_work"
+            feature="${BASH_REMATCH[1]}"
+        elif [[ "$claim_text" =~ will[[:space:]]+be[[:space:]]+the[[:space:]]+(highest|best|hardest|most|lowest|worst|easiest) ]]; then
+            direction="superlative"
+        # Causal fallback: if we stripped "because" earlier and nothing matched
+        elif [[ "$claim_text" != "$text" ]]; then
+            if [[ "$claim_text" =~ (will[[:space:]]+)?(work|succeed|pass|ship|land|hold|transfer|get) ]]; then
+                direction="causal_bool"
+                feature="causal"
+            fi
         fi
     fi
 
@@ -246,11 +382,13 @@ grade_prediction() {
         return
     fi
 
-    # Some patterns (assertion_count, score_target, causal_bool, time_based, superlative)
-    # don't need a feature name — only skip if the specific pattern requires one
+    # Some patterns don't need a feature name — only skip if the specific pattern requires one
     if [[ -z "$feature" && "$direction" != "assertion_count" && "$direction" != "score_target" \
         && "$direction" != "causal_bool" && "$direction" != "time_based" \
-        && "$direction" != "superlative" && "$direction" != "numeric_target" ]]; then
+        && "$direction" != "superlative" && "$direction" != "numeric_target" \
+        && "$direction" != "qualitative_up" && "$direction" != "qualitative_down" \
+        && "$direction" != "should_verb" \
+        && "$direction" != "expect_up" && "$direction" != "expect_down" && "$direction" != "expect_stable" ]]; then
         echo "SKIP"
         return
     fi
@@ -346,10 +484,14 @@ grade_prediction() {
         if [[ -n "$current_score" && "$current_score" -gt 0 ]]; then
             local baseline
             baseline=$(find_score_at_date "$pred_date")
-            if [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ && "$current_score" -gt "$baseline" ]]; then
-                echo "YES|Improved: ${baseline}→${current_score}"
-            elif [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ && "$current_score" -eq "$baseline" ]]; then
-                echo "NO|Unchanged at ${current_score}"
+            if [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ ]]; then
+                if [[ "$current_score" -gt "$baseline" ]]; then
+                    echo "YES|Improved: ${baseline}→${current_score}"
+                elif [[ "$current_score" -eq "$baseline" ]]; then
+                    echo "NO|Unchanged at ${current_score}"
+                else
+                    echo "NO|Decreased: ${baseline}→${current_score}"
+                fi
             else
                 echo "SKIP"
             fi
@@ -364,10 +506,12 @@ grade_prediction() {
         if [[ -n "$current_score" ]]; then
             local baseline
             baseline=$(find_score_at_date "$pred_date")
-            if [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ && "$current_score" -lt "$baseline" ]]; then
-                echo "YES|Decreased: ${baseline}→${current_score}"
-            elif [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ ]]; then
-                echo "NO|Did not decrease: ${baseline}→${current_score}"
+            if [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ ]]; then
+                if [[ "$current_score" -lt "$baseline" ]]; then
+                    echo "YES|Decreased: ${baseline}→${current_score}"
+                else
+                    echo "NO|Did not decrease: ${baseline}→${current_score}"
+                fi
             else
                 echo "SKIP"
             fi
@@ -428,6 +572,127 @@ grade_prediction() {
             else
                 echo "NO|Score ${total} (target was ${to_val})"
             fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # --- NEW QUALITATIVE GRADING (v9.4.1) ---
+
+    # "will be [adjective]" — grade by checking if related eval sub-scores improved
+    if [[ "$direction" == "qualitative_up" || "$direction" == "qualitative_down" ]]; then
+        # Strategy: check if feature's eval sub-scores improved vs baseline at prediction date
+        # If no feature, check total score delta
+        local delta
+        delta=$(get_score_delta "$pred_date")
+        if [[ -n "$delta" ]]; then
+            if [[ "$direction" == "qualitative_up" ]]; then
+                if [[ "$delta" -gt 5 ]]; then
+                    echo "YES|Score improved by ${delta} points"
+                elif [[ "$delta" -ge 0 ]]; then
+                    echo "PARTIAL|Score delta ${delta} (marginal improvement)"
+                else
+                    echo "NO|Score decreased by ${delta#-} points"
+                fi
+            else  # qualitative_down
+                if [[ "$delta" -lt -5 ]]; then
+                    echo "YES|Score decreased by ${delta#-} points"
+                elif [[ "$delta" -le 0 ]]; then
+                    echo "PARTIAL|Score delta ${delta} (marginal decrease)"
+                else
+                    echo "NO|Score increased by ${delta} points"
+                fi
+            fi
+        else
+            # Fallback: check feature-specific eval sub-scores if feature is set
+            if [[ -n "$feature" ]]; then
+                local feat_score
+                feat_score=$(get_feature_score "$feature")
+                if [[ -n "$feat_score" && "$feat_score" =~ ^[0-9]+$ ]]; then
+                    if [[ "$direction" == "qualitative_up" && "$feat_score" -ge 60 ]]; then
+                        echo "YES|Feature ${feature} at ${feat_score} (above threshold)"
+                    elif [[ "$direction" == "qualitative_up" && "$feat_score" -ge 40 ]]; then
+                        echo "PARTIAL|Feature ${feature} at ${feat_score}"
+                    else
+                        echo "NO|Feature ${feature} at ${feat_score}"
+                    fi
+                else
+                    echo "SKIP"
+                fi
+            else
+                echo "SKIP"
+            fi
+        fi
+        return
+    fi
+
+    # "should [verb]" — grade by checking assertion pass rates
+    if [[ "$direction" == "should_verb" ]]; then
+        local pass_rate
+        pass_rate=$(get_assertion_pass_rate)
+        if [[ -n "$pass_rate" && "$pass_rate" =~ ^[0-9]+$ ]]; then
+            if [[ "$pass_rate" -ge 85 ]]; then
+                echo "YES|Assertion pass rate ${pass_rate}%"
+            elif [[ "$pass_rate" -ge 60 ]]; then
+                echo "PARTIAL|Assertion pass rate ${pass_rate}%"
+            else
+                echo "NO|Assertion pass rate ${pass_rate}%"
+            fi
+        else
+            # Fallback: check git log for evidence of the verb's subject
+            if [[ -n "$feature" ]]; then
+                COMMITTED=$(git log --oneline -20 2>/dev/null | grep -i "${feature}" | head -1 || true)
+                REVERTED=$(git log --oneline -20 2>/dev/null | grep -i "revert.*${feature}" | head -1 || true)
+                if [[ -n "$REVERTED" ]]; then
+                    echo "NO|Reverted: ${REVERTED}"
+                elif [[ -n "$COMMITTED" ]]; then
+                    echo "YES|Committed: ${COMMITTED}"
+                else
+                    echo "SKIP"
+                fi
+            else
+                echo "SKIP"
+            fi
+        fi
+        return
+    fi
+
+    # "expect [noun]" — grade by checking score delta
+    if [[ "$direction" == "expect_up" || "$direction" == "expect_down" || "$direction" == "expect_stable" ]]; then
+        local delta
+        delta=$(get_score_delta "$pred_date")
+        if [[ -n "$delta" ]]; then
+            case "$direction" in
+                expect_up)
+                    if [[ "$delta" -gt 5 ]]; then
+                        echo "YES|Score improved by ${delta} points"
+                    elif [[ "$delta" -ge 0 ]]; then
+                        echo "PARTIAL|Score delta +${delta} (marginal)"
+                    else
+                        echo "NO|Score decreased by ${delta#-} points"
+                    fi
+                    ;;
+                expect_down)
+                    if [[ "$delta" -lt -5 ]]; then
+                        echo "YES|Score decreased by ${delta#-} points"
+                    elif [[ "$delta" -le 0 ]]; then
+                        echo "PARTIAL|Score delta ${delta} (marginal)"
+                    else
+                        echo "NO|Score increased by ${delta} points"
+                    fi
+                    ;;
+                expect_stable)
+                    local abs_delta="${delta#-}"
+                    if [[ "$abs_delta" -le 3 ]]; then
+                        echo "YES|Score stable (delta ${delta})"
+                    elif [[ "$abs_delta" -le 8 ]]; then
+                        echo "PARTIAL|Score delta ${delta} (slightly unstable)"
+                    else
+                        echo "NO|Score delta ${delta} (not stable)"
+                    fi
+                    ;;
+            esac
         else
             echo "SKIP"
         fi
