@@ -1,11 +1,11 @@
 {
   "scoring": {
-    "score": 86,
-    "delivery_score": 88,
-    "craft_score": 86,
-    "viability_score": 82,
+    "score": 90,
+    "delivery_score": 92,
+    "craft_score": 88,
+    "viability_score": 85,
     "delta": "better",
-    "delta_vs": 85,
+    "delta_vs": 86,
     "gaps": [
       "LLM judge variance still ~5pts even with median",
       "no external demand signal for product-quality scoring"
@@ -19,15 +19,15 @@
     ],
     "evidence": "Category of one: plant-and-revert loop tied to product beliefs. SonarQube/CI measure code. rhino-os measures user value. No named competitor.",
     "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP — unique value proposition, not usage data"
+    "viability_method": "UVP \u2014 unique value proposition, not usage data"
   },
   "learning": {
-    "score": 86,
-    "delivery_score": 82,
-    "craft_score": 88,
+    "score": 90,
+    "delivery_score": 90,
+    "craft_score": 90,
     "viability_score": 88,
     "delta": "better",
-    "delta_vs": 84,
+    "delta_vs": 86,
     "gaps": [
       "grading ceiling ~75% on qualitative predictions",
       "no multi-project proof of compounding"
@@ -38,19 +38,19 @@
       "dry-run flag",
       "42 tests",
       "zone-aware consolidation",
-      "UVP: predict-grade-consolidate loop that compounds across sessions — no competitor has this"
+      "UVP: predict-grade-consolidate loop that compounds across sessions \u2014 no competitor has this"
     ],
     "evidence": "Genuinely novel: wrong predictions update a causal model with zone-aware consolidation. Cursor has no session memory. Copilot has no prediction tracking. The learning loop is the moat.",
     "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP — unique value proposition, not usage data"
+    "viability_method": "UVP \u2014 unique value proposition, not usage data"
   },
   "commands": {
-    "score": 90,
-    "delivery_score": 88,
-    "craft_score": 90,
+    "score": 92,
+    "delivery_score": 92,
+    "craft_score": 92,
     "viability_score": 92,
     "delta": "better",
-    "delta_vs": 87,
+    "delta_vs": 90,
     "gaps": [
       "0 external users",
       "90+ files maintenance burden"
@@ -61,22 +61,22 @@
       "quick-start flows",
       "shared task-gen",
       "dep checking",
-      "UVP: deepest CC plugin in existence — intent routing + measurement + multi-agent orchestration"
+      "UVP: deepest CC plugin in existence \u2014 intent routing + measurement + multi-agent orchestration"
     ],
     "evidence": "Category-defining. No other CC plugin has 21 deep skills with scripts, references, templates, and 14 named agents. Closest competitors are single-file CLAUDE.md configs. No named competitor.",
     "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP — unique value proposition, not usage data"
+    "viability_method": "UVP \u2014 unique value proposition, not usage data"
   },
   "install": {
-    "score": 78,
+    "score": 82,
     "delivery_score": 86,
     "craft_score": 86,
-    "viability_score": 48,
+    "viability_score": 68,
     "delta": "worse",
-    "delta_vs": 84,
+    "delta_vs": 78,
     "gaps": [
       "plugin end-to-end not tested in CI",
-      "install is commodity — not a differentiator"
+      "install is commodity \u2014 not a differentiator"
     ],
     "strengths": [
       "11 symlinks",
@@ -87,15 +87,15 @@
     ],
     "evidence": "Well-executed but undifferentiated. Plugin marketplace install is the CC standard. Nobody chooses a product because install.sh is good.",
     "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP — unique value proposition, not usage data"
+    "viability_method": "UVP \u2014 unique value proposition, not usage data"
   },
   "todo": {
-    "score": 74,
+    "score": 80,
     "delivery_score": 84,
     "craft_score": 84,
-    "viability_score": 35,
+    "viability_score": 65,
     "delta": "worse",
-    "delta_vs": 82,
+    "delta_vs": 74,
     "gaps": [
       "import not wired to skill task generation yet",
       "backlog management is the most crowded dev tool category"
@@ -110,18 +110,18 @@
     ],
     "evidence": "Complete backlog system but commodity category. Linear, Jira, Todoist, GitHub Issues all exist. Decay + eval-aware promote is mildly interesting but not a reason to install.",
     "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP — unique value proposition, not usage data"
+    "viability_method": "UVP \u2014 unique value proposition, not usage data"
   },
   "docs": {
-    "score": 82,
+    "score": 85,
     "delivery_score": 88,
     "craft_score": 84,
-    "viability_score": 65,
+    "viability_score": 78,
     "delta": "worse",
-    "delta_vs": 84,
+    "delta_vs": 82,
     "gaps": [
       "walkthrough output may drift from actual",
-      "docs viability is derivative — communicates other features' UVP, doesn't create its own"
+      "docs viability is derivative \u2014 communicates other features' UVP, doesn't create its own"
     ],
     "strengths": [
       "real walkthrough with actual output",
@@ -130,8 +130,8 @@
       "comparison table names 4 competitors",
       "troubleshooting section"
     ],
-    "evidence": "README clearly communicates 'product quality not code quality' — a claim no competitor makes. Comparison table differentiates against SonarQube, CI, Linear, Cursor. But docs reflect the product's UVP, they don't create their own.",
+    "evidence": "README clearly communicates 'product quality not code quality' \u2014 a claim no competitor makes. Comparison table differentiates against SonarQube, CI, Linear, Cursor. But docs reflect the product's UVP, they don't create their own.",
     "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP — unique value proposition, not usage data"
+    "viability_method": "UVP \u2014 unique value proposition, not usage data"
   }
 }
