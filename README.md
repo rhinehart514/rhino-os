@@ -1,6 +1,12 @@
 # rhino-os
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that turns Claude into a cofounder — measures your product, learns what works, builds autonomously, and thinks about customers, pricing, and distribution. Not just code quality. Product quality.
+For solo technical founders building products with Claude Code.
+
+A plugin that turns Claude into a cofounder — it measures whether your product actually delivers value (not just code quality), learns what works across sessions, builds autonomously, and thinks about customers, pricing, and distribution.
+
+## How it's different
+
+Most dev tools measure code quality — linting, test coverage, type safety. rhino-os measures **product quality**: does the user get value? It plants testable beliefs about your product ("the signup flow completes in under 30 seconds"), scores them, and reverts changes that make things worse. SonarQube tells you your code is clean. rhino-os tells you your product is better.
 
 ## Install
 
@@ -11,13 +17,15 @@ claude /plugin install rhino-os@rhino-marketplace
 
 No plugin system? `git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os && cd ~/rhino-os && ./install.sh`
 
-**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS/Linux, [jq](https://jqlang.github.io/jq/download/)
+**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS/Linux (Windows not yet supported), [jq](https://jqlang.github.io/jq/download/)
 
 ---
 
 ## Walkthrough: Building a recipe app from scratch
 
 You have an idea for a recipe sharing app. Here's what a real session looks like with rhino-os installed.
+
+One key concept: rhino-os uses **assertions** — testable beliefs about your product, like "the import extracts a title from any recipe URL." It plants them automatically, scores them, and tracks which ones pass. Your score is the percentage of assertions passing.
 
 ### 1. Start with the idea — not the code
 
@@ -315,40 +323,19 @@ Your score is the percentage of assertions that pass. Not lint. Not code quality
 
 Score goes up = you shipped value. Score drops = the change gets reverted.
 
-## 14 agents
+## How the pieces fit
 
-Not just code agents. Startup agents.
+rhino-os has three layers that work together:
 
-| Agent | Does | Model |
-|-------|------|-------|
-| builder | writes code in isolated worktrees | opus |
-| evaluator | deep feature eval with rubrics | opus |
-| founder-coach | detects startup failure modes | opus |
-| gtm | pricing, channels, unit economics | opus |
-| copywriter | positioning-aware product copy | opus |
-| explorer | researches unknowns | sonnet |
-| customer | synthesizes customer signal | sonnet |
-| consolidator | maintains the knowledge model | sonnet |
-| grader | grades predictions | sonnet |
-| debugger | investigates regressions | sonnet |
-| refactorer | cleanup without behavior changes | sonnet |
-| market-analyst | competitive research | opus |
-| measurer | runs scores | haiku |
-| reviewer | UX checklist | haiku |
+**Measurement** — `/eval` scores your features 0-100 across delivery, craft, and viability. `/taste` evaluates visual quality via screenshots. `rhino score .` runs fast structural checks. Score drops after a change trigger automatic reverts.
 
-## It learns
+**Learning** — Every action starts with a prediction ("I predict URL import will reach delivery 50+"). After building, the grader agent checks the prediction against the result. Wrong predictions update the knowledge model. Over sessions, the system stops guessing and starts citing evidence.
 
-Most AI tools are stateless. rhino-os predicts before it acts, measures after, and updates its model when it's wrong.
-
-| Session | What happens |
-|---------|-------------|
-| 1 | Learns your project, generates assertions, baseline score |
-| 5 | Predictions cite past results, patterns emerging |
-| 20 | Dead ends marked, patterns confirmed, not guessing anymore |
+**Strategy** — 14 specialized agents handle different jobs. The builder writes code in isolated worktrees. The founder-coach detects startup failure modes (building without a named user, polishing before delivering). The customer agent synthesizes real signal. The gtm agent handles pricing and distribution. They're coordinated by commands like `/go` and `/plan`, not invoked manually.
 
 ## Tested on
 
-- **rhino-os itself** — score 20 to 93 across sessions, 59/66 assertions passing
+- **rhino-os itself** — score 20 to 93 over ~30 sessions across 2 weeks, 59/66 assertions passing
 - **commander.js** — 80/100 on first `rhino init`, zero configuration
 
 ---

@@ -23,19 +23,51 @@ BACKLOG_FILE="$PROJECT_DIR/.claude/plans/todos.yml"
 PLAN_FILE="$PROJECT_DIR/.claude/plans/plan.yml"
 [[ ! -f "$PLAN_FILE" ]] && PLAN_FILE="$RHINO_DIR/.claude/plans/plan.yml"
 
-# Colors
-BOLD='\033[1m'
-DIM='\033[2m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# ── TTY-aware colors ──────────────────────────────────────
+if [[ -t 1 ]]; then
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    RED='\033[0;31m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    BOLD='' DIM='' GREEN='' YELLOW='' RED='' CYAN='' NC=''
+fi
 
 # ── Helpers ─────────────────────────────────────────────
 
 todo_exists() {
     [[ -f "$BACKLOG_FILE" ]]
+}
+
+# Basic YAML validation — check for items: key and valid structure
+validate_yaml() {
+    if [[ ! -f "$BACKLOG_FILE" ]]; then return 0; fi
+
+    # Must contain items: key
+    if ! grep -q '^items:' "$BACKLOG_FILE" 2>/dev/null; then
+        echo -e "  ${RED}error${NC}: todos.yml missing 'items:' key" >&2
+        return 1
+    fi
+
+    # Check for items with missing id field (malformed entries)
+    local items_count id_count
+    items_count=$(grep -c '^ *- ' "$BACKLOG_FILE" 2>/dev/null) || true
+    id_count=$(grep -c '^ *- id:' "$BACKLOG_FILE" 2>/dev/null) || true
+    # Note: items_count may be higher if fields like "- title:" exist, but
+    # every list entry must start with "- id:". If list items outnumber ids,
+    # there's a structural problem — but we only warn, don't block.
+
+    # Check for duplicate IDs
+    local dupes
+    dupes=$(grep '^ *- id:' "$BACKLOG_FILE" 2>/dev/null | sed 's/.*id: *//' | sort | uniq -d)
+    if [[ -n "$dupes" ]]; then
+        echo -e "  ${YELLOW}warning${NC}: duplicate IDs in todos.yml: $dupes" >&2
+    fi
+
+    return 0
 }
 
 # Get all item IDs
@@ -74,10 +106,8 @@ item_set_field() {
         awk -v id="$id" -v field="$field" -v value="$value" '
             /^ *- id:/ { found = ($0 ~ "id: *" id "$") }
             found && $0 ~ "^ *" field ":" {
-                # Preserve indentation
                 match($0, /^[ ]*/)
                 indent = substr($0, RSTART, RLENGTH)
-                # Quote strings that contain spaces
                 if (value ~ / /) {
                     print indent field ": \"" value "\""
                 } else {
@@ -94,7 +124,6 @@ item_set_field() {
             /^ *- id:/ { in_item = ($0 ~ "id: *" id "$") }
             { print }
             in_item && /^ *- id:/ {
-                # Add field with same indentation as subsequent lines
                 if (value ~ / /) {
                     print "    " field ": \"" value "\""
                 } else {
@@ -123,7 +152,6 @@ priority_sort_key() {
         medium) echo "2" ;;
         low)    echo "3" ;;
         *)      echo "4" ;;
-        *)      echo "4" ;;
     esac
 }
 
@@ -133,6 +161,97 @@ status_icon() {
         done)   echo -e "${GREEN}✓${NC}" ;;
         *)      echo -e " " ;;  # backlog = no icon
     esac
+}
+
+# ── Decay detection ──────────────────────────────────────
+
+# Check item age and return decay bracket: fresh, stale-7, stale-14, stale-30
+item_age_days() {
+    local id="$1"
+    local created
+    created=$(item_field "$id" "created")
+    # Also check created_at for backward compat
+    [[ -z "$created" ]] && created=$(item_field "$id" "created_at")
+    [[ -z "$created" || "$created" == "null" ]] && echo "" && return
+
+    local today_ts created_ts
+    today_ts=$(date +%s)
+    created_ts=$(date -j -f "%Y-%m-%d" "$created" +%s 2>/dev/null || date -d "$created" +%s 2>/dev/null || echo "0")
+    [[ "$created_ts" == "0" ]] && echo "" && return
+
+    echo $(( (today_ts - created_ts) / 86400 ))
+}
+
+# Print decay warnings for stale items
+cmd_decay() {
+    if ! todo_exists; then
+        echo -e "  ${DIM}No todos.yml${NC}"
+        return 0
+    fi
+
+    echo ""
+    echo -e "  ${BOLD}Decay check${NC}"
+    echo ""
+
+    local stale_count=0
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local status
+        status=$(item_field "$id" "status")
+        [[ "$status" == "done" ]] && continue
+
+        local age
+        age=$(item_age_days "$id")
+        [[ -z "$age" ]] && continue
+
+        local title feature
+        title=$(item_field "$id" "title")
+        feature=$(item_field "$id" "feature")
+
+        if [[ "$age" -ge 30 ]]; then
+            echo -e "  ${RED}●${NC} ${title}  ${DIM}[${id}]${NC}  ${RED}${age}d${NC}"
+            echo -e "    ${DIM}→ 30+ days. Kill, promote, or convert to /research?${NC}"
+            stale_count=$((stale_count + 1))
+        elif [[ "$age" -ge 14 ]]; then
+            echo -e "  ${YELLOW}●${NC} ${title}  ${DIM}[${id}]${NC}  ${YELLOW}${age}d${NC}"
+            echo -e "    ${DIM}→ Stale. Promote / kill / needs research?${NC}"
+            stale_count=$((stale_count + 1))
+        elif [[ "$age" -ge 7 && -z "$feature" ]]; then
+            echo -e "  ${CYAN}●${NC} ${title}  ${DIM}[${id}]${NC}  ${CYAN}${age}d${NC}"
+            echo -e "    ${DIM}→ 7+ days untagged. Tag or kill.${NC}"
+            stale_count=$((stale_count + 1))
+        fi
+    done <<< "$(item_ids)"
+
+    if [[ "$stale_count" -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} no stale items — backlog is healthy"
+    else
+        echo ""
+        echo -e "  ${DIM}${stale_count} item(s) need attention${NC}"
+    fi
+    echo ""
+}
+
+# Inline decay summary for cmd_show — just counts, not full detail
+decay_summary() {
+    local stale_count=0
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local status
+        status=$(item_field "$id" "status")
+        [[ "$status" == "done" ]] && continue
+
+        local age
+        age=$(item_age_days "$id")
+        [[ -z "$age" ]] && continue
+
+        [[ "$age" -ge 7 ]] && stale_count=$((stale_count + 1))
+    done <<< "$(item_ids)"
+
+    if [[ "$stale_count" -gt 0 ]]; then
+        echo -e "  ${YELLOW}⚠${NC} ${stale_count} stale item(s) — run ${DIM}rhino todo decay${NC} for details"
+        echo ""
+    fi
 }
 
 # ── Display helpers ───────────────────────────────────────
@@ -156,7 +275,17 @@ print_item() {
     local feature_tag=""
     [[ -n "$feature" ]] && feature_tag="${DIM}[${feature}]${NC} "
 
-    echo -e "  ${s_icon}${marker} ${feature_tag}${title}  ${DIM}[${id}]${NC}"
+    # Show age indicator for stale items
+    local age_tag=""
+    local age
+    age=$(item_age_days "$id")
+    if [[ -n "$age" && "$age" -ge 14 ]]; then
+        age_tag=" ${YELLOW}${age}d${NC}"
+    elif [[ -n "$age" && "$age" -ge 7 ]]; then
+        age_tag=" ${DIM}${age}d${NC}"
+    fi
+
+    echo -e "  ${s_icon}${marker} ${feature_tag}${title}${age_tag}  ${DIM}[${id}]${NC}"
     [[ -n "$context" ]] && echo -e "    ${DIM}${context}${NC}"
 }
 
@@ -195,6 +324,8 @@ cmd_show() {
         echo -e "  ${DIM}No todos.yml — backlog is empty${NC}"
         return 0
     fi
+
+    validate_yaml || return 1
 
     local total
     total=$(grep -c '^ *- id:' "$BACKLOG_FILE" 2>/dev/null) || true
@@ -281,6 +412,9 @@ cmd_show() {
         fi
         echo ""
     fi
+
+    # Decay summary at the bottom
+    decay_summary
 }
 
 cmd_add() {
@@ -357,6 +491,12 @@ cmd_edit() {
     fi
     if ! grep -q "id: ${target_id}$" "$BACKLOG_FILE" 2>/dev/null; then
         echo "Item '$target_id' not found"
+        return 1
+    fi
+
+    # Prevent editing the id field
+    if [[ "$field" == "id" ]]; then
+        echo "Cannot edit item ID"
         return 1
     fi
 
@@ -544,6 +684,26 @@ cmd_all() {
     fi
 }
 
+cmd_health() {
+    # Delegate to todo-stats.sh if available
+    local stats_script="$RHINO_DIR/skills/todo/scripts/todo-stats.sh"
+    if [[ -x "$stats_script" ]]; then
+        bash "$stats_script" "$PROJECT_DIR"
+    else
+        # Inline fallback
+        if ! todo_exists; then
+            echo "  no todos.yml"
+            return 0
+        fi
+        local total active backlog done_ct
+        total=$(grep -c '^ *- id:' "$BACKLOG_FILE" 2>/dev/null) || true
+        active=$(grep -c 'status: active' "$BACKLOG_FILE" 2>/dev/null) || true
+        backlog=$(grep -c 'status: backlog' "$BACKLOG_FILE" 2>/dev/null) || true
+        done_ct=$(grep -c 'status: done' "$BACKLOG_FILE" 2>/dev/null) || true
+        echo "  total: ${total:-0} · active: ${active:-0} · backlog: ${backlog:-0} · done: ${done_ct:-0}"
+    fi
+}
+
 # ── Main ────────────────────────────────────────────────
 
 case "${1:-show}" in
@@ -556,8 +716,10 @@ case "${1:-show}" in
     active)       cmd_active ;;
     feature)      shift; cmd_feature "${1:-}" ;;
     all)          cmd_all ;;
+    decay)        cmd_decay ;;
+    health)       cmd_health ;;
     *)
-        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all]"
+        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all|decay|health]"
         echo ""
         echo "  show              Show todos (default)"
         echo "  add \"title\" [pri] Add a todo"
@@ -568,6 +730,8 @@ case "${1:-show}" in
         echo "  active            Show active only"
         echo "  feature [name]    Filter by feature"
         echo "  all               All sections"
+        echo "  decay             Check for stale items"
+        echo "  health            Backlog health stats"
         exit 1
         ;;
 esac
