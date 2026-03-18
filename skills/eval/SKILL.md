@@ -63,7 +63,7 @@ Parse `$ARGUMENTS`. Exact keyword wins, then feature name, then free-form.
 **Parallel evaluator spawning (full eval only):** Spawn one evaluator agent per feature:
 ```
 For each feature with status: active:
-  Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft/viability 0-100 with file:line evidence. Check rubric.", run_in_background: true)
+  Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft 0-100 with file:line evidence. Check rubric. Do NOT score viability — that's handled by /score via market-analyst + customer agents.", run_in_background: true)
 ```
 
 ### Scoped eval (`<feature>`)

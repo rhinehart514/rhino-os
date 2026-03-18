@@ -52,6 +52,7 @@ ASSERTION_COUNT=0
 ASSERTION_PASS_COUNT=0
 HEALTH_GATE=""
 SCORE_CACHE="$PROJECT_DIR/.claude/cache/score-cache.json"
+TIER_FILL=""
 if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
     TOTAL=$(jq -r '.score // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
     SCORING_MODE=$(jq -r '.scoring_mode // "empty"' "$SCORE_CACHE" 2>/dev/null || echo "empty")
@@ -59,6 +60,17 @@ if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
     ASSERTION_PASS_COUNT=$(jq -r '.assertion_pass_count // 0' "$SCORE_CACHE" 2>/dev/null || echo "0")
     HEALTH_GATE=$(jq -r '.health_gate // "PASS"' "$SCORE_CACHE" 2>/dev/null || echo "PASS")
     HEALTH_MIN=$(jq -r '.health_min // "?"' "$SCORE_CACHE" 2>/dev/null || echo "?")
+
+    # Tier fill badge: count how many of 5 tiers have data
+    _tf=1  # health always present if score cache exists
+    [[ -f "$PROJECT_DIR/.claude/cache/eval-cache.json" ]] && _tf=$((_tf + 1))
+    ls "$PROJECT_DIR/.claude/evals/reports/taste-"*.json &>/dev/null && _tf=$((_tf + 1))
+    ls "$PROJECT_DIR/.claude/evals/reports/flows-"*.json &>/dev/null && _tf=$((_tf + 1))
+    [[ -f "$PROJECT_DIR/.claude/cache/viability-cache.json" ]] && _tf=$((_tf + 1))
+    _tf_filled="" _tf_empty=""
+    for ((_i=0; _i<_tf; _i++)); do _tf_filled="${_tf_filled}●"; done
+    for ((_i=_tf; _i<5; _i++)); do _tf_empty="${_tf_empty}○"; done
+    TIER_FILL="${_tf_filled}${_tf_empty}"
 
     if [[ "$SCORING_MODE" == "assertions" ]]; then
         SCORE_DISPLAY="Score: ${TOTAL}/100 (${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT} assertions)"
@@ -311,7 +323,11 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
             fi
         fi
     fi
-    echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${SCORE_BAR}"
+    TIER_BADGE=""
+    if [[ -n "$TIER_FILL" ]]; then
+        TIER_BADGE="  ${C_DIM}${TIER_FILL}${C_NC}"
+    fi
+    echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${SCORE_BAR}${TIER_BADGE}"
     [[ -n "$TREND_DISPLAY" ]] && echo -e "            ${TREND_DISPLAY}"
     if [[ "$SCORING_MODE" == "assertions" ]]; then
         echo -e "              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"

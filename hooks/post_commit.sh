@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# post_commit.sh — Invalidate score cache after git commit.
-# Hook: PostToolUse (matcher: Bash). Target: <50ms.
-# Parses hook input JSON for git commit commands. Skips amend.
+# post_commit.sh — Score diff after git commit.
+# Hook: PostToolUse (matcher: Bash). Target: <200ms.
+# Runs quick health score, compares to last cached score, shows delta.
 
 set -euo pipefail
 
@@ -9,7 +9,6 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -27,11 +26,59 @@ if echo "$COMMAND" | grep -q 'git commit' 2>/dev/null; then
     fi
 
     CACHE_FILE=".claude/cache/score-cache.json"
-    if [[ -f "$CACHE_FILE" ]]; then
-        rm -f "$CACHE_FILE"
+    HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "???")
+
+    # Capture previous score before clearing cache
+    PREV_SCORE=""
+    if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
+        PREV_SCORE=$(jq -r '.score // ""' "$CACHE_FILE" 2>/dev/null || true)
     fi
 
-    # Print committed hash
-    HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "???")
-    echo -e "${GREEN}✓${NC} committed ${BOLD}$HASH${NC} ${DIM}— score cache cleared${NC}"
+    # Clear stale cache
+    rm -f "$CACHE_FILE"
+
+    # Resolve RHINO_DIR for score.sh
+    RHINO_DIR=""
+    if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+        RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
+    else
+        _PC_SOURCE="${BASH_SOURCE[0]}"
+        while [[ -L "$_PC_SOURCE" ]]; do _PC_SOURCE="$(readlink "$_PC_SOURCE")"; done
+        _PC_DIR="$(cd "$(dirname "$_PC_SOURCE")" && pwd)"
+        RHINO_DIR="$(cd "$_PC_DIR/.." && pwd)"
+    fi
+
+    # Run quick score (no LLM, fast path)
+    NEW_SCORE=""
+    if [[ -f "$RHINO_DIR/bin/score.sh" ]]; then
+        NEW_SCORE=$(bash "$RHINO_DIR/bin/score.sh" . --quiet 2>/dev/null || true)
+    fi
+
+    # Build output
+    if [[ -n "$NEW_SCORE" && "$NEW_SCORE" =~ ^[0-9]+$ && -n "$PREV_SCORE" && "$PREV_SCORE" =~ ^[0-9]+$ ]]; then
+        DELTA=$((NEW_SCORE - PREV_SCORE))
+        if [[ $DELTA -gt 5 ]]; then
+            echo -e "${GREEN}✓${NC} committed ${BOLD}$HASH${NC}  score ${PREV_SCORE}→${GREEN}${NEW_SCORE}${NC} ${GREEN}(+${DELTA})${NC}"
+        elif [[ $DELTA -lt -5 ]]; then
+            ABS_DELTA=$(( -DELTA ))
+            echo -e "${YELLOW}✓${NC} committed ${BOLD}$HASH${NC}  score ${PREV_SCORE}→${RED}${NEW_SCORE}${NC} ${RED}(-${ABS_DELTA})${NC}"
+            # Check for assertion regressions
+            if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
+                PREV_PASS=$(jq -r '.assertion_pass_count // 0' "$CACHE_FILE" 2>/dev/null || echo "0")
+                # Re-read new cache (score.sh just wrote it)
+                if [[ -f "$CACHE_FILE" ]]; then
+                    NEW_PASS=$(jq -r '.assertion_pass_count // 0' "$CACHE_FILE" 2>/dev/null || echo "0")
+                    if [[ "$NEW_PASS" -lt "$PREV_PASS" ]]; then
+                        echo -e "  ${RED}●${NC} assertion regression: ${PREV_PASS}→${NEW_PASS} passing"
+                    fi
+                fi
+            fi
+        else
+            echo -e "${GREEN}✓${NC} committed ${BOLD}$HASH${NC}  score ${NEW_SCORE} ${DIM}(${DELTA:+$([[ $DELTA -ge 0 ]] && echo "+")$DELTA})${NC}"
+        fi
+    elif [[ -n "$NEW_SCORE" && "$NEW_SCORE" =~ ^[0-9]+$ ]]; then
+        echo -e "${GREEN}✓${NC} committed ${BOLD}$HASH${NC}  score ${NEW_SCORE}"
+    else
+        echo -e "${GREEN}✓${NC} committed ${BOLD}$HASH${NC} ${DIM}— score cache cleared${NC}"
+    fi
 fi

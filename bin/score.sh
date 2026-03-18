@@ -59,9 +59,10 @@ for arg in "$@"; do
     case $arg in
         --json) OUTPUT_MODE="json" ;;
         --quiet|-q) OUTPUT_MODE="quiet" ;;
+        --trend) OUTPUT_MODE="trend" ;;
         --force) FORCE=true ;;
         --help|-h)
-            echo "Usage: score.sh [project-dir] [--json] [--quiet] [--force]"
+            echo "Usage: score.sh [project-dir] [--json] [--quiet] [--trend] [--force]"
             exit 0
             ;;
         -*) ;;
@@ -896,6 +897,67 @@ dim_color() {
 case "$OUTPUT_MODE" in
     quiet)
         echo "$local_min"
+        ;;
+    trend)
+        # Output sparkline from history.tsv — last 10 distinct scores
+        if [[ -f "$HISTORY_FILE" ]]; then
+            # Extract last 10 distinct product scores
+            scores_line=$(tail -n +2 "$HISTORY_FILE" | awk -F'\t' '{print $5}' | awk '
+                {a[NR]=$0}
+                END {
+                    n=0; prev=""
+                    for(i=NR; i>=1 && n<10; i--) {
+                        if(a[i] != prev && a[i]+0 == a[i] && a[i] != "") {
+                            if(n>0) printf " "
+                            printf "%s", a[i]
+                            prev=a[i]; n++
+                        }
+                    }
+                }')
+            # Convert to sparkline (newest first from awk, reverse for display)
+            set -- $scores_line
+            if [[ $# -ge 2 ]]; then
+                # Reverse for display (oldest→newest)
+                reversed=""
+                for v in "$@"; do
+                    if [[ -n "$reversed" ]]; then
+                        reversed="${v} ${reversed}"
+                    else
+                        reversed="$v"
+                    fi
+                done
+                # Sparkline characters
+                spark_chars="▁▂▃▄▅▆▇█"
+                # Find min/max
+                min=100 max=0
+                for v in $reversed; do
+                    [[ $v -lt $min ]] && min=$v
+                    [[ $v -gt $max ]] && max=$v
+                done
+                range=$((max - min))
+                [[ $range -eq 0 ]] && range=1
+                spark=""
+                for v in $reversed; do
+                    idx=$(( (v - min) * 7 / range ))
+                    spark="${spark}${spark_chars:$idx:1}"
+                done
+                # Current score and delta
+                newest=$1
+                oldest=${!#}
+                delta=$((newest - oldest))
+                if [[ $delta -gt 0 ]]; then
+                    echo "${spark} ${newest} (+${delta})"
+                elif [[ $delta -lt 0 ]]; then
+                    echo "${spark} ${newest} (${delta})"
+                else
+                    echo "${spark} ${newest}"
+                fi
+            else
+                echo "$local_min"
+            fi
+        else
+            echo "$local_min"
+        fi
         ;;
     json)
         cat <<EOF

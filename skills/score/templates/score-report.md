@@ -3,21 +3,17 @@
 ## Full score output
 
 ```
-▾ product score: [SCORE]/100  confidence: [high|medium|low]
+▾ product score: [SCORE]/100  ●●●○○ (3/5 tiers)  [sparkline] [delta]
 
   health    [pass|fail]  (gate)
   ─────────────────────────────────────
 
-  [feature_name]  [SCORE]/100  w:[weight]  confidence: [level]
+  [feature_name]  [SCORE]/100  w:[weight]  ●●●○○
     delivery    ██████████████░░░░░░  [D]/100  (eval)
     craft       ████████████░░░░░░░░  [C]/100  (eval)
     visual      ████████████████░░░░  [V]/100  (taste)  [or "no data"]
     behavioral  ██████████████████░░  [B]/100  (flows)  [or "no data"]
-    viability   ██████████░░░░░░░░░░  [Vi]/100 (agents)
-      uvp: [score]/25 — [evidence]
-      gap: [score]/25 — [evidence]
-      demand: [score]/25 — [evidence]
-      position: [score]/25 — [evidence]
+    viability   ██████████░░░░░░░░░░  [Vi]/100 (source: agents|intelligence|capped)
 
   [repeat for each feature]
 
@@ -29,13 +25,19 @@
   ▸ [next command suggestion based on weakest tier/feature]
 ```
 
+**Rules:**
+- Always show tier fill badge (●●●○○) at product level and per feature
+- Always show sparkline from `rhino score . --trend` if history exists
+- Show viability source (agents/intelligence/capped) — never hide where the number comes from
+- Show score delta vs previous unified score if available
+
 ## Quick mode output
 
 ```
-▾ product score: [SCORE]/100  (cached, [age])
+▾ product score: [SCORE]/100  ●●○○○  (cached, [age])
 
-  [feature]  [SCORE]  d:[D] c:[C] v:[V] vi:[Vi]  confidence:[level]
-  [feature]  [SCORE]  d:[D] c:[C] v:[V] vi:[Vi]  confidence:[level]
+  [feature]  [SCORE]  d:[D] c:[C] vi:[Vi]([source])  ●●○○○
+  [feature]  [SCORE]  d:[D] c:[C] vi:[Vi]([source])  ●●○○○
 
   stale: [tier list]
   ▸ /score deep for fresh data
@@ -44,7 +46,7 @@
 ## Breakdown mode output
 
 ```
-▾ score breakdown
+▾ score breakdown  ●●●●○ (4/5 tiers)
 
   tier 1: health
     score: [N]  cached: [age]  confidence: [level]
@@ -67,15 +69,16 @@
     converted score: [N]/100
 
   tier 5: viability
+    source: [agents|intelligence|capped]
     cached: [age]  confidence: [level]
     [feature]: [score]  uvp:[N] gap:[N] demand:[N] position:[N]
-    sources: market-context [age], customer-intel [age], strategy [age]
+    intelligence: market-context [age], customer-intel [age], strategy [age]
 ```
 
 ## Viability-only output
 
 ```
-▾ viability assessment  confidence: [level]
+▾ viability assessment  confidence: [level]  source: [agents|intelligence|capped]
 
   [feature]  [SCORE]/100
     uvp clarity:      [N]/25  [one-line evidence]
@@ -97,5 +100,5 @@
 Same as full score but for one feature, with additional detail:
 - All evidence citations expanded (not one-line)
 - Cross-tier contradictions surfaced
-- Historical trend if available (from eval-cache deltas)
+- Historical trend via `rhino score . --trend`
 - Task suggestions from weakest tier

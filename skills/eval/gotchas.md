@@ -12,7 +12,7 @@ Built from real failure modes across sessions. Update this when /eval fails in a
 ## Evidence failures
 
 - **Evidence-free excellence:** Any sub-score >80 without citing specific file:line evidence is inflated. The evaluator must point to code, not describe vibes. "Well-structured" is not evidence. "bin/score.sh:45 — weighted formula with fallback" is.
-- **Viability hallucination:** Without market data, viability scores default to "nobody knows about it = risky." Use customer-intel.json when available. If no market data exists, cap viability at 40 and flag: "Run `/strategy market` for real viability data."
+- **Viability is not eval's job:** /eval scores delivery + craft only. Viability is scored by /score via market-analyst + customer agents with cited evidence. If eval-cache.json still has `viability_score` fields from old runs, ignore them — viability-cache.json is authoritative.
 - **Scoring by volume, not value:** 500 lines of code != high delivery score. A 50-line script that solves the user's problem outscores a 2000-line framework that doesn't. Delivery measures user value, not code completeness.
 
 ## Dimension failures

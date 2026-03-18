@@ -130,14 +130,33 @@ fi
 
 # Tier 5: Viability
 VIABILITY_CACHE="$PROJECT_DIR/.claude/cache/viability-cache.json"
+MARKET_CONTEXT="$PROJECT_DIR/.claude/cache/market-context.json"
+CUSTOMER_INTEL="$PROJECT_DIR/.claude/cache/customer-intel.json"
 echo -n "viability   "
 if [[ -f "$VIABILITY_CACHE" ]]; then
-    echo "$(staleness "$VIABILITY_CACHE")  confidence:$(confidence "$VIABILITY_CACHE" 259200 518400)"
+    echo "agents  $(staleness "$VIABILITY_CACHE")  confidence:$(confidence "$VIABILITY_CACHE" 259200 518400)"
+elif [[ -f "$MARKET_CONTEXT" && -f "$CUSTOMER_INTEL" ]]; then
+    echo "intelligence (capped at 60)  market:$(staleness "$MARKET_CONTEXT")  customer:$(staleness "$CUSTOMER_INTEL")"
+elif [[ -f "$MARKET_CONTEXT" || -f "$CUSTOMER_INTEL" ]]; then
+    echo "partial intelligence (capped at 45)"
 else
-    echo "no data (capped at 30 without agents)"
+    echo "no data (capped at 30)"
 fi
 
-# Market intelligence sources
+# Tier fill badge
+_tiers=0
+[[ -f "$SCORE_CACHE" ]] && _tiers=$((_tiers + 1))
+[[ -f "$EVAL_CACHE" ]] && _tiers=$((_tiers + 1))
+[[ -n "${latest_taste:-}" ]] && _tiers=$((_tiers + 1))
+[[ -n "${latest_flows:-}" ]] && _tiers=$((_tiers + 1))
+[[ -f "$VIABILITY_CACHE" ]] && _tiers=$((_tiers + 1))
+_badge=""
+for ((_i=0; _i<_tiers; _i++)); do _badge="${_badge}●"; done
+for ((_i=_tiers; _i<5; _i++)); do _badge="${_badge}○"; done
+echo ""
+echo "tiers ${_badge} (${_tiers}/5)"
+
+# Intelligence sources
 echo ""
 echo "intelligence sources"
 echo "───────────────────────────────────"

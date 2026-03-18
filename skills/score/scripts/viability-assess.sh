@@ -109,16 +109,22 @@ if $needs_agents; then
     echo "  spawn: market-analyst (competitive landscape)"
     echo "  spawn: customer (demand signals)"
     echo ""
-    # Determine viability cap based on available data
+    # Determine viability cap and source
     if [[ ! -f "$MARKET_CONTEXT" ]] && [[ ! -f "$CUSTOMER_INTEL" ]]; then
         echo "cap: 30 (no external data)"
-    elif [[ ! -f "$CUSTOMER_INTEL" ]]; then
-        echo "cap: 60 (no customer signal)"
+        echo "source: capped"
+    elif [[ -f "$MARKET_CONTEXT" ]] && [[ -f "$CUSTOMER_INTEL" ]]; then
+        echo "cap: 60 (intelligence available, agents needed for full range)"
+        echo "source: intelligence (synthesize.sh will use cached intelligence)"
+    elif [[ -f "$MARKET_CONTEXT" ]]; then
+        echo "cap: 45 (market context only)"
+        echo "source: intelligence-partial"
     else
-        echo "cap: 100 (both sources present)"
+        echo "cap: 45 (customer intel only)"
+        echo "source: intelligence-partial"
     fi
 else
-    echo "DATA FRESH: score from cached data"
+    echo "DATA FRESH: score from cached viability-cache.json (agent-backed)"
     # Show per-feature viability if available
     if [[ -f "$VIABILITY_CACHE" ]] && [[ "$TARGET_FEATURE" != "all" ]]; then
         jq -r --arg f "$TARGET_FEATURE" '.features[$f] // {} | "  \($f): \(.viability_score // "?")  uvp:\(.uvp_clarity // "?") gap:\(.competitive_gap // "?") demand:\(.demand_signal // "?") pos:\(.positioning // "?")"' "$VIABILITY_CACHE" 2>/dev/null

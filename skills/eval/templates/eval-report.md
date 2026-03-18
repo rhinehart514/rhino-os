@@ -5,10 +5,10 @@
 ```
 ◆ eval — N features
 
-  feature_name     ████████░░░░░░░░░░░░  42  d:48 c:35 v:40  ↓3
+  feature_name     ████████░░░░░░░░░░░░  42  d:48 c:35  ↓3
     one-line gap description
 
-  feature_name     ██████████░░░░░░░░░░  58  d:62 c:50 v:55
+  feature_name     ██████████░░░░░░░░░░  58  d:62 c:50
     one-line gap description
 
   beliefs: 61/76 passing
@@ -26,7 +26,7 @@
 
 **Rules:**
 - Features sorted worst-to-best — worst score first, always
-- One line per feature: name, bar, score, sub-scores (d:N c:N v:N), delta arrow
+- One line per feature: name, bar, score, sub-scores (d:N c:N), delta arrow. Viability scored by /score, not /eval.
 - Gap line indented below — the specific problem, not a verdict label
 - No DELIVERS/PARTIAL/MISSING labels — the score IS the verdict
 - Beliefs are one summary line — pass count only
@@ -48,10 +48,6 @@
     ✓ what works with file:line
     · what's broken with file:line
     · system design issue
-
-  viability ████████████████░░░░  55/100
-    ✓ what works
-    · what's missing
 
   total     █████████████░░░░░░░  58/100
   delta     ↑4 vs previous (54)
@@ -131,7 +127,6 @@ Write to `.claude/cache/eval-cache.json` (merge with existing):
     "score": 58,
     "delivery_score": 62,
     "craft_score": 50,
-    "viability_score": 55,
     "gaps": ["specific problem with file:line"],
     "strengths": ["what works well"],
     "evidence": "one sentence overall judgment",

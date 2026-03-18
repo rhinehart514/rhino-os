@@ -79,15 +79,21 @@ If no URL configured: skip tier, redistribute weight to code eval craft.
 If stale: flag `behavioral_confidence: low`.
 If no URL configured: skip tier, redistribute weight to code eval delivery.
 
-### Tier 5: Viability (agent-backed, expensive)
+### Tier 5: Viability (intelligence-first, agent-refreshed)
 
-**Source:** market-analyst + customer agents
+**Source:** viability-cache.json (agent-backed) > market-context.json + customer-intel.json (intelligence-derived) > capped at 30
 **Cache:** `.claude/cache/viability-cache.json`
 **What it measures:** Market position, competitive differentiation, demand signals, UVP strength.
 **Weight in final score:** 10%
 **Staleness:** >72h or strategy/market context changed.
 
-This is the tier that earns its score. Read `references/viability-guide.md` for the full protocol.
+**Viability scoring priority:**
+1. **Agent-backed** (viability-cache.json exists and fresh): full range 0-100. Authoritative.
+2. **Intelligence-derived** (market-context.json + customer-intel.json exist): capped at 60. Uses accumulated intelligence without spawning agents.
+3. **Partial intelligence** (one of market/customer exists): capped at 45.
+4. **No data**: capped at 30. Honest unknown territory.
+
+Agents are the REFRESH mechanism, not the only path. `synthesize.sh` reads intelligence files directly for scoring. Only spawn agents when intelligence is stale (>7 days) or missing entirely.
 
 ## The protocol
 
@@ -100,16 +106,18 @@ This is the tier that earns its score. Read `references/viability-guide.md` for 
 5. **Code eval tier:** read `.claude/cache/eval-cache.json`. If stale (>24h), run fresh eval per feature.
 6. **Visual tier:** find latest `taste-*.json` in `.claude/evals/reports/`. If stale or missing, flag low confidence.
 7. **Behavioral tier:** find latest `flows-*.json` in `.claude/evals/reports/`. If stale or missing, flag low confidence.
-8. **Viability tier:** read `.claude/cache/viability-cache.json`. If stale (>72h), spawn agents:
-   - `Agent(subagent_type: "rhino-os:market-analyst", prompt: "Analyze market position for [product]. Write to .claude/cache/market-context.json", run_in_background: true)`
-   - `Agent(subagent_type: "rhino-os:customer", prompt: "Gather customer signal for [product]. Write to .claude/cache/customer-intel.json", run_in_background: true)`
-   - Wait for both. Read results. Score viability with evidence backing.
-9. **Synthesize:** run `bash scripts/synthesize.sh` or compute inline:
-   - Per feature: `delivery*0.40 + craft*0.25 + visual*0.15 + behavioral*0.10 + viability*0.10`
-   - If visual/behavioral unavailable: redistribute to `delivery*0.50 + craft*0.30 + viability*0.20`
+8. **Viability tier:** `synthesize.sh` handles viability automatically:
+   - Reads viability-cache.json first (agent-backed, authoritative)
+   - Falls back to scoring from market-context.json + customer-intel.json (capped at 60)
+   - No intelligence at all = capped at 30
+   - Only spawn agents if viability-cache.json is stale (>72h) AND intelligence files are stale (>7d):
+     - `Agent(subagent_type: "rhino-os:market-analyst", prompt: "Analyze market position for [product]. Write to .claude/cache/market-context.json", run_in_background: true)`
+     - `Agent(subagent_type: "rhino-os:customer", prompt: "Gather customer signal for [product]. Write to .claude/cache/customer-intel.json", run_in_background: true)`
+9. **Synthesize:** run `bash scripts/synthesize.sh` — handles all tier reading, weight redistribution, and confidence computation.
+   - Output includes `tiers` count (0-5) and `viability_source` (agents/intelligence/capped) per feature
    - Product total: weighted average across features (by `weight:` field in rhino.yml)
 10. Write unified results to `.claude/cache/score-unified.json`
-11. Present using `templates/score-report.md`
+11. Present using `templates/score-report.md` — always show tier fill badge (●●○○○)
 
 ### Quick mode
 
@@ -117,7 +125,16 @@ Read all caches. No fresh runs. No agent spawns. Flag stale data. Fastest possib
 
 ### Deep mode
 
-Force fresh on ALL tiers. Run eval with `--fresh`. Trigger taste + flows if URL available. Spawn viability agents regardless of cache age. Most accurate, most expensive.
+Auto-fill all tiers sequentially. One command, all tiers, one number:
+
+1. **Health gate:** `bash bin/score.sh . --json`
+2. **Code eval:** if stale, spawn evaluator agents per feature
+3. **Visual:** if URL configured in rhino.yml, run `/taste <url>` (Playwright + Vision)
+4. **Behavioral:** if URL configured, run `/taste <url> flows` (Playwright flow audit)
+5. **Viability:** spawn market-analyst + customer agents regardless of cache age
+
+Show progress as each tier completes. Most accurate, most expensive (~$2-5 API, 10+ minutes).
+Warn about cost before starting. Use `AskUserQuestion` to confirm if not explicitly requested.
 
 ### Viability mode
 
