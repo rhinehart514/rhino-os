@@ -74,6 +74,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$PROJECT_DIR"
 
+# --- Cross-platform file mtime (epoch seconds) ---
+file_mtime() {
+    local file="$1"
+    [[ ! -f "$file" && ! -d "$file" ]] && echo "0" && return
+    stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null || echo "0"
+}
+
 # --- Config ---
 source "$SCRIPT_DIR/lib/config.sh"
 
@@ -149,7 +156,7 @@ CACHE_FILE="$CACHE_DIR/score-cache.json"
 CACHE_MAX_AGE=$(cfg scoring.cache_ttl 300)
 
 if [[ "$FORCE" != true && -f "$CACHE_FILE" ]]; then
-    cache_mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)
+    cache_mtime=$(file_mtime "$CACHE_FILE")
     cache_age=$(( $(date +%s) - cache_mtime ))
 
     # Invalidate cache if any project file changed since the cache was written.
@@ -166,7 +173,7 @@ if [[ "$FORCE" != true && -f "$CACHE_FILE" ]]; then
     # Also check top-level config files
     if [[ "$cache_stale" != true ]]; then
         for _f in rhino.yml config/rhino.yml package.json tsconfig.json; do
-            if [[ -f "$_f" ]] && [[ $(stat -f %m "$_f" 2>/dev/null || stat -c %Y "$_f" 2>/dev/null || echo 0) -gt "$cache_mtime" ]]; then
+            if [[ -f "$_f" ]] && [[ $(file_mtime "$_f") -gt "$cache_mtime" ]]; then
                 cache_stale=true
                 break
             fi
@@ -176,7 +183,12 @@ if [[ "$FORCE" != true && -f "$CACHE_FILE" ]]; then
     if [[ "$cache_stale" != true && "$cache_age" -lt "$CACHE_MAX_AGE" ]]; then
         case "$OUTPUT_MODE" in
             quiet)
-                cached_score=$(jq -r '.score // empty' "$CACHE_FILE" 2>/dev/null)
+                if command -v jq &>/dev/null; then
+                    cached_score=$(jq -r '.score // empty' "$CACHE_FILE" 2>/dev/null)
+                else
+                    # Fallback: extract score from JSON without jq
+                    cached_score=$(grep -o '"score":[0-9]*' "$CACHE_FILE" 2>/dev/null | head -1 | grep -o '[0-9]*$')
+                fi
                 if [[ -n "$cached_score" && "$cached_score" != "null" ]]; then
                     echo "$cached_score"
                     exit 0
@@ -242,13 +254,13 @@ score_build_health() {
             local build_age=999999
             if [[ -d ".next" ]]; then
                 has_build=true
-                build_age=$(( $(date +%s) - $(stat -f %m ".next" 2>/dev/null || stat -c %Y ".next" 2>/dev/null || echo 0) ))
+                build_age=$(( $(date +%s) - $(file_mtime ".next") ))
             elif [[ -d "dist" ]]; then
                 has_build=true
-                build_age=$(( $(date +%s) - $(stat -f %m "dist" 2>/dev/null || stat -c %Y "dist" 2>/dev/null || echo 0) ))
+                build_age=$(( $(date +%s) - $(file_mtime "dist") ))
             elif [[ -d "apps/web/.next" ]]; then
                 has_build=true
-                build_age=$(( $(date +%s) - $(stat -f %m "apps/web/.next" 2>/dev/null || stat -c %Y "apps/web/.next" 2>/dev/null || echo 0) ))
+                build_age=$(( $(date +%s) - $(file_mtime "apps/web/.next") ))
             fi
             if ! $has_build; then
                 score=$((score + ts_penalty))
@@ -776,7 +788,7 @@ if [[ -d ".claude/evals/reports" ]]; then
     TASTE_FILE=$(ls -t .claude/evals/reports/taste-*.json 2>/dev/null | head -1)
     if [[ -n "$TASTE_FILE" ]] && command -v jq &> /dev/null; then
         TASTE_SCORE=$(jq -r '.score_100 // empty' "$TASTE_FILE" 2>/dev/null)
-        taste_mtime=$(stat -f %m "$TASTE_FILE" 2>/dev/null || stat -c %Y "$TASTE_FILE" 2>/dev/null || echo 0)
+        taste_mtime=$(file_mtime "$TASTE_FILE")
         TASTE_AGE_DAYS=$(( ($(date +%s) - taste_mtime) / 86400 ))
     fi
 fi
