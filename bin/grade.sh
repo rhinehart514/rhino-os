@@ -46,13 +46,26 @@ $QUIET || echo "Grading $UNGRADED ungraded prediction(s)..."
 get_feature_score() {
     local feature="$1"
     if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
-        jq -r ".features.\"$feature\".score // empty" "$CACHE_FILE" 2>/dev/null
+        # Try nested .features.X.score first, then top-level .X.score (eval-cache format)
+        local score
+        score=$(jq -r ".features.\"$feature\".score // empty" "$CACHE_FILE" 2>/dev/null)
+        if [[ -z "$score" ]]; then
+            score=$(jq -r ".\"$feature\".score // empty" "$CACHE_FILE" 2>/dev/null)
+        fi
+        echo "$score"
     fi
 }
 
 get_total_score() {
     if [[ -f "$CACHE_FILE" ]] && command -v jq &>/dev/null; then
-        jq -r '.score // empty' "$CACHE_FILE" 2>/dev/null
+        local score
+        score=$(jq -r '.score // empty' "$CACHE_FILE" 2>/dev/null)
+        # Fallback: try score-cache.json in the same directory
+        if [[ -z "$score" ]]; then
+            local score_cache="${CACHE_FILE%/*}/score-cache.json"
+            [[ -f "$score_cache" ]] && score=$(jq -r '.score // empty' "$score_cache" 2>/dev/null)
+        fi
+        echo "$score"
     fi
 }
 
@@ -107,6 +120,56 @@ parse_claim() {
     elif [[ "$text" =~ ([a-zA-Z_./-]+)[[:space:]]+contains ]]; then
         direction="contains"
         feature="${BASH_REMATCH[1]}"
+    # --- NEW PATTERNS (v9.0.1) ---
+    # Pattern: "X will improve/increase/decrease/drop" (directional, no numbers)
+    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(improve|increase|raise|grow|rise) ]]; then
+        direction="directional_up"
+        feature="${BASH_REMATCH[1]}"
+    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(decrease|drop|lower|decline|shrink|fall) ]]; then
+        direction="directional_down"
+        feature="${BASH_REMATCH[1]}"
+    # Pattern: "X will reach/exceed/hit N" (numeric target)
+    elif [[ "$text" =~ (reach|exceed|hit|get[[:space:]]+to)[[:space:]]+([0-9]+) ]]; then
+        direction="numeric_target"
+        to_val="${BASH_REMATCH[2]}"
+        # Try to extract feature name before the verb
+        if [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(reach|exceed|hit|get[[:space:]]+to) ]]; then
+            feature="${BASH_REMATCH[1]}"
+        fi
+    # Pattern: "X eval/score N" or "X feature will score N" (eval-cache lookup)
+    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(eval|feature)[[:space:]]+(from[[:space:]]+[0-9]+[[:space:]]+)?to[[:space:]]+([0-9]+) ]]; then
+        direction="eval_target"
+        feature="${BASH_REMATCH[1]}"
+        to_val="${BASH_REMATCH[4]}"
+    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?score[[:space:]]+([0-9]+) ]]; then
+        direction="eval_target"
+        feature="${BASH_REMATCH[1]}"
+        to_val="${BASH_REMATCH[3]}"
+    # Pattern: "score N" / "to score N" (overall score target)
+    elif [[ "$text" =~ (score|scoring)[[:space:]]+(stays?[[:space:]]+at[[:space:]]+|at[[:space:]]+|to[[:space:]]+)?([0-9]+) ]]; then
+        direction="score_target"
+        feature="score"
+        to_val="${BASH_REMATCH[3]}"
+    # Pattern: "N sessions/days/weeks/months to..." (time-based — can check elapsed)
+    elif [[ "$text" =~ ([0-9]+)[[:space:]]+(sessions?|days?|weeks?|months?) ]]; then
+        direction="time_based"
+        to_val="${BASH_REMATCH[1]}"
+        feature="${BASH_REMATCH[2]}"
+    # Pattern: "will produce/generate/create" (output claim — boolean)
+    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(produce|generate|create|enable|reduce|eliminate) ]]; then
+        direction="will_work"
+        feature="${BASH_REMATCH[1]}"
+    # Pattern: "will be the highest/best/hardest/most" (superlative — can't auto-grade)
+    elif [[ "$text" =~ will[[:space:]]+be[[:space:]]+the[[:space:]]+(highest|best|hardest|most|lowest|worst|easiest) ]]; then
+        direction="superlative"
+    # Pattern: "X because Y" (causal — extract the X claim as boolean)
+    elif [[ "$text" =~ (.+)[[:space:]]+because[[:space:]] ]]; then
+        local causal_claim="${BASH_REMATCH[1]}"
+        # If the causal claim itself contains a gradeable verb, recurse-parse it
+        if [[ "$causal_claim" =~ (will[[:space:]]+)?(work|succeed|pass|ship|land|hold|transfer|get) ]]; then
+            direction="causal_bool"
+            feature="causal"
+        fi
     fi
 
     echo "$direction|$feature|$from_val|$to_val"
@@ -122,28 +185,21 @@ grade_prediction() {
     IFS='|' read -r direction feature from_val to_val <<< "$claim"
 
     # Can't extract a directional claim — skip for manual grading
-    if [[ -z "$direction" || -z "$feature" ]]; then
+    if [[ -z "$direction" ]]; then
         echo "SKIP"
         return
     fi
 
-    # Get current score for that feature
-    local current_score
-    current_score=$(get_feature_score "$feature")
-
-    # If feature not found by exact name, try total score
-    if [[ -z "$current_score" ]]; then
-        if [[ "$feature" == "score" || "$feature" == "total" ]]; then
-            current_score=$(get_total_score)
-        fi
-    fi
-
-    if [[ -z "$current_score" ]]; then
+    # Some patterns (assertion_count, score_target, causal_bool, time_based, superlative)
+    # don't need a feature name — only skip if the specific pattern requires one
+    if [[ -z "$feature" && "$direction" != "assertion_count" && "$direction" != "score_target" \
+        && "$direction" != "causal_bool" && "$direction" != "time_based" \
+        && "$direction" != "superlative" && "$direction" != "numeric_target" ]]; then
         echo "SKIP"
         return
     fi
 
-    # Grade based on direction — expanded pattern matching
+    # --- Patterns that don't need a score (git-based, filesystem-based) ---
 
     # "X will work" — check git log for reverts (failure) or success
     if [[ "$direction" == "will_work" ]]; then
@@ -218,6 +274,140 @@ grade_prediction() {
         return
     fi
 
+    # --- Score-based patterns (need current_score) ---
+    local current_score
+    current_score=$(get_feature_score "$feature")
+
+    # If feature not found by exact name, try total score
+    if [[ -z "$current_score" ]]; then
+        if [[ "$feature" == "score" || "$feature" == "total" ]]; then
+            current_score=$(get_total_score)
+        fi
+    fi
+
+    # --- NEW GRADING LOGIC (v9.0.1) ---
+
+    # "directional_up" — check if feature score went up vs any baseline
+    if [[ "$direction" == "directional_up" ]]; then
+        if [[ -n "$current_score" && "$current_score" -gt 0 ]]; then
+            # Check history for a prior score to compare
+            if [[ -f "$HISTORY_FILE" ]]; then
+                PREV=$(tail -n +2 "$HISTORY_FILE" 2>/dev/null | head -1 | cut -f5 2>/dev/null || echo "")
+                if [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ && "$current_score" -gt "$PREV" ]]; then
+                    echo "YES|Improved: ${PREV}→${current_score}"
+                elif [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ && "$current_score" -eq "$PREV" ]]; then
+                    echo "NO|Unchanged at ${current_score}"
+                else
+                    echo "SKIP"
+                fi
+            else
+                echo "SKIP"
+            fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # "directional_down" — check if feature score went down
+    if [[ "$direction" == "directional_down" ]]; then
+        if [[ -n "$current_score" && -f "$HISTORY_FILE" ]]; then
+            PREV=$(tail -n +2 "$HISTORY_FILE" 2>/dev/null | head -1 | cut -f5 2>/dev/null || echo "")
+            if [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ && "$current_score" -lt "$PREV" ]]; then
+                echo "YES|Decreased: ${PREV}→${current_score}"
+            elif [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ ]]; then
+                echo "NO|Did not decrease: ${PREV}→${current_score}"
+            else
+                echo "SKIP"
+            fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # "numeric_target" — check if a feature/total score reached the target
+    if [[ "$direction" == "numeric_target" && -n "$to_val" ]]; then
+        local check_score="${current_score}"
+        [[ -z "$check_score" ]] && check_score=$(get_total_score)
+        if [[ -n "$check_score" && "$check_score" =~ ^[0-9]+$ ]]; then
+            if [[ "$check_score" -ge "$to_val" ]]; then
+                echo "YES|Reached ${check_score} (target was ${to_val})"
+            elif [[ "$check_score" -ge "$((to_val * 80 / 100))" ]]; then
+                echo "PARTIAL|At ${check_score} (target was ${to_val}, within 80%)"
+            else
+                echo "NO|At ${check_score} (target was ${to_val})"
+            fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # "eval_target" — check eval-cache for feature score
+    if [[ "$direction" == "eval_target" && -n "$to_val" ]]; then
+        local eval_score=""
+        eval_score=$(get_feature_score "$feature")
+        [[ -z "$eval_score" ]] && eval_score=$(get_total_score)
+        if [[ -n "$eval_score" && "$eval_score" =~ ^[0-9]+$ ]]; then
+            if [[ "$eval_score" -ge "$to_val" ]]; then
+                echo "YES|Eval score ${eval_score} (target was ${to_val})"
+            elif [[ "$eval_score" -ge "$((to_val * 75 / 100))" ]]; then
+                echo "PARTIAL|Eval score ${eval_score} (target was ${to_val})"
+            else
+                echo "NO|Eval score ${eval_score} (target was ${to_val})"
+            fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # "score_target" — check total score against target
+    if [[ "$direction" == "score_target" && -n "$to_val" ]]; then
+        local total
+        total=$(get_total_score)
+        if [[ -n "$total" && "$total" =~ ^[0-9]+$ ]]; then
+            local diff=$(( total - to_val ))
+            [[ $diff -lt 0 ]] && diff=$(( -diff ))
+            if [[ "$diff" -le 5 ]]; then
+                echo "YES|Score ${total} (target was ${to_val}, within 5pt margin)"
+            elif [[ "$total" -ge "$to_val" ]]; then
+                echo "PARTIAL|Score ${total} exceeded target ${to_val}"
+            else
+                echo "NO|Score ${total} (target was ${to_val})"
+            fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # "time_based" — can't verify time claims mechanically
+    if [[ "$direction" == "time_based" ]]; then
+        echo "SKIP"
+        return
+    fi
+
+    # "superlative" — can't auto-grade subjective superlatives
+    if [[ "$direction" == "superlative" ]]; then
+        echo "SKIP"
+        return
+    fi
+
+    # "causal_bool" — check git log for evidence of the causal claim
+    if [[ "$direction" == "causal_bool" ]]; then
+        # Look for commits mentioning the prediction text (first 30 chars)
+        local search_term="${prediction:0:30}"
+        FOUND=$(git log --oneline -30 2>/dev/null | grep -i "${search_term:0:15}" | head -1 || true)
+        if [[ -n "$FOUND" ]]; then
+            echo "YES|Evidence in commits: ${FOUND}"
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
     # Original directional grading
     if [[ "$direction" == "raise" && -n "$to_val" && -n "$from_val" ]]; then
         if [[ "$current_score" -ge "$to_val" ]]; then
@@ -260,16 +450,36 @@ while IFS= read -r line; do
     # Skip empty lines
     [[ -z "$date" ]] && continue
 
+    # TSV validation: skip malformed rows (missing required fields, bad date format)
+    if [[ ! "$date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        $QUIET || echo "  ! Skipping malformed row $LINE_NUM: bad date '$date'"
+        echo "$line" >> "$TEMP_FILE"
+        continue
+    fi
+    if [[ -z "$prediction" ]]; then
+        $QUIET || echo "  ! Skipping malformed row $LINE_NUM: empty prediction"
+        echo "$line" >> "$TEMP_FILE"
+        continue
+    fi
+
     # Already graded — pass through
     if [[ -n "$correct" ]]; then
         echo "$line" >> "$TEMP_FILE"
         continue
     fi
 
-    # Try to grade
+    # Try to grade — first try prediction column, then agent column
+    # (some rows have shifted columns when agent field is missing)
     grade_result=$(grade_prediction "$prediction")
     grade_verdict="${grade_result%%|*}"
     grade_detail="${grade_result#*|}"
+
+    # If prediction column didn't match, try agent column (column shift recovery)
+    if [[ "$grade_verdict" == "SKIP" && -n "$agent" && ${#agent} -gt 20 ]]; then
+        grade_result=$(grade_prediction "$agent")
+        grade_verdict="${grade_result%%|*}"
+        grade_detail="${grade_result#*|}"
+    fi
 
     if [[ "$grade_verdict" == "SKIP" ]]; then
         # Can't auto-grade — pass through unchanged
@@ -285,11 +495,19 @@ while IFS= read -r line; do
         *)       echo "$line" >> "$TEMP_FILE"; continue ;;
     esac
 
-    # Build model_update for wrong predictions
+    # Build model_update for ALL graded predictions (not just failures)
     local_model_update=""
-    if [[ "$correct_val" == "no" ]]; then
-        local_model_update="Prediction missed target. Actual outcome: ${grade_detail}"
-    fi
+    case "$correct_val" in
+        no)
+            local_model_update="Prediction missed target. Actual outcome: ${grade_detail}"
+            ;;
+        yes)
+            local_model_update="Confirmed: ${grade_detail}"
+            ;;
+        partial)
+            local_model_update="Partially confirmed: ${grade_detail}"
+            ;;
+    esac
 
     # Write graded row
     printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
@@ -373,3 +591,58 @@ consolidate_knowledge() {
 }
 
 consolidate_knowledge
+
+# --- Staleness detection: flag entries not referenced by predictions in 30+ days ---
+detect_stale_entries() {
+    local learnings_file="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$learnings_file" ]] && learnings_file="$HOME/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$learnings_file" ]] && return 0
+
+    local stale_days=30
+    local cutoff_date
+    cutoff_date=$(date -v-${stale_days}d '+%Y-%m-%d' 2>/dev/null || date -d "${stale_days} days ago" '+%Y-%m-%d' 2>/dev/null || echo "")
+    [[ -z "$cutoff_date" ]] && return 0
+
+    # Extract dated entries and check which are stale
+    local stale_entries=0
+    local total_dated=0
+    local stale_list=""
+
+    while IFS= read -r entry_line; do
+        local entry_date=""
+        if [[ "$entry_line" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
+            entry_date="${BASH_REMATCH[1]}"
+        else
+            continue
+        fi
+        total_dated=$((total_dated + 1))
+
+        if [[ "$entry_date" < "$cutoff_date" ]]; then
+            # Check if any recent prediction references this entry
+            local entry_snippet="${entry_line:0:60}"
+            entry_snippet="${entry_snippet//\"/}"
+            local referenced=false
+            if [[ -f "$PRED_FILE" ]]; then
+                if tail -n +2 "$PRED_FILE" | awk -F'\t' -v cutoff="$cutoff_date" '$1 >= cutoff' | grep -qiF "${entry_snippet:0:25}" 2>/dev/null; then
+                    referenced=true
+                fi
+            fi
+            if [[ "$referenced" == "false" ]]; then
+                stale_entries=$((stale_entries + 1))
+                local display="${entry_line:0:80}"
+                stale_list="${stale_list}\n    ${display}..."
+            fi
+        fi
+    done < <(grep '^\s*-\s.*[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' "$learnings_file" 2>/dev/null)
+
+    if [[ "$stale_entries" -gt 0 ]]; then
+        $QUIET || echo ""
+        $QUIET || echo "Stale knowledge: ${stale_entries} entries not referenced in ${stale_days}d"
+        if [[ "$QUIET" == false && -n "$stale_list" ]]; then
+            echo -e "$stale_list" | head -5
+            [[ "$stale_entries" -gt 5 ]] && echo "    ... and $((stale_entries - 5)) more. Run /retro to prune."
+        fi
+    fi
+}
+
+detect_stale_entries

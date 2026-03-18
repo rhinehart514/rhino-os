@@ -128,13 +128,34 @@ fi
 # --- Auto-grade predictions before display ---
 PRED_FILE="$PROJECT_DIR/.claude/knowledge/predictions.tsv"
 [[ ! -f "$PRED_FILE" ]] && PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
+GRADE_SUMMARY=""
 if [[ -f "$PRED_FILE" ]] && [[ -f "$RHINO_DIR/bin/grade.sh" ]]; then
     # Fast path: only runs when ungraded predictions exist
     HAS_UNGRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "" { c++ } END { print c+0 }')
     if [[ "$HAS_UNGRADED" -gt 0 ]]; then
+        # Capture before-state for summary
+        BEFORE_GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
+
         bash "$RHINO_DIR/bin/grade.sh" --quiet "$PRED_FILE" \
             "$PROJECT_DIR/.claude/scores/history.tsv" \
             "$PROJECT_DIR/.claude/cache/score-cache.json" 2>/dev/null || true
+
+        # Compute what changed
+        AFTER_GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
+        NEWLY_GRADED=$((AFTER_GRADED - BEFORE_GRADED))
+        if [[ "$NEWLY_GRADED" -gt 0 ]]; then
+            NEW_YES=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
+            NEW_NO=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "no" { c++ } END { print c+0 }')
+            NEW_PARTIAL=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
+            GRADE_SUMMARY="Graded ${NEWLY_GRADED}: ${NEW_YES} correct, ${NEW_PARTIAL} partial, ${NEW_NO} wrong"
+            # Show wrong predictions
+            if [[ "$NEW_NO" -gt 0 ]]; then
+                WRONG_PRED=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "no" { print $3 }' | head -2)
+                while IFS= read -r wp; do
+                    [[ -n "$wp" ]] && GRADE_SUMMARY="${GRADE_SUMMARY}. Wrong: ${wp:0:60}"
+                done <<< "$WRONG_PRED"
+            fi
+        fi
     fi
 fi
 
@@ -374,8 +395,23 @@ if [[ -n "$INTEGRITY_WARNINGS" ]]; then
     HAS_ALERTS=true
 fi
 
+if [[ -n "$GRADE_SUMMARY" ]]; then
+    echo -e "  ${C_GREEN}✓${C_NC} ${GRADE_SUMMARY}"
+    HAS_ALERTS=true
+fi
+
 if (( UNGRADED_COUNT > 0 )); then
+    # Show examples of ungraded predictions to make manual grading easier
+    UNGRADED_EXAMPLES=""
+    if [[ -f "$PRED_FILE" ]]; then
+        UNGRADED_EXAMPLES=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "" { print $3 }' | head -2)
+    fi
     echo -e "  ${C_RED}●${C_NC} ${UNGRADED_COUNT} ungraded predictions — run /retro"
+    if [[ -n "$UNGRADED_EXAMPLES" ]]; then
+        while IFS= read -r ue; do
+            [[ -n "$ue" ]] && echo -e "    ${C_DIM}· ${ue:0:70}${C_NC}"
+        done <<< "$UNGRADED_EXAMPLES"
+    fi
     HAS_ALERTS=true
 fi
 
