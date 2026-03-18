@@ -264,26 +264,55 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
     else
         SCORE_BAR=$(print_score_bar "$TOTAL")
     fi
-    # Score trend from history.tsv (last 2 distinct scores)
+    # Score trend from history.tsv — last 5 distinct scores as trajectory
+    # e.g. "trend 75→80→84→85→93 (↑18)"
     TREND_DISPLAY=""
     HISTORY_FILE="$PROJECT_DIR/.claude/scores/history.tsv"
     if [[ -f "$HISTORY_FILE" ]]; then
-        HIST_LINES=$(wc -l < "$HISTORY_FILE" | tr -d ' ')
-        if [[ "$HIST_LINES" -ge 3 ]]; then
-            PREV_SCORE=$(tail -2 "$HISTORY_FILE" | head -1 | cut -f5)
-            CURR_SCORE=$(tail -1 "$HISTORY_FILE" | cut -f5)
-            if [[ -n "$PREV_SCORE" && "$PREV_SCORE" =~ ^[0-9]+$ && -n "$CURR_SCORE" && "$CURR_SCORE" =~ ^[0-9]+$ && "$PREV_SCORE" -ne "$CURR_SCORE" ]]; then
-                DELTA=$((CURR_SCORE - PREV_SCORE))
-                if [[ "$DELTA" -gt 0 ]]; then
-                    TREND_DISPLAY="  ${C_GREEN}↑${DELTA}${C_NC} ${C_DIM}from ${PREV_SCORE}${C_NC}"
+        # Use awk to extract last 5 distinct product scores (newest first)
+        _bt_line=$(tail -n +2 "$HISTORY_FILE" | awk -F'\t' '{print $5}' | awk '
+            {a[NR]=$0}
+            END {
+                n=0; prev=""
+                for(i=NR; i>=1 && n<5; i--) {
+                    if(a[i] != prev && a[i]+0 == a[i] && a[i] != "") {
+                        if(n>0) printf " "
+                        printf "%s", a[i]
+                        prev=a[i]; n++
+                    }
+                }
+            }')
+
+        # Parse space-separated scores (newest first) into trend (oldest→newest)
+        set -- $_bt_line
+        if [[ $# -ge 2 ]]; then
+            _bt_newest=$1
+            _bt_oldest=$1
+            # Build reversed arrow string: oldest→...→newest
+            _bt_trend=""
+            for _btv in "$@"; do _bt_oldest=$_btv; done
+            # Reverse the args for display
+            _bt_reversed=""
+            for _btv in "$@"; do
+                if [[ -n "$_bt_reversed" ]]; then
+                    _bt_reversed="${_btv}→${_bt_reversed}"
                 else
-                    ABS_DELTA=$(( -DELTA ))
-                    TREND_DISPLAY="  ${C_RED}↓${ABS_DELTA}${C_NC} ${C_DIM}from ${PREV_SCORE}${C_NC}"
+                    _bt_reversed="$_btv"
                 fi
+            done
+            _bt_net=$((_bt_newest - _bt_oldest))
+            if [[ $_bt_net -gt 0 ]]; then
+                TREND_DISPLAY="  ${C_DIM}trend${C_NC} ${_bt_reversed} ${C_GREEN}(↑${_bt_net})${C_NC}"
+            elif [[ $_bt_net -lt 0 ]]; then
+                _bt_abs=$(( -_bt_net ))
+                TREND_DISPLAY="  ${C_DIM}trend${C_NC} ${_bt_reversed} ${C_RED}(↓${_bt_abs})${C_NC}"
+            else
+                TREND_DISPLAY="  ${C_DIM}trend${C_NC} ${_bt_reversed}"
             fi
         fi
     fi
-    echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}${TREND_DISPLAY}  ${SCORE_BAR}"
+    echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${SCORE_BAR}"
+    [[ -n "$TREND_DISPLAY" ]] && echo -e "            ${TREND_DISPLAY}"
     if [[ "$SCORING_MODE" == "assertions" ]]; then
         echo -e "              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
         # Show feature scores (worst to best, compact)

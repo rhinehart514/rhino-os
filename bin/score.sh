@@ -945,22 +945,51 @@ EOF
 
         # Score display — depends on scoring mode
         overall_color=$(dim_color "$local_min")
-        score_trend=$(trend_for score "$local_min" 5)
-        # Get previous score for "was X" display
-        prev_score_val=""
-        if [[ -f "$HISTORY_FILE" ]] && [[ $(wc -l < "$HISTORY_FILE" | tr -d ' ') -ge 3 ]]; then
-            prev_score_val=$(tail -2 "$HISTORY_FILE" | head -1 | cut -f5)
-        fi
-        # Format delta with color: green for up, red for down, dim for unchanged
+
+        # Build score trend: last 5 distinct product scores as compact trajectory
+        # e.g. "86 ← 78 ← 68 ← 52 ← 30 (↑56)"
         score_delta_display=""
-        if [[ "$score_trend" == ↑* ]]; then
-            score_delta_display=" \033[0;32m$score_trend\033[0m"
-            [[ -n "$prev_score_val" && "$prev_score_val" =~ ^[0-9]+$ ]] && score_delta_display="$score_delta_display \033[2mfrom $prev_score_val\033[0m"
-        elif [[ "$score_trend" == ↓* ]]; then
-            score_delta_display=" \033[0;31m$score_trend\033[0m"
-            [[ -n "$prev_score_val" && "$prev_score_val" =~ ^[0-9]+$ ]] && score_delta_display="$score_delta_display \033[2mfrom $prev_score_val\033[0m"
-        elif [[ "$score_trend" != "·" ]]; then
-            score_delta_display=" \033[2m$score_trend\033[0m"
+        if [[ -f "$HISTORY_FILE" ]]; then
+            # Use awk to extract last 5 distinct product scores, most recent first
+            # Output: "93 85 84 80 75" (space-separated, newest first)
+            _trend_line=$(tail -n +2 "$HISTORY_FILE" | awk -F'\t' '{print $5}' | awk '
+                {a[NR]=$0}
+                END {
+                    n=0; prev=""
+                    for(i=NR; i>=1 && n<5; i--) {
+                        if(a[i] != prev && a[i]+0 == a[i] && a[i] != "") {
+                            if(n>0) printf " "
+                            printf "%s", a[i]
+                            prev=a[i]; n++
+                        }
+                    }
+                }')
+
+            # Parse into positional args
+            set -- $_trend_line
+            if [[ $# -ge 2 ]]; then
+                _newest=$1
+                # Build "← prev ← prev2 ← ..." (skip $1, it's the current score shown in Score: line)
+                _trend_str=""
+                shift
+                _oldest=$1
+                for _tv in "$@"; do
+                    [[ -n "$_trend_str" ]] && _trend_str="${_trend_str} ← "
+                    _trend_str="${_trend_str}${_tv}"
+                    _oldest=$_tv
+                done
+
+                _net_change=$((_newest - _oldest))
+                _net_suffix=""
+                if [[ $_net_change -gt 0 ]]; then
+                    _net_suffix=" \033[0;32m(↑${_net_change})\033[0m"
+                elif [[ $_net_change -lt 0 ]]; then
+                    _abs_net=$(( -_net_change ))
+                    _net_suffix=" \033[0;31m(↓${_abs_net})\033[0m"
+                fi
+
+                score_delta_display=" \033[2m← ${_trend_str}${_net_suffix}\033[0m"
+            fi
         fi
 
         if [[ "$SCORING_MODE" == "assertions" ]]; then

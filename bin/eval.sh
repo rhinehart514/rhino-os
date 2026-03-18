@@ -1127,7 +1127,10 @@ if [[ "$SCORE_MODE" != "true" ]]; then
     echo -e "$SEP"
     echo ""
 
-    # Features section — score, sub-scores, gap
+    # Features section — score, sub-scores, gap, trend
+    # Pre-load feature trend data from eval-deltas.json (last 50 evals)
+    _DELTA_FILE="$EVAL_CACHE_DIR/eval-deltas.json"
+
     if [[ ${#GENERATIVE_DISPLAY[@]} -gt 0 ]]; then
         echo -e "  ${BOLD}features${NC}"
         printf '%s\n' "${GENERATIVE_DISPLAY[@]}" | sort -t'|' -k2 -n | while IFS='|' read -r _fname _fscore _fdelivers _fgaps _fsub; do
@@ -1147,12 +1150,52 @@ if [[ "$SCORE_MODE" != "true" ]]; then
             for ((i=0; i<_filled; i++)); do _fbar+="█"; done
             for ((i=0; i<_empty; i++)); do _fbar+="░"; done
 
+            # Build per-feature trend from eval-deltas.json
+            # e.g. "86 ← 78 ← 68 ← 52 (↑34)"
+            _ftrend=""
+            if [[ -f "$_DELTA_FILE" ]] && command -v jq &>/dev/null; then
+                # Use jq to get last 6 distinct scores for this feature (newest first), space-separated
+                _fhist_line=$(jq -r --arg f "$_fname" '
+                    [.[] | .features[$f].score // empty]
+                    | reverse
+                    | reduce .[] as $s ([]; if length == 0 or .[-1] != $s then . + [$s] else . end)
+                    | .[0:6]
+                    | map(tostring)
+                    | join(" ")
+                ' "$_DELTA_FILE" 2>/dev/null)
+
+                # Parse space-separated scores
+                set -- $_fhist_line
+                if [[ $# -ge 2 ]]; then
+                    _fnewest=$1
+                    _ftrend_str="$1"
+                    _foldest=$1
+                    shift
+                    for _fhv in "$@"; do
+                        _ftrend_str="${_ftrend_str} ← ${_fhv}"
+                        _foldest=$_fhv
+                    done
+                    _fnet=$((_fnewest - _foldest))
+                    if [[ $_fnet -gt 0 ]]; then
+                        _ftrend="  ${DIM}${_ftrend_str}${NC} ${GREEN}(↑${_fnet})${NC}"
+                    elif [[ $_fnet -lt 0 ]]; then
+                        _fabs_net=$(( -_fnet ))
+                        _ftrend="  ${DIM}${_ftrend_str}${NC} ${RED}(↓${_fabs_net})${NC}"
+                    else
+                        _ftrend="  ${DIM}${_ftrend_str}${NC}"
+                    fi
+                fi
+            fi
+
             # Score line with sub-scores
             if [[ -n "$_fsub" ]]; then
                 printf "  %-16s %b%s%b  %b%-3s%b  ${DIM}%s${NC}\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC" "$_fsub"
             else
                 printf "  %-16s %b%s%b  %b%-3s%b\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC"
             fi
+
+            # Show trend trajectory (if history exists)
+            [[ -n "$_ftrend" ]] && echo -e "    ${_ftrend}"
 
             # Show gap
             if [[ -n "$_fgaps" && "$_fgaps" != "null" ]]; then
