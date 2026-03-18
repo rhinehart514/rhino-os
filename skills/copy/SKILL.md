@@ -45,7 +45,7 @@ This skill is a **folder**. Read these on demand:
 
 ### Step 1: Read state (parallel)
 
-Read: `config/rhino.yml` (user, features), `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`.
+Read: `config/rhino.yml` (user, features), `config/product-spec.yml` (write in the spec's language, for the spec's person, about the spec's change), `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`.
 
 ### Step 2: Read gotchas + references
 

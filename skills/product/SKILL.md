@@ -48,6 +48,8 @@ Parse `$ARGUMENTS`:
 
 Run `scripts/product-scan.sh` via Bash. Read `gotchas.md`. This gives you the full product state at zero context cost.
 
+Also read `config/product-spec.yml` if it exists — pressure-test the spec itself. Every /product session should check if the spec is still valid.
+
 ### Step 2: Detect mode
 
 **New idea mode** (no codebase or >10 word description): read `references/product-thinking.md` for the value questions and assumption stack. Use WebSearch for market reality. Produce a value hypothesis draft. Output per `templates/product-brief.md`.

@@ -121,8 +121,9 @@ Log session via `scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. 
 5. `.claude/cache/score-cache.json` — latest scores
 6. `.claude/plans/strategy.yml` — unknowns
 7. `config/rhino.yml` — features, weights
-8. `.claude/plans/todos.yml` — todo state
-9. `~/.claude/preferences.yml` — agent cost tier (economy/balanced/premium)
+8. `config/product-spec.yml` — grade predictions against spec goals. Wrong predictions about spec claims are highest priority.
+9. `.claude/plans/todos.yml` — todo state
+10. `~/.claude/preferences.yml` — agent cost tier (economy/balanced/premium)
 
 ## What you never do
 

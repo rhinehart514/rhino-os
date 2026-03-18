@@ -41,6 +41,8 @@ bash skills/rhino/scripts/system-pulse.sh
 
 This scans score-cache, eval-cache, predictions, plan, strategy, roadmap, todos, beliefs, git log. Outputs structured key-value pairs.
 
+Also read `config/product-spec.yml` if it exists — show spec completion alongside score. How much of what we said we'd build actually works?
+
 ### Step 2: Read gotchas.md
 
 Read `gotchas.md` before rendering. Every gotcha is from a real session.
@@ -69,6 +71,7 @@ After rendering `/rhino` (no arguments), save current state to `.claude/cache/rh
 | eval-cache | `.claude/cache/eval-cache.json` | R |
 | score-cache | `.claude/cache/score-cache.json` | R |
 | rhino.yml | `config/rhino.yml` | R |
+| product-spec | `config/product-spec.yml` | R |
 | roadmap.yml | `.claude/plans/roadmap.yml` | R |
 | predictions.tsv | `.claude/knowledge/predictions.tsv` | R |
 | todos.yml | `.claude/plans/todos.yml` | R |

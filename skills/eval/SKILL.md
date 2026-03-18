@@ -89,7 +89,7 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 ## State to read (parallel)
 
-`config/rhino.yml`, `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists).
+`config/rhino.yml`, `config/product-spec.yml` (grounds scoring in what the product claims to deliver — delivery score checks spec claims, not just code quality), `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists).
 
 ## Task generation — the path to completion
 

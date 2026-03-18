@@ -30,6 +30,7 @@ Read in parallel at start (skip when missing):
 |----------|------|---------|
 | beliefs | `lens/product/eval/beliefs.yml` | All assertions |
 | rhino config | `config/rhino.yml` | Features, weights, code paths |
+| product spec | `config/product-spec.yml` | Assertions should test spec claims. Core loop works? First experience exists? Return trigger fires? |
 | eval cache | `.claude/cache/eval-cache.json` | Sub-scores for coverage mapping |
 | todos | `.claude/plans/todos.yml` | Graduation candidates |
 | assertion history | `.claude/evals/assertion-history.tsv` | Pass/fail trends |

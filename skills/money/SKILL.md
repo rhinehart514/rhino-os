@@ -47,6 +47,8 @@ After every `/money` run, append to `${CLAUDE_PLUGIN_DATA}/money-history.json`. 
 
 Run `bash ${CLAUDE_SKILL_DIR}/scripts/revenue-scan.sh` for current financial state. For pricing modes, also run `bash ${CLAUDE_SKILL_DIR}/scripts/pricing-compare.sh`.
 
+Also read `config/product-spec.yml` if it exists — pricing should serve the spec's person at the spec's why_now price point.
+
 ### Step 2: Read gotchas + relevant references
 
 Read `gotchas.md`. Then read the mode-specific reference:

@@ -52,6 +52,8 @@ Read `gotchas.md` before any ship action. Every gotcha is a failure mode from a 
 
 Run `scripts/pre-flight.sh` via Bash. It checks score, assertions, secrets, eval freshness, deploy confidence. Output is structured — parse the verdict line (SHIP/BLOCK/WARN).
 
+Also read `config/product-spec.yml` if it exists — does this ship advance the spec's thesis? Pre-flight checks spec alignment.
+
 For `release` type ships, also check launch readiness: GTM strategy, customer signal, narrative freshness. These are informational only — they don't block.
 
 ### Step 3: Execute the route

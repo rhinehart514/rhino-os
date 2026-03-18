@@ -38,12 +38,13 @@ Read `project.mode` from `config/rhino.yml`:
 Every route reads these first:
 1. `.claude/plans/roadmap.yml` — theses, evidence, version history
 2. `config/rhino.yml` — features (weight/depends_on), mode, value hypothesis
-3. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions mentioning the thesis
-4. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known/uncertain/unknown/dead patterns
-5. `git log --oneline -20` — recent work
-6. `.claude/plans/strategy.yml` — bottleneck, stage
-7. `.claude/cache/eval-cache.json` — per-feature sub-scores
-8. `.claude/cache/narrative.yml` — current external narrative (if exists)
+3. `config/product-spec.yml` — theses should test spec claims. Evidence items should prove spec assumptions.
+4. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions mentioning the thesis
+5. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known/uncertain/unknown/dead patterns
+6. `git log --oneline -20` — recent work
+7. `.claude/plans/strategy.yml` — bottleneck, stage
+8. `.claude/cache/eval-cache.json` — per-feature sub-scores
+9. `.claude/cache/narrative.yml` — current external narrative (if exists)
 
 For the full state source list, see [STATE_MANIFEST.md](../STATE_MANIFEST.md).
 

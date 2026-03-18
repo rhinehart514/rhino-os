@@ -45,7 +45,7 @@ Parse `$ARGUMENTS`:
 ## The protocol
 
 ### Step 0: Read gotchas + check history
-Read `gotchas.md`. Run `scripts/research-log.sh topic "[topic]"` to check for repeat research.
+Read `gotchas.md`. Run `scripts/research-log.sh topic "[topic]"` to check for repeat research. Read `config/product-spec.yml` if it exists — research should resolve unknowns in the spec. Spec questions > random curiosity.
 
 ### Step 1: Predict
 ```
@@ -119,6 +119,7 @@ After writing tasks, show: "Generated N tasks from M findings. Highest-impact: [
 | eval-cache | `.claude/cache/eval-cache.json` | R |
 | market-context | `.claude/cache/market-context.json` | R+W |
 | rhino.yml | `config/rhino.yml` | R |
+| product-spec | `config/product-spec.yml` | R |
 | todos | `.claude/plans/todos.yml` | W |
 
 ## Output format

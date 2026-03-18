@@ -63,7 +63,7 @@ Read `gotchas.md` before generating. Every gotcha is a failure mode from a real 
 
 ### Step 3: Read state (parallel)
 
-**Internal:** rhino.yml, eval-cache.json, strategy.yml, roadmap.yml, predictions.tsv, experiment-learnings.md, todos.yml, `git log --oneline -20`
+**Internal:** rhino.yml, `config/product-spec.yml` (strategy should defend and advance the spec's positioning and why_now), eval-cache.json, strategy.yml, roadmap.yml, predictions.tsv, experiment-learnings.md, todos.yml, `git log --oneline -20`
 
 **External:** market-context.json (if exists), market-context-base.json (ships with skill)
 

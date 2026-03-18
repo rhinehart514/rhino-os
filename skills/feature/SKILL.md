@@ -46,10 +46,11 @@ Parse `$ARGUMENTS`:
 ## State to read (parallel)
 
 1. `config/rhino.yml` — feature definitions
-2. `.claude/cache/eval-cache.json` — sub-scores, deltas
-3. `.claude/cache/rubrics/<feature>.json` — per-feature rubric (detail view)
-4. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — relevant predictions
-5. `.claude/plans/roadmap.yml` — thesis evidence references
+2. `config/product-spec.yml` — features should map to spec sections. Core loop = weight 5. First experience = weight 4.
+3. `.claude/cache/eval-cache.json` — sub-scores, deltas
+4. `.claude/cache/rubrics/<feature>.json` — per-feature rubric (detail view)
+5. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — relevant predictions
+6. `.claude/plans/roadmap.yml` — thesis evidence references
 
 ## Tools
 

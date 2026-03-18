@@ -50,6 +50,8 @@ Parse `$ARGUMENTS`:
 
 Run `scripts/evidence-scan.sh` via Bash. This scans eval-cache, predictions, backlog, thesis, dead ends, customer intel, and git history. Outputs structured data at zero context cost — only the output enters the conversation.
 
+Also read `config/product-spec.yml` if it exists — generate ideas that advance the spec. Ideas that contradict the spec need strong evidence.
+
 Also run `scripts/idea-log.sh stats` to show ideation history.
 
 ### Step 2: Read gotchas

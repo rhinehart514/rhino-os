@@ -44,6 +44,8 @@ Feature scoping: `$ARGUMENTS` can name features. Single = scope everything. Mult
 
 Run `bash scripts/pre-build-scan.sh` — this reads all 8 sources in one shot. Also run `bash scripts/build-log.sh list 3` to see recent session history.
 
+Read `config/product-spec.yml` if it exists — build toward the spec's core loop and first experience, not random improvements.
+
 Read `gotchas.md` and `references/build-patterns.md` before entering the loop.
 
 Check `~/.claude/preferences.yml` for `agents.cost` tier (economy/balanced/premium) and `agents.autonomy` setting.

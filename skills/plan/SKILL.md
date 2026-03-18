@@ -56,6 +56,8 @@ Run these via Bash (parallel where possible):
 3. `scripts/plan-progress.sh` — what did we plan last time?
 4. `scripts/startup-check.sh` — any failure modes triggered?
 
+Also read `config/product-spec.yml` if it exists — prioritize tasks that advance the spec's signals. Core loop tasks > polish tasks.
+
 The opportunity scan is critical — it surfaces unknowns, wrong predictions, market signals, customer demand, dead ends worth retrying, stale strategy, and unused capabilities. Present the top 2-3 opportunities alongside the bottleneck.
 
 Call EnterPlanMode. All reads, no writes until plan is approved.

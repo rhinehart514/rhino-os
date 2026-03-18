@@ -48,6 +48,7 @@ Run `scripts/calibration-check.sh` via Bash. Read `gotchas.md`. Then read in par
 - `~/.claude/knowledge/founder-taste.md` — founder preferences
 - `.claude/design-system.md` — project visual rules (deviations are bugs)
 - `config/rhino.yml` — features, code paths, stage
+- `config/product-spec.yml` — evaluate whether UX serves the spec's core loop and first experience
 
 If past evals exist: run `scripts/dimension-summary.sh` to see latest scores + weak dimensions.
 
