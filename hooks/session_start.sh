@@ -18,6 +18,20 @@ fi
 if [[ -f "$RHINO_DIR/bin/lib/config.sh" ]]; then
     source "$RHINO_DIR/bin/lib/config.sh"
 fi
+# --- Auto-configure statusline (one-time) ---
+STATUSLINE_SRC="$RHINO_DIR/bin/statusline.sh"
+STATUSLINE_DST="$HOME/.claude/statusline-command.sh"
+if [[ -f "$STATUSLINE_SRC" ]] && [[ ! -f "$STATUSLINE_DST" ]]; then
+    cp "$STATUSLINE_SRC" "$STATUSLINE_DST" 2>/dev/null || true
+    chmod +x "$STATUSLINE_DST" 2>/dev/null || true
+fi
+# Update if repo version is newer
+if [[ -f "$STATUSLINE_SRC" ]] && [[ -f "$STATUSLINE_DST" ]]; then
+    if [[ "$STATUSLINE_SRC" -nt "$STATUSLINE_DST" ]]; then
+        cp "$STATUSLINE_SRC" "$STATUSLINE_DST" 2>/dev/null || true
+    fi
+fi
+
 if ! command -v jq &>/dev/null; then
     echo -e "  \033[1;33m⚠\033[0m jq not found — boot card degraded. Install: brew install jq" >&2
 fi
