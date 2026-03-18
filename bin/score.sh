@@ -915,6 +915,10 @@ case "$OUTPUT_MODE" in
                     }
                 }')
             # Convert to sparkline (newest first from awk, reverse for display)
+            # Guard: empty scores_line produces no args
+            if [[ -z "$scores_line" ]]; then
+                echo "$local_min"
+            else
             set -- $scores_line
             if [[ $# -ge 2 ]]; then
                 # Reverse for display (oldest→newest)
@@ -955,6 +959,7 @@ case "$OUTPUT_MODE" in
             else
                 echo "$local_min"
             fi
+            fi  # end empty scores_line guard
         else
             echo "$local_min"
         fi

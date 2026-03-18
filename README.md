@@ -2,13 +2,15 @@
 
 For solo technical founders building products with Claude Code.
 
-A plugin that turns Claude into a cofounder — it measures whether your product actually delivers value (not just code quality), learns what works across sessions, builds autonomously, and thinks about customers, pricing, and distribution.
+Developers using AI coding tools think they're 20% more productive. [They're actually 19% less productive](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/). The gap is measurement — nobody checks whether AI-assisted work actually made the product better.
+
+rhino-os closes that gap. It measures **product quality** (not code quality), learns what works across sessions, and reverts changes that make things worse. It's the only Claude Code plugin that scores whether your product delivers value — not just whether your code compiles.
 
 ## How it's different
 
 Most dev tools measure code quality — linting, test coverage, type safety. rhino-os measures **product quality**: does the user get value? It plants testable beliefs about your product ("the signup flow completes in under 30 seconds"), scores them, and reverts changes that make things worse. SonarQube tells you your code is clean. rhino-os tells you your product is better.
 
-rhino-os is the only Claude Code plugin that scores product quality, learns what works across sessions, and helps you figure out what to build — not just write code.
+The `/score` command orchestrates 5 measurement tiers — health, code eval, visual quality, behavioral testing, and agent-backed market viability — into one honest number with a confidence badge (●●●○○) showing how many tiers have data.
 
 ## vs alternatives
 
@@ -56,21 +58,17 @@ rhino-os routes to `/plan` automatically:
 ```
 ◆ plan
 
-  score: 68 · assertions: 56/63 · thesis: v9.0
+  score: 88 ●●●○○  · assertions: 51/60 · thesis: v9.4
 
-  ● Feature Sprawl — warning
-    evidence: 3 features scoring 30-60 simultaneously
-    "Pick one. Finish it. Kill or defer the rest."
+  bottleneck: docs at 84 — w:3, METR positioning missing, walkthrough stale
+    d:86 c:82
 
-  bottleneck: todo at 56 — w:2, promote still basic, no file locking
-    d:58 c:60 v:45
+  move 1: add METR -19% hook to README headline
+    predict: "METR positioning will push docs to 88+ in one session"
+    acceptance: README opens with the measurement gap, not a feature list
 
-  move 1: smart promote — connect todo to eval bottleneck
-    predict: "Smart promote will push todo to 70+ in one session"
-    acceptance: `rhino todo promote` shows candidates from bottleneck feature
-
-  move 2: push docs to 80 — real walkthrough, not aspirational
-    depends on: existing features scoring 50+
+  move 2: fill visual + behavioral tiers — run /taste
+    depends on: URL configured
 ```
 
 Notice the startup pattern warning — rhino-os detected feature sprawl and flagged it before building anything new.
@@ -84,24 +82,24 @@ Notice the startup pattern warning — rhino-os detected feature sprawl and flag
 The `/go` loop predicts, builds, measures, and learns:
 
 ```
-◆ go — todo
+◆ go — scoring
 
-  predict: "Smart promote will push todo to 70+"
-  because: "exploring — first time connecting backlog to eval bottleneck"
+  predict: "5 /score improvements will push scoring to 92+"
+  because: "sparkline, tier badge, score diff, viability from intelligence, kill code-only mode"
 
-  move 1: smart promote + file locking + actionable decay
-  ▾ commit — a1b2c3d
-    built: `rhino todo promote` reads eval-cache, finds bottleneck feature,
-           suggests todos tagged to it. File locking via mkdir. Decay auto-tags
-           30d+ items as stale with kill/promote commands inline.
-    files: bin/todo.sh
-    ✓ todo-promote-shows-candidates  PASS
-    ✓ todo-decay-shows-actions       PASS
+  move 1: sparkline + tier badge + score diff on commit
+  ▾ commit — 2341dce
+    built: score.sh --trend outputs sparkline from history.tsv.
+           session hook shows ●●●○○ tier fill badge.
+           post_commit.sh shows score delta after every commit.
+    files: bin/score.sh, hooks/post_commit.sh, hooks/session_start.sh
+    ✓ sparkline-shows-trend  PASS
+    ✓ tier-badge-visible     PASS
 
-  measure: todo at 72 (d:70 c:74 v:68)
-  score: 68 → 74 ↑6
+  measure: scoring at 92 (d:93 c:90)
+  score: 86 → 88 ↑2
 
-  grade: "Predicted 70+, got 72. Correct."
+  grade: "Predicted 92+, got 92. Correct."
 ```
 
 ### 3. "Is this good?"
@@ -113,15 +111,15 @@ The `/go` loop predicts, builds, measures, and learns:
 ```
 ◆ eval — 6 features
 
-  commands   ████████████████░░░░  80  d:80 c:84 v:72
-  install    ███████████████░░░░░  78  d:80 c:78 v:70
-  learning   ██████████████░░░░░░  72  d:70 c:78 v:62
-  docs       ███████████████░░░░░  78  d:78 c:80 v:68
-  scoring    █████████████░░░░░░░  68  d:72 c:70 v:55
-  todo       ██████████████░░░░░░  72  d:70 c:74 v:68
+  todo         ████████████████░░░░  82  d:82 c:82
+  docs         ████████████████░░░░  84  d:86 c:82
+  install      █████████████████░░░  85  d:86 c:84
+  learning     █████████████████░░░  89  d:90 c:88
+  scoring      ██████████████████░░  92  d:93 c:90
+  commands     ██████████████████░░  92  d:93 c:91
 
-  beliefs: 56/63 passing
-  bottleneck: scoring at 68 — eval.sh still 2000+ lines
+  beliefs: 51/60 passing
+  bottleneck: todo at 82 — smart promote doesn't read eval-cache
 ```
 
 ### 4. The score compounds
@@ -131,13 +129,12 @@ Every session picks up where it left off. Predictions get sharper. The knowledge
 ```
 > /plan
 
-  score: 74 · assertions: 58/63 · v9.0: 65% proven
+  score: 88 ●●●○○ · assertions: 51/60 · v9.4
 
-  ● Thesis Drift — warning
-    evidence: roadmap evidence unchanged 8 days
-    "Either the thesis is wrong or you're avoiding it."
+  bottleneck: docs at 84 — METR positioning missing
+    d:86 c:82
 
-  bottleneck: scoring at 68 — d:72 c:70 v:55
+  move 1: add METR -19% finding to README — strongest positioning hook
 ```
 
 ### 5. "Who is this for?"
@@ -161,16 +158,16 @@ Every session picks up where it left off. Predictions get sharper. The knowledge
 
 ### Results
 
-rhino-os running on itself over ~30 sessions:
+rhino-os running on itself over ~35 sessions:
 
 ```
 Session 1:   26% product complete  ·  48/63 assertions  ·  score 20
 Session 10:  58% product complete  ·  54/63 assertions  ·  score 68
 Session 20:  74% product complete  ·  56/63 assertions  ·  score 82
-Session 30:  89% product complete  ·  59/66 assertions  ·  score 93
+Session 35:  92% product complete  ·  51/60 assertions  ·  score 88 ●●●○○
 ```
 
-The gap between session 1 and session 10 is `/plan` finding the bottleneck + `/go` building it. The gap between 10 and 30 is compounding — the knowledge model gets better at predicting what works, so less gets reverted and more sticks. Prediction accuracy went from ~40% (guessing) to 63% (calibrated).
+The gap between session 1 and session 10 is `/plan` finding the bottleneck + `/go` building it. The gap between 10 and 35 is compounding — the knowledge model gets better at predicting what works, so less gets reverted and more sticks. Prediction accuracy went from ~40% (guessing) to 63% (calibrated). The ●●●○○ means 3 of 5 measurement tiers have data — the score is honest about what it doesn't know.
 
 ## How it works
 
@@ -201,7 +198,8 @@ You don't need to memorize these. Just talk — rhino-os routes your intent.
 **Build**
 - `/plan` — find the bottleneck, propose what to work on
 - `/go` — autonomous build loop with prediction grading
-- `/eval` — score every feature 0-100 (delivery/craft/viability)
+- `/score` — unified product quality (5 tiers, one number, confidence badge)
+- `/eval` — score every feature 0-100 (delivery + craft)
 - `/taste` — visual product intelligence via Playwright
 
 **Think**
@@ -234,7 +232,7 @@ Score goes up = you shipped value. Score drops = the change gets reverted.
 
 rhino-os has three layers that work together:
 
-**Measurement** — `/eval` scores your features 0-100 across delivery, craft, and viability. `/taste` evaluates visual quality via screenshots. `rhino score .` runs fast structural checks. Score drops after a change trigger automatic reverts.
+**Measurement** — `/score` orchestrates 5 tiers into one number: health (structural lint), code eval (delivery + craft per feature), visual quality (Playwright + Claude Vision), behavioral testing (does the frontend work?), and agent-backed viability (market-analyst + customer agents research your market position). Each tier shows confidence. Score drops after a change trigger automatic reverts.
 
 **Learning** — Every action starts with a prediction ("I predict URL import will reach delivery 50+"). After building, the grader agent checks the prediction against the result. Wrong predictions update the knowledge model. Over sessions, the system stops guessing and starts citing evidence.
 
@@ -247,9 +245,9 @@ rhino-os has three layers that work together:
 > what should I work on?
 
 ◆ plan
-  score: 74 · assertions: 58/63
-  bottleneck: scoring at 68 — eval.sh still 2000+ lines
-  move 1: extract generative-eval.sh — push scoring to 75+
+  score: 88 ●●●○○ · assertions: 51/60
+  bottleneck: docs at 84 — METR positioning missing
+  move 1: add METR -19% finding to README — push docs to 88+
 ```
 
 **Score every feature in one command:**
@@ -257,9 +255,10 @@ rhino-os has three layers that work together:
 > /eval
 
 ◆ eval — 6 features
-  commands   ████████████████░░░░  80  d:80 c:84 v:72
-  scoring    █████████████░░░░░░░  68  d:72 c:70 v:55
-  beliefs: 56/63 passing
+  scoring    ██████████████████░░  92  d:93 c:90
+  commands   ██████████████████░░  92  d:93 c:91
+  learning   █████████████████░░░  89  d:90 c:88
+  beliefs: 51/60 passing
 ```
 
 **Autonomous build loop:**
@@ -267,16 +266,16 @@ rhino-os has three layers that work together:
 > /go
 
 ◆ go — scoring
-  predict: "Extracting generative-eval.sh will push scoring to 75+"
-  ▾ commit — a1b2c3d
-    extracted bin/lib/generative-eval.sh (668 lines)
-  measure: scoring at 76 (d:78 c:74 v:70) ↑8
-  grade: "Predicted 75+, got 76. Correct."
+  predict: "Sparkline + tier badge will push scoring to 92+"
+  ▾ commit — 2341dce
+    5 improvements: sparkline, tier badge, score diff, viability from intelligence
+  measure: scoring at 92 (d:93 c:90) ↑2
+  grade: "Predicted 92+, got 92. Correct."
 ```
 
 ## Tested on
 
-- **rhino-os itself** — score 20 to 93 over ~30 sessions across 2 weeks, 59/66 assertions passing
+- **rhino-os itself** — score 20 to 88 over ~35 sessions across 2 weeks, 51/60 assertions passing, 63% prediction accuracy
 - **commander.js** — 80/100 on first `rhino init`, zero configuration
 
 ## Troubleshooting

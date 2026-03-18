@@ -316,7 +316,7 @@ if $PLUGIN_MODE && ! $DRY_RUN; then
     fi
 
     # Verify expected skill count matches actual
-    expected_skill_count=21  # v9.0: 21 skills
+    expected_skill_count=27  # v9.4: 27 skills
     if [[ "$local_skill_count" -ne "$expected_skill_count" ]]; then
         warn "skill count mismatch: found $local_skill_count, expected $expected_skill_count — some skills may be missing"
     else

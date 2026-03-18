@@ -39,7 +39,13 @@ get_active_features() {
 get_eval_scores() {
     local feat="$1"
     if [[ -f "$EVAL_CACHE" ]]; then
-        jq -r --arg f "$feat" '.[$f] // {} | "\(.delivery_score // 0) \(.craft_score // 0)"' "$EVAL_CACHE" 2>/dev/null
+        local result
+        result=$(jq -r --arg f "$feat" '.[$f] // {} | "\(.delivery_score // 0) \(.craft_score // 0)"' "$EVAL_CACHE" 2>/dev/null)
+        if [[ -z "$result" || "$result" == "null null" ]]; then
+            echo "0 0"
+        else
+            echo "$result"
+        fi
     else
         echo "0 0"
     fi

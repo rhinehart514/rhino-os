@@ -5,18 +5,30 @@ set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Check dependencies
-source "$RHINO_DIR/bin/lib/check-deps.sh"
-require_cmd jq "brew install jq"
-require_cmd python3 "brew install python3"
+# Resolve RHINO_DIR — works in both plugin cache and repo root
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+    RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
+else
+    # Walk up from scripts/ to skill root, then to repo root
+    RHINO_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+    # Verify — if bin/lib doesn't exist, try one more level
+    [[ ! -d "$RHINO_DIR/bin" ]] && RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# Check dependencies (soft — don't block if check-deps.sh missing)
+if [[ -f "$RHINO_DIR/bin/lib/check-deps.sh" ]]; then
+    source "$RHINO_DIR/bin/lib/check-deps.sh"
+    require_cmd jq "brew install jq"
+else
+    command -v jq &>/dev/null || { echo "jq required: brew install jq" >&2; exit 1; }
+fi
 
 # --- Eval cache sub-scores ---
 EVAL_CACHE="$PROJECT_DIR/.claude/cache/eval-cache.json"
 if [[ -f "$EVAL_CACHE" ]] && command -v jq &>/dev/null; then
     echo "=== EVAL SCORES ==="
-    jq -r 'to_entries[] | select(.value.score != null) | "\(.key): \(.value.score) (d:\(.value.delivery_score) c:\(.value.craft_score) v:\(.value.viability_score)) delta:\(.value.delta // "none")"' "$EVAL_CACHE" 2>/dev/null || echo "(parse error)"
+    jq -r 'to_entries[] | select(.value.score != null) | "\(.key): \(.value.score) (d:\(.value.delivery_score) c:\(.value.craft_score)) delta:\(.value.delta // "none")"' "$EVAL_CACHE" 2>/dev/null || echo "(parse error)"
     echo ""
     # Weakest feature
     WEAKEST=$(jq -r 'to_entries | map(select(.value.score != null)) | sort_by(.value.score) | .[0] | "\(.key) at \(.value.score)"' "$EVAL_CACHE" 2>/dev/null || echo "unknown")

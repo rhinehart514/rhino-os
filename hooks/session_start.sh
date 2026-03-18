@@ -169,14 +169,14 @@ if [[ -f "$PRED_FILE" ]] && [[ -f "$RHINO_DIR/bin/grade.sh" ]]; then
         # Compute what changed
         AFTER_GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
         NEWLY_GRADED=$((AFTER_GRADED - BEFORE_GRADED))
-        if [[ "$NEWLY_GRADED" -gt 0 ]]; then
-            NEW_YES=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
-            NEW_NO=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "no" { c++ } END { print c+0 }')
-            NEW_PARTIAL=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
+        if [[ "$NEWLY_GRADED" -gt 0 && "$NEWLY_GRADED" -le "$AFTER_GRADED" ]]; then
+            NEW_YES=$(tail -n +2 "$PRED_FILE" | tail -n "$NEWLY_GRADED" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
+            NEW_NO=$(tail -n +2 "$PRED_FILE" | tail -n "$NEWLY_GRADED" | awk -F'\t' '$6 == "no" { c++ } END { print c+0 }')
+            NEW_PARTIAL=$(tail -n +2 "$PRED_FILE" | tail -n "$NEWLY_GRADED" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
             GRADE_SUMMARY="Graded ${NEWLY_GRADED}: ${NEW_YES} correct, ${NEW_PARTIAL} partial, ${NEW_NO} wrong"
             # Show wrong predictions
             if [[ "$NEW_NO" -gt 0 ]]; then
-                WRONG_PRED=$(tail -n +2 "$PRED_FILE" | tail -"$NEWLY_GRADED" | awk -F'\t' '$6 == "no" { print $3 }' | head -2)
+                WRONG_PRED=$(tail -n +2 "$PRED_FILE" | tail -n "$NEWLY_GRADED" | awk -F'\t' '$6 == "no" { print $3 }' | head -2)
                 while IFS= read -r wp; do
                     [[ -n "$wp" ]] && GRADE_SUMMARY="${GRADE_SUMMARY}. Wrong: ${wp:0:60}"
                 done <<< "$WRONG_PRED"
