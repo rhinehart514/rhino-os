@@ -4,9 +4,9 @@
 
 | Tier | Example | When | Resets completion? | Evidence items |
 |------|---------|------|--------------------|----------------|
-| **Major** | v9.0 | New thesis. Big question. Changes what "done" means. | Yes — fully | 3-5 items, weeks to prove |
-| **Minor** | v8.1 | Significant improvement within current thesis. | Partially | 2-3 items, days to weeks |
-| **Patch** | v8.0.1 | Bug fix, polish, incremental. No new question. | No | 0-1 items, hours to days |
+| **Major** | v10.0 | New thesis. Big question. Changes what "done" means. | Yes — fully | 3-5 items, weeks to prove |
+| **Minor** | v9.4 | New capability within current thesis. | Partially | 2-3 items, days to weeks |
+| **Patch** | v9.3.01 | Bug fix, polish, push features higher. No new capability. | No | 0-1 items, hours to days |
 
 ## When to bump
 
@@ -25,11 +25,11 @@ When `/roadmap bump` is called without a tier:
 
 ## Version discipline
 
-**Patches (0.0.X) are for pushing existing features higher.** If you're fixing bugs, improving scores, adding tests, refining output — that's a patch. Most work is patches.
+**Patches (X.Y.01, X.Y.02, ...) are for pushing existing features higher.** If you're fixing bugs, improving scores, adding tests, refining output — that's a patch. Most work is patches. Two-digit patches (01-99) give room for iteration.
 
-**Minors (0.X.0) are for new capabilities.** A new skill, a new agent, a new pipeline that didn't exist before. Not improvements — additions.
+**Minors (X.Y) are for new capabilities.** A new skill, a new agent, a new pipeline that didn't exist before. Not improvements — additions.
 
-**Majors (X.0.0) are for new theses.** The question changed. Everything resets.
+**Majors (X.0) are for new theses.** The question changed. Everything resets.
 
 **The test:** If someone asks "what's new in 9.4?" and the answer is "we fixed some bugs and pushed scores higher" — that should have been 9.3.1. If the answer is "we added a product discovery pipeline" — that's a minor.
 
