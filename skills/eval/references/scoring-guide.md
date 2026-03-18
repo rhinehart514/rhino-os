@@ -44,20 +44,30 @@ Is this well-made AS A SYSTEM? Two layers:
 
 **Hard rule:** craft > 70 requires zero critical unhandled error paths.
 
-### Viability (20%)
+### Viability (20%) — Unique Value Proposition
 
-Would this succeed in the world? Who are the alternatives? Is this novel enough to matter? If you were betting money on adoption, what odds?
+**Viability is about UVP, not usage data.** Is this differentiated? Does the value proposition land? Would someone choose this over every alternative?
 
-When `.claude/cache/customer-intel.json` exists, use customer signal: demand signals raise viability, churn signals and unmet needs lower it.
+**Don't score viability from code.** Score it from:
+- `config/product-spec.yml` — competitors, why_now, not_building
+- `.claude/plans/strategy.yml` — stage, competitive position
+- `.claude/cache/market-context.json` — real competitor data
+- `.claude/cache/customer-intel.json` — demand signals, unmet needs
+- The feature's `delivers:` claim — is this unique or commodity?
+
+**The question is not "has someone tested this?" The question is "is this worth existing?"**
 
 **Scoring anchors:**
-- 90+: Clear market pull, named competitors beaten on specific dimension
-- 70-89: Differentiated approach, plausible adoption path. Must name competitors.
-- 50-69: Useful but undifferentiated. Would work but why this over alternatives?
-- 30-49: Unclear market. No evidence of demand.
-- 0-29: No market awareness. Building in a vacuum.
+- 90+: Clear UVP that no competitor has. Evidence of demand (customer-intel, forum posts, user requests). Someone would switch FROM an alternative TO this.
+- 70-89: Differentiated approach. Can name what's unique AND why it matters. Must name competitors and explain gap.
+- 50-69: Useful but the UVP is unclear. "It works" isn't a value prop. Why THIS over doing it manually or using something else?
+- 30-49: No clear differentiator. Could be a feature of something else, not a product.
+- 0-29: No positioning. Building without knowing who it's for or why they'd care.
 
-**Hard rule:** viability > 70 requires naming specific competitors and explaining differentiation.
+**Hard rules:**
+- viability > 70 requires naming a specific differentiator no competitor has
+- viability > 85 requires evidence of demand (not just "we think people want this")
+- viability score should come from product-spec + strategy + market data, not from reading code
 
 ## Honesty Rules
 

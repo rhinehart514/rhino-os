@@ -80,11 +80,16 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 ## Scoring — read `references/scoring-guide.md` for full details
 
-- **delivery** (50%) — Does this deliver real value to its target user?
+- **delivery** (50%) — Does this deliver real value to its target user? Not "does code exist" but "would a human care?"
 - **craft** (30%) — Is this well-made as a system? Error handling, architecture, code taste.
-- **viability** (20%) — Would this succeed? Competitors? Novel enough?
+- **viability** (20%) — Unique value proposition. Is this differentiated? Does the UVP land? Would someone choose this over alternatives? Score from positioning, not code.
+  - Read `config/product-spec.yml` (competitors, why_now, not_building) and `strategy.yml` (stage, bottleneck, competitors) to ground viability.
+  - Read `market-context.json` if it exists — real competitor data beats guessing.
+  - Viability is NOT "has someone tested it" — it's "is the value proposition unique, clear, and defensible?"
+  - Viability >70 requires naming a specific differentiator that no competitor has.
+  - Viability >85 requires evidence of demand (customer-intel.json, forum posts, user requests).
 - **Overall** = d*0.5 + c*0.3 + v*0.2, rounded to integer
-- Score >80 on any dimension requires specific file:line evidence of excellence
+- Score >80 on any dimension requires specific evidence (not vibes)
 - Stage ceiling: MVP at 75+ needs justification
 
 ## State to read (parallel)
