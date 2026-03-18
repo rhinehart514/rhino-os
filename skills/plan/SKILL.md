@@ -98,6 +98,45 @@ Present diagnosis + moves with options. Include "Looks right — proceed" as fir
 See `reference.md` for templates. Dense, scannable, opinionated.
 Also see `../OUTPUT_FORMAT.md` and `../STATE_MANIFEST.md`.
 
+## Task generation — opportunities become tasks
+
+**/plan surfaces opportunities. But opportunities without tasks are observations.** Every opportunity the scan reveals should become a concrete, actionable task in /todo. /plan is the bridge between "what we see" and "what we do."
+
+**For EVERY opportunity surfaced by opportunity-scan.sh, generate a task:**
+
+### Unknown territory tasks
+- Each unknown in experiment-learnings.md that's relevant to the bottleneck → task: "Unknown: [X] — run /research [topic] to build model"
+- Each feature with no eval data → task: "Feature [X] never evaluated — run /eval [feature]"
+- Each dimension with no predictions → task: "No predictions about [dimension] — blind spot to address"
+
+### Wrong prediction tasks
+- Each ungraded prediction → task: "Grade prediction: '[X]' — run /retro"
+- Each wrong prediction that implies a model fix → task: "Model wrong about [X] — update experiment-learnings.md"
+
+### Market signal tasks
+- Market-context.json >14d stale → task: "Market data stale — run /strategy market"
+- No customer-intel.json → task: "No customer signal — run /discover or /product user"
+- Competitor moved → task: "Competitor [X] changed — evaluate via /strategy compete"
+
+### Stale state tasks
+- Strategy >14d old → task: "Strategy stale — run /strategy honest"
+- No predictions in 7d → task: "Learning loop starving — enforce predictions"
+- Plan tasks all complete but score didn't improve → task: "Completed tasks didn't move score — diagnose via /retro"
+
+### Capability gap tasks
+- Unused capabilities that could help → task: "Capability [X] available but unused — evaluate adoption"
+- Dead ends worth retrying → task: "Dead end [X] may be worth retrying — conditions changed since [date]"
+
+### Startup pattern tasks
+- Each triggered failure mode from startup-check.sh → task with intervention from startup-patterns.md
+- Each warning-to-critical escalation → urgent task
+
+**Write ALL tasks to /todo.** Tag with `source: /plan` and opportunity type. Priority: bottleneck-related opportunities first, then highest information value.
+
+**There is no cap on task count.** The opportunity scan might surface 10 gaps. Generate tasks for all of them. /go works through them — /plan's job is to ensure nothing is missed.
+
+After writing tasks, show alongside the move proposal: "Surfaced N opportunities → N tasks added to backlog."
+
 ## Agent usage
 
 - **Agent (rhino-os:grader)** — grade ungraded predictions before planning

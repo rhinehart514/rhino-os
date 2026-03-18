@@ -75,6 +75,44 @@ Flag during any mode:
 - 100% pass rate with <3 assertions -> "not enough coverage"
 - Adding to well-covered feature when uncovered features exist -> redirect
 
+## Task generation — the path to full assertion coverage
+
+**/assert's job is not just managing assertions. It's generating EVERY task needed to reach comprehensive coverage.** If a feature has gaps in assertion coverage, those gaps should become tasks. The backlog drives what gets asserted next.
+
+**For EVERY coverage gap found, generate the complete task list:**
+
+### Coverage gap tasks (from health/coverage modes)
+- Each feature with 0 assertions → task: "Feature [X] has zero assertions — add 3 (1 file_check, 1 content_check, 1 command_check)"
+- Each feature with <3 assertions → task: "Feature [X] has only [N] assertions — add [3-N] more"
+- Each feature with only file_check assertions → task: "Feature [X] only proves files exist — upgrade to content_check or command_check"
+- Each feature with only llm_judge assertions → task: "Feature [X] relies on LLM judgment — add mechanical assertions"
+
+### Type distribution tasks
+- No command_check assertions for a feature with CLI/scripts → task: "Feature [X] has scripts but no command_check — add one"
+- No content_check for a feature with config/output files → task: "Feature [X] has output files but no content_check — add one"
+- >50% llm_judge for any feature → task: "Feature [X] is [N]% llm_judge — replace weakest with mechanical"
+- No score_trend assertions for scored features → task: "Feature [X] is scored but has no score_trend assertion — add floor"
+
+### Signal quality tasks
+- Each always-passing assertion that tests existence not behavior → task: "Assertion [id] always passes — strengthen to test behavior"
+- Each flapping assertion → task: "Assertion [id] is flapping — investigate root cause and stabilize or rewrite"
+- Each assertion with vague expected value → task: "Assertion [id] has vague expectation — make specific"
+- Each newly failing assertion → task: "Assertion [id] newly failing — fix the code or update the belief"
+
+### Graduation tasks (from todo candidates)
+- Each todo that's been done 3+ times → task: "Todo [id] recurs — graduate to assertion via /assert graduate"
+- Each todo that matches a belief pattern → task: "Todo [id] should be an assertion — graduate it"
+
+### High-weight feature tasks
+- Each w:5 feature with <5 assertions → urgent task: "Critical feature [X] has thin coverage — add assertions"
+- Each w:4+ feature with no block-severity assertions → task: "High-weight feature [X] has no blockers — add block assertion on core behavior"
+
+**Write ALL tasks to /todo.** Tag with `source: /assert`, feature name, and gap type (coverage/type/signal/graduation). Priority: highest-weight features with lowest coverage first.
+
+**There is no cap on task count.** A project with 7 features and thin coverage might need 25 assertion tasks. Generate all of them.
+
+After writing tasks, show: "Generated N assertion tasks across M features. Worst coverage: [feature] with [N] assertions needs [X] more."
+
 ## What you never do
 
 - Add duplicate ids

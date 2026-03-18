@@ -103,6 +103,44 @@ Run on every invocation:
 
 When showing full roadmap, detect: recurring hard evidence, acceleration/deceleration, thesis evolution arc. For output templates, version completion, narrative anti-slop rules, see [reference.md](reference.md).
 
+## Task generation — the path to thesis completion
+
+**/roadmap's job is not just tracking theses. It's generating EVERY task needed to prove or disprove the current thesis.** Evidence items that haven't moved are tasks. Stalled theses are tasks. Every gap between "what we need to prove" and "what we've proven" is a task.
+
+**For EVERY evidence gap found, generate the complete task list:**
+
+### Evidence tasks (from evidence-tracker.sh)
+- Each evidence item marked `todo` → task: "Evidence '[X]' unproven — design experiment to test"
+- Each evidence item marked `partial` → task: "Evidence '[X]' partially proven — complete the proof"
+- Each evidence item unchanged >14d → task: "Evidence '[X]' hasn't moved in [N]d — prove, disprove, or abandon"
+- Each evidence item with no related feature → task: "Evidence '[X]' has no feature supporting it — create feature or rethink evidence"
+
+### Thesis health tasks
+- Thesis stalled (no evidence movement >14d) → task: "Thesis stalled for [N]d — run /research to unblock or /roadmap ideate to pivot"
+- >50% thesis predictions wrong → task: "Thesis contradicted by evidence — run /strategy honest to reassess"
+- Thesis evidence items >5 → task: "Thesis too broad ([N] items) — narrow to 3-4 most critical"
+- Disproven evidence → task: "Evidence '[X]' disproved — update if_disproven action, write to dead ends"
+
+### Version completion tasks
+- Version completion <30% after 14d → task: "Version [X] barely started — is the thesis right?"
+- Version completion >80% → task: "Version [X] nearly complete — prepare bump via /roadmap bump"
+- Features tagged to version but not scored → task: "Feature [X] tagged to [version] but never evaluated — run /eval"
+
+### Narrative tasks
+- narrative.yml stale >14d → task: "External narrative hasn't been updated — run /roadmap narrative"
+- Proven evidence not reflected in narrative → task: "Evidence '[X]' proven but not in narrative — update via /roadmap narrative"
+- Changelog not updated for recent version → task: "No changelog for [version] — run /roadmap changelog"
+
+### Cross-version tasks
+- Recurring hard evidence across versions → task: "Pattern '[X]' recurs across versions — promote to Known Pattern"
+- Previous version's unproven evidence still relevant → task: "Evidence '[X]' from [old version] still unproven — carry forward or kill"
+
+**Write ALL tasks to /todo.** Tag with `source: /roadmap`, version, and evidence item. Priority: evidence items on the current thesis first, then stalled items.
+
+**There is no cap on task count.** A thesis with 5 evidence items might generate 10+ tasks. Generate all of them.
+
+After writing tasks, show: "Generated N tasks for version [X]. [M] evidence items need attention. Thesis completion: [%]."
+
 ## Agent usage — `rhino-os:explorer` for thesis research when evidence sources are insufficient.
 
 ## What you never do

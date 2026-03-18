@@ -111,6 +111,7 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 **When founder kills something:**
 1. Log: `scripts/idea-log.sh kill "[name]" "[reason]"`
 2. Update rhino.yml / todos.yml / beliefs.yml accordingly
+3. Generate kill tasks (see task generation below)
 
 **Always:** Log every proposed idea: `scripts/idea-log.sh add "[name]" "[evidence source]" "proposed"`
 
@@ -128,6 +129,36 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 
 - **Agent (rhino-os:explorer)** — for deep codebase analysis when evidence-scan isn't enough
 - **Agent (rhino-os:customer)** — spawn in background for customer signal: `Agent(subagent_type: "rhino-os:customer", prompt: "Research customer signal for [product/category]. Write to .claude/cache/customer-intel.json.", run_in_background: true)`
+
+## Task generation — ideas and kills become tasks
+
+**/ideate already materializes committed ideas. But the KILL LIST also needs tasks.** Killing something isn't just a decision — it's cleanup work. And every committed idea needs more than a feature entry — it needs the full task chain to reach first eval.
+
+**For EVERY committed idea, generate the full onramp:**
+- Task: "Implement core of [feature] — [specific first step]"
+- Task: "Add 3 assertions for [feature] — 1 file_check, 1 content_check, 1 command_check"
+- Task: "Run /eval [feature] to establish baseline score"
+- Task: "Log prediction about [feature]'s first eval score"
+- Each dependency identified → task: "Feature [X] depends on [Y] — verify [Y] is ready"
+
+**For EVERY kill decision, generate cleanup tasks:**
+- Kill a feature → task: "Remove feature [X] from rhino.yml"
+- Kill a feature → task: "Remove assertions for [X] from beliefs.yml"
+- Kill a feature → task: "Mark [X] todos as killed in todos.yml"
+- Kill a feature → task: "Update experiment-learnings.md with why [X] was killed"
+- Kill a todo → task: "Remove todo [id] from backlog"
+- Kill a direction → task: "Add [direction] to Dead Ends in experiment-learnings.md"
+
+**For EVERY kill audit finding (from kill-audit.sh):**
+- Each stale todo surfaced → task: "Todo [id] is kill candidate — [N]d stale, no progress"
+- Each always-passing assertion → task: "Assertion [id] always passes — remove or strengthen"
+- Each stuck feature → task: "Feature [X] stuck at [score] for [N]d — kill, pivot, or double down"
+
+**Write ALL tasks to /todo.** Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kill cleanup first (reduce noise), then new feature onramp.
+
+**There is no cap on task count.** Committing 3 ideas and killing 2 features might generate 25 tasks. Generate all of them.
+
+After materializing/killing, show: "Generated N tasks: [X] to build new ideas, [Y] to clean up kills."
 
 ## What you never do
 - Generate filler ideas to hit a number

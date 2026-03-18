@@ -54,6 +54,44 @@ Read `gotchas.md` before creating or auditing.
 
 Use templates from `reference.md`. Every output ends with 3 next commands.
 
+## Task generation — the path to skill excellence
+
+**/skill's job is not just auditing. It's generating EVERY task needed to bring skills to full quality.** Every missing gotchas.md, every skill without scripts, every unmeasured skill is a task. The skill system is only as good as its weakest skill.
+
+**For EVERY quality gap found, generate the complete task list:**
+
+### Completeness tasks (from skill-quality.sh)
+- Each skill missing `gotchas.md` → task: "Skill [X] has no gotchas — add from observed failure modes"
+- Each skill missing `scripts/` → task: "Skill [X] has no scripts — add mechanical helpers"
+- Each skill missing `references/` → task: "Skill [X] has no references — add domain knowledge"
+- Each skill missing `templates/` → task: "Skill [X] has no templates — add output structure"
+- Each skill missing `reference.md` → task: "Skill [X] has no output format guide — add reference.md"
+
+### Measurement tasks
+- Each skill with no feature in rhino.yml → task: "Skill [X] not tracked as feature — add to rhino.yml"
+- Each skill with no assertions → task: "Skill [X] has no assertions — add via /assert"
+- Each skill never evaluated → task: "Skill [X] never scored — run /eval [X]"
+- Skill assertions all passing but quality is low → task: "Skill [X] assertions too weak — strengthen"
+
+### Tier progression tasks
+- Each `stub` skill (SKILL.md only) → task: "Skill [X] is a stub — add scripts and references to reach thin"
+- Each `thin` skill → task: "Skill [X] is thin — add gotchas, templates, more scripts to reach thick"
+- Each `dead` skill (>30d no changes, no assertions) → task: "Skill [X] appears dead — kill or revive"
+
+### Overlap tasks
+- Skills with overlapping routes → task: "Skills [X] and [Y] overlap on route [Z] — clarify boundaries"
+- Skills with duplicate functionality → task: "Skills [X] and [Y] do similar things — merge or differentiate"
+
+### Architecture tasks
+- Skills using wrong architecture (fork when they should spawn, or vice versa) → task: "Skill [X] architecture mismatch — evaluate A vs B"
+- Skills not using named agents → task: "Skill [X] spawns generic agents — use named agent refs"
+
+**Write ALL tasks to /todo.** Tag with `source: /skill`, skill name, and gap type (completeness/measurement/tier/overlap/architecture). Priority: stub skills on high-weight features first.
+
+**There is no cap on task count.** An audit of 21 skills might generate 50+ tasks. Generate all of them.
+
+After writing tasks, show: "Generated N tasks across M skills. [X] stubs, [Y] thin, [Z] thick. Worst: [skill] needs [N] tasks."
+
 ## What you never do
 
 - Create skills without evidence (3+ sessions of the pattern recurring)

@@ -68,11 +68,40 @@ Write findings to `.claude/knowledge/experiment-learnings.md`. Grade prediction.
 - `~/.claude/cache/last-research.yml` — for /plan to read (format in `reference.md`)
 - `scripts/research-log.sh add "[topic]" "[route]" [count] "[key finding]" "[confidence]"`
 
-### Step 6: Todo exhaust
-- Tasks -> `.claude/plans/todos.yml` with `source: /research`
-- New unknowns -> `research: [unknown]` todos
-- Dead ends -> suggest killing related todos
-- Priority: cross-reference with feature weights + sub-scores
+### Step 6: Task generation — the path from knowledge to action
+
+**/research's job is not just findings. It's generating EVERY task that the findings imply.** Knowledge without action items is a report that sits on a shelf. If research found something, someone needs to do something about it.
+
+**For EVERY finding, generate the corresponding tasks:**
+
+#### Evidence-implies-action tasks
+- Finding confirms a hypothesis → task: "Evidence confirms [X] — update strategy.yml and act on it"
+- Finding contradicts a hypothesis → task: "Evidence contradicts [X] — update experiment-learnings.md, reconsider approach"
+- Finding reveals a competitor capability → task: "Competitor [Y] does [Z] — evaluate: build, differentiate, or ignore"
+- Finding reveals market shift → task: "Market moving toward [X] — update strategy via /strategy market"
+- Finding reveals user need → task: "Users need [X] — evaluate as feature via /ideate"
+
+#### Knowledge model tasks
+- Each new unknown discovered → task: "New unknown: [X] — run /research [topic] to investigate"
+- Each dead end confirmed → task: "Dead end confirmed: [X] — kill related todos and update learnings"
+- Each uncertain pattern that could be confirmed → task: "Pattern [X] needs one more experiment — design test"
+- Stale knowledge entry touched by research → task: "Knowledge entry [X] updated — retest downstream assumptions"
+
+#### Strategy update tasks
+- Research changes the competitive picture → task: "Update market-context.json with [finding]"
+- Research changes the stage assessment → task: "Run /strategy honest — stage may have shifted"
+- Research reveals pricing signal → task: "Competitor charges [X] — run /money price"
+
+#### Feature impact tasks
+- Finding affects a specific feature → task: "Research on [topic] affects feature [Y] — update approach"
+- Finding suggests a new feature → task: "Evidence for [X] — evaluate via /ideate or /feature new"
+- Finding invalidates a feature → task: "Evidence against feature [X] — consider killing via /ideate kill"
+
+**Write ALL tasks to /todo.** Tag with `source: /research`, topic, and confidence level. Priority: cross-reference with feature weights + sub-scores. High-confidence findings that affect high-weight features go first.
+
+**There is no cap on task count.** A research session that produces 8 findings might generate 15 tasks. Generate all of them.
+
+After writing tasks, show: "Generated N tasks from M findings. Highest-impact: [finding] → [task]."
 
 ## Agent spawning
 - `Agent(subagent_type: "rhino-os:explorer", ...)` — deep codebase analysis

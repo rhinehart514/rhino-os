@@ -73,6 +73,43 @@ Also run `rhino eval .` and write output to `.claude/cache/eval-cache.json`.
 
 Use output template from `references/onboarding-flow.md`. Show what was set up, features detected with scores, and one clear next step.
 
+## Task generation — the path from onboarded to productive
+
+**/onboard's job is not just setup. It's generating EVERY task needed to go from "just initialized" to "productive."** After onboarding, the founder should have a full backlog of next steps. An onboarded project with no tasks is a project that doesn't know what to do next.
+
+**After onboarding completes, generate the complete task list:**
+
+### Setup completion tasks
+- No beliefs.yml or <3 assertions → task: "Only [N] assertions — run /assert suggest to add more"
+- No strategy.yml → task: "No strategic diagnosis — run /strategy honest"
+- No predictions yet → task: "No predictions — next /go session must include predictions"
+- Score below 50 → task: "Initial score is [N] — run /eval to identify gaps"
+- No roadmap.yml or empty thesis → task: "No thesis defined — run /roadmap new"
+
+### Feature gap tasks
+- Each feature detected with no assertions → task: "Feature [X] has no assertions — run /assert suggest [X]"
+- Each feature with empty code paths → task: "Feature [X] has no code — implement or remove"
+- Each feature with weight not set → task: "Feature [X] has no weight — assign based on value"
+- Features list has >7 items → task: "Too many features ([N]) — run /ideate kill to focus"
+- Features list has <2 items → task: "Only [N] features — run /feature detect to find more"
+
+### First session tasks
+- Run first /eval → task: "Run /eval to establish baseline scores"
+- Run first /strategy → task: "Run /strategy honest for initial diagnosis"
+- Run first /plan → task: "Run /plan to pick the first move"
+- Define the person → task: "Name the specific person this is for in rhino.yml value.user"
+
+### Documentation tasks
+- No README or generic README → task: "Write a real README — run /copy landing"
+- CLAUDE.md is empty or minimal → task: "Add project-specific instructions to CLAUDE.md"
+- No design-system.md for web projects → task: "Create .claude/design-system.md for visual consistency"
+
+**Write ALL tasks to /todo.** Tag with `source: /onboard` and type (setup/feature/first-session/docs). Priority: first session tasks first.
+
+**There is no cap on task count.** A fresh onboard might generate 15+ tasks. Generate all of them. This IS the founder's first backlog.
+
+After onboarding, show: "Generated N tasks to get started. First priority: [task]. Run /plan to pick your first move."
+
 ## What you never do
 
 - Leave placeholder text — fill everything from the code

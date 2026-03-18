@@ -86,6 +86,46 @@ Run `scripts/ship-log.sh add` after every deploy, release, or PR. This persists 
 | eval-cache | `.claude/cache/eval-cache.json` | Pre-flight sub-scores |
 | roadmap | `.claude/plans/roadmap.yml` | Thesis, version for release context |
 
+## Task generation — the path to shipability
+
+**/ship's job is not just checking readiness. It's generating EVERY task needed to make the product shippable.** Every pre-flight blocker is a task. Every warning is a task. If /ship can't ship, the backlog should contain exactly what needs to happen first.
+
+**For EVERY blocker or warning found in pre-flight, generate a task:**
+
+### Pre-flight blocker tasks
+- Score regressed since last ship → task: "Score dropped from [X] to [Y] — diagnose and fix before shipping"
+- Block-severity assertion failing → task: "Assertion [id] blocking ship — fix [specific issue]"
+- Secrets detected in staged files → task: "Secrets found in [file] — remove before shipping"
+- Eval data stale >7d → task: "Eval data is [N]d old — run /eval before shipping"
+
+### Pre-flight warning tasks
+- Warn-severity assertions failing → task: "Assertion [id] failing (warn) — fix or acknowledge"
+- Score flat (no improvement since last ship) → task: "Score hasn't improved — is this ship worth it?"
+- Uncommitted changes → task: "Uncommitted changes — commit or stash before shipping"
+- No changelog entry for this version → task: "Missing changelog — run /roadmap changelog"
+
+### Release readiness tasks (for release-type ships)
+- No GTM strategy → task: "No GTM plan — run /strategy gtm before release"
+- No customer signal → task: "No customer intel — run /discover before announcing"
+- Narrative stale → task: "Narrative not updated — run /roadmap narrative"
+- No release notes → task: "No release notes — run /ship release to generate"
+
+### Post-ship tasks (after successful ship)
+- Verification not run → task: "Verify deployment at [url] via /ship verify"
+- No deploy-confidence score → task: "Calculate deploy confidence for tracking"
+- Related predictions not graded → task: "Ship predictions need grading — run /retro"
+
+### Rollback tasks (after rollback)
+- Investigation todo (mandatory) → task: "Investigate rollback cause — [what went wrong]"
+- Related assertions that should have caught it → task: "Add assertion to prevent recurrence: [specific check]"
+- Prediction about the shipped change → task: "Grade prediction about [change] — it was wrong"
+
+**Write ALL tasks to /todo.** Tag with `source: /ship` and blocker type (pre-flight/release/post-ship/rollback). Priority: blockers first, then warnings.
+
+**There is no cap on task count.** A pre-flight with 5 blockers and 3 warnings generates 8 tasks. Generate all of them.
+
+After writing tasks, show: "Generated N tasks. [M] blockers must be fixed before shipping."
+
 ## What you never do
 
 - Push without checking score (unless hotfix)

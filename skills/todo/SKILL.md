@@ -69,6 +69,43 @@ For output templates: `reference.md`
 - `.claude/cache/eval-cache.json` — sub-scores for smart promote
 - `lens/product/eval/beliefs.yml` — existing assertions (for graduation dedup)
 
+## Task generation — meta-tasks for backlog health
+
+**/todo is the central nervous system. It also needs to generate tasks about its OWN health.** Stale items need decisions. Clusters need features. Orphans need tags. The backlog itself is a product that needs maintenance.
+
+**On every show/health run, generate meta-tasks:**
+
+### Stale item tasks (from todo-decay.sh)
+- Each item >14d with no activity → task: "Todo [id] is [N]d stale — promote, kill, or refresh"
+- Each item >30d → task: "Todo [id] is [N]d old — force decision: kill or escalate"
+- Cluster of 3+ stale items on same feature → task: "Feature [X] has [N] stale todos — batch review needed"
+
+### Cluster tasks
+- 3+ todos on same topic → task: "Cluster detected: [N] todos about [topic] — consider creating a feature"
+- 3+ todos from same source → task: "Source [X] generated [N] open todos — batch work session needed"
+- 5+ todos on same feature → task: "Feature [X] has [N] todos — run /go [feature] to work through them"
+
+### Graduation tasks (from todo-promote.sh)
+- Each recurring todo (done 3+ times) → task: "Todo [id] keeps recurring — graduate to assertion"
+- Each todo that matches a belief pattern → task: "Todo [id] looks like an assertion — evaluate graduation"
+- Each done todo with recurring pattern → task: "Pattern from [id] — should this be a permanent check?"
+
+### Orphan tasks
+- Todos with no feature tag → task: "Orphan todo [id] — tag to a feature or kill"
+- Todos tagged to killed features → task: "Todo [id] tagged to killed feature [X] — reassign or kill"
+- Todos tagged to features not in rhino.yml → task: "Todo [id] references unknown feature [X] — fix tag"
+
+### Balance tasks
+- 0 active items → task: "No active work — run /plan to pick next move"
+- >20 backlog items → task: "Backlog bloat ([N] items) — batch decay review needed"
+- All todos from one source → task: "Backlog dominated by [source] — other skills not generating tasks"
+
+**Write ALL meta-tasks to /todo itself.** Tag with `source: /todo` and type (stale/cluster/graduation/orphan/balance). Priority: stale clusters first.
+
+**There is no cap.** A backlog with 30 items might need 10 meta-tasks. Generate them.
+
+After showing the backlog, show: "Backlog health: N meta-tasks generated. [summary of worst issue]."
+
 ## What you never do
 
 - Auto-delete stale items — decay surfaces, founder decides

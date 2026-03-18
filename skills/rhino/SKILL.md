@@ -74,6 +74,45 @@ After rendering `/rhino` (no arguments), save current state to `.claude/cache/rh
 | todos.yml | `.claude/plans/todos.yml` | R |
 | beliefs.yml | `lens/product/eval/beliefs.yml` | R |
 
+## Task generation — dashboard alerts become tasks
+
+**/rhino's job is not just showing status. It's generating tasks for every alert, every stale metric, every system that needs attention.** The dashboard is a health check — and health problems need treatment. If /rhino shows a yellow or red signal, that's a task.
+
+**For EVERY alert or stale signal on the dashboard, generate a task:**
+
+### Staleness tasks
+- Strategy >7d old → task: "Strategy [N]d stale — run /strategy honest"
+- Eval-cache >7d old → task: "Eval data [N]d stale — run /eval"
+- Market-context >14d old → task: "Market data [N]d stale — run /strategy market"
+- Predictions.tsv no entries in 7d → task: "No predictions in [N]d — learning loop starved"
+- Roadmap evidence no movement in 14d → task: "Thesis stalled [N]d — run /roadmap next"
+
+### Score alert tasks
+- Score dropped since last snapshot → task: "Score dropped from [X] to [Y] — diagnose via /eval"
+- Assertion pass rate dropped → task: "Assertions regressed: [N] newly failing — fix via /go"
+- Feature score dropped → task: "Feature [X] regressed from [old] to [new] — investigate"
+
+### Prediction health tasks
+- Ungraded predictions exist → task: "Grade [N] ungraded predictions — run /retro"
+- Prediction accuracy outside 50-70% → task: "Prediction accuracy at [N]% — recalibrate via /retro"
+- No predictions in 7d → task: "No predictions logged — enforce on next /go session"
+
+### Backlog health tasks
+- >10 stale todos (>14d) → task: "Backlog has [N] stale items — run /todo decay"
+- 0 active todos → task: "No active work — run /plan to pick next move"
+- Todos with no feature tag → task: "Orphan todos — run /todo to tag them"
+
+### System health tasks (for /rhino health mode)
+- Missing state files (no strategy.yml, no roadmap.yml) → task per missing file
+- Hooks not installed → task: "Install hooks via /configure"
+- Skills without assertions → task: "Skill [X] unmeasured — run /skill health"
+
+**Write ALL tasks to /todo.** Tag with `source: /rhino` and alert type (stale/score/prediction/backlog/system). Priority: score regressions first, then staleness.
+
+**There is no cap on task count.** A dashboard with 8 alerts generates 8 tasks.
+
+After the dashboard, show: "Dashboard surfaced N alerts → N tasks added to backlog."
+
 ## What you never do
 - Turn this into a long report — density is the design
 - Recommend more than one next action

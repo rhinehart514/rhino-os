@@ -60,6 +60,44 @@ Parse `$ARGUMENTS`:
 - **AskUserQuestion**: `new` interviews, `detect` confirmation, `ideate` selection
 - **WebSearch**: `research` route external context
 
+## Task generation — the path to feature completion
+
+**/feature's job is not just showing scores. It's generating EVERY task needed to unblock features and reach maturity.** If a feature is stuck, the tasks to unstick it should be in the backlog. If a feature has no assertions, that's a task. If a dependency is blocking, that's a task.
+
+**For EVERY feature analyzed, generate the complete task list:**
+
+### Blocked feature tasks
+- Each feature blocked by a dependency scoring <50 → task: "Feature [X] blocked by [Y] scoring [Z] — fix [Y] first"
+- Each feature with status `active` but no code paths → task: "Feature [X] defined but has no code — implement or kill"
+- Each feature with broken dependency chain → task: "Feature [X] depends on [Y] which depends on [Z] — unblock from bottom"
+
+### Maturity gap tasks
+- Each feature scoring <30 (planned) with weight >2 → task: "High-weight feature [X] at [score] — needs implementation"
+- Each feature scoring 30-49 (building) → tasks for specific delivery gaps from eval-cache sub-scores
+- Each feature scoring 50-69 (working) → tasks for craft improvements from eval-cache
+- Each feature at 70+ but with viability dragging → task: "Feature [X] works but viability is [V] — run /research to validate"
+
+### Assertion coverage tasks
+- Each feature with 0 assertions → task: "Feature [X] has no assertions — run /assert suggest [X]"
+- Each feature where all assertions pass but score is <50 → task: "Feature [X] passes all assertions but scores [N] — assertions are too weak"
+- Each feature with no eval data → task: "Feature [X] never evaluated — run /eval [X]"
+
+### Weight/priority tasks
+- Feature weights don't match thesis priorities → task: "Feature [X] weight [W] doesn't match thesis — re-weight"
+- High-weight features with lowest scores → task: "Bottleneck: feature [X] (w:[W]) scoring [S] — highest leverage fix"
+- Features with no weight assigned → task: "Feature [X] has no weight — assign based on thesis"
+
+### Lifecycle tasks
+- Features stuck at same maturity for >14d → task: "Feature [X] stuck at [maturity] for [N]d — diagnose via /eval [X]"
+- Features with declining scores → task: "Feature [X] regressed from [old] to [new] — investigate"
+- Features that should be killed (no progress, low weight, no thesis connection) → task: "Consider killing feature [X] — run /ideate kill"
+
+**Write ALL tasks to /todo.** Tag with `source: /feature`, feature name, and gap type (blocked/maturity/coverage/weight/lifecycle). Priority: highest-weight features with lowest scores first.
+
+**There is no cap on task count.** A project with 7 features at various maturity levels might need 20+ tasks. Generate all of them.
+
+After writing tasks, show: "Generated N tasks across M features. Bottleneck feature: [name] (w:[W]) at [score] needs [X] tasks."
+
 ## What you never do
 
 - Output raw CLI output without formatting — use `reference.md` templates

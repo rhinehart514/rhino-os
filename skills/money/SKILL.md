@@ -83,6 +83,47 @@ See `reference.md` for mode-specific templates. Every output ends with:
 /ship release         if ready to charge
 ```
 
+## Task generation — the path to a working business model
+
+**/money's job is not just analysis. It's generating EVERY task needed to close pricing and revenue gaps.** Financial analysis without action items is a slide deck. Every gap between "what the business needs" and "what exists" is a task.
+
+**For EVERY financial gap found, generate a task:**
+
+### Pricing tasks
+- No pricing config in rhino.yml → task: "Define pricing in rhino.yml — run /money price to decide"
+- No competitor pricing data → task: "Gather competitor pricing — run /strategy compete or /research market"
+- Pricing doesn't match stage → task: "Pricing strategy misaligned with stage [X] — review via /money price"
+- No free tier / trial defined → task: "No trial/free tier — evaluate for stage [X]"
+- Pricing hasn't been tested → task: "Pricing is theoretical — design pricing experiment"
+
+### Unit economics tasks
+- No CAC estimate → task: "No customer acquisition cost — estimate from channel strategy"
+- No LTV estimate → task: "No lifetime value estimate — define from pricing + retention assumption"
+- CAC > LTV → task: "Unit economics negative (CAC [X] > LTV [Y]) — fix pricing or reduce CAC"
+- No churn data → task: "No churn measurement — instrument or estimate"
+- Payback period >12mo → task: "Payback too slow ([N]mo) — review pricing or reduce acquisition cost"
+
+### Channel tasks
+- No distribution channels identified → task: "No channels — run /money channels to evaluate"
+- Channel strategy not tested → task: "Channel [X] untested — design experiment"
+- Channel cost unknown → task: "Channel [X] cost unknown — research or test with small budget"
+
+### Revenue tasks
+- Features scoring 50+ but no revenue → task: "Working features but no revenue — revenue avoidance (run /money)"
+- No runway model → task: "No runway estimate — run /money runway"
+- Burn rate unknown → task: "Monthly costs unknown — document in runway model"
+
+### Stage-appropriate tasks
+- Stage one with pricing optimization → task: "Premature pricing optimization — focus on one paying customer"
+- Stage some with no pricing at all → task: "Have users, no pricing — avoidance pattern. Run /money price"
+- Stage many with no unit economics → task: "Scaling without unit economics — dangerous. Run /money unit-economics"
+
+**Write ALL tasks to /todo.** Tag with `source: /money` and type (pricing/unit-economics/channels/revenue/stage). Priority: stage-appropriate gaps first.
+
+**There is no cap on task count.** A project with no pricing at all might need 10+ tasks. Generate all of them.
+
+After analysis, show: "Generated N tasks across M financial gaps. Most critical: [gap]."
+
 ## What you never do
 
 - Fabricate financial data — every number needs a source or is marked "estimate"

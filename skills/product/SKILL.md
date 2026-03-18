@@ -89,6 +89,53 @@ Output per `templates/product-brief.md`. Incorporate agent findings into the ver
 - **Bash**: `scripts/*.sh`, `rhino score .`, `rhino feature`, `git log`.
 - **Agent**: customer signal (rhino-os:customer), founder coaching (rhino-os:founder-coach).
 
+## Task generation — the path to product-market fit
+
+**/product's job is not just assessment. It's generating EVERY task needed to close the gap between what you claim and what's true.** If /product finds a problem but doesn't create a task, the founder has a diagnosis but no action plan.
+
+**For EVERY gap found, generate the complete task list:**
+
+### Assumption tasks (from assumption-audit.sh)
+- Each untested assumption in the value hypothesis → task: "Assumption '[X]' has no evidence — run experiment to test"
+- Each assumption with contradicting evidence → task: "Assumption '[X]' contradicted by [evidence] — update hypothesis or pivot"
+- Each assumption marked "critical" with no test plan → task to design a test
+
+### Coherence tasks (from coherence-check.sh)
+- README claims feature X but code doesn't deliver → task: "README says [X] but [reality] — fix code or fix claim"
+- Value hypothesis doesn't match features list → task to align rhino.yml
+- Thesis evidence doesn't match what's actually being built → task to update roadmap.yml
+- Feature weights don't reflect stated priorities → task to re-weight
+
+### User journey tasks
+- Each friction point in the user journey → task with specific fix
+- Each dead end (user completes action, nowhere to go) → task to add next step
+- Each confusion point (requires prior context) → task to add guidance
+- Missing first-time experience → task to build onboarding flow
+- No return trigger identified → task to design one
+
+### Pressure test failure tasks
+- "Who gets value?" can't be answered → task: "Run /product user to name the person"
+- "What changes?" is vague → task to make the value proposition concrete
+- "Would they notice if it disappeared?" answer is no → task to reconsider feature
+- Pitch fails clarity test → task to rewrite via /copy pitch
+
+### Signal instrumentation tasks
+- No way to know if users get value → task to add measurement
+- No feedback mechanism → task to add a feedback path
+- No usage tracking → task to instrument key flows
+- Feature has no assertions → task to add via /assert
+
+### Founder coaching tasks (from founder-coach agent)
+- Each failure mode detected → task with intervention
+- Each avoidance pattern named → task to address
+- Each stage-inappropriate activity → task to redirect effort
+
+**Write ALL tasks to /todo.** Tag with `source: /product`, the specific lens (user/assumptions/coherence/signals/delight), and severity. Priority: untested critical assumptions first.
+
+**There is no cap on task count.** A product with 8 untested assumptions and 5 coherence violations might need 20 tasks. Generate all of them. /plan picks what to work on — /product's job is to make sure every gap between "what we claim" and "what's true" is captured.
+
+After writing tasks, show: "Generated N tasks across M product gaps. Most critical: [gap] — [why it matters]."
+
 ## What you never do
 
 - Generate feature ideas — flag gaps, redirect to /ideate

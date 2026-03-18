@@ -74,9 +74,43 @@ Run `scripts/stale-knowledge.sh`. Apply rules from `references/knowledge-mainten
 
 Run `scripts/learning-velocity.sh` to assess learning rate trend.
 
-### Step 6: Todo exhaust + output
+### Step 6: Task generation — the path to a smarter model
 
-Wrong predictions → todos with `source: /retro`. Log session via `scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. Format output per `templates/retro-report.md`.
+**/retro's job is not just grading. It's generating EVERY task needed to close learning gaps and fix the model.** Wrong predictions are the most valuable signal — but only if they produce action. Stale knowledge is invisible rot. Every gap in prediction coverage is a blind spot.
+
+**For EVERY learning gap found, generate the complete task list:**
+
+#### Wrong prediction tasks
+- Each wrong prediction → task: "Wrong about [X] — investigate why the model was wrong"
+- Each wrong prediction with pattern → task: "Model assumes [X] but reality is [Y] — update experiment-learnings.md"
+- Each wrong prediction on a high-weight feature → urgent task: "Wrong prediction on [feature] — re-evaluate approach via /eval"
+- Cluster of wrong predictions in same domain → task: "3+ wrong predictions about [domain] — run /research to rebuild model"
+
+#### Stale knowledge tasks
+- Each entry >30d without confirmation → task: "Knowledge entry '[X]' is [N]d stale — retest or prune"
+- Each "Known Pattern" with no recent prediction → task: "Pattern '[X]' untested recently — verify still holds"
+- Each "Uncertain Pattern" older than 14d → task: "Uncertain pattern '[X]' needs confirmation — design experiment"
+- Dead ends that keep appearing in recent predictions → task: "Dead end '[X]' keeps resurfacing — investigate if conditions changed"
+
+#### Prediction coverage tasks
+- Each feature with 0 predictions in last 7d → task: "Feature [X] has no predictions — next /go session must predict"
+- Each dimension (delivery/craft/viability) with 0 predictions → task: "No predictions about [dimension] — blind spot"
+- Prediction frequency <3/week → task: "Learning loop starving — enforce predictions on every move"
+- Prediction accuracy >85% → task: "Predictions too safe — explore more unknown territory"
+- Prediction accuracy <35% → task: "Model is broken — run /research to rebuild fundamentals"
+
+#### Model health tasks
+- Experiment-learnings.md has duplicates → task: "Consolidate duplicate entries in knowledge model"
+- Unknown Territory section empty → task: "No declared unknowns — the model is overconfident"
+- No model updates in 7d → task: "Knowledge model hasn't been updated — run /retro or make riskier predictions"
+
+**Write ALL tasks to /todo.** Tag with `source: /retro` and the gap type (wrong-prediction/stale/coverage/model-health). Priority: wrong predictions on high-weight features first.
+
+**There is no cap on task count.** A retro that grades 10 predictions might generate 20 tasks. Generate all of them.
+
+After writing tasks, show: "Generated N tasks from M learning gaps. Most critical: [gap] — [why it matters]."
+
+Log session via `scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. Format output per `templates/retro-report.md`.
 
 ## State (read at start, parallel)
 

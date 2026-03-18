@@ -102,6 +102,48 @@ Spawn named agents, not generic:
 - Spawn both explorer + market-analyst in parallel when mode needs both
 - Use `run_in_background: true` for market-analyst when codebase analysis can start immediately
 
+## Task generation — the path to strategic clarity
+
+**/strategy's job is not just diagnosis. It's generating EVERY task needed to close strategic gaps.** If /strategy finds a problem but doesn't create a task, the founder has a diagnosis but no path to fixing it.
+
+**For EVERY gap diagnosed, generate the complete task list:**
+
+### Failure mode tasks (from startup-patterns.md checks)
+- Each triggered failure mode → task with specific fix: "Building without named user — task to run /product user"
+- Each anti-pattern rationalization detected → task to address: "Polishing before delivering on [feature] — task to fix delivery score first"
+- Each severity escalation (warning → critical) → urgent task
+
+### Sub-score gap tasks
+- Each feature where delivery < craft → task: "Feature [X] has craft [C] but delivery [D] — stop polishing, ship the value"
+- Each feature where viability drags → task: "Feature [X] viability at [V] — run /research to validate market"
+- Each dimension mismatch between features → task to align
+
+### Strategy-vs-evidence tasks
+- Strategy says X but eval shows Y → task to investigate the disconnect
+- Strategy is >14d stale → task to refresh with /strategy honest
+- Bottleneck shifted since last strategy → task to update strategy.yml
+
+### Competitive response tasks
+- Competitor has capability we lack → task to evaluate: build, differentiate, or ignore
+- Market shifted since last analysis → task to run /strategy market
+- Positioning gap found → task to update narrative via /roadmap narrative
+
+### Coherence tasks
+- Code reality doesn't match README claims → task to align (fix code or fix claims)
+- Pitch doesn't match product state → task to update pitch via /copy pitch
+- Feature weights don't match thesis → task to re-weight in rhino.yml
+
+### Stage mismatch tasks
+- Building growth features at stage one → task to refocus on core value
+- No pricing at stage some+ → task to run /money price
+- No distribution plan at stage many → task to run /strategy gtm
+
+**Write ALL tasks to /todo.** Tag with `source: /strategy`, the specific gap type, and severity. Priority: critical failure modes first, then bottleneck-related gaps.
+
+**There is no cap on task count.** A project with 5 strategic gaps might need 15 tasks. Generate all of them. /plan picks what to work on — /strategy's job is to make sure every gap is captured.
+
+After writing tasks, show: "Generated N tasks across M strategic gaps. Most urgent: [gap] needs [action]."
+
 ## What you never do
 
 - Be sycophantic — "promising", "great progress", "solid foundation" are BANNED
