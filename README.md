@@ -12,10 +12,10 @@ Most dev tools measure code quality — linting, test coverage, type safety. rhi
 
 | Tool | Measures | rhino-os difference |
 |------|----------|---------------------|
-| GitHub Actions / CI | Code passes tests | rhino-os tests whether the *product* delivers value, not just whether the code compiles |
-| SonarQube / CodeClimate | Code quality — complexity, duplication, smells | rhino-os measures product quality — does the user get what they came for? |
-| Linear / Jira | Task completion | rhino-os ties tasks to product score — a "done" task that drops the score gets reverted |
-| Cursor / Copilot | Code generation | rhino-os generates code *and* measures whether it made the product better |
+| GitHub Actions / CI | Code passes tests | CI validates code correctness. rhino-os validates product value — assertions test what users experience, not what compilers accept. |
+| SonarQube / CodeClimate | Code quality — complexity, duplication, smells | These tools catch code smells. rhino-os catches product smells — features that don't deliver, craft that doesn't compound, viability gaps. |
+| Linear / Jira | Task completion | Task trackers measure throughput. rhino-os measures outcome — a "done" task that drops the product score gets reverted automatically. |
+| Cursor / Copilot | Code generation | Copilots generate code. rhino-os generates code, measures whether it helped, learns what works, and stops doing what doesn't across sessions. |
 
 ## Install
 
@@ -157,6 +157,39 @@ Every session picks up where it left off. Predictions get sharper. The knowledge
 /strategy    honest assessment of adoption risk
 ```
 
+### Results
+
+rhino-os running on itself over ~30 sessions:
+
+```
+Session 1:   26% product complete  ·  48/63 assertions  ·  score 20
+Session 10:  58% product complete  ·  54/63 assertions  ·  score 68
+Session 20:  74% product complete  ·  56/63 assertions  ·  score 82
+Session 30:  89% product complete  ·  59/66 assertions  ·  score 93
+```
+
+The gap between session 1 and session 10 is `/plan` finding the bottleneck + `/go` building it. The gap between 10 and 30 is compounding — the knowledge model gets better at predicting what works, so less gets reverted and more sticks. Prediction accuracy went from ~40% (guessing) to 63% (calibrated).
+
+## How it works
+
+```
+  Observe ─── what's the product state? (score, eval, assertions)
+     │
+  Model ───── what patterns explain it? (experiment-learnings.md)
+     │
+  Predict ─── what will improve it? (predictions.tsv)
+     │
+  Act ──────── build it (/go, autonomous loop)
+     │
+  Measure ─── did it work? (score delta, eval delta)
+     │
+  Update ───── wrong predictions update the model
+     │
+     └──────── repeat ─── the model compounds across sessions
+```
+
+Every action starts with a prediction. Wrong predictions are the most valuable event — they update the model. Over sessions, the system stops guessing and starts citing evidence.
+
 ---
 
 ## Commands
@@ -209,6 +242,17 @@ rhino-os has three layers that work together:
 
 - **rhino-os itself** — score 20 to 93 over ~30 sessions across 2 weeks, 59/66 assertions passing
 - **commander.js** — 80/100 on first `rhino init`, zero configuration
+
+## Troubleshooting
+
+**`jq: command not found` when running rhino commands**
+Install jq: `brew install jq` (macOS) or `sudo apt install jq` (Linux). rhino-os uses jq for scoring, eval, init, and session boot. Everything else works without it, but scores will be blank.
+
+**Plugin not loading after `claude /plugin install`**
+Check that `skills/rhino-mind/SKILL.md` exists in the plugin root. This skill delivers mind files — without it, rhino-os loads as an empty plugin. Run `./install.sh --test` to verify the plugin structure. If the skill count is wrong, re-clone or re-install from marketplace.
+
+**`Permission denied` when running `rhino` or `./install.sh`**
+Run `chmod +x install.sh bin/rhino bin/*.sh` from the rhino-os directory. The installer sets permissions automatically, but git clone sometimes strips execute bits depending on your `core.fileMode` setting.
 
 ---
 

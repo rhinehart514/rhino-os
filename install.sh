@@ -302,6 +302,26 @@ if $PLUGIN_MODE && ! $DRY_RUN; then
     else
         warn "rhino-mind skill missing — mind files won't load in plugin mode"
     fi
+
+    # Verify hooks.json exists and is valid JSON
+    hooks_json="$RHINO_DIR/hooks/hooks.json"
+    if [[ -f "$hooks_json" ]]; then
+        if command -v jq &>/dev/null && jq empty "$hooks_json" 2>/dev/null; then
+            action "hooks.json valid"
+        else
+            warn "hooks.json exists but is not valid JSON"
+        fi
+    else
+        warn "hooks.json not found at $hooks_json"
+    fi
+
+    # Verify expected skill count matches actual
+    expected_skill_count=21  # v9.0: 21 skills
+    if [[ "$local_skill_count" -ne "$expected_skill_count" ]]; then
+        warn "skill count mismatch: found $local_skill_count, expected $expected_skill_count — some skills may be missing"
+    else
+        action "skill count matches expected ($expected_skill_count)"
+    fi
 fi
 
 # --- 8. Verify installation ---
@@ -420,8 +440,58 @@ else
         test_pass=0
         test_fail=0
 
-        # 1. Check symlinks resolve (manual mode)
-        if ! $PLUGIN_MODE; then
+        # 1. Check symlinks resolve (manual mode) or plugin structure (plugin mode)
+        if $PLUGIN_MODE; then
+            # Plugin mode tests
+            # 1a. CLAUDE_PLUGIN_ROOT or plugin.json must exist
+            if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+                action "CLAUDE_PLUGIN_ROOT set: $CLAUDE_PLUGIN_ROOT"
+                test_pass=$((test_pass + 1))
+            elif [[ -f "$RHINO_DIR/.claude-plugin/plugin.json" ]]; then
+                action "plugin.json found (CLAUDE_PLUGIN_ROOT not set)"
+                test_pass=$((test_pass + 1))
+            else
+                warn "neither CLAUDE_PLUGIN_ROOT nor plugin.json found"
+                test_fail=$((test_fail + 1))
+            fi
+
+            # 1b. Skills directory exists and has expected count
+            if [[ -d "$RHINO_DIR/skills" ]]; then
+                local_test_skill_count=$(find "$RHINO_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
+                if [[ "$local_test_skill_count" -ge 10 ]]; then
+                    action "skills dir: $local_test_skill_count skills found"
+                    test_pass=$((test_pass + 1))
+                else
+                    warn "skills dir exists but only $local_test_skill_count skills (expected 10+)"
+                    test_fail=$((test_fail + 1))
+                fi
+            else
+                warn "skills directory not found"
+                test_fail=$((test_fail + 1))
+            fi
+
+            # 1c. hooks.json is valid JSON
+            test_hooks="$RHINO_DIR/hooks/hooks.json"
+            if [[ -f "$test_hooks" ]] && command -v jq &>/dev/null && jq empty "$test_hooks" 2>/dev/null; then
+                action "hooks.json: valid JSON"
+                test_pass=$((test_pass + 1))
+            elif [[ -f "$test_hooks" ]]; then
+                warn "hooks.json exists but is not valid JSON"
+                test_fail=$((test_fail + 1))
+            else
+                warn "hooks.json not found"
+                test_fail=$((test_fail + 1))
+            fi
+
+            # 1d. rhino-mind skill exists (critical for plugin mode)
+            if [[ -f "$RHINO_DIR/skills/rhino-mind/SKILL.md" ]]; then
+                action "rhino-mind skill: present"
+                test_pass=$((test_pass + 1))
+            else
+                warn "rhino-mind skill missing — mind files won't load"
+                test_fail=$((test_fail + 1))
+            fi
+        else
             for mind_file in identity.md thinking.md standards.md; do
                 link="$CLAUDE_DIR/rules/$mind_file"
                 if [[ -L "$link" ]] && [[ -f "$(readlink "$link")" ]]; then

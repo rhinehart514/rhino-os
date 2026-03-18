@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # grade.sh — Auto-grade predictions by comparing claims against score history.
 #
-# Usage: bash bin/grade.sh [predictions.tsv] [history.tsv] [score-cache.json]
+# Usage: bash bin/grade.sh [--quiet] [--dry-run] [predictions.tsv] [history.tsv] [score-cache.json]
 #
 # For each ungraded prediction:
 #   1. Extract directional claim ("raise X from N to M", "will drop", etc.)
@@ -15,10 +15,22 @@
 set -uo pipefail
 
 QUIET=false
-if [[ "${1:-}" == "--quiet" ]]; then
-    QUIET=true
-    shift
-fi
+DRY_RUN=false
+for arg in "$@"; do
+    case "$arg" in
+        --quiet) QUIET=true ;;
+        --dry-run) DRY_RUN=true ;;
+    esac
+done
+# Strip flags from positional args
+POSITIONAL=()
+for arg in "$@"; do
+    case "$arg" in
+        --quiet|--dry-run) ;;
+        *) POSITIONAL+=("$arg") ;;
+    esac
+done
+set -- "${POSITIONAL[@]+"${POSITIONAL[@]}"}"
 
 # Resolve paths
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -349,6 +361,16 @@ parse_claim() {
             direction="time_based"
             to_val="${BASH_REMATCH[1]}"
             feature="${BASH_REMATCH[2]}"
+        # Pattern: "X depends on Y" / "feature X depends on Y" / "X requires Y"
+        elif [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+(depends[[:space:]]+on|requires)[[:space:]]+([a-zA-Z_.-]+) ]]; then
+            direction="dependency"
+            feature="${BASH_REMATCH[1]}"
+            to_val="${BASH_REMATCH[3]}"  # the dependency (Y)
+        # Pattern: "users will [verb]" / "founders will [verb]" / "people will [verb]"
+        elif [[ "$claim_text" =~ (users?|founders?|people|devs?|developers?|customers?)[[:space:]]+(will[[:space:]]+)?(adopt|install|use|try|ignore|skip|love|hate|churn|return|click|bounce|convert|upgrade|downgrade|complain|recommend|share|discover|find|prefer|avoid|switch|choose|leave|stay|sign[[:space:]]*up|drop[[:space:]]*off|pay|buy|subscribe) ]]; then
+            direction="user_behavior"
+            feature="${BASH_REMATCH[1]}"
+            to_val="${BASH_REMATCH[3]}"
         elif [[ "$claim_text" =~ ([a-zA-Z_.-][a-zA-Z_.-][a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(produce|generate|create|enable|reduce|eliminate) ]]; then
             direction="will_work"
             feature="${BASH_REMATCH[1]}"
@@ -388,7 +410,8 @@ grade_prediction() {
         && "$direction" != "superlative" && "$direction" != "numeric_target" \
         && "$direction" != "qualitative_up" && "$direction" != "qualitative_down" \
         && "$direction" != "should_verb" \
-        && "$direction" != "expect_up" && "$direction" != "expect_down" && "$direction" != "expect_stable" ]]; then
+        && "$direction" != "expect_up" && "$direction" != "expect_down" && "$direction" != "expect_stable" \
+        && "$direction" != "user_behavior" ]]; then
         echo "SKIP"
         return
     fi
@@ -699,9 +722,117 @@ grade_prediction() {
         return
     fi
 
-    # "time_based" — can't verify time claims mechanically
+    # "time_based" — grade "X will take N sessions/days" by checking date diff or git log session count
     if [[ "$direction" == "time_based" ]]; then
-        echo "SKIP"
+        local predicted_count="$to_val"
+        local unit="$feature"  # feature field holds the time unit for time_based
+        if [[ -z "$pred_date" || -z "$predicted_count" ]]; then
+            echo "SKIP"
+            return
+        fi
+        local today
+        today=$(date '+%Y-%m-%d' 2>/dev/null || echo "")
+        [[ -z "$today" ]] && { echo "SKIP"; return; }
+
+        case "$unit" in
+            session|sessions)
+                # Count distinct build sessions (days with commits) since prediction
+                local actual_sessions
+                actual_sessions=$(git log --format='%ad' --date=short --after="$pred_date" 2>/dev/null | sort -u | wc -l | tr -d ' ')
+                if [[ "$actual_sessions" -le "$predicted_count" ]]; then
+                    echo "YES|Completed in ${actual_sessions} sessions (predicted ${predicted_count})"
+                elif [[ "$actual_sessions" -le "$((predicted_count * 2))" ]]; then
+                    echo "PARTIAL|Took ${actual_sessions} sessions (predicted ${predicted_count})"
+                else
+                    echo "NO|Took ${actual_sessions} sessions (predicted ${predicted_count})"
+                fi
+                ;;
+            day|days)
+                # Calculate actual days elapsed
+                local pred_epoch today_epoch
+                if date -v+0d &>/dev/null 2>&1; then
+                    # macOS
+                    pred_epoch=$(date -j -f '%Y-%m-%d' "$pred_date" '+%s' 2>/dev/null || echo "")
+                    today_epoch=$(date '+%s')
+                else
+                    # GNU
+                    pred_epoch=$(date -d "$pred_date" '+%s' 2>/dev/null || echo "")
+                    today_epoch=$(date '+%s')
+                fi
+                if [[ -n "$pred_epoch" ]]; then
+                    local actual_days=$(( (today_epoch - pred_epoch) / 86400 ))
+                    if [[ "$actual_days" -le "$predicted_count" ]]; then
+                        echo "YES|Completed in ${actual_days} days (predicted ${predicted_count})"
+                    elif [[ "$actual_days" -le "$((predicted_count * 2))" ]]; then
+                        echo "PARTIAL|Took ${actual_days} days (predicted ${predicted_count})"
+                    else
+                        echo "NO|Took ${actual_days} days (predicted ${predicted_count})"
+                    fi
+                else
+                    echo "SKIP"
+                fi
+                ;;
+            week|weeks)
+                local pred_epoch today_epoch
+                if date -v+0d &>/dev/null 2>&1; then
+                    pred_epoch=$(date -j -f '%Y-%m-%d' "$pred_date" '+%s' 2>/dev/null || echo "")
+                    today_epoch=$(date '+%s')
+                else
+                    pred_epoch=$(date -d "$pred_date" '+%s' 2>/dev/null || echo "")
+                    today_epoch=$(date '+%s')
+                fi
+                if [[ -n "$pred_epoch" ]]; then
+                    local actual_weeks=$(( (today_epoch - pred_epoch) / 604800 ))
+                    if [[ "$actual_weeks" -le "$predicted_count" ]]; then
+                        echo "YES|Completed in ${actual_weeks} weeks (predicted ${predicted_count})"
+                    elif [[ "$actual_weeks" -le "$((predicted_count * 2))" ]]; then
+                        echo "PARTIAL|Took ${actual_weeks} weeks (predicted ${predicted_count})"
+                    else
+                        echo "NO|Took ${actual_weeks} weeks (predicted ${predicted_count})"
+                    fi
+                else
+                    echo "SKIP"
+                fi
+                ;;
+            *)
+                echo "SKIP"
+                ;;
+        esac
+        return
+    fi
+
+    # "dependency" — grade "feature X depends on Y" by checking if Y's score improved before X was attempted
+    if [[ "$direction" == "dependency" ]]; then
+        local dep_feature="$to_val"  # Y — the dependency
+        local dep_score
+        dep_score=$(get_feature_score "$dep_feature")
+        local main_score
+        main_score=$(get_feature_score "$feature")
+        if [[ -n "$dep_score" && "$dep_score" =~ ^[0-9]+$ ]]; then
+            if [[ "$dep_score" -ge 50 ]]; then
+                # Dependency is healthy — check if main feature benefited
+                if [[ -n "$main_score" && "$main_score" =~ ^[0-9]+$ && "$main_score" -ge 40 ]]; then
+                    echo "YES|${dep_feature} at ${dep_score}, ${feature} at ${main_score} — dependency held"
+                else
+                    echo "PARTIAL|${dep_feature} at ${dep_score} (healthy), but ${feature} at ${main_score:-unknown}"
+                fi
+            else
+                # Dependency is weak — did main feature suffer?
+                if [[ -n "$main_score" && "$main_score" =~ ^[0-9]+$ && "$main_score" -lt 40 ]]; then
+                    echo "YES|${dep_feature} at ${dep_score} (weak), ${feature} at ${main_score} (blocked) — dependency confirmed"
+                else
+                    echo "NO|${dep_feature} at ${dep_score} (weak) but ${feature} at ${main_score:-unknown} (not blocked)"
+                fi
+            fi
+        else
+            echo "SKIP"
+        fi
+        return
+    fi
+
+    # "user_behavior" — can't grade mechanically; tag for manual review with helpful prompt
+    if [[ "$direction" == "user_behavior" ]]; then
+        echo "NEEDS_MANUAL|User behavior claim: \"${feature} will ${to_val}\" — check customer-intel.json, support tickets, or analytics. Grade manually in /retro."
         return
     fi
 
@@ -803,6 +934,19 @@ while IFS= read -r line; do
         continue
     fi
 
+    # NEEDS_MANUAL: write the helpful prompt as result but leave correct empty for manual grading
+    if [[ "$grade_verdict" == "NEEDS_MANUAL" ]]; then
+        if $DRY_RUN; then
+            [[ "$QUIET" == false ]] && echo "  ? \"$prediction\" → [needs manual] $grade_detail"
+        else
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                "$date" "$agent" "$prediction" "$evidence" \
+                "$grade_detail" "" "" >> "$TEMP_FILE"
+            [[ "$QUIET" == false ]] && echo "  ? \"$prediction\" → needs manual: $grade_detail"
+        fi
+        continue
+    fi
+
     # Map verdict to correct column value
     case "$grade_verdict" in
         YES)     correct_val="yes" ;;
@@ -825,27 +969,41 @@ while IFS= read -r line; do
             ;;
     esac
 
-    # Write graded row
-    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-        "$date" "$agent" "$prediction" "$evidence" \
-        "$grade_detail" "$correct_val" "$local_model_update" >> "$TEMP_FILE"
+    if $DRY_RUN; then
+        # Show what would be graded without writing
+        echo "$line" >> "$TEMP_FILE"
+    else
+        # Write graded row
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+            "$date" "$agent" "$prediction" "$evidence" \
+            "$grade_detail" "$correct_val" "$local_model_update" >> "$TEMP_FILE"
+    fi
 
     GRADED_COUNT=$((GRADED_COUNT + 1))
 
     if [[ "$QUIET" == false ]]; then
+        local prefix=""
+        $DRY_RUN && prefix="[dry-run] "
         case "$correct_val" in
-            yes)     echo "  ✓ \"$prediction\" → $grade_detail" ;;
-            partial) echo "  · \"$prediction\" → $grade_detail" ;;
-            no)      echo "  ✗ \"$prediction\" → $grade_detail" ;;
+            yes)     echo "  ✓ ${prefix}\"$prediction\" → $grade_detail" ;;
+            partial) echo "  · ${prefix}\"$prediction\" → $grade_detail" ;;
+            no)      echo "  ✗ ${prefix}\"$prediction\" → $grade_detail" ;;
         esac
     fi
 done < "$PRED_FILE"
 
 # Atomic write
 if [[ "$GRADED_COUNT" -gt 0 ]]; then
-    mv "$TEMP_FILE" "$PRED_FILE"
-    $QUIET || echo ""
-    $QUIET || echo "Graded $GRADED_COUNT prediction(s). $(( UNGRADED - GRADED_COUNT )) remaining for manual review."
+    if $DRY_RUN; then
+        rm -f "$TEMP_FILE"
+        $QUIET || echo ""
+        $QUIET || echo "[dry-run] Would grade $GRADED_COUNT prediction(s). $(( UNGRADED - GRADED_COUNT )) remaining for manual review."
+        $QUIET || echo "[dry-run] No files modified."
+    else
+        mv "$TEMP_FILE" "$PRED_FILE"
+        $QUIET || echo ""
+        $QUIET || echo "Graded $GRADED_COUNT prediction(s). $(( UNGRADED - GRADED_COUNT )) remaining for manual review."
+    fi
 else
     rm -f "$TEMP_FILE"
     $QUIET || echo "No predictions could be auto-graded. Run /retro for manual grading."
@@ -965,7 +1123,7 @@ consolidate_knowledge() {
     $QUIET || echo "Consolidated $consolidated learning(s) into experiment-learnings.md"
 }
 
-consolidate_knowledge
+$DRY_RUN || consolidate_knowledge
 
 # --- Staleness detection: flag entries not referenced by predictions in 30+ days ---
 detect_stale_entries() {
