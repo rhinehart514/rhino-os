@@ -44,11 +44,30 @@ Feature scoping: `$ARGUMENTS` can name features. Single = scope everything. Mult
 
 Run `bash scripts/pre-build-scan.sh` — this reads all 8 sources in one shot. Also run `bash scripts/build-log.sh list 3` to see recent session history.
 
+Run `bash ../../bin/maturity-tier.sh` — the tier changes /go's behavior (see Step 1b).
+
 Read `config/product-spec.yml` if it exists — build toward the spec's core loop and first experience, not random improvements.
 
 Read `gotchas.md` and `references/build-patterns.md` before entering the loop.
 
 Check `~/.claude/preferences.yml` for `agents.cost` tier (economy/balanced/premium) and `agents.autonomy` setting.
+
+### Step 1b: Tier-aware build behavior
+
+The maturity tier changes what /go does autonomously:
+
+| Tier | /go behavior |
+|------|-------------|
+| **fix** | Pure build. Fix assertions, improve health. No eval between cycles (too expensive for broken code). |
+| **deepen** | Build + eval after every 3 commits. Tasks come from eval gaps. |
+| **strengthen** | Build + eval after every commit. Research inline if hitting unknown territory. |
+| **expand** | Before building: run quick /eval to check if the bottleneck is "missing capability" vs "incomplete implementation." If missing capability → suggest /ideate or /research instead of building more code on existing features. |
+| **mature** | **Auto-include higher-order actions in the loop.** After every 2 build cycles: check if /eval, /ideate, /research, or /strategy would be higher leverage than another build cycle. If eval avg > 70 and all tasks are done, stop building and recommend expansion skills. Don't grind on features that are already good. |
+
+At `mature` tier, the build loop should feel different:
+- Shorter build sessions (features are already good — diminishing returns)
+- Auto-suggest skill switches: "Feature X is at 82 after this build. Continuing to polish has diminishing returns. Consider /ideate for new capabilities or /strategy to check market position."
+- Grade predictions more aggressively — at this tier, learning matters more than building
 
 ### Step 2: Soft discovery gate
 

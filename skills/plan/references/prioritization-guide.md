@@ -27,6 +27,26 @@ What each dragging dimension tells you to build:
 4. **Weight** — higher weight wins if all else is equal.
 5. **Dependencies** — if feature A depends on feature B, and B is the bottleneck, fix B first.
 
+## Maturity tier routing
+
+Run `bash ../../bin/maturity-tier.sh` — the tier overrides default prioritization:
+
+| Tier | What to prioritize | What to avoid |
+|------|-------------------|---------------|
+| **fix** (<50) | Failing assertions, health issues | Ideation, research, strategy, shipping |
+| **deepen** (50-70) | Eval-driven tasks, assertion coverage | Ideation, shipping, pricing |
+| **strengthen** (70-85) | Weakest sub-scores, research unknowns | Broad ideation, shipping without thesis |
+| **expand** (85+, eval<70) | Deep feature work, targeted research | New features before existing score 70+ |
+| **mature** (85+, eval 70+) | Expansion skills: /ideate, /research, /strategy, /taste, /product, /money | Grinding on features already at 80+, building without user signal |
+
+**At mature tier:** The bottleneck is no longer "what's broken" — it's "what's missing." Prioritize:
+1. Unknown territory experiments (highest learning value)
+2. Skills the founder hasn't used (/ideate, /strategy, /product, /money)
+3. Feature gaps identified by /ideate or /research
+4. Visual quality (/taste) if web-facing
+
+**The tier gates ideation.** Don't suggest /ideate at `fix` or `deepen`. It's earned by getting features to a solid state first. At `mature`, ideation becomes the primary recommendation.
+
 ## Stage-appropriate work
 
 Read `startup-patterns-quick.md` for the full table, but the core rule:

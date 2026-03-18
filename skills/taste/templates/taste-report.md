@@ -196,6 +196,113 @@ date	url	overall	hierarchy	breathing_room	contrast	polish	emotional_tone	informa
 
 ---
 
+## Flows (`/taste <url> flows`)
+
+```
+◆ taste flows — <url>
+
+  ▸ mechanical
+    ✓ no console errors
+    ✓ no failed network requests
+    ✗ MAJOR  <N> click targets under 44px: <element list>
+    ✗ MINOR  <N> inputs missing labels: <element list>
+    ✓ heading hierarchy valid (h1: <size>px > h2: <size>px)
+    ✗ MINOR  missing ARIA landmarks: <list>
+    ✓ all images have alt text
+
+  ▸ first contact
+    ✓ value prop visible: "<headline text>"
+    ✓ primary CTA clear: "<button text>"
+    ✗ MAJOR  <finding>
+
+  ▸ core flow: "<description>"
+    step 1: <action> → ✓ <result>
+    step 2: <action> → ✗ BLOCKER  <what went wrong>
+    step 3: <action> → ✓ <result>
+    result: <COMPLETE|INCOMPLETE — reason>
+
+  ▸ edge cases
+    ✗ MAJOR  empty state: <page> shows blank
+    ✗ MAJOR  dead end after <action>
+    ✓ deep link to <path> works
+
+  ▸ responsive
+    ✗ MAJOR  horizontal scroll at 390px
+    ✗ MINOR  nav hidden on mobile, no toggle
+    ✓ text readable (body: <size>px)
+
+  ── summary ──
+  blockers: <N>  major: <N>  minor: <N>  polish: <N>
+  core flow: <COMPLETE|INCOMPLETE>
+  verdict: <one sentence — is this ready for users?>
+
+  ▸ fix priority
+    1. [<severity>] <element> — <problem> → <fix>
+    2. [<severity>] <element> — <problem> → <fix>
+    3. [<severity>] <element> — <problem> → <fix>
+
+/taste <url>            visual eval (after flows pass)
+/go [feature]           fix the blockers
+/taste <url> flows      re-run after fixes
+```
+
+## Flows report JSON structure
+
+Write to `.claude/evals/reports/flows-{YYYY-MM-DD}.json`:
+
+```json
+{
+  "url": "<URL>",
+  "timestamp": "<ISO>",
+  "mechanical": {
+    "console_errors": 0,
+    "failed_requests": 0,
+    "undersized_targets": 0,
+    "unlabeled_inputs": 0,
+    "heading_hierarchy_valid": true,
+    "aria_landmarks": { "main": true, "nav": true, "header": true, "footer": false },
+    "images_without_alt": 0
+  },
+  "first_contact": {
+    "value_prop_visible": true,
+    "primary_cta_clear": true,
+    "navigation_present": true,
+    "placeholder_content": false
+  },
+  "core_flow": {
+    "description": "<what was tested>",
+    "steps": [
+      { "action": "<what>", "pass": true, "feedback": true, "detail": "<what happened>" }
+    ],
+    "complete": false,
+    "blocked_at": "<step description or null>"
+  },
+  "edge_cases": {
+    "empty_state": { "tested": true, "pass": false, "detail": "<what showed>" },
+    "dead_ends": { "tested": true, "pass": false, "detail": "<where stranded>" },
+    "deep_links": { "tested": true, "pass": true },
+    "long_content": { "tested": false }
+  },
+  "responsive": {
+    "mobile_390": { "horizontal_scroll": true, "nav_accessible": false, "text_readable": true },
+    "tablet_768": { "layout_reasonable": true }
+  },
+  "summary": {
+    "blockers": 1,
+    "major": 4,
+    "minor": 3,
+    "polish": 0,
+    "core_flow_complete": false,
+    "verdict": "<one sentence>"
+  },
+  "fix_priority": [
+    { "severity": "blocker", "element": "<what>", "problem": "<description>", "fix": "<recommendation>" }
+  ]
+}
+```
+
+---
+
 ## Formatting rules
 
 - Header: `◆ taste — <url>` with category suffix

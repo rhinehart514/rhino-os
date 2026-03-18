@@ -34,6 +34,35 @@ The `/taste` skill uses Claude Code natively — Playwright MCP for screenshots,
 | `.claude/cache/calibration-history.json` | Calibration tracking |
 | `lens/product/eval/knowledge/*.md` | Per-dimension research rubrics |
 
+## Flows Mode Architecture
+
+`/taste <url> flows` is a behavioral delivery audit, not a visual eval. Different protocol, different output.
+
+**Measurement stack position:** Flows sits between Health (score.sh) and Craft (taste visual). It answers "does the frontend work?" — the question neither health checks nor visual eval can answer.
+
+```
+Health (score.sh)     → Does the code compile and pass lint?
+Flows (taste flows)   → Does the frontend actually work as a product?
+Craft (taste visual)  → Is the frontend well-designed?
+Value (eval)          → Does the product deliver on its claims?
+```
+
+**The right order:** Fix health → pass flows → polish craft → prove value.
+
+**Key files:**
+| File | Purpose |
+|------|---------|
+| `references/flow-checklist.md` | 6-layer behavioral checklist |
+| `templates/taste-report.md` | Output templates (flows section) |
+| `.claude/evals/reports/flows-*.json` | Flow audit reports |
+
+**Existing infrastructure (not yet wired in):**
+| File | What it does | How flows uses it |
+|------|-------------|------------------|
+| `lens/product/eval/dom-eval.mjs` | Mechanical DOM checks via Playwright | Flows Layer 1+5 checks do the same via MCP `browser_evaluate` |
+| `lens/product/eval/blind-eval.mjs` | Blind agent task completion | Flows Layer 3 does this via MCP click/fill/snapshot |
+| `lens/product/eval/copy-eval.mjs` | Headline clarity, value prop | Flows Layer 2 checks value prop visibility |
+
 ## Score Mapping
 
 - 0-100 natively (no conversion from 1-5 scale)

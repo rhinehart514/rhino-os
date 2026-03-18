@@ -55,6 +55,7 @@ Run these via Bash (parallel where possible):
 2. `scripts/opportunity-scan.sh` — what are we not seeing?
 3. `scripts/plan-progress.sh` — what did we plan last time?
 4. `scripts/startup-check.sh` — any failure modes triggered?
+5. `bash ../../bin/maturity-tier.sh` — what tier are we in? **This changes everything below.**
 
 Also read `config/product-spec.yml` if it exists — prioritize tasks that advance the spec's signals. Core loop tasks > polish tasks.
 
@@ -65,6 +66,31 @@ Call EnterPlanMode. All reads, no writes until plan is approved.
 ### Step 2: Read gotchas
 
 Read `gotchas.md` before generating moves.
+
+### Step 2b: Tier-aware routing
+
+The maturity tier from `maturity-tier.sh` changes what /plan recommends. **This overrides default bottleneck-only thinking.**
+
+| Tier | /plan behavior |
+|------|---------------|
+| **fix** (<50) | Only propose fix tasks. No ideation, no research, no strategy. "Fix X, then Y." |
+| **deepen** (50-70) | Run /eval inline if no recent eval data. Propose tasks from eval gaps. |
+| **strengthen** (70-85) | Target weakest sub-scores on highest-weight features. Suggest /research for unknowns. |
+| **expand** (85+ score, <70 eval avg) | Structure is solid but features are shallow. Deep eval → targeted tasks. Only suggest /ideate if the bottleneck feature can't improve without new capabilities. |
+| **mature** (85+ score, 70+ eval avg) | **Shift from "fix" to "what's next."** Propose /ideate, /research unknowns, /strategy check, /taste for visual quality, /product for coherence audit. Building new code is secondary to expanding the product's reach and quality. |
+
+**At `expand` or `mature` tier, the diagnosis changes:**
+- Instead of "bottleneck is X, fix it" → "existing features are strong, here's what the product is missing"
+- Surface unknown territory from experiment-learnings.md as primary opportunities
+- Check if /ideate, /research, /strategy have been run recently — if not, recommend them
+- Check if any working features (50+) have never been tested by real users — flag as untested value
+
+**At `mature` tier specifically:**
+- Auto-suggest `/ideate` if no ideation in 7+ days
+- Auto-suggest `/strategy honest` if strategy is stale
+- Auto-suggest `/taste` if web-facing and no recent taste eval
+- Auto-suggest `/product` for coherence audit if 3+ features at 70+
+- Frame moves as "expand" not "fix" — the language matters for founder mindset
 
 ### Step 3: Diagnose
 

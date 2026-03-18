@@ -198,4 +198,11 @@ else
     echo ""
 fi
 
+# --- Maturity tier ---
+if [[ -f "$RHINO_DIR/bin/maturity-tier.sh" ]]; then
+    echo "▸ maturity tier"
+    bash "$RHINO_DIR/bin/maturity-tier.sh" "$PROJECT_DIR" 2>/dev/null | grep -v '===' | sed 's/^/  /' || echo "  (error)"
+    echo ""
+fi
+
 echo "=== CONTEXT COMPLETE ==="

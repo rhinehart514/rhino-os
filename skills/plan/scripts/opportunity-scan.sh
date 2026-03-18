@@ -16,6 +16,61 @@ require_cmd python3 "brew install python3"
 echo "=== OPPORTUNITIES ==="
 echo ""
 
+# --- 0. Maturity tier context ---
+TIER=""
+TIER_SCRIPT="$RHINO_DIR/bin/maturity-tier.sh"
+# Fallback: resolve from script's own location
+[[ ! -f "$TIER_SCRIPT" ]] && TIER_SCRIPT="$(cd "$SCRIPT_DIR/../../.." && pwd)/bin/maturity-tier.sh"
+if [[ -f "$TIER_SCRIPT" ]]; then
+    TIER=$(bash "$TIER_SCRIPT" "$PROJECT_DIR" 2>/dev/null | grep '^tier:' | sed 's/tier: *//')
+fi
+if [[ "$TIER" == "mature" || "$TIER" == "expand" ]]; then
+    echo "▸ TIER: $TIER — prioritizing expansion opportunities over fix tasks"
+    echo ""
+fi
+
+# --- 0b. Expansion signals (mature/expand tiers only) ---
+if [[ "$TIER" == "mature" || "$TIER" == "expand" ]]; then
+    # Check if /ideate has been run recently
+    IDEATE_LOG="${CLAUDE_PLUGIN_DATA:-$HOME/.claude/data/rhino-os}/ideation-log.jsonl"
+    if [[ -f "$IDEATE_LOG" ]]; then
+        LAST_IDEATE=$(tail -1 "$IDEATE_LOG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('date',''))" 2>/dev/null || echo "")
+        WEEK_AGO=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d 2>/dev/null || echo "0000-00-00")
+        if [[ "$LAST_IDEATE" < "$WEEK_AGO" || -z "$LAST_IDEATE" ]]; then
+            echo "▸ IDEATION STALE: last /ideate was ${LAST_IDEATE:-never}. At this maturity, new ideas > more polish."
+            echo ""
+        fi
+    else
+        echo "▸ NEVER IDEATED: /ideate has never been run. At tier=$TIER, this is the highest-leverage next action."
+        echo ""
+    fi
+
+    # Check if /strategy has been run recently
+    STRATEGY_CHECK="$PROJECT_DIR/.claude/plans/strategy.yml"
+    if [[ -f "$STRATEGY_CHECK" ]]; then
+        if [[ "$(uname)" == "Darwin" ]]; then
+            STRAT_AGE=$(( (NOW - $(stat -f %m "$STRATEGY_CHECK" 2>/dev/null || echo "$NOW")) / 86400 ))
+        else
+            STRAT_AGE=$(( (NOW - $(stat -c %Y "$STRATEGY_CHECK" 2>/dev/null || echo "$NOW")) / 86400 ))
+        fi
+        if [[ "$STRAT_AGE" -gt 7 ]]; then
+            echo "▸ STRATEGY DUE: ${STRAT_AGE}d since /strategy. Product is mature enough to warrant market positioning check."
+            echo ""
+        fi
+    fi
+
+    # Check for features at 70+ that could become expansion anchors
+    EVAL_CACHE="$PROJECT_DIR/.claude/cache/eval-cache.json"
+    if [[ -f "$EVAL_CACHE" ]] && command -v jq &>/dev/null; then
+        STRONG=$(jq -r 'to_entries[] | select(.value.score >= 70 and .value.score != null) | .key' "$EVAL_CACHE" 2>/dev/null)
+        STRONG_CT=$(echo "$STRONG" | grep -c '.' 2>/dev/null || echo "0")
+        if [[ "$STRONG_CT" -ge 3 ]]; then
+            echo "▸ EXPANSION READY: $STRONG_CT features at 70+. Consider: what capability is MISSING that would make these more valuable together?"
+            echo ""
+        fi
+    fi
+fi
+
 # --- 1. Unknown Territory (highest information value) ---
 LEARNINGS="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
 [[ ! -f "$LEARNINGS" ]] && LEARNINGS="$HOME/.claude/knowledge/experiment-learnings.md"

@@ -463,6 +463,27 @@ fi
 
 [[ "$HAS_ALERTS" == true ]] && echo ""
 
+# --- Maturity tier (stage-aware routing) ---
+TIER_DISPLAY=""
+if [[ -f "$RHINO_DIR/bin/maturity-tier.sh" ]]; then
+    TIER_OUTPUT=$(bash "$RHINO_DIR/bin/maturity-tier.sh" "$PROJECT_DIR" 2>/dev/null || true)
+    TIER_LINE=$(echo "$TIER_OUTPUT" | grep '^tier:' | sed 's/tier: *//')
+    TIER_FOCUS=$(echo "$TIER_OUTPUT" | grep '^focus:' | sed 's/focus: *//')
+    TIER_SKILLS=$(echo "$TIER_OUTPUT" | grep '^skills:' | sed 's/skills: *//' | tr '|' ', ')
+    if [[ -n "$TIER_LINE" ]]; then
+        case "$TIER_LINE" in
+            fix)      TIER_COLOR="$C_RED" ;;
+            deepen)   TIER_COLOR="$C_YELLOW" ;;
+            strengthen) TIER_COLOR="$C_YELLOW" ;;
+            expand)   TIER_COLOR="$C_CYAN" ;;
+            mature)   TIER_COLOR="$C_GREEN" ;;
+            *)        TIER_COLOR="$C_DIM" ;;
+        esac
+        echo -e "  ${C_DIM}tier${C_NC}        ${TIER_COLOR}${TIER_LINE}${C_NC}  ${C_DIM}·${C_NC}  ${TIER_FOCUS}"
+        echo -e "              ${C_DIM}→${C_NC} ${TIER_SKILLS}"
+    fi
+fi
+
 # --- Self-awareness recommendation (first match wins) ---
 SELF_REC=""
 

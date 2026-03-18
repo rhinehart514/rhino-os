@@ -45,3 +45,31 @@ System dimensions (wayfinding, information_architecture) rely on code reading, b
 ## Comparing across different URLs without noting the context
 
 When past evals exist for a different URL, deltas are misleading. "Overall went from 55 to 42" sounds like regression, but if the first was a marketing site and the second is an app dashboard, they're different products. Always check URL matches before computing deltas.
+
+---
+
+## Flows mode gotchas
+
+### Auth-gated pages kill the flow audit
+
+If the product requires login, Playwright can't test the authenticated experience without credentials. Options: test only the public-facing pages (landing, signup, docs), or ask the founder for a test URL/token. Don't score "empty page after redirect" as a real finding — it's an auth boundary, not a bug.
+
+### Mechanical checks produce false positives on SPAs
+
+Single-page apps may show zero interactive elements in the initial DOM snapshot because content renders client-side. If `browser_evaluate` returns suspiciously few elements, wait longer (`browser_wait_for` with a content selector) and re-run the checks. Don't report "no interactive elements" on a React app that hasn't hydrated.
+
+### Core flow testing assumes you know the core flow
+
+If product-spec.yml doesn't exist and the page doesn't have an obvious CTA, the flow audit will guess wrong about what to test. When unsure, test the most prominent action on the page. If there's truly no clear action — that's a finding (Layer 2 failure: no primary CTA).
+
+### Empty state testing requires knowing the empty URL
+
+"Navigate with no data" requires knowing which URL to hit. For authenticated apps, this might be impossible without a fresh account. For public apps, try the main content page without any query params. If you can't test empty state, note it as "untested" rather than guessing.
+
+### Mobile responsive checks miss CSS media query bugs
+
+`browser_resize` triggers viewport changes but some CSS issues only appear on actual mobile devices (touch events, iOS Safari quirks, etc.). Report responsive findings as "viewport-based" not "mobile-verified." The definitive mobile test requires a real device.
+
+### Don't mix flows and visual findings
+
+Flows mode reports functionality issues. If you notice a visual problem during flow testing, note it for the visual eval but don't include it in the flows report. Mixing "button doesn't work" with "button has wrong border-radius" dilutes the severity signal.
