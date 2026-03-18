@@ -138,10 +138,23 @@ Run `bash scripts/plateau-check.sh`. If plateau: stop, research inline, report. 
 
 Log session with `bash scripts/build-log.sh add [session-data]`. Write `.claude/sessions/YYYY-MM-DD-HH.yml`.
 
+**Post-build verification (mandatory before completeness report):**
+
+Run `bash scripts/assertion-gate.sh --diff` one final time and compare to the start-of-session snapshot (captured in Step 1 via pre-build-scan.sh). Output the verification line:
+
+```
+Session started with X/Y assertions passing, ended with A/B. Net: +N assertions.
+```
+
+If net is 0 or negative after 2+ moves: "Build session produced no measurable improvement. The approach may need rethinking — consider /strategy honest or /research before the next /go."
+
+This is the closed loop — did the build actually improve anything measurable?
+
 **Completeness report (mandatory at session end):**
 - Tasks completed this session: N
 - Tasks remaining for this feature: M
 - Assertions: X passing / Y total (was A/B at session start)
+- Net assertion delta: +N (or -N if regressed)
 - Sub-scores: delivery [d], craft [c], viability [v] (was [d0], [c0], [v0])
 - New tasks generated during session: K
 - Estimated sessions to feature completion: [based on velocity this session]

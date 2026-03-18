@@ -70,6 +70,16 @@ Read `gotchas.md` before generating moves.
 
 Read `references/prioritization-guide.md` for ranking logic.
 
+**Plan effectiveness check (before diagnosing):**
+
+If plan-progress.sh shows the previous plan had tasks completed, compare the bottleneck score in `plan.yml` → `state.score` against the current score from session-context.sh. Three outcomes:
+
+1. Tasks completed AND score improved → "Last plan worked. [feature] moved from [X] to [Y]." Reinforce the approach.
+2. Tasks completed BUT score didn't improve → "Last plan's tasks completed but score didn't move ([X] → [X]). The diagnosis may have been wrong — reconsider whether [bottleneck] is actually the bottleneck." Weight this session's diagnosis toward a DIFFERENT dimension or feature.
+3. Tasks NOT completed → "Last plan incomplete ([N]/[M] done). Check if tasks were too ambitious or the wrong granularity."
+
+This makes /plan learn from its own recommendations. A plan that doesn't move the score is a wrong diagnosis.
+
 The bottleneck is NOT "the lowest scoring feature" — it's the lowest sub-score of the highest-weight feature blocking the current thesis. Read `scripts/bottleneck-report.sh` output for this.
 
 If startup-check flagged anything, include it in the diagnosis.

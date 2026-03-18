@@ -237,6 +237,21 @@ Requires 3+ snapshots. When a meta-pattern fires, it **replaces** the standard o
 
 ---
 
+## System Coherence Check
+
+Rendered from the `=== COHERENCE ===` section of system-pulse.sh. Shows whether strategy, eval, and plan agree on what matters.
+
+Three checks:
+1. **Strategy vs eval bottleneck** — does the strategy diagnosis match the eval-measured weakest feature?
+2. **Plan vs eval bottleneck** — is the plan targeting the actual weakest feature?
+3. **Weakest feature has work** — does the bottleneck feature have any todos assigned?
+
+Render as warnings between signals and opinion (only when mismatches exist). If aligned, skip the zone entirely.
+
+When mismatches exist, the opinion should prioritize realignment: "Skills are misaligned. Run /plan to re-diagnose."
+
+---
+
 ## Anti-Rationalization Checks
 
 Run on every default dashboard render. Warnings appear between signals and opinion zones (only when triggered).

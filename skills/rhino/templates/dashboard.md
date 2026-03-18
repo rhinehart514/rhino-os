@@ -63,6 +63,13 @@ Same mapping. Sort by weight descending, then score ascending. Mark bottleneck w
 - No sessions/commits → skip "last commit" line
 - Score zone always renders — it anchors the view
 
+### Coherence warnings
+Insert between signals and opinion when system-pulse.sh reports mismatches:
+- Strategy bottleneck != eval bottleneck → "⚠ strategy says [X] but eval says [Y] is the bottleneck"
+- Plan target != eval bottleneck → "⚠ plan targets [X] but weakest feature is [Y]"
+- Weakest feature has 0 todos → "⚠ [feature] is weakest but has 0 todos"
+If coherence is aligned, skip this zone entirely.
+
 ### Anti-rationalization warnings
 Insert between signals and opinion when triggered:
 - Score +15 between snapshots without feature maturity change → "Score jumped without feature progress"

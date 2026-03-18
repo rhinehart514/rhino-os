@@ -193,6 +193,51 @@ else
 fi
 echo ""
 
+echo "=== COHERENCE ==="
+# Cross-skill alignment check: are strategy, eval, and plan pointing the same direction?
+MISMATCHES=0
+
+# 1. Strategy bottleneck vs eval bottleneck
+STRAT_BN=""
+if [[ -f "$PROJECT_DIR/.claude/plans/strategy.yml" ]]; then
+    STRAT_BN=$(grep -m1 'bottleneck:' "$PROJECT_DIR/.claude/plans/strategy.yml" 2>/dev/null | sed 's/.*bottleneck: *//' | sed 's/"//g' | tr -d '[:space:]' || true)
+fi
+EVAL_BN=""
+if [[ -x "$RHINO_DIR/bin/compute-bottleneck.sh" ]] && [[ -f "$EVAL_CACHE" ]]; then
+    EVAL_BN=$(bash "$RHINO_DIR/bin/compute-bottleneck.sh" "$EVAL_CACHE" "$PROJECT_DIR/config/rhino.yml" 2>/dev/null | head -1 | cut -f1 | tr -d '[:space:]' || true)
+fi
+if [[ -n "$STRAT_BN" ]] && [[ -n "$EVAL_BN" ]] && [[ "$STRAT_BN" != "$EVAL_BN" ]]; then
+    echo "mismatch: strategy_bottleneck=$STRAT_BN vs eval_bottleneck=$EVAL_BN"
+    MISMATCHES=$((MISMATCHES + 1))
+fi
+
+# 2. Plan target vs eval bottleneck
+PLAN_BN=""
+if [[ -f "$PROJECT_DIR/.claude/plans/plan.yml" ]]; then
+    PLAN_BN=$(grep -m1 'bottleneck:' "$PROJECT_DIR/.claude/plans/plan.yml" 2>/dev/null | sed 's/.*bottleneck: *//' | sed 's/"//g' | tr -d '[:space:]' || true)
+fi
+if [[ -n "$PLAN_BN" ]] && [[ -n "$EVAL_BN" ]] && [[ "$PLAN_BN" != "$EVAL_BN" ]]; then
+    echo "mismatch: plan_targets=$PLAN_BN vs eval_bottleneck=$EVAL_BN"
+    MISMATCHES=$((MISMATCHES + 1))
+fi
+
+# 3. Weakest feature has tasks?
+if [[ -n "$EVAL_BN" ]] && [[ -f "$PROJECT_DIR/.claude/plans/todos.yml" ]]; then
+    BN_TASKS=$(grep -c "$EVAL_BN" "$PROJECT_DIR/.claude/plans/todos.yml" 2>/dev/null || true)
+    BN_TASKS="${BN_TASKS:-0}"; BN_TASKS=$(echo "$BN_TASKS" | tr -d '[:space:]')
+    if [[ "$BN_TASKS" -eq 0 ]]; then
+        echo "mismatch: weakest_feature=$EVAL_BN has 0 todos"
+        MISMATCHES=$((MISMATCHES + 1))
+    fi
+fi
+
+if [[ "$MISMATCHES" -eq 0 ]]; then
+    echo "coherence: aligned"
+else
+    echo "coherence: $MISMATCHES mismatches"
+fi
+echo ""
+
 echo "=== GIT ==="
 git -C "$PROJECT_DIR" log --oneline -3 2>/dev/null || echo "(not a git repo)"
 echo ""

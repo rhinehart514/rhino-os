@@ -79,6 +79,9 @@ Loaded on demand. Loop logic and routing are in SKILL.md.
   predictions: 2/3 correct (67%)
   mode: beta (speculative branching + adversarial review)
 
+▾ verification
+  Session started with 52/63 assertions passing, ended with 56/63. Net: +4 assertions.
+
 ▾ product map (after)
   scoring    ████████████████░░░░  working   w:5  58→66 ↑8
   commands   ████████████████░░░░  working   w:5  70→70 —
@@ -120,6 +123,9 @@ bottleneck: **learning** (building, w:4) — unchanged, needs different approach
   moves: **2** completed · 0 reverted
   predictions: 2/2 correct (100%)
   mode: safe (sequential, no beta features)
+
+▾ verification
+  Session started with 52/63 assertions passing, ended with 56/63. Net: +4 assertions.
 
 ▾ what changed
   ✓ move 1: error boundary hardening (+3 scoring)

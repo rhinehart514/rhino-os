@@ -114,6 +114,18 @@ See `../shared/task-generation.md` for the task generation protocol. /rhino gene
 
 Tag with `source: /rhino` and alert type (stale/score/prediction/backlog/system). Priority: score regressions first, then staleness.
 
+## System coherence (rendered from COHERENCE section of system-pulse.sh)
+
+If `system-pulse.sh` outputs any `mismatch:` lines in the COHERENCE section, render them as warnings between signals and opinion:
+
+```
+  coherence   ⚠ strategy says [X] but eval says [Y] is the bottleneck
+              ⚠ plan targets [X] but weakest feature is [Y]
+              ⚠ [feature] is weakest but has 0 todos — nothing is working on it
+```
+
+If coherence is aligned, skip the section (no data = no zone). Mismatches mean the skills are pointing in different directions — the opinion should name this: "Skills are misaligned. Run /plan to re-diagnose."
+
 ## What you never do
 - Turn this into a long report — density is the design
 - Recommend more than one next action
