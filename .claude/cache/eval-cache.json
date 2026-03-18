@@ -1,0 +1,74 @@
+{
+  "scoring": {
+    "score": 52,
+    "delivery_score": 58,
+    "craft_score": 55,
+    "viability_score": 40,
+    "gaps": ["eval.sh is 2500 lines with no tests", "beliefs YAML parser reimplements YAML with grep/sed", "fallback score hardcoded 30 masks failures", "RHINO_DIR used before defined in eval.sh:241", "rubric generation runs in background, first eval never benefits"],
+    "strengths": ["7-try JSON extraction pipeline", "anti-sycophancy filter caps inflated scores", "structured output via tool_use", "multi-sample median for variance", "integrity checks catch gaming"],
+    "evidence": "Parser rewrite fixed the unparseable problem. Core promise works — produces honest numbers with delta tracking. Held back by 2500-line single file with no tests.",
+    "delta": "better",
+    "delta_vs": 30,
+    "cached_at": "2026-03-18T01:30:00Z"
+  },
+  "learning": {
+    "score": 62,
+    "delivery_score": 58,
+    "craft_score": 72,
+    "viability_score": 55,
+    "gaps": ["grade.sh compares against oldest history entry not score at prediction time", "pattern priority bugs in parse_claim", "consolidation writes to wrong knowledge zone", "trail.sh parasitic on /go session files", "no tests for grade.sh despite 20 regex patterns"],
+    "strengths": ["20 grading patterns with real breadth", "atomic file writes prevent corruption", "TSV validation with column-shift recovery", "staleness detection cross-references predictions", "session_start shows grading summary with wrong predictions inline"],
+    "evidence": "The learning loop mechanically closes. 20 patterns up from 8. Confirmation writes and staleness detection are real. Grading accuracy is fragile (wrong history bisection, consolidation zone bugs).",
+    "delta": "better",
+    "delta_vs": 49,
+    "cached_at": "2026-03-18T01:30:00Z"
+  },
+  "commands": {
+    "score": 73,
+    "delivery_score": 73,
+    "craft_score": 78,
+    "viability_score": 62,
+    "gaps": ["task generation copy-pasted across 7 skills", "/rhino underdeveloped (5 files vs avg 10.75)", "no dependency checking in scripts (jq, python3)", "technique routing in /ideate hardcoded", "0 external users — viability projected not proven"],
+    "strengths": ["86 files across 8 skills — thin orchestrators with real scripts", "gotchas are battle-tested and specific", "progressive disclosure architecture throughout", "graceful degradation for missing state", "/go has most complete build loop of any CC skill", "/ideate has 11 creative techniques"],
+    "evidence": "The Anthropic guide rewrite landed. Skills are genuinely thin orchestrators backed by 86 real files. Scripts do real work. +16 delta is real.",
+    "delta": "better",
+    "delta_vs": 57,
+    "cached_at": "2026-03-18T01:30:00Z"
+  },
+  "install": {
+    "score": 62,
+    "delivery_score": 62,
+    "craft_score": 68,
+    "viability_score": 55,
+    "gaps": ["manual install symlinks 3 of 19 commands", "plugin mode offloads to unverified systems", "no test for Linux compatibility"],
+    "strengths": ["jq check before install", "plugin verification step", "post-install summary with next steps", "error handling on rhino doctor"],
+    "evidence": "Plugin mode works. Manual path partial. New user gets guidance after install.",
+    "delta": "better",
+    "delta_vs": 53,
+    "cached_at": "2026-03-18T01:30:00Z"
+  },
+  "todo": {
+    "score": 56,
+    "delivery_score": 58,
+    "craft_score": 60,
+    "viability_score": 45,
+    "gaps": ["promote still basic", "no file locking for concurrent writes", "decay only flags, doesn't auto-kill"],
+    "strengths": ["TTY-aware colors", "YAML validation on read", "decay detection (7d/14d/30d)", "health and decay subcommands"],
+    "evidence": "CRUD works. Decay detection implemented. Functional for personal use.",
+    "delta": "better",
+    "delta_vs": 42,
+    "cached_at": "2026-03-18T01:30:00Z"
+  },
+  "docs": {
+    "score": 70,
+    "delivery_score": 72,
+    "craft_score": 74,
+    "viability_score": 60,
+    "gaps": ["no comparison table vs alternatives", "walkthrough is aspirational (recipe app doesn't exist)"],
+    "strengths": ["names target user in opening", "defines assertions before using term", "how-it's-different section positions clearly", "timeline on score example", "scannable in 30 seconds"],
+    "evidence": "README communicates what rhino-os is and who it's for. Positions against code quality tools.",
+    "delta": "better",
+    "delta_vs": 62,
+    "cached_at": "2026-03-18T01:30:00Z"
+  }
+}
