@@ -23,6 +23,18 @@ When `/roadmap bump` is called without a tier:
 - New features or evidence items added → minor
 - Only assertions fixed / score improved → patch
 
+## Version discipline
+
+**Patches (0.0.X) are for pushing existing features higher.** If you're fixing bugs, improving scores, adding tests, refining output — that's a patch. Most work is patches.
+
+**Minors (0.X.0) are for new capabilities.** A new skill, a new agent, a new pipeline that didn't exist before. Not improvements — additions.
+
+**Majors (X.0.0) are for new theses.** The question changed. Everything resets.
+
+**The test:** If someone asks "what's new in 9.4?" and the answer is "we fixed some bugs and pushed scores higher" — that should have been 9.3.1. If the answer is "we added a product discovery pipeline" — that's a minor.
+
+**Common mistake:** Bumping minor for every push session. A session that fixes 6 features is one patch, not six minors. Version numbers should be boring — the product completion percentage is the exciting number.
+
 ## Thesis design rules
 
 A good thesis is a question, not a goal.
