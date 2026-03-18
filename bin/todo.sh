@@ -1040,7 +1040,9 @@ EOF
     release_lock
 
     echo -e "  ${GREEN}+${NC} imported ${count} item(s)"
-    [[ "$skipped" -gt 0 ]] && echo -e "  ${DIM}skipped ${skipped} (no title or duplicate)${NC}"
+    if [[ "$skipped" -gt 0 ]]; then
+        echo -e "  ${DIM}skipped ${skipped} (no title or duplicate)${NC}"
+    fi
 }
 
 # ── Main ────────────────────────────────────────────────

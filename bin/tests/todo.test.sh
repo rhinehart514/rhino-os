@@ -389,7 +389,7 @@ assert_contains "empty: health handles missing" "empty" "$out2"
 
 # Import with no stdin (but not a TTY — use /dev/null)
 setup
-out3=$(run_todo import < /dev/null)
+out3=$(run_todo import < /dev/null || true)
 assert_contains "import: zero items" "imported 0" "$out3"
 teardown
 rm -rf "$EDGE_DIR"

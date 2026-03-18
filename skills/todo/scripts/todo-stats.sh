@@ -33,7 +33,7 @@ echo "  age distribution:"
 STALE_7=0; STALE_14=0; STALE_30=0; FRESH=0
 
 while IFS= read -r date_str; do
-    date_str=$(echo "$date_str" | sed 's/.*created_at: *//' | tr -d "'\"")
+    date_str=$(echo "$date_str" | sed 's/.*created[_at]*: *//' | tr -d "'\"")
     if [[ -z "$date_str" || "$date_str" == "null" ]]; then continue; fi
     # Parse date — handles YYYY-MM-DD
     if CREATED=$(date -j -f "%Y-%m-%d" "$date_str" +%s 2>/dev/null || date -d "$date_str" +%s 2>/dev/null); then
@@ -48,7 +48,7 @@ while IFS= read -r date_str; do
             FRESH=$((FRESH + 1))
         fi
     fi
-done < <(grep 'created_at:' "$TODOS" 2>/dev/null)
+done < <(grep -E 'created(_at)?:' "$TODOS" 2>/dev/null)
 
 echo "    <7d: $FRESH · 7-14d: $STALE_7 · 14-30d: $STALE_14 · >30d: $STALE_30"
 echo ""

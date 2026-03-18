@@ -3,21 +3,3 @@
 # `rhino todo` reads/writes this file.
 
 items: []
-
-  - id: fix-the-login-bug
-    title: "Fix the login bug"
-    priority: high
-    feature: ""
-    status: backlog
-    context: ""
-    source: "manual"
-    created: 2026-03-18
-
-  - id: test-item
-    title: "test item"
-    priority: medium
-    feature: ""
-    status: backlog
-    context: ""
-    source: "manual"
-    created: 2026-03-18

@@ -238,6 +238,40 @@ rhino-os has three layers that work together:
 
 **Strategy** — 14 specialized agents handle different jobs. The builder writes code in isolated worktrees. The founder-coach detects startup failure modes (building without a named user, polishing before delivering). The customer agent synthesizes real signal. The gtm agent handles pricing and distribution. They're coordinated by commands like `/go` and `/plan`, not invoked manually.
 
+## Quick examples
+
+**Find the bottleneck and fix it:**
+```
+> what should I work on?
+
+◆ plan
+  score: 74 · assertions: 58/63
+  bottleneck: scoring at 68 — eval.sh still 2000+ lines
+  move 1: extract generative-eval.sh — push scoring to 75+
+```
+
+**Score every feature in one command:**
+```
+> /eval
+
+◆ eval — 6 features
+  commands   ████████████████░░░░  80  d:80 c:84 v:72
+  scoring    █████████████░░░░░░░  68  d:72 c:70 v:55
+  beliefs: 56/63 passing
+```
+
+**Autonomous build loop:**
+```
+> /go
+
+◆ go — scoring
+  predict: "Extracting generative-eval.sh will push scoring to 75+"
+  ▾ commit — a1b2c3d
+    extracted bin/lib/generative-eval.sh (668 lines)
+  measure: scoring at 76 (d:78 c:74 v:70) ↑8
+  grade: "Predicted 75+, got 76. Correct."
+```
+
 ## Tested on
 
 - **rhino-os itself** — score 20 to 93 over ~30 sessions across 2 weeks, 59/66 assertions passing
