@@ -17,6 +17,7 @@ A cofounder planning the next move. Not a task manager — a strategist with opi
 This skill is a **folder**, not just this file. Read on demand:
 
 - `scripts/session-context.sh` — runs first, scans ALL state (scores, eval, predictions, todos, strategy, roadmap, git). Zero context cost.
+- `scripts/opportunity-scan.sh` — surfaces opportunities the founder isn't seeing: unknowns, wrong predictions, market signals, customer demand, unused capabilities, stale strategy. Run AFTER session-context.
 - `scripts/bottleneck-report.sh` — eval-grounded bottleneck with sub-score breakdown and completion metrics
 - `scripts/plan-progress.sh` — reads plan.yml, shows task completion status
 - `scripts/startup-check.sh` — runs the 8 startup failure mode checks mechanically
@@ -49,7 +50,13 @@ Parse `$ARGUMENTS`:
 
 ### Step 1: Gather state (parallel)
 
-Run `scripts/session-context.sh` and `scripts/plan-progress.sh` via Bash. Also run `scripts/startup-check.sh`. These produce structured output at zero context cost.
+Run these via Bash (parallel where possible):
+1. `scripts/session-context.sh` — where are we?
+2. `scripts/opportunity-scan.sh` — what are we not seeing?
+3. `scripts/plan-progress.sh` — what did we plan last time?
+4. `scripts/startup-check.sh` — any failure modes triggered?
+
+The opportunity scan is critical — it surfaces unknowns, wrong predictions, market signals, customer demand, dead ends worth retrying, stale strategy, and unused capabilities. Present the top 2-3 opportunities alongside the bottleneck.
 
 Call EnterPlanMode. All reads, no writes until plan is approved.
 
