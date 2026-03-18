@@ -89,16 +89,17 @@ D. Check beliefs.yml for assertion coverage — what's not tested?
 
 Log to `.claude/knowledge/predictions.tsv` using the structure in `templates/prediction.md`.
 
-### Step 5: HARD-GATE
+### Step 5: Approval gate
 
-<HARD-GATE>
-Do NOT write code until the move plan is presented and founder acknowledges.
-</HARD-GATE>
+The gate mode depends on project configuration:
 
-Present via AskUserQuestion: the move, prediction, approach (safe/speculate), files to touch.
-Options: "Build it" / "Adjust" / "Skip to next move"
+**SOFT-GATE (default in build mode):**
+Present the move plan inline — the move, prediction, approach, files to touch — then proceed to build. The founder can interrupt at any time. This is the default when `config/rhino.yml` has `mode: build`.
 
-Skip if `agents.autonomy` is `autonomous`/`full-auto`. In `--safe` mode: present inline, don't block.
+**HARD-GATE (ship mode or explicit supervision):**
+Do NOT write code until the founder acknowledges. Present via AskUserQuestion with options: "Build it" / "Adjust" / "Skip to next move". Active when `mode: ship` in rhino.yml OR `agents.autonomy` is explicitly `supervised`.
+
+**No gate:** Skip entirely if `agents.autonomy` is `autonomous`/`full-auto`.
 
 ### Step 6: Build
 
@@ -169,7 +170,7 @@ Format output per `reference.md`.
 - Modify score.sh, eval.sh, taste.mjs, or skills/taste/SKILL.md (immutable eval harness)
 - Speculate on trivial moves
 - Let the reviewer block a keep when assertions improved
-- Skip the HARD-GATE
+- Skip presenting the move plan (soft-gate still shows the plan, just doesn't block)
 
 ## If something breaks
 

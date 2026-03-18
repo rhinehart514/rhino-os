@@ -9,6 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RHINO_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SKILLS_DIR="$RHINO_DIR/skills"
 
+echo "=== START HERE ==="
+echo "New here?             /onboard — sets up config, features, assertions. 2 minutes."
+echo "What should I work on? /plan   — finds the bottleneck, proposes the next move."
+echo "Just build it          /go     — autonomous loop: plan, predict, build, measure, learn."
+echo ""
 echo "=== SKILL CATALOG ==="
 
 # Count totals

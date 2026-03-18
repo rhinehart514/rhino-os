@@ -25,7 +25,7 @@ Parse `$ARGUMENTS`:
 | Argument | What happens |
 |----------|-------------|
 | (none) | Run `system-pulse.sh` → render dashboard → save snapshot → opinion |
-| `help` | Run `skill-catalog.sh` → render skill catalog grouped by phase |
+| `help` | Run `skill-catalog.sh` → render "Start here" flows first, then skill catalog grouped by phase |
 | `system` | Internals: version, hooks, agents, crown jewels, calibration |
 | `compare` | Load last snapshot from `.claude/cache/rhino-snapshots.json` → diff against current |
 | `health` | System health audit: hooks, agents, skills coverage, learning loop → letter grade |

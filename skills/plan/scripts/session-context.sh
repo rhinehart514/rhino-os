@@ -22,6 +22,10 @@ if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
     TOTAL=$(jq -r '.assertion_count // 0' "$SCORE_CACHE" 2>/dev/null)
     echo "  score: $SCORE  health: $HEALTH  assertions: $PASS/$TOTAL"
     echo ""
+else
+    echo "▸ score"
+    echo "  (no score cache — run: rhino score .)"
+    echo ""
 fi
 
 # --- Eval cache (per-feature sub-scores) ---
@@ -29,6 +33,10 @@ EVAL_CACHE="$PROJECT_DIR/.claude/cache/eval-cache.json"
 if [[ -f "$EVAL_CACHE" ]] && command -v jq &>/dev/null; then
     echo "▸ eval (per-feature)"
     jq -r 'to_entries[] | select(.value.score != null) | "  \(.key): \(.value.score) (d:\(.value.delivery_score // "?") c:\(.value.craft_score // "?") v:\(.value.viability_score // "?")) delta:\(.value.delta // "none")"' "$EVAL_CACHE" 2>/dev/null || echo "  (parse error)"
+    echo ""
+else
+    echo "▸ eval (per-feature)"
+    echo "  (no eval cache — run: /eval)"
     echo ""
 fi
 
@@ -90,6 +98,10 @@ if [[ -f "$PRED_FILE" ]]; then
         done
     fi
     echo ""
+else
+    echo "▸ predictions"
+    echo "  (no predictions — /go will start logging them)"
+    echo ""
 fi
 
 # --- Strategy ---
@@ -100,6 +112,10 @@ if [[ -f "$STRATEGY" ]]; then
     BOTTLENECK=$(grep -m1 'bottleneck:' "$STRATEGY" 2>/dev/null | sed 's/.*bottleneck: *//' || echo "?")
     UPDATED=$(grep -m1 'last_updated:' "$STRATEGY" 2>/dev/null | sed 's/.*last_updated: *//' || echo "?")
     echo "  stage: $STAGE  bottleneck: $BOTTLENECK  updated: $UPDATED"
+    echo ""
+else
+    echo "▸ strategy"
+    echo "  (no strategy — run: /strategy honest)"
     echo ""
 fi
 
@@ -114,6 +130,10 @@ if [[ -f "$ROADMAP" ]]; then
     echo "  evidence:"
     grep -A1 'evidence_needed:' "$ROADMAP" 2>/dev/null | grep -E '^\s+-' | sed 's/^/  /' | head -8 || true
     echo ""
+else
+    echo "▸ roadmap"
+    echo "  (no roadmap — run: /roadmap new)"
+    echo ""
 fi
 
 # --- Todos ---
@@ -127,6 +147,10 @@ if [[ -f "$TODOS" ]]; then
     ACTIVE_TODOS=$(grep -cE 'status: (todo|captured)' "$TODOS" 2>/dev/null || true)
     ACTIVE_TODOS="${ACTIVE_TODOS:-0}"; ACTIVE_TODOS="${ACTIVE_TODOS// /}"
     echo "  total: $TOTAL_TODOS  done: $DONE_TODOS  active: $ACTIVE_TODOS"
+    echo ""
+else
+    echo "▸ todos"
+    echo "  (no backlog — run: /todo add \"your first task\")"
     echo ""
 fi
 
@@ -162,6 +186,10 @@ if [[ -f "$LEARNINGS" ]]; then
         fi
         echo "  age: ${AGE} days"
     fi
+    echo ""
+else
+    echo "▸ knowledge model"
+    echo "  (no learnings file — /onboard or /go will create one)"
     echo ""
 fi
 
