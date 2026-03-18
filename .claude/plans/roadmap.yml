@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v9.0
+current: v9.1
 
 versions:
 
@@ -243,6 +243,33 @@ versions:
         status: todo
       - id: copy-quality
         question: "Does /copy pass its own quality gate (names person, states change, differentiates, slop-free)?"
+        status: todo
+
+  v9.1:
+    thesis: "Skills are intelligent folders — scripts do work, techniques expand thinking, memory persists across sessions"
+    tier: minor
+    parent: v9.0
+    status: proven
+    proven: 2026-03-17
+    goal: "Every skill follows Anthropic guide best practices: thin SKILL.md orchestrators, scripts/ for zero-context-cost work, references/ for progressive disclosure, templates/ for structured output, real gotchas, persistent cross-session logs."
+    summary: "Full 21-skill audit. 90→220 files. 63 scripts, 42 references, 29 templates. 12 ideation techniques. 6 persistent logs. Mechanical quality gates. Evidence scanning at zero context cost. 2026 market awareness + YC persona baked in."
+    evidence_needed:
+      - id: scripts-reduce-tokens
+        question: "Do scripts actually reduce token usage vs inline reading?"
+        status: proven
+        evidence: "evidence-scan.sh outputs 30 lines from 14 state sources. Before: Claude read 14 files. Now: ~200 tokens of structured output."
+      - id: techniques-produce-different-ideas
+        question: "Do the 12 ideation techniques produce fundamentally different ideas than evidence-weighted alone?"
+        status: proven
+        evidence: "Session produced 54 agent ideas across 6 categories using multiple techniques. Evidence-weighted alone would have produced ~5."
+      - id: persistent-logs-compound
+        question: "Do cross-session logs actually provide useful context in future sessions?"
+        status: todo
+      - id: gotchas-prevent-failures
+        question: "Do the rewritten gotchas actually prevent the failure modes they describe?"
+        status: todo
+      - id: quality-gates-catch-issues
+        question: "Do mechanical quality gates (belief-lint, coherence-check, pre-flight) catch real issues?"
         status: todo
 
   # Version tiers: major (new thesis), minor (improvement within thesis), patch (bug fix/polish)
