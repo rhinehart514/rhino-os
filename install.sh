@@ -77,6 +77,27 @@ else
     echo -e "      ${DIM}Install: https://docs.anthropic.com/en/docs/claude-code${NC}"
 fi
 
+# OS detection — warn about macOS-specific features on Linux
+OS_TYPE="$(uname -s)"
+if [[ "$OS_TYPE" == "Linux" ]]; then
+    # Check for GNU stat (Linux uses stat -c, macOS uses stat -f)
+    if stat --version &>/dev/null 2>&1; then
+        action "GNU stat available"
+    else
+        warn "GNU stat not found — some scripts use stat -c (GNU) with macOS fallback"
+    fi
+    # Check for GNU date
+    if date --version &>/dev/null 2>&1; then
+        action "GNU date available"
+    else
+        warn "GNU date not found — some scripts use date -d (GNU) with macOS fallback"
+    fi
+elif [[ "$OS_TYPE" == "Darwin" ]]; then
+    action "macOS detected — native compatibility"
+else
+    warn "Unknown OS: $OS_TYPE — rhino-os is tested on macOS and Linux"
+fi
+
 echo ""
 
 # --- 1. Create directories ---
@@ -173,7 +194,7 @@ if ! $PLUGIN_MODE; then
     LOCAL_BIN="$HOME/bin"
     $DRY_RUN || mkdir -p "$LOCAL_BIN"
 
-    for tool in score.sh; do
+    for tool in score.sh eval.sh self.sh bench.sh trail.sh todo.sh feature.sh init.sh plan.sh; do
         src="$RHINO_DIR/bin/$tool"
         [[ ! -f "$src" ]] && continue
         dest="$LOCAL_BIN/$tool"
@@ -293,6 +314,58 @@ else
         echo ""
         warn "rhino doctor exited with an error — this is ok for first install"
         echo -e "      ${DIM}Run 'rhino doctor' after sourcing your shell profile to verify.${NC}"
+    fi
+
+    # --- Post-install quick verification ---
+    echo ""
+    echo -e "  ${BOLD}Verification${NC}"
+    echo ""
+    verify_pass=0
+    verify_fail=0
+
+    # Check rhino --version works
+    rhino_version=$(PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" "$RHINO_DIR/bin/rhino" version 2>/dev/null || echo "")
+    if [[ -n "$rhino_version" ]]; then
+        action "rhino --version: $rhino_version"
+        verify_pass=$((verify_pass + 1))
+    else
+        warn "rhino --version failed"
+        verify_fail=$((verify_fail + 1))
+    fi
+
+    # Check rhino help works (exercises CLI dispatch)
+    if PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" "$RHINO_DIR/bin/rhino" help &>/dev/null; then
+        action "rhino help: works"
+        verify_pass=$((verify_pass + 1))
+    else
+        warn "rhino help failed"
+        verify_fail=$((verify_fail + 1))
+    fi
+
+    # Check score.sh is callable
+    if [[ -x "$RHINO_DIR/bin/score.sh" ]]; then
+        action "score.sh: executable"
+        verify_pass=$((verify_pass + 1))
+    else
+        warn "score.sh not executable"
+        verify_fail=$((verify_fail + 1))
+    fi
+
+    # Check eval.sh is callable
+    if [[ -x "$RHINO_DIR/bin/eval.sh" ]]; then
+        action "eval.sh: executable"
+        verify_pass=$((verify_pass + 1))
+    else
+        warn "eval.sh not executable"
+        verify_fail=$((verify_fail + 1))
+    fi
+
+    if [[ $verify_fail -eq 0 ]]; then
+        echo ""
+        echo -e "    ${GREEN}✓${NC} ${BOLD}All $verify_pass checks passed${NC}"
+    else
+        echo ""
+        warn "$verify_fail verification(s) failed — see above"
     fi
 
     # --- Post-install summary ---

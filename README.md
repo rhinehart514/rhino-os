@@ -10,14 +10,25 @@ Most dev tools measure code quality — linting, test coverage, type safety. rhi
 
 ## Install
 
+**Plugin mode** (recommended):
 ```bash
 claude /plugin marketplace add rhinehart514/rhino-os
 claude /plugin install rhino-os@rhino-marketplace
 ```
+Skills, agents, and mind files load automatically via the plugin system. No symlinks needed.
 
-No plugin system? `git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os && cd ~/rhino-os && ./install.sh`
+**Manual mode** (git clone):
+```bash
+git clone https://github.com/rhinehart514/rhino-os.git ~/rhino-os
+cd ~/rhino-os && ./install.sh
+source ~/.zshrc  # or ~/.bashrc
+rhino doctor     # verify everything works
+```
+Creates symlinks for mind files, agents, and CLI tools in `~/bin/`. Run `./install.sh --check` for a dry run first.
 
-**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS/Linux (Windows not yet supported), [jq](https://jqlang.github.io/jq/download/)
+**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS or Linux, [jq](https://jqlang.github.io/jq/download/)
+
+**Linux note:** All scripts include GNU/BSD fallbacks for `stat` and `date`. The installer detects your OS and warns if GNU coreutils are missing.
 
 ---
 
