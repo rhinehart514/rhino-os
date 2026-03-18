@@ -413,6 +413,10 @@ else
         echo -e "    ${BOLD}1.${NC} Open Claude Code in any project"
         echo -e "    ${BOLD}2.${NC} Type ${BOLD}/plan${NC} to find the bottleneck and start building"
         echo -e "    ${BOLD}3.${NC} Or type ${BOLD}/rhino help${NC} to see all commands"
+        echo ""
+        echo -e "  ${DIM}Run /discover to define your product — agents research demand, competitors,${NC}"
+        echo -e "  ${DIM}and market, then auto-wire features + assertions. Install is the start of${NC}"
+        echo -e "  ${DIM}product discovery, not just setup.${NC}"
     else
         # Count what was installed
         mind_count=0; agent_count_final=0
@@ -429,6 +433,10 @@ else
         echo -e "    ${BOLD}1.${NC} Source your shell:  ${BOLD}source ${PROFILE:-~/.zshrc}${NC}"
         echo -e "    ${BOLD}2.${NC} In any project:     ${BOLD}rhino init${NC}"
         echo -e "    ${BOLD}3.${NC} Then start building: ${BOLD}/plan${NC}  or  ${BOLD}/rhino help${NC}"
+        echo ""
+        echo -e "  ${DIM}Run /discover to define your product — agents research demand, competitors,${NC}"
+        echo -e "  ${DIM}and market, then auto-wire features + assertions. Install is the start of${NC}"
+        echo -e "  ${DIM}product discovery, not just setup.${NC}"
     fi
 
     echo ""

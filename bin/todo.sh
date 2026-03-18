@@ -385,6 +385,35 @@ cmd_show() {
 
     echo ""
 
+    # Source counts header — shows this is an evidence-fed backlog, not a generic one
+    local src_eval=0 src_taste=0 src_ideate=0 src_manual=0 src_other=0
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local src
+        src=$(item_field "$id" "source")
+        case "$src" in
+            */eval|eval)     src_eval=$((src_eval + 1)) ;;
+            */taste|taste)   src_taste=$((src_taste + 1)) ;;
+            */ideate|ideate) src_ideate=$((src_ideate + 1)) ;;
+            manual|"")       src_manual=$((src_manual + 1)) ;;
+            *)               src_other=$((src_other + 1)) ;;
+        esac
+    done <<< "$(item_ids)"
+
+    local has_imports=false
+    [[ "$src_eval" -gt 0 || "$src_taste" -gt 0 || "$src_ideate" -gt 0 || "$src_other" -gt 0 ]] && has_imports=true
+
+    if $has_imports; then
+        local parts=""
+        [[ "$src_eval" -gt 0 ]] && parts="${parts}/eval(${src_eval}) "
+        [[ "$src_taste" -gt 0 ]] && parts="${parts}/taste(${src_taste}) "
+        [[ "$src_ideate" -gt 0 ]] && parts="${parts}/ideate(${src_ideate}) "
+        [[ "$src_manual" -gt 0 ]] && parts="${parts}manual(${src_manual}) "
+        [[ "$src_other" -gt 0 ]] && parts="${parts}other(${src_other}) "
+        echo -e "  ${DIM}sources: ${parts% }${NC}"
+        echo ""
+    fi
+
     # Show active items first
     local active_items
     active_items=$(collect_items "active" "")
@@ -950,6 +979,57 @@ cmd_health() {
     echo ""
 }
 
+cmd_sources() {
+    if ! todo_exists; then
+        echo -e "  ${DIM}No todos.yml${NC}"
+        return 0
+    fi
+
+    echo ""
+    echo -e "  ${BOLD}Backlog sources${NC}"
+    echo ""
+
+    # Collect source → count mapping (bash 3.2 compatible)
+    local source_data=""
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local src status
+        src=$(item_field "$id" "source")
+        status=$(item_field "$id" "status")
+        [[ -z "$src" ]] && src="manual"
+        source_data="${source_data}${src}|${status}"$'\n'
+    done <<< "$(item_ids)"
+
+    # Get unique sources
+    local sources
+    sources=$(echo "$source_data" | grep -v '^$' | cut -d'|' -f1 | sort -u)
+
+    while IFS= read -r src; do
+        [[ -z "$src" ]] && continue
+        local total_ct open_ct done_ct
+        total_ct=$(echo "$source_data" | grep "^${src}|" | wc -l | tr -d ' ')
+        done_ct=$(echo "$source_data" | grep "^${src}|done" | wc -l | tr -d ' ')
+        open_ct=$((total_ct - done_ct))
+
+        local icon=""
+        case "$src" in
+            */eval|eval)       icon="${CYAN}/eval${NC}" ;;
+            */taste|taste)     icon="${CYAN}/taste${NC}" ;;
+            */ideate|ideate)   icon="${CYAN}/ideate${NC}" ;;
+            */research|research) icon="${CYAN}/research${NC}" ;;
+            manual)            icon="${DIM}manual${NC}" ;;
+            import)            icon="${DIM}import${NC}" ;;
+            *)                 icon="${DIM}${src}${NC}" ;;
+        esac
+
+        echo -e "    ${icon}  ${BOLD}${total_ct}${NC} total  ${open_ct} open  ${done_ct} done"
+    done <<< "$sources"
+
+    echo ""
+    echo -e "  ${DIM}Evidence-fed backlog — items imported from /eval, /taste, /ideate, /research${NC}"
+    echo ""
+}
+
 cmd_import() {
     # Read JSON lines from stdin and bulk-add as todo items.
     # Each line: {"title":"...", "priority":"...", "feature":"...", "source":"...", "context":"..."}
@@ -1059,9 +1139,10 @@ case "${1:-show}" in
     all)          cmd_all ;;
     decay)        cmd_decay ;;
     health)       cmd_health ;;
+    sources)      cmd_sources ;;
     import)       cmd_import ;;
     *)
-        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all|decay|health|import]"
+        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all|decay|health|sources|import]"
         echo ""
         echo "  show              Show todos (default)"
         echo "  add \"title\" [pri] Add a todo"
@@ -1075,6 +1156,7 @@ case "${1:-show}" in
         echo "  all               All sections"
         echo "  decay             Check stale items, auto-tag 30d+ as stale"
         echo "  health            Backlog health stats"
+        echo "  sources           Where todos came from — /eval, /taste, /ideate, manual"
         echo "  import            Bulk-add from stdin (JSON lines)"
         exit 1
         ;;

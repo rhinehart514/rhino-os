@@ -8,6 +8,8 @@ A plugin that turns Claude into a cofounder — it measures whether your product
 
 Most dev tools measure code quality — linting, test coverage, type safety. rhino-os measures **product quality**: does the user get value? It plants testable beliefs about your product ("the signup flow completes in under 30 seconds"), scores them, and reverts changes that make things worse. SonarQube tells you your code is clean. rhino-os tells you your product is better.
 
+rhino-os is the only Claude Code plugin that scores product quality, learns what works across sessions, and helps you figure out what to build — not just write code.
+
 ## vs alternatives
 
 | Tool | Measures | rhino-os difference |
