@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# install.sh — One-command setup for rhino-os v8.
+# install.sh — One-command setup for rhino-os v9.
 # Idempotent — safe to re-run.
 #
 # Usage:
@@ -26,7 +26,9 @@ for arg in "$@"; do
     esac
 done
 
+RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
@@ -44,8 +46,37 @@ skip() {
     echo -e "    ${DIM}· $1 (exists)${NC}"
 }
 
+warn() {
+    echo -e "    ${YELLOW}⚠${NC} $1"
+}
+
 echo ""
 echo -e "  ${CYAN}◆${NC} ${BOLD}rhino-os install${NC}"
+echo ""
+
+# --- 0. Check dependencies BEFORE starting ---
+echo -e "  ${BOLD}Dependencies${NC}"
+echo ""
+
+# jq is required for scoring, eval, init, and session boot
+if command -v jq &>/dev/null; then
+    action "jq available ($(jq --version 2>&1 || echo 'unknown'))"
+else
+    warn "jq not found — needed by scoring, eval, init, and session boot"
+    echo -e "      ${DIM}Install: brew install jq  (macOS) or apt install jq  (Linux)${NC}"
+    echo -e "      ${DIM}https://jqlang.github.io/jq/download/${NC}"
+    echo ""
+    echo -e "      ${DIM}Continuing install — jq can be added later.${NC}"
+fi
+
+# Claude Code is required
+if command -v claude &>/dev/null; then
+    action "Claude Code available"
+else
+    warn "claude CLI not found — rhino-os is a Claude Code plugin"
+    echo -e "      ${DIM}Install: https://docs.anthropic.com/en/docs/claude-code${NC}"
+fi
+
 echo ""
 
 # --- 1. Create directories ---
@@ -216,27 +247,89 @@ else
     echo -e "    ${DIM}plugin mode — no shell profile changes${NC}"
 fi
 
-# --- 7. Verify installation ---
+# --- 7. Plugin mode verification ---
+if $PLUGIN_MODE && ! $DRY_RUN; then
+    echo ""
+    echo -e "  ${BOLD}Plugin Verification${NC}"
+    echo ""
+
+    # Check that skills are actually findable
+    local_skill_count=$(find "$RHINO_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$local_skill_count" -ge 10 ]]; then
+        action "$local_skill_count skills found in $RHINO_DIR/skills/"
+    else
+        warn "only $local_skill_count skills found (expected 10+) — plugin may not work correctly"
+    fi
+
+    # Check plugin.json exists and is valid
+    plugin_json="$RHINO_DIR/.claude-plugin/plugin.json"
+    if [[ -f "$plugin_json" ]]; then
+        if command -v jq &>/dev/null && jq empty "$plugin_json" 2>/dev/null; then
+            action "plugin.json valid"
+        elif [[ -f "$plugin_json" ]]; then
+            action "plugin.json exists"
+        fi
+    else
+        warn "plugin.json not found at $plugin_json"
+    fi
+
+    # Check mind skill exists (delivers mind files in plugin mode)
+    if [[ -f "$RHINO_DIR/skills/rhino-mind/SKILL.md" ]]; then
+        action "rhino-mind skill available (delivers mind files)"
+    else
+        warn "rhino-mind skill missing — mind files won't load in plugin mode"
+    fi
+fi
+
+# --- 8. Verify installation ---
 echo ""
 if $DRY_RUN; then
     echo -e "  ${DIM}Dry run complete. Run without --check to apply.${NC}"
 else
-    # Run doctor for verification
-    PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" "$RHINO_DIR/bin/rhino" doctor
-
-    # jq warning (non-blocking)
-    if ! command -v jq &>/dev/null; then
+    # Run doctor for verification (with error handling)
+    if PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" "$RHINO_DIR/bin/rhino" doctor 2>/dev/null; then
+        : # doctor ran successfully
+    else
         echo ""
-        echo -e "  ${YELLOW}⚠${NC} ${BOLD}jq not found${NC} — needed by scoring, eval, and init"
-        echo -e "    ${DIM}Install: https://jqlang.github.io/jq/download/${NC}"
-        echo -e "    ${DIM}macOS: brew install jq${NC}"
+        warn "rhino doctor exited with an error — this is ok for first install"
+        echo -e "      ${DIM}Run 'rhino doctor' after sourcing your shell profile to verify.${NC}"
+    fi
+
+    # --- Post-install summary ---
+    echo ""
+    echo -e "  ${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  ${GREEN}✓${NC} ${BOLD}rhino-os installed${NC}"
+    echo ""
+
+    if $PLUGIN_MODE; then
+        echo -e "  ${BOLD}What was set up:${NC}"
+        echo -e "    · ${local_skill_count:-0} skills loaded via plugin system"
+        echo -e "    · agents loaded via plugin system"
+        echo -e "    · mind files delivered via rhino-mind skill"
+        echo ""
+        echo -e "  ${BOLD}Next steps:${NC}"
+        echo -e "    ${BOLD}1.${NC} Open Claude Code in any project"
+        echo -e "    ${BOLD}2.${NC} Type ${BOLD}/plan${NC} to find the bottleneck and start building"
+        echo -e "    ${BOLD}3.${NC} Or type ${BOLD}/rhino help${NC} to see all commands"
+    else
+        # Count what was installed
+        mind_count=0; agent_count_final=0
+        for f in "$CLAUDE_DIR/rules"/*.md; do [[ -L "$f" ]] && mind_count=$((mind_count + 1)); done
+        for f in "$CLAUDE_DIR/agents"/*.md; do [[ -L "$f" ]] && agent_count_final=$((agent_count_final + 1)); done
+
+        echo -e "  ${BOLD}What was set up:${NC}"
+        echo -e "    · ${mind_count} mind files in ~/.claude/rules/"
+        echo -e "    · ${agent_count_final} agents in ~/.claude/agents/"
+        echo -e "    · rhino CLI in ~/bin/"
+        echo -e "    · RHINO_DIR in ${PROFILE:-your shell profile}"
+        echo ""
+        echo -e "  ${BOLD}Next steps:${NC}"
+        echo -e "    ${BOLD}1.${NC} Source your shell:  ${BOLD}source ${PROFILE:-~/.zshrc}${NC}"
+        echo -e "    ${BOLD}2.${NC} In any project:     ${BOLD}rhino init${NC}"
+        echo -e "    ${BOLD}3.${NC} Then start building: ${BOLD}/plan${NC}  or  ${BOLD}/rhino help${NC}"
     fi
 
     echo ""
-    echo -e "  ${GREEN}✓${NC} ${BOLD}Done.${NC} Run this to verify:"
-    echo ""
-    echo -e "    ${BOLD}source ${PROFILE:-~/.zshrc} && rhino doctor${NC}"
-    echo ""
-    echo -e "  ${DIM}Then in any project:${NC} ${BOLD}rhino init${NC}"
 fi
 echo ""
