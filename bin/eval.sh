@@ -102,6 +102,15 @@ print_score_bar() {
     printf "${color}${bar}${DIM}${trail}${NC}"
 }
 
+# Cross-platform file mtime in epoch seconds
+# Returns empty string (not 0) on failure so callers can detect errors
+file_mtime() {
+    local file="$1"
+    [[ ! -f "$file" ]] && echo "" && return
+    # macOS: stat -f %m, GNU/Linux: stat -c %Y
+    stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null || echo ""
+}
+
 # Result accumulation arrays
 BELIEF_PASSES=()
 BELIEF_WARNS=()
@@ -213,6 +222,17 @@ if [[ -n "$SRC_DIRS" ]]; then
 fi
 
 fi  # end SCORE_MODE != true (default checks)
+
+# Resolve RHINO_DIR early — needed by infrastructure checks and eval tools
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+    RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
+else
+    _EVAL_SOURCE="${BASH_SOURCE[0]}"
+    while [[ -L "$_EVAL_SOURCE" ]]; do
+        _EVAL_SOURCE="$(readlink "$_EVAL_SOURCE")"
+    done
+    RHINO_DIR="$(cd "$(dirname "$_EVAL_SOURCE")/.." && pwd)"
+fi
 
 # === Infrastructure checks (rhino-os only) ===
 # These check host state (symlinks, hooks, knowledge model) which only
@@ -328,16 +348,7 @@ if [[ -z "$EVAL_URL" && "$SCORE_MODE" != "true" ]]; then
     done
 fi
 
-# Resolve RHINO_DIR for eval tools
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-    RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
-else
-    _EVAL_SOURCE="${BASH_SOURCE[0]}"
-    while [[ -L "$_EVAL_SOURCE" ]]; do
-        _EVAL_SOURCE="$(readlink "$_EVAL_SOURCE")"
-    done
-    RHINO_DIR="$(cd "$(dirname "$_EVAL_SOURCE")/.." && pwd)"
-fi
+# RHINO_DIR already resolved above (before infrastructure checks)
 
 # Cached eval results (lazy-loaded)
 DOM_RESULTS=""
@@ -649,7 +660,8 @@ check_eval_cache() {
         if [[ -n "$cached_at" ]]; then
             # Check if code files have changed since cache
             local cache_mtime
-            cache_mtime=$(stat -f %m "$EVAL_CACHE_FILE" 2>/dev/null || stat -c %Y "$EVAL_CACHE_FILE" 2>/dev/null || echo 0)
+            cache_mtime=$(file_mtime "$EVAL_CACHE_FILE")
+            cache_mtime="${cache_mtime:-0}"
             local now
             now=$(date +%s)
             local age=$(( now - cache_mtime ))
@@ -678,7 +690,8 @@ generate_feature_rubric() {
     if [[ -f "$rubric_file" && "$FRESH_MODE" != "true" ]]; then
         local now_ts rubric_mtime rubric_age
         now_ts=$(date +%s)
-        rubric_mtime=$(stat -f %m "$rubric_file" 2>/dev/null || stat -c %Y "$rubric_file" 2>/dev/null || echo 0)
+        rubric_mtime=$(file_mtime "$rubric_file")
+        rubric_mtime="${rubric_mtime:-0}"
         rubric_age=$(( now_ts - rubric_mtime ))
         if [[ "$rubric_age" -lt 86400 ]]; then
             return  # Fresh enough
@@ -694,8 +707,8 @@ Feature: \"${feat_name}\"
 Claim: \"${delivers}\"
 Target user: \"${for_whom}\"
 
-Code sample (first 2000 chars):
-$(echo "$code_context" | head -c 2000)
+Code sample (first 5000 chars):
+$(echo "$code_context" | head -c 5000)
 
 Generate a rubric with 4 axes. For EACH axis:
 1. What would genuinely impress you (80+) for THIS feature
@@ -787,7 +800,8 @@ run_logic_research() {
     if [[ -f "$rubric_file" ]]; then
         local rubric_age rubric_mtime now_ts
         now_ts=$(date +%s)
-        rubric_mtime=$(stat -f %m "$rubric_file" 2>/dev/null || stat -c %Y "$rubric_file" 2>/dev/null || echo 0)
+        rubric_mtime=$(file_mtime "$rubric_file")
+        rubric_mtime="${rubric_mtime:-0}"
         rubric_age=$(( now_ts - rubric_mtime ))
         if [[ "$rubric_age" -lt 86400 ]]; then
             local rubric_content
@@ -1338,7 +1352,12 @@ run_generative_eval() {
         fi
 
         # Track as numeric score (0-100)
-        [[ -z "$feat_score" || "$feat_score" == "null" ]] && feat_score=30
+        # -1 signals eval failure — don't mask with a plausible number
+        if [[ -z "$feat_score" || "$feat_score" == "null" ]]; then
+            feat_score=-1
+            GENERATIVE_DISPLAY+=("${feat_name}|-1|${delivers}|eval failed: no score returned|")
+            continue
+        fi
         # Normalize: if score came back on 1-5 scale, convert to 0-100
         if [[ "$feat_score" -le 5 ]]; then
             feat_score=$((feat_score * 20))
@@ -1941,7 +1960,8 @@ ${review_context}"
                 local _sc_expanded="${_sc_file/#\~/$HOME}"
                 if [[ -f "$_sc_expanded" ]]; then
                     local _sc_mtime
-                    _sc_mtime=$(stat -f %m "$_sc_expanded" 2>/dev/null || stat -c %Y "$_sc_expanded" 2>/dev/null || echo 0)
+                    _sc_mtime=$(file_mtime "$_sc_expanded")
+                    _sc_mtime="${_sc_mtime:-0}"
                     [[ "$_sc_mtime" -gt "$most_recent" ]] && most_recent="$_sc_mtime"
                 fi
             done
@@ -2010,190 +2030,16 @@ ${review_context}"
 "
 }
 
-# === beliefs.yml checks ===
+# === beliefs.yml checks (parser extracted to bin/lib/beliefs-parser.sh) ===
+
+source "$RHINO_DIR/bin/lib/beliefs-parser.sh"
 
 BELIEFS_FILE=""
 for bf in lens/*/eval/beliefs.yml "config/evals/beliefs.yml"; do
     [[ -f "$bf" ]] && BELIEFS_FILE="$bf" && break
 done
 if [[ -f "$BELIEFS_FILE" ]]; then
-    belief_id=""
-    belief_type=""
-    belief_metric=""
-    belief_scenario=""
-    belief_threshold=""
-    belief_feature=""
-    belief_quality=""
-    belief_layer=""
-    belief_max_gap_days=""
-    in_forbidden=false
-    in_capabilities=false
-    forbidden_words=()
-    capabilities=()
-
-    while IFS= read -r line; do
-        # New belief entry
-        if echo "$line" | grep -q '^\s*- id:'; then
-            # Process previous belief
-            process_belief
-            # Reset
-            belief_id=$(echo "$line" | sed 's/.*id: *//')
-            belief_type=""
-            belief_metric=""
-            belief_scenario=""
-            belief_threshold=""
-            belief_feature=""
-            belief_path=""
-            belief_contains=""
-            belief_not_contains=""
-            belief_exists=""
-            belief_min_lines=""
-            belief_prompt=""
-            belief_min_calibration=""
-            belief_window=""
-            belief_direction=""
-            belief_command=""
-            belief_quality=""
-            belief_layer=""
-            belief_max_gap_days=""
-            in_forbidden=false
-            in_capabilities=false
-            forbidden_words=()
-            capabilities=()
-        fi
-
-        # Type
-        if echo "$line" | grep -q '^\s*type:'; then
-            belief_type=$(echo "$line" | sed 's/.*type: *//')
-        fi
-
-        # Feature
-        if echo "$line" | grep -q '^\s*feature:'; then
-            belief_feature=$(echo "$line" | sed 's/.*feature: *//')
-        fi
-
-        # Quality dimension
-        if echo "$line" | grep -q '^\s*quality:'; then
-            belief_quality=$(echo "$line" | sed 's/.*quality: *//')
-        fi
-
-        # Layer (infrastructure | logic | ux)
-        if echo "$line" | grep -q '^\s*layer:'; then
-            belief_layer=$(echo "$line" | sed 's/.*layer: *//')
-        fi
-
-        # Metric
-        if echo "$line" | grep -q '^\s*metric:'; then
-            belief_metric=$(echo "$line" | sed 's/.*metric: *//')
-        fi
-
-        # Path (for file_check)
-        if echo "$line" | grep -q '^\s*path:'; then
-            belief_path=$(echo "$line" | sed 's/.*path: *//' | tr -d '"')
-        fi
-
-        # Contains (for file_check)
-        if echo "$line" | grep -q '^\s*contains:'; then
-            belief_contains=$(echo "$line" | sed 's/.*contains: *//' | tr -d '"')
-        fi
-
-        # Not contains (for file_check)
-        if echo "$line" | grep -q '^\s*not_contains:'; then
-            belief_not_contains=$(echo "$line" | sed 's/.*not_contains: *//' | tr -d '"')
-        fi
-
-        # Exists (for file_check)
-        if echo "$line" | grep -q '^\s*exists:'; then
-            belief_exists=$(echo "$line" | sed 's/.*exists: *//' | tr -d '"')
-        fi
-
-        # Min lines (for file_check)
-        if echo "$line" | grep -q '^\s*min_lines:'; then
-            belief_min_lines=$(echo "$line" | sed 's/.*min_lines: *//')
-        fi
-
-        # Prompt (for llm_judge)
-        if echo "$line" | grep -q '^\s*prompt:'; then
-            belief_prompt=$(echo "$line" | sed 's/.*prompt: *//' | tr -d '"')
-        fi
-
-        # Scenario (for playwright_task)
-        if echo "$line" | grep -q '^\s*scenario:'; then
-            belief_scenario=$(echo "$line" | sed 's/.*scenario: *//' | tr -d '"')
-        fi
-
-        # Threshold (for playwright_task)
-        if echo "$line" | grep -q '^\s*threshold_seconds:'; then
-            belief_threshold=$(echo "$line" | sed 's/.*threshold_seconds: *//')
-        fi
-
-        # Min calibration (for bench_check)
-        if echo "$line" | grep -q '^\s*min_calibration:'; then
-            belief_min_calibration=$(echo "$line" | sed 's/.*min_calibration: *//')
-        fi
-
-        # Window (for score_trend)
-        if echo "$line" | grep -q '^\s*window:'; then
-            belief_window=$(echo "$line" | sed 's/.*window: *//')
-        fi
-
-        # Direction (for score_trend)
-        if echo "$line" | grep -q '^\s*direction:'; then
-            belief_direction=$(echo "$line" | sed 's/.*direction: *//')
-        fi
-
-        # Command (for command_check)
-        if echo "$line" | grep -q '^\s*command:'; then
-            belief_command=$(echo "$line" | sed 's/.*command: *//')
-        fi
-
-        # Max gap days (for session_continuity)
-        if echo "$line" | grep -q '^\s*max_gap_days:'; then
-            belief_max_gap_days=$(echo "$line" | sed 's/.*max_gap_days: *//')
-        fi
-
-        # Forbidden list parsing (for content_check)
-        if echo "$line" | grep -q '^\s*forbidden:'; then
-            in_forbidden=true
-            inline=$(echo "$line" | grep -o '\[.*\]' || true)
-            if [[ -n "$inline" ]]; then
-                while IFS= read -r word; do
-                    word=$(echo "$word" | tr -d '", []')
-                    [[ -n "$word" ]] && forbidden_words+=("$word")
-                done <<< "$(echo "$inline" | tr ',' '\n')"
-                in_forbidden=false
-            fi
-            continue
-        fi
-
-        if [[ "$in_forbidden" == "true" ]]; then
-            if echo "$line" | grep -q '^\s*-'; then
-                word=$(echo "$line" | sed 's/^\s*- *//' | tr -d '"')
-                [[ -n "$word" ]] && forbidden_words+=("$word")
-            else
-                in_forbidden=false
-            fi
-        fi
-
-        # Capabilities list parsing (for feature_review)
-        if echo "$line" | grep -q '^\s*capabilities:'; then
-            in_capabilities=true
-            continue
-        fi
-
-        if [[ "$in_capabilities" == "true" ]]; then
-            if echo "$line" | grep -q '^\s*-'; then
-                _cap=$(echo "$line" | sed 's/^\s*- *//' | tr -d '"')
-                [[ -n "$_cap" ]] && capabilities+=("$_cap")
-            else
-                in_capabilities=false
-            fi
-        fi
-
-    done < "$BELIEFS_FILE"
-
-    # Process last belief
-    process_belief
+    parse_beliefs_file "$BELIEFS_FILE"
 fi
 
 # === Write assertion history (for /eval trend) ===
@@ -2384,7 +2230,8 @@ if [[ "$SCORE_MODE" == "true" ]]; then
     # Merge cached belief quality data (from last full eval run)
     # This fills in craft/completeness dimensions that --score mode skips
     if [[ -f "$BELIEFS_CACHE_FILE" ]] && command -v jq &>/dev/null; then
-        _bc_age=$(( $(date +%s) - $(stat -f %m "$BELIEFS_CACHE_FILE" 2>/dev/null || stat -c %Y "$BELIEFS_CACHE_FILE" 2>/dev/null || echo 0) ))
+        _bc_mtime=$(file_mtime "$BELIEFS_CACHE_FILE")
+        _bc_age=$(( $(date +%s) - ${_bc_mtime:-0} ))
         if [[ "$_bc_age" -lt 3600 ]]; then
             # Use temp file to avoid shell escaping issues with JSON in --argjson
             _merge_tmp=$(mktemp)

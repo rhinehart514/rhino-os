@@ -69,6 +69,37 @@ get_total_score() {
     fi
 }
 
+# Find the score closest to a given date in history.tsv
+# History columns: timestamp build structure product capabilities hygiene project_type
+# Returns min(build, structure, hygiene) as the composite score (matches score.sh formula)
+find_score_at_date() {
+    local target_date="$1"
+    [[ -z "$target_date" || ! -f "$HISTORY_FILE" ]] && return
+
+    # Convert target date to comparable format
+    # Find the row with timestamp closest to (but not after) end of target_date
+    # target_date is YYYY-MM-DD, timestamps are ISO (YYYY-MM-DDTHH:MM:SSZ)
+    # Use target_date + "T23:59:59Z" so same-day entries are included
+    awk -F'\t' -v target="${target_date}T23:59:59Z" '
+    NR == 1 { next }  # skip header
+    {
+        ts = $1
+        # Compute composite score: min(build=$2, structure=$3, hygiene=$6)
+        s = $2 + 0
+        if ($3+0 < s) s = $3 + 0
+        if ($6+0 < s) s = $6 + 0
+
+        if (ts <= target) {
+            best = s
+            best_ts = ts
+        }
+    }
+    END {
+        if (best != "") print best
+    }
+    ' "$HISTORY_FILE"
+}
+
 # Extract claim components from prediction text.
 # Returns: direction feature from_val to_val
 # direction: raise|drop|improve|stable
@@ -76,97 +107,121 @@ parse_claim() {
     local text="$1"
     local direction="" feature="" from_val="" to_val=""
 
+    # Pre-processing: strip "because Y" clause to prevent greedy interference.
+    # Save the full text for causal fallback, but match patterns against the claim part only.
+    local claim_text="$text"
+    if [[ "$text" =~ ^(.+)[[:space:]]+because[[:space:]] ]]; then
+        claim_text="${BASH_REMATCH[1]}"
+    fi
+
+    # --- TIER 1: Numeric patterns (most specific — "X from N to M") ---
+
+    # Pattern: "X eval/feature from N to M" or "X eval/feature to N" (eval-cache lookup — BEFORE generic "from N to M")
+    if [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+(eval|feature)[[:space:]]+(from[[:space:]]+[0-9]+[[:space:]]+)?to[[:space:]]+([0-9]+) ]]; then
+        direction="eval_target"
+        feature="${BASH_REMATCH[1]}"
+        to_val="${BASH_REMATCH[4]}"
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?score[[:space:]]+([0-9]+) ]]; then
+        direction="eval_target"
+        feature="${BASH_REMATCH[1]}"
+        to_val="${BASH_REMATCH[3]}"
     # Pattern: "raise X from N to M+"
-    if [[ "$text" =~ raise[[:space:]]+([a-zA-Z_-]+)[[:space:]]+from[[:space:]]+([0-9]+)[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
+    elif [[ "$claim_text" =~ raise[[:space:]]+([a-zA-Z_-]+)[[:space:]]+from[[:space:]]+([0-9]+)[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
         direction="raise"
         feature="${BASH_REMATCH[1]}"
         from_val="${BASH_REMATCH[2]}"
         to_val="${BASH_REMATCH[3]}"
     # Pattern: "will raise X from N to M+"
-    elif [[ "$text" =~ will[[:space:]]+raise[[:space:]]+([a-zA-Z_-]+)[[:space:]]+from[[:space:]]+([0-9]+)[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
+    elif [[ "$claim_text" =~ will[[:space:]]+raise[[:space:]]+([a-zA-Z_-]+)[[:space:]]+from[[:space:]]+([0-9]+)[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
         direction="raise"
         feature="${BASH_REMATCH[1]}"
         from_val="${BASH_REMATCH[2]}"
         to_val="${BASH_REMATCH[3]}"
     # Pattern: "X from N to M+"
-    elif [[ "$text" =~ ([a-zA-Z_-]+)[[:space:]]+from[[:space:]]+([0-9]+)[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
+    elif [[ "$claim_text" =~ ([a-zA-Z_-]+)[[:space:]]+from[[:space:]]+([0-9]+)[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
         direction="raise"
         feature="${BASH_REMATCH[1]}"
         from_val="${BASH_REMATCH[2]}"
         to_val="${BASH_REMATCH[3]}"
-    # Pattern: "will drop" / "will decrease"
-    elif [[ "$text" =~ will[[:space:]]+(drop|decrease|lower) ]]; then
-        direction="drop"
-    # Pattern: "will improve" / "will increase"
-    elif [[ "$text" =~ will[[:space:]]+(improve|increase) ]]; then
-        direction="raise"
-    # Pattern: "X will work" / "X will succeed"
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+will[[:space:]]+(work|succeed|pass) ]]; then
-        direction="will_work"
-        feature="${BASH_REMATCH[1]}"
-    # Pattern: "X will fail" / "X will break"
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+will[[:space:]]+(fail|break|crash) ]]; then
-        direction="will_fail"
-        feature="${BASH_REMATCH[1]}"
-    # Pattern: "N assertions will pass"
-    elif [[ "$text" =~ ([0-9]+)[[:space:]]+assertions?[[:space:]]+will[[:space:]]+pass ]]; then
-        direction="assertion_count"
-        to_val="${BASH_REMATCH[1]}"
-    # Pattern: "feature X exists" / "file X exists"
-    elif [[ "$text" =~ (feature|file)[[:space:]]+([a-zA-Z_./-]+)[[:space:]]+exists ]]; then
-        direction="exists"
-        feature="${BASH_REMATCH[2]}"
-    # Pattern: "file X contains Y" / "X contains Y"
-    elif [[ "$text" =~ ([a-zA-Z_./-]+)[[:space:]]+contains ]]; then
-        direction="contains"
-        feature="${BASH_REMATCH[1]}"
-    # --- NEW PATTERNS (v9.0.1) ---
-    # Pattern: "X will improve/increase/decrease/drop" (directional, no numbers)
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(improve|increase|raise|grow|rise) ]]; then
-        direction="directional_up"
-        feature="${BASH_REMATCH[1]}"
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(decrease|drop|lower|decline|shrink|fall) ]]; then
-        direction="directional_down"
-        feature="${BASH_REMATCH[1]}"
     # Pattern: "X will reach/exceed/hit N" (numeric target)
-    elif [[ "$text" =~ (reach|exceed|hit|get[[:space:]]+to)[[:space:]]+([0-9]+) ]]; then
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(reach|exceed|hit)[[:space:]]+([0-9]+) ]]; then
         direction="numeric_target"
-        to_val="${BASH_REMATCH[2]}"
-        # Try to extract feature name before the verb
-        if [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(reach|exceed|hit|get[[:space:]]+to) ]]; then
-            feature="${BASH_REMATCH[1]}"
-        fi
-    # Pattern: "X eval/score N" or "X feature will score N" (eval-cache lookup)
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(eval|feature)[[:space:]]+(from[[:space:]]+[0-9]+[[:space:]]+)?to[[:space:]]+([0-9]+) ]]; then
-        direction="eval_target"
         feature="${BASH_REMATCH[1]}"
         to_val="${BASH_REMATCH[4]}"
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?score[[:space:]]+([0-9]+) ]]; then
-        direction="eval_target"
-        feature="${BASH_REMATCH[1]}"
-        to_val="${BASH_REMATCH[3]}"
+    elif [[ "$claim_text" =~ (reach|exceed|hit|get[[:space:]]+to)[[:space:]]+([0-9]+) ]]; then
+        direction="numeric_target"
+        to_val="${BASH_REMATCH[2]}"
+        if [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(reach|exceed|hit|get[[:space:]]+to) ]]; then
+            feature="${BASH_REMATCH[1]}"
+        fi
+    # Pattern: "N assertions will pass"
+    elif [[ "$claim_text" =~ ([0-9]+)[[:space:]]+assertions?[[:space:]]+will[[:space:]]+pass ]]; then
+        direction="assertion_count"
+        to_val="${BASH_REMATCH[1]}"
     # Pattern: "score N" / "to score N" (overall score target)
-    elif [[ "$text" =~ (score|scoring)[[:space:]]+(stays?[[:space:]]+at[[:space:]]+|at[[:space:]]+|to[[:space:]]+)?([0-9]+) ]]; then
+    elif [[ "$claim_text" =~ (score|scoring)[[:space:]]+(stays?[[:space:]]+at[[:space:]]+|at[[:space:]]+|to[[:space:]]+)?([0-9]+) ]]; then
         direction="score_target"
         feature="score"
         to_val="${BASH_REMATCH[3]}"
+
+    # --- TIER 2: Verb patterns with named subjects ("X will work/fail") ---
+
+    # Pattern: "X will work" / "X will succeed"
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+will[[:space:]]+(work|succeed|pass) ]]; then
+        direction="will_work"
+        feature="${BASH_REMATCH[1]}"
+    # Pattern: "X will fail" / "X will break"
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]+)[[:space:]]+will[[:space:]]+(fail|break|crash) ]]; then
+        direction="will_fail"
+        feature="${BASH_REMATCH[1]}"
+
+    # --- TIER 3: Filesystem patterns ---
+
+    # Pattern: "feature X exists" / "file X exists"
+    elif [[ "$claim_text" =~ (feature|file)[[:space:]]+([a-zA-Z_./-]+)[[:space:]]+exists ]]; then
+        direction="exists"
+        feature="${BASH_REMATCH[2]}"
+    # Pattern: "file X contains Y" / "X contains Y"
+    elif [[ "$claim_text" =~ ([a-zA-Z_./-]+)[[:space:]]+contains ]]; then
+        direction="contains"
+        feature="${BASH_REMATCH[1]}"
+
+    # --- TIER 4: Directional patterns (feature name must be 3+ chars to avoid "the", "this", etc.) ---
+
+    # Pattern: "X will improve/increase/decrease/drop" (directional, no numbers)
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+(will[[:space:]]+)?(improve|increase|raise|grow|rise) ]]; then
+        direction="directional_up"
+        feature="${BASH_REMATCH[1]}"
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+(will[[:space:]]+)?(decrease|drop|lower|decline|shrink|fall) ]]; then
+        direction="directional_down"
+        feature="${BASH_REMATCH[1]}"
+
+    # --- TIER 4b: No-subject directional (fallback when no 3+ char feature name found) ---
+
+    # Pattern: "will drop" / "will decrease" (no subject)
+    elif [[ "$claim_text" =~ will[[:space:]]+(drop|decrease|lower) ]]; then
+        direction="drop"
+    # Pattern: "will improve" / "will increase" (no subject)
+    elif [[ "$claim_text" =~ will[[:space:]]+(improve|increase) ]]; then
+        direction="raise"
+
+    # --- TIER 5: Broad patterns (lowest priority) ---
+
     # Pattern: "N sessions/days/weeks/months to..." (time-based — can check elapsed)
-    elif [[ "$text" =~ ([0-9]+)[[:space:]]+(sessions?|days?|weeks?|months?) ]]; then
+    elif [[ "$claim_text" =~ ([0-9]+)[[:space:]]+(sessions?|days?|weeks?|months?) ]]; then
         direction="time_based"
         to_val="${BASH_REMATCH[1]}"
         feature="${BASH_REMATCH[2]}"
     # Pattern: "will produce/generate/create" (output claim — boolean)
-    elif [[ "$text" =~ ([a-zA-Z_.-]+)[[:space:]]+(will[[:space:]]+)?(produce|generate|create|enable|reduce|eliminate) ]]; then
+    elif [[ "$claim_text" =~ ([a-zA-Z_.-]{3,})[[:space:]]+(will[[:space:]]+)?(produce|generate|create|enable|reduce|eliminate) ]]; then
         direction="will_work"
         feature="${BASH_REMATCH[1]}"
     # Pattern: "will be the highest/best/hardest/most" (superlative — can't auto-grade)
-    elif [[ "$text" =~ will[[:space:]]+be[[:space:]]+the[[:space:]]+(highest|best|hardest|most|lowest|worst|easiest) ]]; then
+    elif [[ "$claim_text" =~ will[[:space:]]+be[[:space:]]+the[[:space:]]+(highest|best|hardest|most|lowest|worst|easiest) ]]; then
         direction="superlative"
-    # Pattern: "X because Y" (causal — extract the X claim as boolean)
-    elif [[ "$text" =~ (.+)[[:space:]]+because[[:space:]] ]]; then
-        local causal_claim="${BASH_REMATCH[1]}"
-        # If the causal claim itself contains a gradeable verb, recurse-parse it
-        if [[ "$causal_claim" =~ (will[[:space:]]+)?(work|succeed|pass|ship|land|hold|transfer|get) ]]; then
+    # Causal fallback: if we stripped "because" earlier and nothing matched, try the stripped claim as boolean
+    elif [[ "$claim_text" != "$text" ]]; then
+        if [[ "$claim_text" =~ (will[[:space:]]+)?(work|succeed|pass|ship|land|hold|transfer|get) ]]; then
             direction="causal_bool"
             feature="causal"
         fi
@@ -178,6 +233,7 @@ parse_claim() {
 # Grade a single prediction
 grade_prediction() {
     local prediction="$1"
+    local pred_date="${2:-}"
     local claim
     claim=$(parse_claim "$prediction")
 
@@ -278,28 +334,22 @@ grade_prediction() {
     local current_score
     current_score=$(get_feature_score "$feature")
 
-    # If feature not found by exact name, try total score
+    # If feature not found by exact name, fall back to total score
     if [[ -z "$current_score" ]]; then
-        if [[ "$feature" == "score" || "$feature" == "total" ]]; then
-            current_score=$(get_total_score)
-        fi
+        current_score=$(get_total_score)
     fi
 
     # --- NEW GRADING LOGIC (v9.0.1) ---
 
-    # "directional_up" — check if feature score went up vs any baseline
+    # "directional_up" — check if feature score went up vs baseline at prediction time
     if [[ "$direction" == "directional_up" ]]; then
         if [[ -n "$current_score" && "$current_score" -gt 0 ]]; then
-            # Check history for a prior score to compare
-            if [[ -f "$HISTORY_FILE" ]]; then
-                PREV=$(tail -n +2 "$HISTORY_FILE" 2>/dev/null | head -1 | cut -f5 2>/dev/null || echo "")
-                if [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ && "$current_score" -gt "$PREV" ]]; then
-                    echo "YES|Improved: ${PREV}→${current_score}"
-                elif [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ && "$current_score" -eq "$PREV" ]]; then
-                    echo "NO|Unchanged at ${current_score}"
-                else
-                    echo "SKIP"
-                fi
+            local baseline
+            baseline=$(find_score_at_date "$pred_date")
+            if [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ && "$current_score" -gt "$baseline" ]]; then
+                echo "YES|Improved: ${baseline}→${current_score}"
+            elif [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ && "$current_score" -eq "$baseline" ]]; then
+                echo "NO|Unchanged at ${current_score}"
             else
                 echo "SKIP"
             fi
@@ -309,14 +359,15 @@ grade_prediction() {
         return
     fi
 
-    # "directional_down" — check if feature score went down
+    # "directional_down" — check if feature score went down vs baseline at prediction time
     if [[ "$direction" == "directional_down" ]]; then
-        if [[ -n "$current_score" && -f "$HISTORY_FILE" ]]; then
-            PREV=$(tail -n +2 "$HISTORY_FILE" 2>/dev/null | head -1 | cut -f5 2>/dev/null || echo "")
-            if [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ && "$current_score" -lt "$PREV" ]]; then
-                echo "YES|Decreased: ${PREV}→${current_score}"
-            elif [[ -n "$PREV" && "$PREV" =~ ^[0-9]+$ ]]; then
-                echo "NO|Did not decrease: ${PREV}→${current_score}"
+        if [[ -n "$current_score" ]]; then
+            local baseline
+            baseline=$(find_score_at_date "$pred_date")
+            if [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ && "$current_score" -lt "$baseline" ]]; then
+                echo "YES|Decreased: ${baseline}→${current_score}"
+            elif [[ -n "$baseline" && "$baseline" =~ ^[0-9]+$ ]]; then
+                echo "NO|Did not decrease: ${baseline}→${current_score}"
             else
                 echo "SKIP"
             fi
@@ -470,13 +521,13 @@ while IFS= read -r line; do
 
     # Try to grade — first try prediction column, then agent column
     # (some rows have shifted columns when agent field is missing)
-    grade_result=$(grade_prediction "$prediction")
+    grade_result=$(grade_prediction "$prediction" "$date")
     grade_verdict="${grade_result%%|*}"
     grade_detail="${grade_result#*|}"
 
     # If prediction column didn't match, try agent column (column shift recovery)
     if [[ "$grade_verdict" == "SKIP" && -n "$agent" && ${#agent} -gt 20 ]]; then
-        grade_result=$(grade_prediction "$agent")
+        grade_result=$(grade_prediction "$agent" "$date")
         grade_verdict="${grade_result%%|*}"
         grade_detail="${grade_result#*|}"
     fi
@@ -541,8 +592,8 @@ consolidate_knowledge() {
     [[ ! -f "$learnings_file" ]] && learnings_file="$HOME/.claude/knowledge/experiment-learnings.md"
     [[ ! -f "$learnings_file" ]] && return 0
 
-    # Collect new updates (not already in the file)
-    local new_entries=""
+    # Collect new updates by zone: known, uncertain, dead_end
+    local known_entries="" uncertain_entries="" dead_entries=""
     local consolidated=0
 
     while IFS=$'\t' read -r _date _agent _prediction _evidence _result _correct model_update; do
@@ -555,38 +606,97 @@ consolidate_knowledge() {
             continue
         fi
 
-        new_entries="${new_entries}\n- **Auto-graded** (${_date}): ${model_update}"
+        local entry="- **Auto-graded** (${_date}): ${model_update}"
+
+        # Route to correct zone based on grading result
+        case "$_correct" in
+            yes)
+                # Count how many similar entries already exist in Known Patterns
+                local known_count=0
+                # Extract a keyword from the prediction for matching (first 3+ char word)
+                local keyword=""
+                if [[ "$_prediction" =~ ([a-zA-Z_-]{4,}) ]]; then
+                    keyword="${BASH_REMATCH[1]}"
+                fi
+                if [[ -n "$keyword" ]]; then
+                    # Count entries in Known Patterns section that reference this keyword
+                    known_count=$(awk '/^## Known Patterns/,/^## [A-Z]/' "$learnings_file" | grep -ciF "$keyword" 2>/dev/null || echo "0")
+                fi
+                if [[ "$known_count" -ge 2 ]]; then
+                    # 2+ existing matches + this new one = 3+ → Known Patterns
+                    known_entries="${known_entries}\n${entry}"
+                else
+                    # <3 matching entries → Uncertain Patterns
+                    uncertain_entries="${uncertain_entries}\n${entry}"
+                fi
+                ;;
+            no)
+                # Check if this is a repeated failure (dead end candidate)
+                local fail_count=0
+                local fail_keyword=""
+                if [[ "$_prediction" =~ ([a-zA-Z_-]{4,}) ]]; then
+                    fail_keyword="${BASH_REMATCH[1]}"
+                fi
+                if [[ -n "$fail_keyword" ]]; then
+                    fail_count=$(awk '/^## Dead Ends/,0' "$learnings_file" | grep -ciF "$fail_keyword" 2>/dev/null || echo "0")
+                fi
+                if [[ "$fail_count" -ge 1 ]]; then
+                    # Already a dead end entry → add to Dead Ends
+                    dead_entries="${dead_entries}\n${entry}"
+                else
+                    # First failure → Uncertain Patterns (might be noise)
+                    uncertain_entries="${uncertain_entries}\n${entry}"
+                fi
+                ;;
+            partial)
+                # Partial results always go to Uncertain Patterns
+                uncertain_entries="${uncertain_entries}\n${entry}"
+                ;;
+        esac
         consolidated=$((consolidated + 1))
     done < <(tail -n +2 "$PRED_FILE")
 
     [[ "$consolidated" -eq 0 ]] && return 0
 
-    # Insert before "## Unknown Territory" (which follows Uncertain Patterns)
-    local marker="## Unknown Territory"
-    if grep -q "^${marker}" "$learnings_file"; then
-        local temp_learnings
-        temp_learnings=$(mktemp)
-        local inserted=false
+    # Insert entries into their correct zones
+    local temp_learnings
+    temp_learnings=$(mktemp)
+    local inserted_known=false inserted_uncertain=false inserted_dead=false
 
-        while IFS= read -r line; do
-            if [[ "$line" == "$marker"* ]] && ! $inserted; then
-                # Insert new entries before Unknown Territory
-                printf "%b\n\n" "$new_entries" >> "$temp_learnings"
-                inserted=true
-            fi
-            printf "%s\n" "$line" >> "$temp_learnings"
-        done < "$learnings_file"
-
-        if $inserted; then
-            mv "$temp_learnings" "$learnings_file"
-        else
-            rm -f "$temp_learnings"
+    while IFS= read -r line; do
+        # Insert known entries before "## Uncertain Patterns"
+        if [[ "$line" == "## Uncertain Patterns"* ]] && ! $inserted_known && [[ -n "$known_entries" ]]; then
+            printf "%b\n\n" "$known_entries" >> "$temp_learnings"
+            inserted_known=true
         fi
-    else
-        # No Unknown Territory section — append at end
-        printf "\n%b\n" "$new_entries" >> "$learnings_file"
+        # Insert uncertain entries before "## Unknown Territory"
+        if [[ "$line" == "## Unknown Territory"* ]] && ! $inserted_uncertain && [[ -n "$uncertain_entries" ]]; then
+            printf "%b\n\n" "$uncertain_entries" >> "$temp_learnings"
+            inserted_uncertain=true
+        fi
+        # Insert dead end entries before end-of-file (after "## Dead Ends" section heading)
+        if [[ "$line" == "## Dead Ends"* ]] && ! $inserted_dead && [[ -n "$dead_entries" ]]; then
+            printf "%s\n" "$line" >> "$temp_learnings"
+            # Read next line (usually blank or first entry) then insert
+            printf "%b\n" "$dead_entries" >> "$temp_learnings"
+            inserted_dead=true
+            continue
+        fi
+        printf "%s\n" "$line" >> "$temp_learnings"
+    done < "$learnings_file"
+
+    # Fallback: if sections weren't found, append at end
+    if [[ -n "$known_entries" ]] && ! $inserted_known; then
+        printf "\n%b\n" "$known_entries" >> "$temp_learnings"
+    fi
+    if [[ -n "$uncertain_entries" ]] && ! $inserted_uncertain; then
+        printf "\n%b\n" "$uncertain_entries" >> "$temp_learnings"
+    fi
+    if [[ -n "$dead_entries" ]] && ! $inserted_dead; then
+        printf "\n%b\n" "$dead_entries" >> "$temp_learnings"
     fi
 
+    mv "$temp_learnings" "$learnings_file"
     $QUIET || echo "Consolidated $consolidated learning(s) into experiment-learnings.md"
 }
 

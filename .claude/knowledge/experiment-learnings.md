@@ -61,6 +61,12 @@
 
 - **Auto-graded** (2026-03-17): Code eval cannot measure visual-layer changes. Need taste re-eval to verify prediction. Playwright MCP screenshot timeout is a blocker for taste measurement.
 
+
+- **Auto-graded** (2026-03-16): Confirmed: Committed: d0c3d02 feat: statusline shows '62% product complete' — ships with plugin, auto-configures
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+- **Auto-graded** (2026-03-17): Confirmed: Eval score 93 (target was 55)
+- **Auto-graded** (2026-03-17): Confirmed: Reached 93 (target was 10)
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?
