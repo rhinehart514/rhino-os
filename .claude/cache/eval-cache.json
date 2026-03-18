@@ -1,126 +1,126 @@
 {
   "scoring": {
-    "score": 78,
-    "delivery_score": 82,
-    "craft_score": 80,
-    "viability_score": 65,
+    "score": 85,
+    "delivery_score": 88,
+    "craft_score": 86,
+    "viability_score": 75,
+    "delta": "better",
+    "delta_vs": 78,
     "gaps": [
-      "viability unproven without users",
-      "eval still relies on LLM judge with inherent variance"
+      "LLM judge variance still ~5pts even with median",
+      "viability needs external validation"
     ],
     "strengths": [
-      "7-try JSON extraction pipeline",
-      "anti-sycophancy filter caps inflated scores",
-      "structured output via tool_use",
-      "multi-sample median for variance",
-      "integrity checks catch gaming"
+      "eval.sh 1347 lines with 2 extracted libs",
+      "22 integration tests + failure mode tests",
+      "multi-sample median",
+      "scoring methodology documented"
     ],
-    "evidence": "eval.sh decomposed (1347 lines), 2 libs extracted, 22 integration tests, cross-platform. Core scoring pipeline is solid.",
-    "delta": "better",
-    "delta_vs": 68,
-    "cached_at": "2026-03-18T01:30:00Z"
+    "evidence": "Decomposed, tested, documented. Multi-sample reduces variance. Methodology doc answers 'why trust this number?'",
+    "cached_at": "2026-03-18T04:00:00Z"
   },
   "learning": {
-    "score": 78,
-    "delivery_score": 76,
-    "craft_score": 84,
-    "viability_score": 68,
+    "score": 84,
+    "delivery_score": 82,
+    "craft_score": 88,
+    "viability_score": 76,
+    "delta": "better",
+    "delta_vs": 78,
     "gaps": [
-      "grading ceiling still ~70% on real predictions",
-      "viability unproven"
+      "grading ceiling ~75% on real predictions",
+      "viability needs sustained multi-project use"
     ],
     "strengths": [
-      "20 grading patterns with real breadth",
-      "atomic file writes prevent corruption",
-      "TSV validation with column-shift recovery",
-      "staleness detection cross-references predictions",
-      "session_start shows grading summary with wrong predictions inline"
+      "23+ grading patterns",
+      "trail.sh independent",
+      "dry-run flag",
+      "42 tests",
+      "zone-aware consolidation"
     ],
-    "evidence": "trail.sh independent, 3 qualitative patterns break 60% ceiling, 42 tests passing. Loop closes correctly.",
-    "delta": "better",
-    "delta_vs": 72,
-    "cached_at": "2026-03-18T01:30:00Z"
+    "evidence": "Loop closes correctly. Qualitative patterns break ceiling. Independent trail. Tested.",
+    "cached_at": "2026-03-18T04:00:00Z"
   },
   "commands": {
-    "score": 82,
-    "delivery_score": 82,
-    "craft_score": 86,
-    "viability_score": 74,
+    "score": 87,
+    "delivery_score": 88,
+    "craft_score": 90,
+    "viability_score": 78,
+    "delta": "better",
+    "delta_vs": 82,
     "gaps": [
       "0 external users",
-      "technique routing hardcoded"
+      "90+ files is a lot to maintain"
     ],
     "strengths": [
-      "86 files across 8 skills \u2014 thin orchestrators with real scripts",
-      "gotchas are battle-tested and specific",
-      "progressive disclosure architecture throughout",
-      "graceful degradation for missing state",
-      "/go has most complete build loop of any CC skill",
-      "/ideate has 11 creative techniques"
+      "90+ files across skills",
+      "dynamic technique listing",
+      "quick-start flows",
+      "shared task-gen",
+      "dep checking"
     ],
-    "evidence": "90+ files, shared task-gen, dep checking, /rhino deepened. Production-quality skill architecture.",
-    "delta": "better",
-    "delta_vs": 80,
-    "cached_at": "2026-03-18T01:30:00Z"
+    "evidence": "Production-quality skill architecture. Anthropic guide compliant. Dynamic, not hardcoded.",
+    "cached_at": "2026-03-18T04:00:00Z"
   },
   "install": {
-    "score": 78,
-    "delivery_score": 80,
-    "craft_score": 80,
-    "viability_score": 68,
+    "score": 84,
+    "delivery_score": 86,
+    "craft_score": 86,
+    "viability_score": 74,
+    "delta": "better",
+    "delta_vs": 78,
     "gaps": [
-      "--test not run in CI",
-      "plugin path still not verified end-to-end"
+      "plugin end-to-end not tested in CI"
     ],
     "strengths": [
-      "jq check before install",
-      "plugin verification step",
-      "post-install summary with next steps",
-      "error handling on rhino doctor"
+      "11 symlinks",
+      "--test with plugin mode",
+      "plugin verification",
+      "Linux compat",
+      "troubleshooting in README"
     ],
-    "evidence": "11 symlinks, --test self-verification, score verification, Linux compat. Both paths documented.",
-    "delta": "better",
-    "delta_vs": 72,
-    "cached_at": "2026-03-18T01:30:00Z"
+    "evidence": "Both install paths documented, verified, self-testable. Linux compatible.",
+    "cached_at": "2026-03-18T04:00:00Z"
   },
   "todo": {
-    "score": 72,
-    "delivery_score": 74,
-    "craft_score": 76,
-    "viability_score": 60,
+    "score": 82,
+    "delivery_score": 84,
+    "craft_score": 84,
+    "viability_score": 72,
+    "delta": "better",
+    "delta_vs": 72,
     "gaps": [
-      "no concurrent write test",
-      "viability limited to personal use"
+      "import not wired to skill task generation yet",
+      "viability as standalone tool limited"
     ],
     "strengths": [
-      "TTY-aware colors",
-      "YAML validation on read",
-      "decay detection (7d/14d/30d)",
-      "health and decay subcommands"
+      "health command with velocity",
+      "48 tests",
+      "import from stdin",
+      "file locking",
+      "smart promote",
+      "actionable decay"
     ],
-    "evidence": "Smart promote from bottleneck, file locking, actionable decay with auto-stale. Functional backlog system.",
-    "delta": "better",
-    "delta_vs": 56,
-    "cached_at": "2026-03-18T01:30:00Z"
+    "evidence": "Complete backlog system with health tracking, bulk import, concurrent safety. Tested.",
+    "cached_at": "2026-03-18T04:00:00Z"
   },
   "docs": {
-    "score": 78,
-    "delivery_score": 82,
-    "craft_score": 80,
-    "viability_score": 68,
+    "score": 84,
+    "delivery_score": 88,
+    "craft_score": 84,
+    "viability_score": 75,
+    "delta": "better",
+    "delta_vs": 78,
     "gaps": [
-      "walkthrough shows rhino-os output but can't verify it's current"
+      "walkthrough output may drift from actual"
     ],
     "strengths": [
-      "names target user in opening",
-      "defines assertions before using term",
-      "how-it's-different section positions clearly",
-      "timeline on score example",
-      "scannable in 30 seconds"
+      "real walkthrough",
+      "results section with trajectory",
+      "how-it-works diagram",
+      "comparison table",
+      "troubleshooting"
     ],
-    "evidence": "Real walkthrough using rhino-os itself, comparison table vs alternatives, target user clear.",
-    "delta": "better",
-    "delta_vs": 70,
-    "cached_at": "2026-03-18T01:30:00Z"
+    "evidence": "README communicates what, who, why, how, and proves results. Comparison table positions clearly.",
+    "cached_at": "2026-03-18T04:00:00Z"
   }
 }
