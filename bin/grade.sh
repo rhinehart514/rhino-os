@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# grade.sh — Auto-grade predictions by comparing claims against score history.
+# grade.sh — Auto-grade predictions by comparing claims against score history + external signals.
 #
 # Usage: bash bin/grade.sh [--quiet] [--dry-run] [predictions.tsv] [history.tsv] [score-cache.json]
 #
@@ -7,9 +7,14 @@
 #   1. Extract directional claim ("raise X from N to M", "will drop", etc.)
 #   2. Find score data AFTER the prediction date
 #   3. Compare direction + magnitude → grade yes/partial/no
-#   4. Fill result, correct, model_update columns
+#   4. If primary grading skips, try signal-based grading:
+#      - customer-intel.json: user/customer/demand predictions matched against research themes
+#      - strategy.yml: market/competitor/positioning predictions checked against strategy state
+#      - eval-cache.json: feature-name predictions checked against current eval scores + deltas
+#   5. Fill result, correct, model_update columns
+#   6. Show coverage report: graded/total, patterns used, remaining ungraded
 #
-# Skips predictions with no extractable directional claim (leave for /retro).
+# Skips predictions with no extractable directional claim AND no signal match (leave for /retro).
 # Called from: session_start.sh (--quiet), /retro, /plan step 3.
 
 set -uo pipefail
@@ -39,6 +44,17 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PRED_FILE="${1:-$PROJECT_DIR/.claude/knowledge/predictions.tsv}"
 HISTORY_FILE="${2:-$PROJECT_DIR/.claude/scores/history.tsv}"
 CACHE_FILE="${3:-$PROJECT_DIR/.claude/cache/score-cache.json}"
+
+# Additional data sources for signal-based grading
+CUSTOMER_INTEL_FILE="$PROJECT_DIR/.claude/cache/customer-intel.json"
+[[ ! -f "$CUSTOMER_INTEL_FILE" ]] && CUSTOMER_INTEL_FILE="$HOME/.claude/cache/customer-intel.json"
+STRATEGY_FILE="$PROJECT_DIR/.claude/plans/strategy.yml"
+EVAL_CACHE_FILE="$PROJECT_DIR/.claude/cache/eval-cache.json"
+
+# Pattern usage counters (for coverage report) — bash 3 compatible
+PATTERN_LOG=""  # space-separated pattern names (counted at end)
+SKIP_COUNT=0
+SKIP_PREDICTIONS=""
 
 if [[ ! -f "$PRED_FILE" ]]; then
     $QUIET || echo "No predictions file: $PRED_FILE"
@@ -158,6 +174,281 @@ find_score_at_date() {
         if (best != "") print best
     }
     ' "$HISTORY_FILE"
+}
+
+# --- Signal-based grading: check external data sources for qualitative predictions ---
+
+# Check customer-intel.json for signals supporting/contradicting a prediction about users/customers/demand
+grade_customer_signal() {
+    local prediction="$1"
+    [[ ! -f "$CUSTOMER_INTEL_FILE" ]] && { echo "SKIP"; return; }
+    command -v jq &>/dev/null || { echo "SKIP"; return; }
+
+    # Extract key terms from prediction for matching against customer themes
+    local pred_lower
+    pred_lower=$(echo "$prediction" | tr '[:upper:]' '[:lower:]')
+
+    # Look for matching themes in customer-intel.json
+    # themes[].theme, themes[].signal_strength, themes[].quotes[]
+    local matching_themes=""
+    local strong_match=false
+    local theme_count=0
+
+    while IFS= read -r theme_line; do
+        [[ -z "$theme_line" ]] && continue
+        local theme_lower
+        theme_lower=$(echo "$theme_line" | tr '[:upper:]' '[:lower:]')
+
+        # Extract key nouns from prediction and check if theme references them
+        local match=false
+        for keyword in agency agencies user users customer customers demand market pain friction switch switching adopt adoption churn retention onboard pricing price pay paying revenue; do
+            if [[ "$pred_lower" == *"$keyword"* && "$theme_lower" == *"$keyword"* ]]; then
+                match=true
+                break
+            fi
+        done
+        # Also match if prediction and theme share a 5+ char word
+        if [[ "$match" == false ]]; then
+            for word in $(echo "$pred_lower" | tr -cs '[:alpha:]' '\n' | sort -u); do
+                [[ ${#word} -lt 5 ]] && continue
+                if [[ "$theme_lower" == *"$word"* ]]; then
+                    match=true
+                    break
+                fi
+            done
+        fi
+
+        if [[ "$match" == true ]]; then
+            theme_count=$((theme_count + 1))
+            matching_themes="${matching_themes}${theme_line}; "
+            # Check signal strength
+            local strength
+            strength=$(jq -r ".themes[] | select(.theme == \"$theme_line\") | .signal_strength // \"unknown\"" "$CUSTOMER_INTEL_FILE" 2>/dev/null)
+            [[ "$strength" == "strong" ]] && strong_match=true
+        fi
+    done < <(jq -r '.themes[].theme // empty' "$CUSTOMER_INTEL_FILE" 2>/dev/null)
+
+    if [[ "$theme_count" -gt 0 ]]; then
+        matching_themes="${matching_themes%;*}"
+        if [[ "$strong_match" == true ]]; then
+            echo "YES|Confirmed by customer signal (${theme_count} theme(s), strong): ${matching_themes:0:120}"
+        elif [[ "$theme_count" -ge 2 ]]; then
+            echo "PARTIAL|Supported by customer signal (${theme_count} themes, moderate): ${matching_themes:0:120}"
+        else
+            echo "PARTIAL|Weak customer signal (1 theme): ${matching_themes:0:120}"
+        fi
+    else
+        echo "SKIP"
+    fi
+}
+
+# Check strategy.yml for signals about market/competitor/positioning predictions
+grade_strategy_signal() {
+    local prediction="$1"
+    [[ ! -f "$STRATEGY_FILE" ]] && { echo "SKIP"; return; }
+
+    local pred_lower
+    pred_lower=$(echo "$prediction" | tr '[:upper:]' '[:lower:]')
+
+    # Extract strategy state
+    local stage bottleneck_name bottleneck_desc
+    stage=$(grep '^  stage:' "$STRATEGY_FILE" | head -1 | sed 's/.*: *//' | tr -d '"' || true)
+    bottleneck_name=$(grep '^  name:' "$STRATEGY_FILE" | head -1 | sed 's/.*: *//' | tr -d '"' || true)
+    bottleneck_desc=$(grep '^  description:' "$STRATEGY_FILE" | head -1 | sed 's/.*: *//' | tr -d '"' || true)
+
+    # Check if prediction aligns with or contradicts strategy
+    local evidence=""
+    local verdict="SKIP"
+
+    # Check if prediction mentions the bottleneck
+    local bn_lower
+    bn_lower=$(echo "$bottleneck_name $bottleneck_desc" | tr '[:upper:]' '[:lower:]')
+    for word in $(echo "$bn_lower" | tr -cs '[:alpha:]' '\n' | sort -u); do
+        [[ ${#word} -lt 5 ]] && continue
+        if [[ "$pred_lower" == *"$word"* ]]; then
+            evidence="Prediction aligns with current bottleneck: ${bottleneck_name}"
+            verdict="YES"
+            break
+        fi
+    done
+
+    # Check if prediction mentions stage-related concepts
+    if [[ "$verdict" == "SKIP" ]]; then
+        case "$stage" in
+            one)
+                if [[ "$pred_lower" == *"first user"* || "$pred_lower" == *"first loop"* || "$pred_lower" == *"external"* || "$pred_lower" == *"onboard"* ]]; then
+                    evidence="Aligned with stage one focus (first user/loop). Stage: ${stage}"
+                    verdict="YES"
+                fi
+                if [[ "$pred_lower" == *"growth"* || "$pred_lower" == *"scale"* || "$pred_lower" == *"distribution"* ]]; then
+                    evidence="Contradicts stage one — prediction about growth/scale at stage ${stage}"
+                    verdict="NO"
+                fi
+                ;;
+            some)
+                if [[ "$pred_lower" == *"retention"* || "$pred_lower" == *"come back"* || "$pred_lower" == *"return"* ]]; then
+                    evidence="Aligned with stage some focus (retention). Stage: ${stage}"
+                    verdict="YES"
+                fi
+                ;;
+            many)
+                if [[ "$pred_lower" == *"distribution"* || "$pred_lower" == *"discover"* ]]; then
+                    evidence="Aligned with stage many focus (distribution). Stage: ${stage}"
+                    verdict="YES"
+                fi
+                ;;
+        esac
+    fi
+
+    # Check unknowns — if prediction matches a resolved unknown, grade it
+    if [[ "$verdict" == "SKIP" ]]; then
+        local resolved_results
+        resolved_results=$(awk '/priority: resolved/{found=1} found && /result:/{print; found=0}' "$STRATEGY_FILE" 2>/dev/null)
+        if [[ -n "$resolved_results" ]]; then
+            local result_lower
+            result_lower=$(echo "$resolved_results" | tr '[:upper:]' '[:lower:]')
+            for word in $(echo "$pred_lower" | tr -cs '[:alpha:]' '\n' | sort -u); do
+                [[ ${#word} -lt 5 ]] && continue
+                if [[ "$result_lower" == *"$word"* ]]; then
+                    evidence="Matches resolved strategy unknown: ${resolved_results:0:100}"
+                    verdict="PARTIAL"
+                    break
+                fi
+            done
+        fi
+    fi
+
+    if [[ "$verdict" != "SKIP" ]]; then
+        echo "${verdict}|Strategy signal: ${evidence:0:150}"
+    else
+        echo "SKIP"
+    fi
+}
+
+# Check eval-cache for feature score changes when prediction names a feature
+grade_eval_feature() {
+    local prediction="$1" pred_date="$2"
+    [[ ! -f "$EVAL_CACHE_FILE" ]] && { echo "SKIP"; return; }
+    command -v jq &>/dev/null || { echo "SKIP"; return; }
+
+    local pred_lower
+    pred_lower=$(echo "$prediction" | tr '[:upper:]' '[:lower:]')
+
+    # Get feature names from eval-cache
+    local features
+    features=$(jq -r 'keys[]' "$EVAL_CACHE_FILE" 2>/dev/null)
+    [[ -z "$features" ]] && { echo "SKIP"; return; }
+
+    # Check if prediction mentions any eval-cache feature by name
+    local matched_feature="" matched_score=""
+    while IFS= read -r feat; do
+        [[ -z "$feat" ]] && continue
+        local feat_lower
+        feat_lower=$(echo "$feat" | tr '[:upper:]' '[:lower:]')
+        # Match feature name in prediction (word boundary approximation)
+        if [[ "$pred_lower" == *"$feat_lower"* ]]; then
+            matched_feature="$feat"
+            matched_score=$(jq -r ".\"$feat\".score // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+            break
+        fi
+    done <<< "$features"
+
+    [[ -z "$matched_feature" || -z "$matched_score" ]] && { echo "SKIP"; return; }
+
+    # Determine if prediction claims improvement, decline, or a target
+    local claim_dir=""
+    if [[ "$pred_lower" =~ (improve|increase|raise|better|higher|grow|rise|push) ]]; then
+        claim_dir="up"
+    elif [[ "$pred_lower" =~ (decrease|drop|lower|decline|worse|fall|regress) ]]; then
+        claim_dir="down"
+    elif [[ "$pred_lower" =~ (stay|stable|hold|keep|maintain|unchanged) ]]; then
+        claim_dir="stable"
+    fi
+
+    # Get delivery sub-score if available (since task focuses on delivery)
+    local delivery_score
+    delivery_score=$(jq -r ".\"$matched_feature\".delivery_score // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+
+    local detail="Feature ${matched_feature} eval: score=${matched_score}"
+    [[ -n "$delivery_score" ]] && detail="${detail}, delivery=${delivery_score}"
+
+    # Check delta field if available
+    local delta_field
+    delta_field=$(jq -r ".\"$matched_feature\".delta // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
+    [[ -n "$delta_field" ]] && detail="${detail}, trend=${delta_field}"
+
+    case "$claim_dir" in
+        up)
+            if [[ "$delta_field" == "better" ]]; then
+                echo "YES|Eval confirms improvement: ${detail}"
+            elif [[ -n "$matched_score" && "$matched_score" =~ ^[0-9]+$ && "$matched_score" -ge 70 ]]; then
+                echo "PARTIAL|Feature healthy but delta unclear: ${detail}"
+            else
+                echo "NO|No improvement signal: ${detail}"
+            fi
+            ;;
+        down)
+            if [[ "$delta_field" == "worse" ]]; then
+                echo "YES|Eval confirms decline: ${detail}"
+            else
+                echo "NO|No decline signal: ${detail}"
+            fi
+            ;;
+        stable)
+            if [[ "$delta_field" == "same" || -z "$delta_field" ]]; then
+                echo "YES|Eval confirms stable: ${detail}"
+            elif [[ "$delta_field" == "better" ]]; then
+                echo "PARTIAL|Actually improved (predicted stable): ${detail}"
+            else
+                echo "NO|Changed (predicted stable): ${detail}"
+            fi
+            ;;
+        *)
+            # No directional claim but we found the feature — report current state
+            if [[ -n "$matched_score" && "$matched_score" =~ ^[0-9]+$ && "$matched_score" -ge 70 ]]; then
+                echo "PARTIAL|Feature referenced, currently healthy: ${detail}"
+            else
+                echo "SKIP"
+            fi
+            ;;
+    esac
+}
+
+# Dispatch signal-based grading for predictions that parse_claim couldn't handle
+grade_via_signals() {
+    local prediction="$1" pred_date="$2"
+    local pred_lower
+    pred_lower=$(echo "$prediction" | tr '[:upper:]' '[:lower:]')
+
+    # Try customer-intel for user/customer/demand predictions
+    if [[ "$pred_lower" =~ (user|customer|demand|adoption|churn|retention|onboard|pain|friction|switch|market[[:space:]]+fit|persona|segment) ]]; then
+        local result
+        result=$(grade_customer_signal "$prediction")
+        if [[ "${result%%|*}" != "SKIP" ]]; then
+            echo "customer_signal|$result"
+            return
+        fi
+    fi
+
+    # Try strategy for market/competitor/positioning predictions
+    if [[ "$pred_lower" =~ (market|competitor|positioning|stage|bottleneck|strategy|distribution|growth|retention|first[[:space:]]+loop|niche|moat) ]]; then
+        local result
+        result=$(grade_strategy_signal "$prediction")
+        if [[ "${result%%|*}" != "SKIP" ]]; then
+            echo "strategy_signal|$result"
+            return
+        fi
+    fi
+
+    # Try eval-cache for predictions mentioning feature names
+    local result
+    result=$(grade_eval_feature "$prediction" "$pred_date")
+    if [[ "${result%%|*}" != "SKIP" ]]; then
+        echo "eval_feature|$result"
+        return
+    fi
+
+    echo "SKIP|SKIP"
 }
 
 # Helper: check if a word is a valid feature name (not a function word)
@@ -830,9 +1121,15 @@ grade_prediction() {
         return
     fi
 
-    # "user_behavior" — can't grade mechanically; tag for manual review with helpful prompt
+    # "user_behavior" — check customer-intel.json first, fall back to manual
     if [[ "$direction" == "user_behavior" ]]; then
-        echo "NEEDS_MANUAL|User behavior claim: \"${feature} will ${to_val}\" — check customer-intel.json, support tickets, or analytics. Grade manually in /retro."
+        local ci_result
+        ci_result=$(grade_customer_signal "$prediction")
+        if [[ "${ci_result%%|*}" != "SKIP" ]]; then
+            echo "$ci_result"
+        else
+            echo "NEEDS_MANUAL|User behavior claim: \"${feature} will ${to_val}\" — check customer-intel.json, support tickets, or analytics. Grade manually in /retro."
+        fi
         return
     fi
 
@@ -928,11 +1225,39 @@ while IFS= read -r line; do
         grade_detail="${grade_result#*|}"
     fi
 
+    # If primary grading skipped, try signal-based grading from external data sources
+    if [[ "$grade_verdict" == "SKIP" ]]; then
+        signal_result=$(grade_via_signals "$prediction" "$date")
+        signal_pattern="${signal_result%%|*}"
+        signal_grade="${signal_result#*|}"
+
+        # Also try agent column for shifted rows
+        if [[ "$signal_pattern" == "SKIP" && -n "$agent" && ${#agent} -gt 20 ]]; then
+            signal_result=$(grade_via_signals "$agent" "$date")
+            signal_pattern="${signal_result%%|*}"
+            signal_grade="${signal_result#*|}"
+        fi
+
+        if [[ "$signal_pattern" != "SKIP" ]]; then
+            grade_verdict="${signal_grade%%|*}"
+            grade_detail="${signal_grade#*|}"
+            # Track which signal pattern was used
+            PATTERN_LOG="${PATTERN_LOG} ${signal_pattern}"
+        fi
+    fi
+
     if [[ "$grade_verdict" == "SKIP" ]]; then
         # Can't auto-grade — pass through unchanged
         echo "$line" >> "$TEMP_FILE"
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+        [[ "$SKIP_COUNT" -le 3 ]] && SKIP_PREDICTIONS="${SKIP_PREDICTIONS}${prediction:0:70}; "
         continue
     fi
+
+    # Track pattern for graded predictions (primary patterns)
+    _claim_dir=$(parse_claim "$prediction")
+    _claim_dir="${_claim_dir%%|*}"
+    [[ -n "$_claim_dir" ]] && PATTERN_LOG="${PATTERN_LOG} ${_claim_dir}"
 
     # NEEDS_MANUAL: write the helpful prompt as result but leave correct empty for manual grading
     if [[ "$grade_verdict" == "NEEDS_MANUAL" ]]; then
@@ -982,7 +1307,7 @@ while IFS= read -r line; do
     GRADED_COUNT=$((GRADED_COUNT + 1))
 
     if [[ "$QUIET" == false ]]; then
-        local prefix=""
+        prefix=""
         $DRY_RUN && prefix="[dry-run] "
         case "$correct_val" in
             yes)     echo "  ✓ ${prefix}\"$prediction\" → $grade_detail" ;;
@@ -1007,6 +1332,38 @@ if [[ "$GRADED_COUNT" -gt 0 ]]; then
 else
     rm -f "$TEMP_FILE"
     $QUIET || echo "No predictions could be auto-graded. Run /retro for manual grading."
+fi
+
+# --- Coverage report (non-quiet mode only) ---
+if [[ "$QUIET" == false ]]; then
+    TOTAL_PRED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$3 != "" { c++ } END { print c+0 }')
+    TOTAL_GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
+    # In dry-run mode, file isn't updated yet — add this run's grades
+    $DRY_RUN && TOTAL_GRADED=$((TOTAL_GRADED + GRADED_COUNT))
+    if [[ "$TOTAL_PRED" -gt 0 ]]; then
+        PCT=$((TOTAL_GRADED * 100 / TOTAL_PRED))
+
+        # Build pattern summary from PATTERN_LOG (bash 3 compatible)
+        PATTERN_SUMMARY=""
+        if [[ -n "$PATTERN_LOG" ]]; then
+            PATTERN_SUMMARY=$(echo "$PATTERN_LOG" | tr ' ' '\n' | sort | uniq -c | sort -rn | while read -r count pat; do
+                [[ -z "$pat" ]] && continue
+                printf "%s(%d), " "$pat" "$count"
+            done)
+            PATTERN_SUMMARY="${PATTERN_SUMMARY%, }"
+        fi
+
+        echo ""
+        echo "Coverage: ${TOTAL_GRADED}/${TOTAL_PRED} (${PCT}%)"
+        [[ -n "$PATTERN_SUMMARY" ]] && echo "  Patterns used: ${PATTERN_SUMMARY}"
+
+        # Show remaining ungraded predictions (first 3)
+        REMAINING=$((TOTAL_PRED - TOTAL_GRADED))
+        if [[ "$REMAINING" -gt 0 && -n "$SKIP_PREDICTIONS" ]]; then
+            SKIP_PREDICTIONS="${SKIP_PREDICTIONS%;*}"
+            echo "  Ungraded (${REMAINING}): ${SKIP_PREDICTIONS:0:200}"
+        fi
+    fi
 fi
 
 # --- Consolidate knowledge: append model_updates to experiment-learnings.md ---
