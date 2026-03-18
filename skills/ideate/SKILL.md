@@ -32,16 +32,7 @@ Parse `$ARGUMENTS`:
 | `wild` | High-conviction bets | 3 ideas that fundamentally change the product |
 | `kill` | Pure kill exercise | Run kill-audit.sh → argue for killing things |
 | `deep` | Full brainstorm | Run 3+ techniques from `techniques/` → converge → kill |
-| `divergent` | Divergent thinking | Read `techniques/divergent.md` → 20+ raw ideas |
-| `invert` | Inversion thinking | Read `techniques/inversion.md` → flip assumptions |
-| `constraint` | Constraint thinking | Read `techniques/constraint.md` → artificial limits |
-| `user` | User state thinking | Read `techniques/user-states.md` → emotional simulation |
-| `combine` | Combination engine | Read `techniques/combination.md` → smash things together |
-| `future` | Future-back thinking | Read `techniques/future-back.md` → endgame backward |
-| `steal` | Pattern theft | Read `techniques/pattern-theft.md` → steal from winners |
-| `cross` | Cross-domain | Read `techniques/cross-domain.md` → import from other fields |
-| `yc` | YC lens | Read `techniques/yc-lens.md` → evaluate ideas like a YC partner |
-| `market` | 2026 market context | Read `techniques/market-2026.md` → what's true NOW that changes what to build |
+| `[technique]` | Named technique | Run `scripts/list-techniques.sh` to see all available techniques, then read the matching file from `techniques/`. Any .md file in techniques/ is a valid technique name. |
 | `[any text]` | Constrained ideation | Ideas within a specific direction |
 
 ## The protocol
@@ -70,7 +61,7 @@ Sources ranked by signal strength:
 5. **Backlog clusters** — 3+ todos on same topic = pattern
 6. **Thesis gaps** — unproven roadmap evidence
 
-**Technique modes (divergent, invert, etc.):** Read the corresponding file from `techniques/` and follow its method. These push thinking out of the default evidence-weighted mode into creative territory.
+**Technique modes:** Run `scripts/list-techniques.sh` to discover available techniques. Read the corresponding file from `techniques/` and follow its method. These push thinking out of the default evidence-weighted mode into creative territory.
 
 **Deep mode:** Pick 3 techniques, run each, then converge. Suggested flow:
 1. `techniques/market-2026.md` — read market context first (grounds everything in reality)

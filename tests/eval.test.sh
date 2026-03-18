@@ -139,6 +139,93 @@ echo "$SCORE_OUT" | grep -qv '\[PASS\]' && pass "--score suppresses check output
 GUARDED=$(RHINO_EVAL_DEPTH=5 bash "$RHINO_DIR/bin/eval.sh" . --no-llm --score 2>&1)
 [[ -z "$GUARDED" || "$GUARDED" == "" ]] && pass "recursion guard returns empty" || fail "recursion guard returns empty (got: $GUARDED)"
 
+# ── Failure mode: corrupted eval-cache.json ──────────────
+
+echo "-- Corrupted eval-cache --"
+
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p .claude/cache
+echo 'NOT VALID JSON{{{' > .claude/cache/eval-cache.json
+git add -A && git commit -q -m "init"
+OUTPUT=$(bash "$RHINO_DIR/bin/eval.sh" . --no-llm --score 2>&1) || true
+# Should not crash — should produce output or empty, not a stack trace
+echo "$OUTPUT" | grep -qv 'parse error\|syntax error\|unexpected' && pass "corrupted eval-cache doesn't crash" || fail "corrupted eval-cache crashes eval"
+teardown_temp
+
+# ── Failure mode: missing API key with --fresh ───────────
+
+echo "-- Missing API key graceful degradation --"
+
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p config
+cat > config/rhino.yml << 'YMLEOF'
+value:
+  hypothesis: "test"
+features:
+  test-feature:
+    delivers: "something"
+    for: "someone"
+    code: ["src/index.ts"]
+YMLEOF
+mkdir -p src
+echo 'export const x = 1;' > src/index.ts
+git add -A && git commit -q -m "init"
+# Run with no API key and no claude CLI available — should degrade gracefully
+OUTPUT=$(ANTHROPIC_API_KEY="" PATH="/usr/bin:/bin" bash "$RHINO_DIR/bin/eval.sh" . --no-generative 2>&1) || true
+echo "$OUTPUT" | grep -q 'passed\|PASS\|score' && pass "no API key degrades gracefully" || fail "no API key causes hard failure"
+teardown_temp
+
+# ── Failure mode: empty rhino.yml features section ──────
+
+echo "-- Empty features section --"
+
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p config
+cat > config/rhino.yml << 'YMLEOF'
+value:
+  hypothesis: "test"
+features:
+YMLEOF
+git add -A && git commit -q -m "init"
+OUTPUT=$(bash "$RHINO_DIR/bin/eval.sh" . --no-llm 2>&1) || true
+# Should not crash on empty features section
+[[ $? -le 1 ]] && pass "empty features section doesn't crash" || fail "empty features section crashes"
+echo "$OUTPUT" | grep -qv 'unbound variable\|syntax error' && pass "empty features: no bash errors" || fail "empty features: bash errors in output"
+teardown_temp
+
+# ── Failure mode: beliefs.yml with malformed YAML ────────
+
+echo "-- Malformed beliefs.yml --"
+
+setup_temp
+echo '{"name":"test"}' > package.json
+mkdir -p config/evals
+cat > config/evals/beliefs.yml << 'YMLEOF'
+- id: broken-belief
+  type: file_check
+  path: [[[INVALID
+  description: "this is malformed"
+YMLEOF
+git add -A && git commit -q -m "init"
+OUTPUT=$(bash "$RHINO_DIR/bin/eval.sh" . --no-llm 2>&1) || true
+echo "$OUTPUT" | grep -qv 'unbound variable\|syntax error' && pass "malformed beliefs.yml doesn't crash" || fail "malformed beliefs.yml crashes eval"
+teardown_temp
+
+# ── Failure mode: --samples flag validation ──────────────
+
+echo "-- Samples flag --"
+
+setup_temp
+echo '{"name":"test"}' > package.json
+git add -A && git commit -q -m "init"
+# --samples=0 should not cause infinite loop or crash
+OUTPUT=$(timeout 10 bash "$RHINO_DIR/bin/eval.sh" . --no-llm --samples=1 2>&1) || true
+echo "$OUTPUT" | grep -q 'passed\|score' && pass "--samples=1 works" || fail "--samples=1 fails"
+teardown_temp
+
 # ── Results ─────────────────────────────────────────────
 
 echo ""

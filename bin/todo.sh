@@ -518,6 +518,7 @@ cmd_done() {
 
     acquire_lock || return 1
     item_set_field "$target_id" "status" "done"
+    item_set_field "$target_id" "done_at" "$(date '+%Y-%m-%d')"
     release_lock
     echo -e "  ${GREEN}✓${NC} ${target_id} → done"
 }
@@ -808,23 +809,238 @@ cmd_all() {
 }
 
 cmd_health() {
-    # Delegate to todo-stats.sh if available
-    local stats_script="$RHINO_DIR/skills/todo/scripts/todo-stats.sh"
-    if [[ -x "$stats_script" ]]; then
-        bash "$stats_script" "$PROJECT_DIR"
-    else
-        # Inline fallback
-        if ! todo_exists; then
-            echo "  no todos.yml"
-            return 0
-        fi
-        local total active backlog done_ct
-        total=$(grep -c '^ *- id:' "$BACKLOG_FILE" 2>/dev/null) || true
-        active=$(grep -c 'status: active' "$BACKLOG_FILE" 2>/dev/null) || true
-        backlog=$(grep -c 'status: backlog' "$BACKLOG_FILE" 2>/dev/null) || true
-        done_ct=$(grep -c 'status: done' "$BACKLOG_FILE" 2>/dev/null) || true
-        echo "  total: ${total:-0} · active: ${active:-0} · backlog: ${backlog:-0} · done: ${done_ct:-0}"
+    if ! todo_exists; then
+        echo -e "  ${DIM}No todos.yml — backlog is empty${NC}"
+        return 0
     fi
+
+    validate_yaml || return 1
+
+    echo ""
+    echo -e "  ${BOLD}Backlog health${NC}"
+    echo ""
+
+    # ── Status counts ───────────────────────────────────
+    local total active_ct backlog_ct done_ct stale_ct
+    total=$(grep -c '^ *- id:' "$BACKLOG_FILE" 2>/dev/null) || true
+    active_ct=0; backlog_ct=0; done_ct=0; stale_ct=0
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local st
+        st=$(item_field "$id" "status")
+        case "$st" in
+            active)  active_ct=$((active_ct + 1)) ;;
+            done)    done_ct=$((done_ct + 1)) ;;
+            stale)   stale_ct=$((stale_ct + 1)) ;;
+            *)       backlog_ct=$((backlog_ct + 1)) ;;
+        esac
+    done <<< "$(item_ids)"
+
+    local open_ct=$((active_ct + backlog_ct + stale_ct))
+    echo -e "  ${BOLD}total${NC}: ${total:-0}  ${GREEN}active${NC}: ${active_ct}  ${CYAN}backlog${NC}: ${backlog_ct}  ${GREEN}done${NC}: ${done_ct}  ${YELLOW}stale${NC}: ${stale_ct}"
+    if [[ "${total:-0}" -gt 0 ]]; then
+        echo -e "  completion: $((done_ct * 100 / total))%"
+    fi
+    echo ""
+
+    # ── Age distribution ────────────────────────────────
+    local fresh=0 week=0 fortnight=0 month=0 no_date=0
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local st
+        st=$(item_field "$id" "status")
+        [[ "$st" == "done" ]] && continue
+
+        local age
+        age=$(item_age_days "$id")
+        if [[ -z "$age" ]]; then
+            no_date=$((no_date + 1))
+        elif [[ "$age" -ge 30 ]]; then
+            month=$((month + 1))
+        elif [[ "$age" -ge 14 ]]; then
+            fortnight=$((fortnight + 1))
+        elif [[ "$age" -ge 7 ]]; then
+            week=$((week + 1))
+        else
+            fresh=$((fresh + 1))
+        fi
+    done <<< "$(item_ids)"
+
+    echo -e "  ${BOLD}age (open items)${NC}"
+    echo -e "    <7d: ${fresh}  7-14d: ${week}  14-30d: ${fortnight}  >30d: ${month}"
+    [[ "$no_date" -gt 0 ]] && echo -e "    ${DIM}no date: ${no_date}${NC}"
+    echo ""
+
+    # ── By feature ──────────────────────────────────────
+    echo -e "  ${BOLD}by feature${NC}"
+    local untagged=0
+    local feat_data=""  # newline-separated feature names (one per open item)
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local st feat
+        st=$(item_field "$id" "status")
+        [[ "$st" == "done" ]] && continue
+        feat=$(item_field "$id" "feature")
+        if [[ -z "$feat" || "$feat" == '""' ]]; then
+            untagged=$((untagged + 1))
+        else
+            feat_data="${feat_data}${feat}"$'\n'
+        fi
+    done <<< "$(item_ids)"
+
+    # Count and sort features (bash 3.2 compatible — no associative arrays)
+    if [[ -n "$feat_data" ]]; then
+        echo "$feat_data" | grep -v '^$' | sort | uniq -c | sort -rn | while read -r cnt feat; do
+            if [[ "$cnt" -ge 3 ]]; then
+                echo -e "    ${BOLD}${feat}${NC}: ${cnt}  ${YELLOW}(cluster)${NC}"
+            else
+                echo -e "    ${feat}: ${cnt}"
+            fi
+        done
+    fi
+    [[ "$untagged" -gt 0 ]] && echo -e "    ${DIM}untagged: ${untagged}${NC}"
+    echo ""
+
+    # ── Velocity ────────────────────────────────────────
+    echo -e "  ${BOLD}velocity${NC}"
+    local done_with_date=0
+    local earliest_done="" latest_done=""
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local st
+        st=$(item_field "$id" "status")
+        [[ "$st" != "done" ]] && continue
+
+        local done_date
+        done_date=$(item_field "$id" "done_at")
+        [[ -z "$done_date" || "$done_date" == "null" ]] && continue
+
+        local done_ts
+        done_ts=$(date -j -f "%Y-%m-%d" "$done_date" +%s 2>/dev/null || date -d "$done_date" +%s 2>/dev/null || echo "0")
+        [[ "$done_ts" == "0" ]] && continue
+
+        done_with_date=$((done_with_date + 1))
+
+        if [[ -z "$earliest_done" ]] || [[ "$done_ts" -lt "$earliest_done" ]]; then
+            earliest_done="$done_ts"
+        fi
+        if [[ -z "$latest_done" ]] || [[ "$done_ts" -gt "$latest_done" ]]; then
+            latest_done="$done_ts"
+        fi
+    done <<< "$(item_ids)"
+
+    if [[ "$done_with_date" -ge 2 && -n "$earliest_done" && -n "$latest_done" ]]; then
+        local span_days=$(( (latest_done - earliest_done) / 86400 ))
+        if [[ "$span_days" -gt 0 ]]; then
+            local span_weeks=$(( (span_days + 6) / 7 ))  # round up
+            [[ "$span_weeks" -lt 1 ]] && span_weeks=1
+            local per_week=$(( done_with_date / span_weeks ))
+            local remainder=$(( (done_with_date * 10 / span_weeks) % 10 ))
+            echo -e "    ${done_with_date} items done over ${span_days}d → ${per_week}.${remainder}/week"
+        else
+            echo -e "    ${done_with_date} items done (same day)"
+        fi
+    elif [[ "$done_with_date" -eq 1 ]]; then
+        echo -e "    ${done_with_date} item done ${DIM}(need 2+ for velocity)${NC}"
+    elif [[ "$done_ct" -gt 0 && "$done_with_date" -eq 0 ]]; then
+        echo -e "    ${DIM}${done_ct} done items lack done_at dates — mark new completions with 'rhino todo done' to track velocity${NC}"
+    else
+        echo -e "    ${DIM}no completed items yet${NC}"
+    fi
+    echo ""
+}
+
+cmd_import() {
+    # Read JSON lines from stdin and bulk-add as todo items.
+    # Each line: {"title":"...", "priority":"...", "feature":"...", "source":"...", "context":"..."}
+    # Only "title" is required. Defaults: priority=medium, source=import, others empty.
+
+    if [[ -t 0 ]]; then
+        echo "Usage: <generator> | rhino todo import"
+        echo ""
+        echo "  Reads JSON lines from stdin. Each line is an object with:"
+        echo "    title    (required)  — what needs to happen"
+        echo "    priority (optional)  — urgent|high|medium|low (default: medium)"
+        echo "    feature  (optional)  — feature tag"
+        echo "    source   (optional)  — origin skill (default: import)"
+        echo "    context  (optional)  — additional context"
+        echo ""
+        echo "  Example:"
+        echo '    echo '"'"'{"title":"fix contrast","feature":"ux","priority":"high"}'"'"' | rhino todo import'
+        return 1
+    fi
+
+    acquire_lock || return 1
+
+    if ! todo_exists; then
+        mkdir -p "$(dirname "$BACKLOG_FILE")"
+        cat > "$BACKLOG_FILE" << EOF
+# todos.yml — Persistent backlog
+
+items:
+EOF
+    fi
+
+    local today count=0 skipped=0
+    today=$(date '+%Y-%m-%d')
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+
+        # Parse JSON fields — uses bash string manipulation to avoid jq dependency
+        # But prefer jq if available for robustness
+        local title="" priority="medium" feature="" source="import" context=""
+
+        if command -v jq &>/dev/null; then
+            title=$(echo "$line" | jq -r '.title // empty' 2>/dev/null)
+            priority=$(echo "$line" | jq -r '.priority // "medium"' 2>/dev/null)
+            feature=$(echo "$line" | jq -r '.feature // ""' 2>/dev/null)
+            source=$(echo "$line" | jq -r '.source // "import"' 2>/dev/null)
+            context=$(echo "$line" | jq -r '.context // ""' 2>/dev/null)
+        else
+            # Minimal fallback: extract title with sed
+            title=$(echo "$line" | sed -n 's/.*"title" *: *"\([^"]*\)".*/\1/p')
+            priority=$(echo "$line" | sed -n 's/.*"priority" *: *"\([^"]*\)".*/\1/p')
+            feature=$(echo "$line" | sed -n 's/.*"feature" *: *"\([^"]*\)".*/\1/p')
+            source=$(echo "$line" | sed -n 's/.*"source" *: *"\([^"]*\)".*/\1/p')
+            context=$(echo "$line" | sed -n 's/.*"context" *: *"\([^"]*\)".*/\1/p')
+            [[ -z "$priority" ]] && priority="medium"
+            [[ -z "$source" ]] && source="import"
+        fi
+
+        if [[ -z "$title" ]]; then
+            skipped=$((skipped + 1))
+            continue
+        fi
+
+        # Generate ID from title
+        local id
+        id=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 30)
+
+        # Skip duplicates
+        if grep -q "id: ${id}$" "$BACKLOG_FILE" 2>/dev/null; then
+            skipped=$((skipped + 1))
+            continue
+        fi
+
+        cat >> "$BACKLOG_FILE" << EOF
+
+  - id: ${id}
+    title: "${title}"
+    priority: ${priority}
+    feature: "${feature}"
+    status: backlog
+    context: "${context}"
+    source: "${source}"
+    created: ${today}
+EOF
+        count=$((count + 1))
+    done
+
+    release_lock
+
+    echo -e "  ${GREEN}+${NC} imported ${count} item(s)"
+    [[ "$skipped" -gt 0 ]] && echo -e "  ${DIM}skipped ${skipped} (no title or duplicate)${NC}"
 }
 
 # ── Main ────────────────────────────────────────────────
@@ -841,8 +1057,9 @@ case "${1:-show}" in
     all)          cmd_all ;;
     decay)        cmd_decay ;;
     health)       cmd_health ;;
+    import)       cmd_import ;;
     *)
-        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all|decay|health]"
+        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all|decay|health|import]"
         echo ""
         echo "  show              Show todos (default)"
         echo "  add \"title\" [pri] Add a todo"
@@ -856,6 +1073,7 @@ case "${1:-show}" in
         echo "  all               All sections"
         echo "  decay             Check stale items, auto-tag 30d+ as stale"
         echo "  health            Backlog health stats"
+        echo "  import            Bulk-add from stdin (JSON lines)"
         exit 1
         ;;
 esac

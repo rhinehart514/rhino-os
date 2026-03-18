@@ -67,6 +67,10 @@
 - **Auto-graded** (2026-03-17): Confirmed: Eval score 93 (target was 55)
 - **Auto-graded** (2026-03-17): Confirmed: Reached 93 (target was 10)
 
+
+- **Auto-graded** (2026-03-16): Partially confirmed: Took 3 sessions (predicted 2)
+- **Auto-graded** (2026-03-17): Confirmed: Completed in 1 days (predicted 45)
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?
