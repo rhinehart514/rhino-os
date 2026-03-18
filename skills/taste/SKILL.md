@@ -96,10 +96,29 @@ Use template from `templates/taste-report.md` for the active mode.
 
 Read `references/calibration-guide.md` for the full calibration protocol. Sub-modes: `profile`, `design-system`, `verify`, `drift`, or no arg for full calibration.
 
+## Task generation (aggressive)
+
+**Every visual issue found = a task created.** Don't summarize — create specific, actionable tasks.
+
+For EVERY dimension scored, generate tasks from:
+- **Each dimension scoring below 60** → task: "[dimension] at [score] on [page] — [specific issue seen in screenshot]"
+- **Each specific visual issue identified** → task: "fix [issue] on [page] — [what's wrong, what it should look like]"
+- **Each accessibility gap** → task: "accessibility: [issue] — [element] on [page]"
+- **Each mobile/responsive issue** → task: "responsive: [issue] at [viewport] on [page]"
+- **Each consistency violation** → task: "inconsistency: [element A] vs [element B] — [which page]"
+- **Each empty state or dead end found** → task: "UX gap: [page/state] has no [guidance/CTA/next step]"
+- **Each loading/error state missing** → task: "missing state: [action] has no [loading/error/success] feedback"
+- **Each typography/spacing/color issue** → task: "visual: [specific issue] on [page]"
+- **Dimension regression vs previous taste** → task: "regression: [dimension] dropped [old]→[new] — investigate"
+- **Competitor comparison gaps** → task: "competitor gap: [competitor] has [feature/quality] we lack"
+
+Tag every task with `source: /taste` and the URL. Use TaskCreate for each.
+
+**Target: 8-20 tasks per taste session.** Visual evaluation should produce the MOST tasks of any skill — every pixel that's wrong is a task. If you only found 2-3 issues, you evaluated at surface level.
+
 ## Boundaries
 
 **Write to:** `.claude/evals/taste-*`, `.claude/evals/reports/taste-*`, `.claude/cache/calibration-history.json`
-**Never write to:** `.claude/plans/todos.yml`, `~/.claude/knowledge/predictions.tsv`, anything outside `.claude/evals/`
 
 ## Errors
 

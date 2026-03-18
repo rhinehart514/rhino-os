@@ -91,9 +91,27 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 `config/rhino.yml`, `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists).
 
+## Task generation (aggressive)
+
+**Every gap found = a task created.** Don't summarize gaps — create actionable tasks for each one.
+
+For EVERY feature scored, generate tasks from:
+- **Each gap in the evaluator's report** → task: "fix [specific gap] in [feature] — [file:line]"
+- **Each rubric criterion not met** → task: "[criterion] not satisfied — [what's missing]"
+- **Each sub-score below 50** → task: "raise [dimension] on [feature] — currently [score], needs [specific fix]"
+- **Each failing assertion** → task: "fix failing assertion [id] — [what's broken]"
+- **Each missing assertion type** → task: "add [type] assertion for [feature] — [what to test]"
+- **Score regression vs previous eval** → task: "investigate regression in [feature] — [old]→[new]"
+- **Missing rubric** → task: "create rubric for [feature] — no anchoring exists"
+- **Delivery-craft gap >15** → task: "close delivery/craft gap on [feature] — d:[X] c:[Y]"
+
+Tag every task with `source: /eval` and the feature name. Use TaskCreate for each.
+
+**Target: 5-15 tasks per eval session.** If you only found 2-3, you didn't look hard enough. Every number in the eval report that isn't where it should be is a task.
+
 ## Cross-skill synthesis
 
-After scoring: Does eval bottleneck match strategy bottleneck? Are plan tasks targeting weak features? Do results advance/block roadmap evidence? Surface todos for worst feature. Maturity: 0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven.
+After scoring: Does eval bottleneck match strategy bottleneck? Are plan tasks targeting weak features? Do results advance/block roadmap evidence? Maturity: 0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven.
 
 If project has web-facing features, suggest `/taste <url>` for visual quality.
 
