@@ -20,9 +20,11 @@ if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] || [[ -f "$RHINO_DIR/.claude-plugin/plugin
     PLUGIN_MODE=true
 fi
 
+SELF_TEST=false
 for arg in "$@"; do
     case "$arg" in
         --check|--dry-run) DRY_RUN=true ;;
+        --test) SELF_TEST=true ;;
     esac
 done
 
@@ -342,10 +344,16 @@ else
         verify_fail=$((verify_fail + 1))
     fi
 
-    # Check score.sh is callable
+    # Check score.sh is callable and produces output
     if [[ -x "$RHINO_DIR/bin/score.sh" ]]; then
-        action "score.sh: executable"
-        verify_pass=$((verify_pass + 1))
+        score_output=$(cd "$RHINO_DIR" && PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" bash "$RHINO_DIR/bin/score.sh" . 2>/dev/null || echo "")
+        if [[ -n "$score_output" ]]; then
+            action "score.sh: executable and produces output"
+            verify_pass=$((verify_pass + 1))
+        else
+            action "score.sh: executable (no output on self — expected for non-web project)"
+            verify_pass=$((verify_pass + 1))
+        fi
     else
         warn "score.sh not executable"
         verify_fail=$((verify_fail + 1))
@@ -404,5 +412,80 @@ else
     fi
 
     echo ""
+
+    # --- Self-test mode ---
+    if $SELF_TEST; then
+        echo -e "  ${BOLD}Self-test${NC}"
+        echo ""
+        test_pass=0
+        test_fail=0
+
+        # 1. Check symlinks resolve (manual mode)
+        if ! $PLUGIN_MODE; then
+            for mind_file in identity.md thinking.md standards.md; do
+                link="$CLAUDE_DIR/rules/$mind_file"
+                if [[ -L "$link" ]] && [[ -f "$(readlink "$link")" ]]; then
+                    action "symlink resolves: $mind_file"
+                    test_pass=$((test_pass + 1))
+                elif [[ -L "$link" ]]; then
+                    warn "broken symlink: $link → $(readlink "$link")"
+                    test_fail=$((test_fail + 1))
+                else
+                    warn "missing symlink: $link"
+                    test_fail=$((test_fail + 1))
+                fi
+            done
+        fi
+
+        # 2. rhino --version produces version string
+        ver_output=$(PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" "$RHINO_DIR/bin/rhino" version 2>/dev/null || echo "")
+        if [[ "$ver_output" =~ [0-9]+\.[0-9]+ ]]; then
+            action "rhino version: $ver_output"
+            test_pass=$((test_pass + 1))
+        else
+            warn "rhino version failed or invalid: '$ver_output'"
+            test_fail=$((test_fail + 1))
+        fi
+
+        # 3. rhino help produces output
+        help_output=$(PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" "$RHINO_DIR/bin/rhino" help 2>/dev/null || echo "")
+        if [[ -n "$help_output" ]]; then
+            action "rhino help: produces output"
+            test_pass=$((test_pass + 1))
+        else
+            warn "rhino help produced no output"
+            test_fail=$((test_fail + 1))
+        fi
+
+        # 4. rhino score runs without error
+        score_test=$(cd "$RHINO_DIR" && PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" bash "$RHINO_DIR/bin/score.sh" . 2>&1; echo "EXIT:$?")
+        score_exit="${score_test##*EXIT:}"
+        if [[ "$score_exit" == "0" || "$score_exit" == "1" ]]; then
+            action "rhino score: exits cleanly ($score_exit)"
+            test_pass=$((test_pass + 1))
+        else
+            warn "rhino score exited with code $score_exit"
+            test_fail=$((test_fail + 1))
+        fi
+
+        # 5. rhino todo runs without error
+        todo_test=$(PATH="${LOCAL_BIN:-$HOME/bin}:$PATH" bash "$RHINO_DIR/bin/todo.sh" health 2>&1; echo "EXIT:$?")
+        todo_exit="${todo_test##*EXIT:}"
+        if [[ "$todo_exit" == "0" ]]; then
+            action "rhino todo health: works"
+            test_pass=$((test_pass + 1))
+        else
+            warn "rhino todo health failed (exit $todo_exit)"
+            test_fail=$((test_fail + 1))
+        fi
+
+        echo ""
+        if [[ $test_fail -eq 0 ]]; then
+            echo -e "    ${GREEN}✓${NC} ${BOLD}All $test_pass self-tests passed${NC}"
+        else
+            warn "$test_fail self-test(s) failed, $test_pass passed"
+        fi
+        echo ""
+    fi
 fi
 echo ""

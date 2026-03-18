@@ -194,6 +194,7 @@ cmd_decay() {
     echo ""
 
     local stale_count=0
+    local tagged_stale=0
     while IFS= read -r id; do
         [[ -z "$id" ]] && continue
         local status
@@ -204,21 +205,35 @@ cmd_decay() {
         age=$(item_age_days "$id")
         [[ -z "$age" ]] && continue
 
-        local title feature
+        local title feature current_status
         title=$(item_field "$id" "title")
         feature=$(item_field "$id" "feature")
+        current_status=$(item_field "$id" "status")
 
         if [[ "$age" -ge 30 ]]; then
             echo -e "  ${RED}●${NC} ${title}  ${DIM}[${id}]${NC}  ${RED}${age}d${NC}"
-            echo -e "    ${DIM}→ 30+ days. Kill, promote, or convert to /research?${NC}"
+            echo -e "    ${DIM}→ 30+ days. Kill or promote?${NC}"
+            echo -e "    ${DIM}  rhino todo done ${id}       # kill it${NC}"
+            echo -e "    ${DIM}  rhino todo promote ${id}    # activate it${NC}"
             stale_count=$((stale_count + 1))
+            # Auto-tag as stale if not already
+            if [[ "$current_status" != "stale" ]]; then
+                acquire_lock || continue
+                item_set_field "$id" "status" "stale"
+                release_lock
+                tagged_stale=$((tagged_stale + 1))
+            fi
         elif [[ "$age" -ge 14 ]]; then
             echo -e "  ${YELLOW}●${NC} ${title}  ${DIM}[${id}]${NC}  ${YELLOW}${age}d${NC}"
             echo -e "    ${DIM}→ Stale. Promote / kill / needs research?${NC}"
+            echo -e "    ${DIM}  rhino todo promote ${id}    # activate it${NC}"
+            echo -e "    ${DIM}  rhino todo done ${id}       # kill it${NC}"
             stale_count=$((stale_count + 1))
         elif [[ "$age" -ge 7 && -z "$feature" ]]; then
             echo -e "  ${CYAN}●${NC} ${title}  ${DIM}[${id}]${NC}  ${CYAN}${age}d${NC}"
             echo -e "    ${DIM}→ 7+ days untagged. Tag or kill.${NC}"
+            echo -e "    ${DIM}  rhino todo tag ${id} <feature>${NC}"
+            echo -e "    ${DIM}  rhino todo done ${id}${NC}"
             stale_count=$((stale_count + 1))
         fi
     done <<< "$(item_ids)"
@@ -227,6 +242,9 @@ cmd_decay() {
         echo -e "  ${GREEN}✓${NC} no stale items — backlog is healthy"
     else
         echo ""
+        if [[ "$tagged_stale" -gt 0 ]]; then
+            echo -e "  ${DIM}${tagged_stale} item(s) auto-tagged as stale (30+ days)${NC}"
+        fi
         echo -e "  ${DIM}${stale_count} item(s) need attention${NC}"
     fi
     echo ""
@@ -252,6 +270,29 @@ decay_summary() {
         echo -e "  ${YELLOW}⚠${NC} ${stale_count} stale item(s) — run ${DIM}rhino todo decay${NC} for details"
         echo ""
     fi
+}
+
+# ── File locking ─────────────────────────────────────────
+
+LOCK_DIR="/tmp/rhino-todo.lock"
+
+acquire_lock() {
+    local retries=0
+    while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+        retries=$((retries + 1))
+        if [[ "$retries" -ge 10 ]]; then
+            echo -e "  ${RED}error${NC}: could not acquire todo lock after ${retries} attempts" >&2
+            echo -e "  ${DIM}stale lock? run: rmdir ${LOCK_DIR}${NC}" >&2
+            return 1
+        fi
+        sleep 0.1
+    done
+    # Ensure cleanup on exit
+    trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+}
+
+release_lock() {
+    rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 
 # ── Display helpers ───────────────────────────────────────
@@ -426,6 +467,8 @@ cmd_add() {
         return 1
     fi
 
+    acquire_lock || return 1
+
     # Generate ID from title
     local id
     id=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 30)
@@ -454,6 +497,7 @@ EOF
     created: ${today}
 EOF
 
+    release_lock
     echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority}${NC}"
 }
 
@@ -472,7 +516,9 @@ cmd_done() {
         return 1
     fi
 
+    acquire_lock || return 1
     item_set_field "$target_id" "status" "done"
+    release_lock
     echo -e "  ${GREEN}✓${NC} ${target_id} → done"
 }
 
@@ -500,7 +546,9 @@ cmd_edit() {
         return 1
     fi
 
+    acquire_lock || return 1
     item_set_field "$target_id" "$field" "$value"
+    release_lock
     echo -e "  ${GREEN}✓${NC} ${target_id}.${field} → ${value}"
 }
 
@@ -521,17 +569,88 @@ cmd_tag() {
         return 1
     fi
 
+    acquire_lock || return 1
     item_set_field "$target_id" "feature" "$feature"
+    release_lock
     echo -e "  ${GREEN}✓${NC} ${target_id} tagged → ${feature}"
 }
 
 cmd_promote() {
-    local target_id="$1"
+    local target_id="${1:-}"
 
+    # Smart promote: no arg = read eval-cache bottleneck, suggest candidates
     if [[ -z "$target_id" ]]; then
-        echo "Usage: rhino todo promote <id>"
-        return 1
+        if ! todo_exists; then
+            echo -e "  ${DIM}No todos.yml${NC}"
+            return 0
+        fi
+
+        # Find bottleneck feature from eval-cache.json
+        local cache_file="$PROJECT_DIR/.claude/cache/eval-cache.json"
+        [[ ! -f "$cache_file" ]] && cache_file="$RHINO_DIR/.claude/cache/eval-cache.json"
+
+        local bottleneck_feature=""
+        local bottleneck_score=999
+        if [[ -f "$cache_file" ]] && command -v jq &>/dev/null; then
+            # Find lowest-scoring feature (the bottleneck)
+            while IFS='|' read -r feat score; do
+                [[ -z "$feat" || -z "$score" ]] && continue
+                if [[ "$score" -lt "$bottleneck_score" ]]; then
+                    bottleneck_score="$score"
+                    bottleneck_feature="$feat"
+                fi
+            done < <(jq -r 'to_entries[] | "\(.key)|\(.value.score // 0)"' "$cache_file" 2>/dev/null)
+        fi
+
+        echo ""
+        echo -e "  ${BOLD}Smart promote${NC}"
+        echo ""
+
+        if [[ -n "$bottleneck_feature" ]]; then
+            echo -e "  bottleneck: ${BOLD}${bottleneck_feature}${NC} at ${bottleneck_score}"
+            echo ""
+
+            # Find todos tagged to bottleneck feature
+            local candidates=0
+            while IFS= read -r id; do
+                [[ -z "$id" ]] && continue
+                local status feat
+                status=$(item_field "$id" "status")
+                feat=$(item_field "$id" "feature")
+                [[ "$status" == "done" || "$status" == "active" ]] && continue
+                if [[ "$feat" == "$bottleneck_feature" ]]; then
+                    print_item "$id"
+                    candidates=$((candidates + 1))
+                fi
+            done <<< "$(item_ids)"
+
+            if [[ "$candidates" -eq 0 ]]; then
+                echo -e "  ${DIM}no backlog items tagged '${bottleneck_feature}'${NC}"
+                echo -e "  ${DIM}→ tag items with: rhino todo tag <id> ${bottleneck_feature}${NC}"
+            else
+                echo ""
+                echo -e "  ${DIM}promote with: rhino todo promote <id>${NC}"
+            fi
+        else
+            echo -e "  ${DIM}no eval-cache found — run /eval to detect bottleneck${NC}"
+            echo -e "  ${DIM}showing all backlog items instead:${NC}"
+            echo ""
+            local backlog_items
+            backlog_items=$(collect_items "backlog" "")
+            if [[ -n "$backlog_items" ]]; then
+                while IFS='|' read -r _ id; do
+                    [[ -z "$id" ]] && continue
+                    print_item "$id"
+                done <<< "$backlog_items"
+            else
+                echo -e "  ${DIM}backlog empty${NC}"
+            fi
+        fi
+        echo ""
+        return 0
     fi
+
+    # Promote a specific item by ID
     if ! todo_exists; then
         echo "No todos.yml found"
         return 1
@@ -541,8 +660,12 @@ cmd_promote() {
         return 1
     fi
 
+    acquire_lock || return 1
+
     # Set status to active
     item_set_field "$target_id" "status" "active"
+
+    release_lock
 
     # Append to plan.yml if it exists
     local title
@@ -726,11 +849,12 @@ case "${1:-show}" in
         echo "  done <id>         Mark done"
         echo "  edit <id> <f> <v> Update a field"
         echo "  tag <id> <feat>   Tag with feature"
+        echo "  promote           Smart promote — suggest from bottleneck feature"
         echo "  promote <id>      Set active, add to plan"
         echo "  active            Show active only"
         echo "  feature [name]    Filter by feature"
         echo "  all               All sections"
-        echo "  decay             Check for stale items"
+        echo "  decay             Check stale items, auto-tag 30d+ as stale"
         echo "  health            Backlog health stats"
         exit 1
         ;;

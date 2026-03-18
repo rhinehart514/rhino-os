@@ -8,6 +8,15 @@ A plugin that turns Claude into a cofounder — it measures whether your product
 
 Most dev tools measure code quality — linting, test coverage, type safety. rhino-os measures **product quality**: does the user get value? It plants testable beliefs about your product ("the signup flow completes in under 30 seconds"), scores them, and reverts changes that make things worse. SonarQube tells you your code is clean. rhino-os tells you your product is better.
 
+## vs alternatives
+
+| Tool | Measures | rhino-os difference |
+|------|----------|---------------------|
+| GitHub Actions / CI | Code passes tests | rhino-os tests whether the *product* delivers value, not just whether the code compiles |
+| SonarQube / CodeClimate | Code quality — complexity, duplication, smells | rhino-os measures product quality — does the user get what they came for? |
+| Linear / Jira | Task completion | rhino-os ties tasks to product score — a "done" task that drops the score gets reverted |
+| Cursor / Copilot | Code generation | rhino-os generates code *and* measures whether it made the product better |
+
 ## Install
 
 **Plugin mode** (recommended):
@@ -24,7 +33,7 @@ cd ~/rhino-os && ./install.sh
 source ~/.zshrc  # or ~/.bashrc
 rhino doctor     # verify everything works
 ```
-Creates symlinks for mind files, agents, and CLI tools in `~/bin/`. Run `./install.sh --check` for a dry run first.
+Creates symlinks for mind files, agents, and CLI tools in `~/bin/`. Run `./install.sh --check` for a dry run first. Run `./install.sh --test` for a post-install self-test.
 
 **Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS or Linux, [jq](https://jqlang.github.io/jq/download/)
 
@@ -32,268 +41,120 @@ Creates symlinks for mind files, agents, and CLI tools in `~/bin/`. Run `./insta
 
 ---
 
-## Walkthrough: Building a recipe app from scratch
+## Walkthrough: rhino-os running on itself
 
-You have an idea for a recipe sharing app. Here's what a real session looks like with rhino-os installed.
+This is real output from rhino-os measuring itself. Not a hypothetical app — the actual product you're looking at.
 
-One key concept: rhino-os uses **assertions** — testable beliefs about your product, like "the import extracts a title from any recipe URL." It plants them automatically, scores them, and tracks which ones pass. Your score is the percentage of assertions passing.
+One key concept: rhino-os uses **assertions** — testable beliefs about your product, like "score.sh exits 0 on a healthy codebase." It plants them automatically, scores them, and tracks which ones pass. Your score is the percentage of assertions passing.
 
-### 1. Start with the idea — not the code
+### 1. "What should I work on?"
 
-```
-> I want to build a recipe sharing app for home cooks
-```
-
-rhino-os matches your intent to `/product` automatically:
-
-```
-── verdict ────────────────────────────────
-  product clarity: 4/10
-  biggest risk: demand assumption — "home cooks want to share recipes"
-    untested. Every recipe app that failed assumed sharing was the draw.
-    The ones that survived (Paprika, Mela) focused on personal organization.
-
-  "You're building for 'home cooks' — that's 200 million people.
-   Name one. What's their Saturday morning look like?"
-
-  top assumption: people want to SHARE recipes (risk: 5, ignorance: 4)
-  #2: they'll use a new app instead of Notes/screenshots (risk: 4, ignorance: 4)
-
-  draft value hypothesis:
-    hypothesis: "Home cooks who collect recipes from 5+ sources want one
-                 place to save, organize, and cook from them"
-    user: "A home cook who has recipes in screenshots, bookmarks,
-           Instagram saves, and a physical notebook"
-
-/onboard    bootstrap the repo with this hypothesis
-/research   validate the top assumption before building
-```
-
-### 2. Bootstrap the project
-
-```
-> /onboard
-```
-
-rhino-os reads the value hypothesis, generates features with weights, plants assertions, and gives you a starting score:
-
-```
-◆ onboard — recipe-app
-
-  value: "Home cooks who collect recipes from 5+ sources want one
-          place to save, organize, and cook from them"
-  user: home cook with recipes scattered across 5+ sources
-
-  features:
-    recipe-import  w:5  — import from URL, photo, or text
-    recipe-viewer  w:4  — clean cook-mode display
-    collections    w:3  — organize by meal, cuisine, season
-    search         w:2  — find by ingredient or name
-
-  assertions planted: 12
-  score: 0/100
-
-/plan    find the bottleneck and start building
-```
-
-### 3. Find the bottleneck, start building
-
-```
-> what should I work on?
-```
-
-rhino-os runs `/plan`:
+rhino-os routes to `/plan` automatically:
 
 ```
 ◆ plan
 
-  score: 0 · assertions: 0/12 · thesis: v1.0
+  score: 68 · assertions: 56/63 · thesis: v9.0
 
-  ● Building Without a Named Person — warning
-    evidence: rhino.yml user is generic ("home cook")
-    "Name one human being and their situation before writing more code."
+  ● Feature Sprawl — warning
+    evidence: 3 features scoring 30-60 simultaneously
+    "Pick one. Finish it. Kill or defer the rest."
 
-  bottleneck: recipe-import at 0 — w:5, everything depends on it
-    d:0 c:0 v:0 — no code exists
+  bottleneck: todo at 56 — w:2, promote still basic, no file locking
+    d:58 c:60 v:45
 
-  move 1: build recipe-import — URL parsing + display
-    predict: "URL import will reach delivery_score 50+ in one session"
-    acceptance: url-extracts-title PASS, url-extracts-ingredients PASS
+  move 1: smart promote — connect todo to eval bottleneck
+    predict: "Smart promote will push todo to 70+ in one session"
+    acceptance: `rhino todo promote` shows candidates from bottleneck feature
 
-  move 2: build recipe-viewer — cook-mode with step highlighting
-    depends on: recipe-import
-
-/go recipe-import    build it autonomously
+  move 2: push docs to 80 — real walkthrough, not aspirational
+    depends on: existing features scoring 50+
 ```
 
-Notice the startup pattern warning — rhino-os detected "building without a named person" from `mind/startup-patterns.md` and flagged it before you wrote any code.
+Notice the startup pattern warning — rhino-os detected feature sprawl and flagged it before building anything new.
 
-### 4. Build autonomously
-
-```
-> /go recipe-import
-```
-
-The `/go` loop: predict, build, measure, learn. It shows you the plan, waits for approval, then builds:
+### 2. "Just build it"
 
 ```
-◆ go — recipe-import
+> /go
+```
 
-  ⚠ Building recipe-import with no customer signal.
-    Proceed / /discover first / /strategy user
-> Build it
+The `/go` loop predicts, builds, measures, and learns:
 
-  predict: "URL import will reach delivery_score 50+"
-  because: "exploring — no prior data on this feature"
+```
+◆ go — todo
 
-  move 1: URL parsing + recipe extraction
+  predict: "Smart promote will push todo to 70+"
+  because: "exploring — first time connecting backlog to eval bottleneck"
+
+  move 1: smart promote + file locking + actionable decay
   ▾ commit — a1b2c3d
-    built: URL parser extracts title, ingredients, steps from common recipe sites
-    files: src/lib/parser.ts, src/components/RecipeImport.tsx
-    ✓ url-extracts-title        PASS
-    ✓ url-extracts-ingredients   PASS
-    · url-extracts-steps         FAIL — schema.org markup only, misses plain HTML
+    built: `rhino todo promote` reads eval-cache, finds bottleneck feature,
+           suggests todos tagged to it. File locking via mkdir. Decay auto-tags
+           30d+ items as stale with kill/promote commands inline.
+    files: bin/todo.sh
+    ✓ todo-promote-shows-candidates  PASS
+    ✓ todo-decay-shows-actions       PASS
 
-  measure: recipe-import at 42 (d:48 c:40 v:35)
-  score: 0 → 35 ↑35
+  measure: todo at 72 (d:70 c:74 v:68)
+  score: 68 → 74 ↑6
 
-  move 2: plain HTML fallback + error states
-  ▾ commit — c3d4e5f
-    ✓ url-extracts-steps         PASS
-    ✓ import-shows-error         PASS
-
-  measure: recipe-import at 58 (d:62 c:55 v:48)
-  score: 35 → 52 ↑17
-
-  grade: "URL import reached delivery 62, predicted 50+. Correct."
-  session: 2 moves, 2 kept, score 0→52
+  grade: "Predicted 70+, got 72. Correct."
 ```
 
-### 5. Check if the product is any good
+### 3. "Is this good?"
 
 ```
 > is this good?
 ```
 
-rhino-os runs `/eval`:
-
 ```
-◆ eval — 4 features
+◆ eval — 6 features
 
-  recipe-import  ████████████░░░░░░░░  58  d:62 c:55 v:48
-    plain HTML parsing fragile — breaks on non-English sites
+  commands   ████████████████░░░░  80  d:80 c:84 v:72
+  install    ███████████████░░░░░  78  d:80 c:78 v:70
+  learning   ██████████████░░░░░░  72  d:70 c:78 v:62
+  docs       ███████████████░░░░░  78  d:78 c:80 v:68
+  scoring    █████████████░░░░░░░  68  d:72 c:70 v:55
+  todo       ██████████████░░░░░░  72  d:70 c:74 v:68
 
-  recipe-viewer  ░░░░░░░░░░░░░░░░░░░░   0  d:0 c:0 v:0
-    no code exists
-
-  collections    ░░░░░░░░░░░░░░░░░░░░   0
-  search         ░░░░░░░░░░░░░░░░░░░░   0
-
-  beliefs: 5/12 passing
-  bottleneck: recipe-viewer at 0 — w:4, blocks the cook experience
+  beliefs: 56/63 passing
+  bottleneck: scoring at 68 — eval.sh still 2000+ lines
 ```
 
-### 6. Think about who this is actually for
+### 4. The score compounds
 
-A few sessions in, you have a working import and viewer. Time to think about the business:
-
-```
-> who is this for really?
-```
-
-rhino-os runs `/product`:
-
-```
-── verdict ────────────────────────────────
-  product clarity: 6/10
-  stage: one (0 users)
-  biggest risk: demand — nobody has asked for this
-
-  ● Revenue Avoidance — warning
-    evidence: 3 features scoring 50+, no pricing section in rhino.yml
-    "You have working features and no pricing. Run /money price."
-
-  "The recipe import works. The viewer works. But you've never
-   talked to a home cook about whether they'd use this. The code
-   is ahead of the evidence."
-
-/discover    find customer signal before building more
-/money       pricing and distribution strategy
-```
-
-### 7. Figure out distribution and pricing
-
-```
-> /money price
-```
-
-The gtm agent researches competitor pricing while the market-analyst pulls real data:
-
-```
-◆ money — pricing
-
-  competitors:
-    Paprika    — $4.99 one-time — iOS/Android/Mac
-    Mela       — $2.99/mo — Apple ecosystem
-    Copy Me That — free + $3/mo premium
-    Whisk      — free (Samsung subsidiary)
-
-  recommend: freemium at $3/mo per user
-    free: 50 recipes, basic import
-    paid: unlimited, collections, cook-mode
-  why: matches Mela pricing, undercuts on platform (web-first)
-  risk: one-time purchase (Paprika) is strong competition
-
-  unit economics:
-    revenue/user: $3/mo
-    est. CAC: $5-15 (content marketing)
-    est. LTV: $36 (12mo × $3)
-    payback: 2-5 months
-    confidence: low (no retention data)
-```
-
-### 8. Write the landing page
-
-```
-> /copy landing
-```
-
-The copywriter agent reads your market context, customer signal, and value hypothesis:
-
-```
-◆ copy — landing
-
-  for: "A home cook with recipes in screenshots, bookmarks, and a notebook"
-
-⎯⎯ hero ⎯⎯
-
-  # All your recipes. One place.
-
-  Import from any URL. Organized automatically. Cook-mode for hands-free.
-
-  [Save your first recipe]
-
-  quality gate:
-    ✓ names person: home cook with scattered recipes
-    ✓ states change: one place instead of 5+ sources
-    ✓ differentiates: web-first (vs Apple-only Mela/Paprika)
-    ✓ slop-free
-```
-
-### 9. Keep going
-
-Every session, rhino-os picks up where you left off. The score compounds. The predictions get sharper. The startup pattern checks keep you honest.
+Every session picks up where it left off. Predictions get sharper. The knowledge model updates. Startup pattern checks keep you honest.
 
 ```
 > /plan
 
-  score: 68 · assertions: 9/12 · v1.0: 60% proven
+  score: 74 · assertions: 58/63 · v9.0: 65% proven
 
   ● Thesis Drift — warning
     evidence: roadmap evidence unchanged 8 days
     "Either the thesis is wrong or you're avoiding it."
 
-  bottleneck: search at 32 — d:35 c:30 v:28
+  bottleneck: scoring at 68 — d:72 c:70 v:55
+```
+
+### 5. "Who is this for?"
+
+```
+> who is this for?
+```
+
+```
+── verdict ────────────────────────────────
+  product clarity: 7/10
+  stage: one (0 users besides founder)
+  biggest risk: adoption — does anyone install a CC plugin for product quality?
+
+  "The measurement stack works. The learning loop closes. But you've
+   never watched someone else run /plan on their own project."
+
+/discover    find a second founder to test with
+/strategy    honest assessment of adoption risk
 ```
 
 ---
