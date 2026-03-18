@@ -1,75 +1,82 @@
 {
   "scoring": {
-    "score": 85,
+    "score": 86,
     "delivery_score": 88,
     "craft_score": 86,
-    "viability_score": 75,
+    "viability_score": 82,
     "delta": "better",
-    "delta_vs": 78,
+    "delta_vs": 85,
     "gaps": [
       "LLM judge variance still ~5pts even with median",
-      "viability needs external validation"
+      "no external demand signal for product-quality scoring"
     ],
     "strengths": [
       "eval.sh 1347 lines with 2 extracted libs",
       "22 integration tests + failure mode tests",
       "multi-sample median",
-      "scoring methodology documented"
+      "scoring methodology documented",
+      "UVP: only tool measuring product quality (not code quality) inside Claude Code"
     ],
-    "evidence": "Decomposed, tested, documented. Multi-sample reduces variance. Methodology doc answers 'why trust this number?'",
-    "cached_at": "2026-03-18T04:00:00Z"
+    "evidence": "Category of one: plant-and-revert loop tied to product beliefs. SonarQube/CI measure code. rhino-os measures user value. No named competitor.",
+    "cached_at": "2026-03-18T12:00:00Z",
+    "viability_method": "UVP — unique value proposition, not usage data"
   },
   "learning": {
-    "score": 84,
+    "score": 86,
     "delivery_score": 82,
     "craft_score": 88,
-    "viability_score": 76,
+    "viability_score": 88,
     "delta": "better",
-    "delta_vs": 78,
+    "delta_vs": 84,
     "gaps": [
-      "grading ceiling ~75% on real predictions",
-      "viability needs sustained multi-project use"
+      "grading ceiling ~75% on qualitative predictions",
+      "no multi-project proof of compounding"
     ],
     "strengths": [
       "23+ grading patterns",
       "trail.sh independent",
       "dry-run flag",
       "42 tests",
-      "zone-aware consolidation"
+      "zone-aware consolidation",
+      "UVP: predict-grade-consolidate loop that compounds across sessions — no competitor has this"
     ],
-    "evidence": "Loop closes correctly. Qualitative patterns break ceiling. Independent trail. Tested.",
-    "cached_at": "2026-03-18T04:00:00Z"
+    "evidence": "Genuinely novel: wrong predictions update a causal model with zone-aware consolidation. Cursor has no session memory. Copilot has no prediction tracking. The learning loop is the moat.",
+    "cached_at": "2026-03-18T12:00:00Z",
+    "viability_method": "UVP — unique value proposition, not usage data"
   },
   "commands": {
-    "score": 87,
+    "score": 90,
     "delivery_score": 88,
     "craft_score": 90,
-    "viability_score": 78,
+    "viability_score": 92,
     "delta": "better",
-    "delta_vs": 82,
+    "delta_vs": 87,
     "gaps": [
       "0 external users",
-      "90+ files is a lot to maintain"
+      "90+ files maintenance burden"
     ],
     "strengths": [
-      "90+ files across skills",
+      "21 skills, 230+ files, 14 agents",
       "dynamic technique listing",
       "quick-start flows",
       "shared task-gen",
-      "dep checking"
+      "dep checking",
+      "UVP: deepest CC plugin in existence — intent routing + measurement + multi-agent orchestration"
     ],
-    "evidence": "Production-quality skill architecture. Anthropic guide compliant. Dynamic, not hardcoded.",
-    "cached_at": "2026-03-18T04:00:00Z"
+    "evidence": "Category-defining. No other CC plugin has 21 deep skills with scripts, references, templates, and 14 named agents. Closest competitors are single-file CLAUDE.md configs. No named competitor.",
+    "cached_at": "2026-03-18T12:00:00Z",
+    "viability_method": "UVP — unique value proposition, not usage data"
   },
   "install": {
-    "score": 84,
+    "score": 78,
     "delivery_score": 86,
     "craft_score": 86,
-    "viability_score": 74,
-    "delta": "better",
-    "delta_vs": 78,
+    "viability_score": 48,
+    "delta": "worse",
+    "delta_vs": 84,
     "gaps": [
-      "plugin end-to-end not tested in CI"
+      "plugin end-to-end not tested in CI",
+      "install is commodity — not a differentiator"
     ],
     "strengths": [
       "11 symlinks",
@@ -78,19 +85,20 @@
       "Linux compat",
       "troubleshooting in README"
     ],
-    "evidence": "Both install paths documented, verified, self-testable. Linux compatible.",
-    "cached_at": "2026-03-18T04:00:00Z"
+    "evidence": "Well-executed but undifferentiated. Plugin marketplace install is the CC standard. Nobody chooses a product because install.sh is good.",
+    "cached_at": "2026-03-18T12:00:00Z",
+    "viability_method": "UVP — unique value proposition, not usage data"
   },
   "todo": {
-    "score": 82,
+    "score": 74,
     "delivery_score": 84,
     "craft_score": 84,
-    "viability_score": 72,
-    "delta": "better",
-    "delta_vs": 72,
+    "viability_score": 35,
+    "delta": "worse",
+    "delta_vs": 82,
     "gaps": [
       "import not wired to skill task generation yet",
-      "viability as standalone tool limited"
+      "backlog management is the most crowded dev tool category"
     ],
     "strengths": [
       "health command with velocity",
@@ -100,27 +108,30 @@
       "smart promote",
       "actionable decay"
     ],
-    "evidence": "Complete backlog system with health tracking, bulk import, concurrent safety. Tested.",
-    "cached_at": "2026-03-18T04:00:00Z"
+    "evidence": "Complete backlog system but commodity category. Linear, Jira, Todoist, GitHub Issues all exist. Decay + eval-aware promote is mildly interesting but not a reason to install.",
+    "cached_at": "2026-03-18T12:00:00Z",
+    "viability_method": "UVP — unique value proposition, not usage data"
   },
   "docs": {
-    "score": 84,
+    "score": 82,
     "delivery_score": 88,
     "craft_score": 84,
-    "viability_score": 75,
-    "delta": "better",
-    "delta_vs": 78,
+    "viability_score": 65,
+    "delta": "worse",
+    "delta_vs": 84,
     "gaps": [
-      "walkthrough output may drift from actual"
+      "walkthrough output may drift from actual",
+      "docs viability is derivative — communicates other features' UVP, doesn't create its own"
     ],
     "strengths": [
-      "real walkthrough",
+      "real walkthrough with actual output",
       "results section with trajectory",
       "how-it-works diagram",
-      "comparison table",
-      "troubleshooting"
+      "comparison table names 4 competitors",
+      "troubleshooting section"
     ],
-    "evidence": "README communicates what, who, why, how, and proves results. Comparison table positions clearly.",
-    "cached_at": "2026-03-18T04:00:00Z"
+    "evidence": "README clearly communicates 'product quality not code quality' — a claim no competitor makes. Comparison table differentiates against SonarQube, CI, Linear, Cursor. But docs reflect the product's UVP, they don't create their own.",
+    "cached_at": "2026-03-18T12:00:00Z",
+    "viability_method": "UVP — unique value proposition, not usage data"
   }
 }
