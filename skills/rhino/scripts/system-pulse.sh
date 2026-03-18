@@ -10,6 +10,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RHINO_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 PROJECT_DIR="${1:-${CLAUDE_PROJECT_DIR:-$(pwd)}}"
 
+# Check dependencies
+source "$RHINO_DIR/bin/lib/check-deps.sh"
+require_cmd jq "brew install jq"
+require_cmd python3 "brew install python3"
+
 echo "=== SCORE ==="
 SCORE_CACHE="$PROJECT_DIR/.claude/cache/score-cache.json"
 if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then

@@ -93,7 +93,7 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 ## Task generation — the path to completion
 
-**The eval's job is not just scoring. It's generating EVERY task needed to reach 90+ on every feature.** The backlog IS the roadmap to completion. If /eval doesn't populate /todo, the founder has scores but no path forward.
+See `../shared/task-generation.md` for the task generation protocol. /eval generates tasks for:
 
 **For EVERY feature scored, generate the complete task list to reach the next maturity level:**
 
@@ -131,11 +131,7 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 - Each assertion that was passing and now fails → fix task
 - Each feature where delta is "worse" → diagnosis task
 
-**Write ALL tasks to /todo via the todo system.** Tag with `source: /eval`, feature name, and dimension (delivery/craft/viability). Priority: tasks on highest-weight features first.
-
-**There is no cap on task count.** A feature scoring 30 might need 20 tasks to reach 70. Generate all of them. The founder uses /plan to pick which to work on — /eval's job is to make sure NOTHING is missing from the backlog.
-
-After writing tasks, show the count: "Generated N tasks across M features. Worst feature: [name] needs [X] tasks to reach [target]."
+Tag with `source: /eval`, feature name, and dimension (delivery/craft/viability). Priority: tasks on highest-weight features first.
 
 ## Cross-skill synthesis
 

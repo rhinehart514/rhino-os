@@ -15,7 +15,9 @@ This skill is a **folder**, not just this file. Read on demand:
 
 - `scripts/system-pulse.sh` — runs first, outputs full system status as structured text (score, assertions, predictions, plan, strategy, thesis, todos). Zero context cost.
 - `scripts/skill-catalog.sh` — lists all installed skills with file counts and descriptions. Powers `/rhino help`.
+- `templates/dashboard.md` — canonical rendering format for the default dashboard view: zone structure, bar math, conditional rules, anti-rationalization warnings.
 - `references/dashboard-guide.md` — what each dashboard section means, how to read it, conditional rendering rules, snapshot protocol, opinion decision tree, pattern detection, anti-rationalization checks.
+- `references/reading-guide.md` — what each number on the dashboard means and how to interpret the signals. For founders who ask "what does this mean?"
 - `gotchas.md` — real failure modes. **Read before rendering any view.**
 
 ## Routing
@@ -79,7 +81,7 @@ After rendering `/rhino` (no arguments), save current state to `.claude/cache/rh
 
 ## Task generation — dashboard alerts become tasks
 
-**/rhino's job is not just showing status. It's generating tasks for every alert, every stale metric, every system that needs attention.** The dashboard is a health check — and health problems need treatment. If /rhino shows a yellow or red signal, that's a task.
+See `../shared/task-generation.md` for the task generation protocol. /rhino generates tasks for:
 
 **For EVERY alert or stale signal on the dashboard, generate a task:**
 
@@ -110,11 +112,7 @@ After rendering `/rhino` (no arguments), save current state to `.claude/cache/rh
 - Hooks not installed → task: "Install hooks via /configure"
 - Skills without assertions → task: "Skill [X] unmeasured — run /skill health"
 
-**Write ALL tasks to /todo.** Tag with `source: /rhino` and alert type (stale/score/prediction/backlog/system). Priority: score regressions first, then staleness.
-
-**There is no cap on task count.** A dashboard with 8 alerts generates 8 tasks.
-
-After the dashboard, show: "Dashboard surfaced N alerts → N tasks added to backlog."
+Tag with `source: /rhino` and alert type (stale/score/prediction/backlog/system). Priority: score regressions first, then staleness.
 
 ## What you never do
 - Turn this into a long report — density is the design

@@ -134,7 +134,7 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 
 ## Task generation — ideas and kills become tasks
 
-**/ideate already materializes committed ideas. But the KILL LIST also needs tasks.** Killing something isn't just a decision — it's cleanup work. And every committed idea needs more than a feature entry — it needs the full task chain to reach first eval.
+See `../shared/task-generation.md` for the task generation protocol. /ideate generates tasks for:
 
 **For EVERY committed idea, generate the full onramp:**
 - Task: "Implement core of [feature] — [specific first step]"
@@ -156,11 +156,7 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 - Each always-passing assertion → task: "Assertion [id] always passes — remove or strengthen"
 - Each stuck feature → task: "Feature [X] stuck at [score] for [N]d — kill, pivot, or double down"
 
-**Write ALL tasks to /todo.** Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kill cleanup first (reduce noise), then new feature onramp.
-
-**There is no cap on task count.** Committing 3 ideas and killing 2 features might generate 25 tasks. Generate all of them.
-
-After materializing/killing, show: "Generated N tasks: [X] to build new ideas, [Y] to clean up kills."
+Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kill cleanup first (reduce noise), then new feature onramp.
 
 ## What you never do
 - Generate filler ideas to hit a number

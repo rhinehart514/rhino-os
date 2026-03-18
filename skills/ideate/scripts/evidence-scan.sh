@@ -4,6 +4,13 @@
 set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Check dependencies
+source "$RHINO_DIR/bin/lib/check-deps.sh"
+require_cmd jq "brew install jq"
+require_cmd python3 "brew install python3"
 
 # --- Eval cache sub-scores ---
 EVAL_CACHE="$PROJECT_DIR/.claude/cache/eval-cache.json"

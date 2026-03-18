@@ -5,7 +5,13 @@
 set -uo pipefail
 
 PROJECT_DIR="${1:-.}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NOW=$(date +%s)
+
+# Check dependencies
+source "$RHINO_DIR/bin/lib/check-deps.sh"
+require_cmd python3 "brew install python3"
 
 echo "=== OPPORTUNITIES ==="
 echo ""

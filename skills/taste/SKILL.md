@@ -99,7 +99,7 @@ Read `references/calibration-guide.md` for the full calibration protocol. Sub-mo
 
 ## Task generation — the path to visual completion
 
-**/taste's job is not just scoring. It's generating EVERY task needed to reach 80+ on every dimension.** The backlog IS the roadmap to a beautiful product. If /taste doesn't populate /todo, the founder has scores but no path to fixing them.
+See `../shared/task-generation.md` for the task generation protocol. /taste generates tasks for:
 
 **For EVERY page/screen evaluated, generate the complete task list to reach visual excellence:**
 
@@ -159,11 +159,7 @@ For each dimension scoring below 80, generate SPECIFIC tasks:
 - Polish level differences (animations, transitions, micro-interactions)
 - Information density differences (too much vs too little vs just right)
 
-**Write ALL tasks to /todo.** Tag with `source: /taste`, URL, and dimension. Priority: tasks on dimensions scoring lowest first.
-
-**There is no cap on task count.** A page with 5 dimensions below 60 might need 30 tasks. Generate all of them. The founder uses /plan to pick which to work on — /taste's job is to make sure EVERY visual issue is captured.
-
-After writing tasks, show: "Generated N tasks across M dimensions. Worst dimension: [name] at [score] needs [X] tasks."
+Tag with `source: /taste`, URL, and dimension. Priority: dimensions scoring lowest first.
 
 ## Boundaries
 

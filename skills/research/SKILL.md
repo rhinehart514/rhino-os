@@ -70,7 +70,7 @@ Write findings to `.claude/knowledge/experiment-learnings.md`. Grade prediction.
 
 ### Step 6: Task generation — the path from knowledge to action
 
-**/research's job is not just findings. It's generating EVERY task that the findings imply.** Knowledge without action items is a report that sits on a shelf. If research found something, someone needs to do something about it.
+See `../shared/task-generation.md` for the task generation protocol. /research generates tasks for:
 
 **For EVERY finding, generate the corresponding tasks:**
 
@@ -97,11 +97,7 @@ Write findings to `.claude/knowledge/experiment-learnings.md`. Grade prediction.
 - Finding suggests a new feature → task: "Evidence for [X] — evaluate via /ideate or /feature new"
 - Finding invalidates a feature → task: "Evidence against feature [X] — consider killing via /ideate kill"
 
-**Write ALL tasks to /todo.** Tag with `source: /research`, topic, and confidence level. Priority: cross-reference with feature weights + sub-scores. High-confidence findings that affect high-weight features go first.
-
-**There is no cap on task count.** A research session that produces 8 findings might generate 15 tasks. Generate all of them.
-
-After writing tasks, show: "Generated N tasks from M findings. Highest-impact: [finding] → [task]."
+Tag with `source: /research`, topic, and confidence level. Priority: high-confidence findings on high-weight features first.
 
 ## Agent spawning
 - `Agent(subagent_type: "rhino-os:explorer", ...)` — deep codebase analysis

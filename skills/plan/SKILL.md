@@ -102,7 +102,7 @@ Also see `../OUTPUT_FORMAT.md` and `../STATE_MANIFEST.md`.
 
 ## Task generation — opportunities become tasks
 
-**/plan surfaces opportunities. But opportunities without tasks are observations.** Every opportunity the scan reveals should become a concrete, actionable task in /todo. /plan is the bridge between "what we see" and "what we do."
+See `../shared/task-generation.md` for the task generation protocol. /plan generates tasks for:
 
 **For EVERY opportunity surfaced by opportunity-scan.sh, generate a task:**
 
@@ -133,11 +133,7 @@ Also see `../OUTPUT_FORMAT.md` and `../STATE_MANIFEST.md`.
 - Each triggered failure mode from startup-check.sh → task with intervention from startup-patterns.md
 - Each warning-to-critical escalation → urgent task
 
-**Write ALL tasks to /todo.** Tag with `source: /plan` and opportunity type. Priority: bottleneck-related opportunities first, then highest information value.
-
-**There is no cap on task count.** The opportunity scan might surface 10 gaps. Generate tasks for all of them. /go works through them — /plan's job is to ensure nothing is missed.
-
-After writing tasks, show alongside the move proposal: "Surfaced N opportunities → N tasks added to backlog."
+Tag with `source: /plan` and opportunity type. Priority: bottleneck-related opportunities first, then highest information value.
 
 ## Agent usage
 

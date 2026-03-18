@@ -63,7 +63,7 @@ Parse `$ARGUMENTS`:
 
 ## Task generation — the path to feature completion
 
-**/feature's job is not just showing scores. It's generating EVERY task needed to unblock features and reach maturity.** If a feature is stuck, the tasks to unstick it should be in the backlog. If a feature has no assertions, that's a task. If a dependency is blocking, that's a task.
+See `../shared/task-generation.md` for the task generation protocol. /feature generates tasks for:
 
 **For EVERY feature analyzed, generate the complete task list:**
 
@@ -93,11 +93,7 @@ Parse `$ARGUMENTS`:
 - Features with declining scores → task: "Feature [X] regressed from [old] to [new] — investigate"
 - Features that should be killed (no progress, low weight, no thesis connection) → task: "Consider killing feature [X] — run /ideate kill"
 
-**Write ALL tasks to /todo.** Tag with `source: /feature`, feature name, and gap type (blocked/maturity/coverage/weight/lifecycle). Priority: highest-weight features with lowest scores first.
-
-**There is no cap on task count.** A project with 7 features at various maturity levels might need 20+ tasks. Generate all of them.
-
-After writing tasks, show: "Generated N tasks across M features. Bottleneck feature: [name] (w:[W]) at [score] needs [X] tasks."
+Tag with `source: /feature`, feature name, and gap type (blocked/maturity/coverage/weight/lifecycle). Priority: highest-weight features with lowest scores first.
 
 ## What you never do
 
