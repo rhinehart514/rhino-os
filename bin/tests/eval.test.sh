@@ -193,8 +193,8 @@ echo ""
 # ─── Test 6: rubric truncation ───
 echo "--- rubric truncation ---"
 
-trunc_5000=$(grep -c 'head -c 5000' "$SCRIPT_DIR/eval.sh" 2>/dev/null || true)
-trunc_2000=$(grep -c 'head -c 2000' "$SCRIPT_DIR/eval.sh" 2>/dev/null || true)
+trunc_5000=$(grep -rc 'head -c 5000' "$SCRIPT_DIR/eval.sh" "$SCRIPT_DIR/lib/generative-eval.sh" 2>/dev/null | awk -F: '{s+=$NF}END{print s}' || true)
+trunc_2000=$(grep -rc 'head -c 2000' "$SCRIPT_DIR/eval.sh" "$SCRIPT_DIR/lib/generative-eval.sh" 2>/dev/null | awk -F: '{s+=$NF}END{print s}' || true)
 assert_ne "rubric: uses 5000 char limit" "0" "$trunc_5000"
 assert_eq "rubric: no 2000 char limit" "0" "$trunc_2000"
 
