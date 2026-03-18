@@ -55,9 +55,31 @@ If target feature has no eval data AND no customer-intel.json AND no last-discov
 - Options: "Build it" / "/discover first" / "/strategy user"
 - If `agents.autonomy` is `autonomous` or `full-auto`, skip gate (still log prediction).
 
-### Step 3: Pick the move
+### Step 3: Pick the move — completeness-driven
 
-A move = a feature-level intent. TaskList for existing tasks. Promoted todos = founder's priority.
+**The goal is not "do one thing." The goal is "finish the feature."**
+
+A. Run `bash scripts/assertion-gate.sh [feature]` — see what's failing.
+B. Check TaskList for ALL tasks tagged to this feature (from /eval, /taste, /todo, /ideate).
+C. Check eval-cache for sub-scores — which dimension is weakest?
+D. Check beliefs.yml for assertion coverage — what's not tested?
+
+**Move selection priority:**
+1. **Failing assertions** — fix these first. A regression blocks everything.
+2. **Tasks from /eval** — these are the specific gaps identified by evaluation. Work through them.
+3. **Tasks from /taste** — visual issues identified by taste eval.
+4. **Missing assertion coverage** — if a feature has <5 assertions, add more before building more code.
+5. **Weakest sub-score dimension** — delivery, craft, or viability. Target the lowest.
+6. **Promoted todos** — founder's captured intent.
+7. **New work** — only when all of the above are clear.
+
+**Don't pick one move and stop.** Work through the task list systematically:
+- After each build+measure cycle, check: are there more tasks for this feature?
+- If yes: pick the next task, predict, build, measure, grade. Keep going.
+- If no: run a quick inline eval to see if NEW gaps appeared. If they did, generate tasks for those too.
+- Stop when: plateau (3 flat moves), all tasks done, or all assertions passing and sub-scores above target.
+
+**After completing all tasks for a feature**, run a fresh eval to generate any NEW tasks that emerged. The loop is: build → measure → generate new tasks → build more → measure → until done.
 
 **Cleanup routing**: If the task is cleanup/refactor (source contains 'evaluator' or 'slop', tagged cleanup/refactor), spawn `rhino-os:refactorer` in worktree instead of builder. Hard constraint: no behavior changes, assertions must hold identically.
 
@@ -109,9 +131,21 @@ On regression: spawn `rhino-os:debugger` in background before reverting.
 
 Run `bash scripts/plateau-check.sh`. If plateau: stop, research inline, report. Otherwise: pick next move, loop back to Step 3.
 
-### Step 11: Session end
+### Step 11: Session end — completeness report
 
-Log session with `bash scripts/build-log.sh add [session-data]`. Write `.claude/sessions/YYYY-MM-DD-HH.yml`. Format output per `reference.md`.
+Log session with `bash scripts/build-log.sh add [session-data]`. Write `.claude/sessions/YYYY-MM-DD-HH.yml`.
+
+**Completeness report (mandatory at session end):**
+- Tasks completed this session: N
+- Tasks remaining for this feature: M
+- Assertions: X passing / Y total (was A/B at session start)
+- Sub-scores: delivery [d], craft [c], viability [v] (was [d0], [c0], [v0])
+- New tasks generated during session: K
+- Estimated sessions to feature completion: [based on velocity this session]
+
+If tasks remain: "Feature [name] is [%] complete. [M] tasks remain. Next session: start with task [first remaining]."
+
+Format output per `reference.md`.
 
 ## Agent routing
 
