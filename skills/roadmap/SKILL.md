@@ -101,15 +101,9 @@ Run on every invocation:
 - **Stall**: no evidence movement in >14 days → diagnose why
 - **Disproven**: check `if_disproven:` field, write to experiment-learnings.md as Dead End
 
-## Cross-version intelligence
+When showing full roadmap, detect: recurring hard evidence, acceleration/deceleration, thesis evolution arc. For output templates, version completion, narrative anti-slop rules, see [reference.md](reference.md).
 
-When showing full roadmap, detect: recurring hard evidence, acceleration/deceleration, thesis evolution arc.
-
-For output templates, version completion cycle, narrative anti-slop rules, and formatting, see [reference.md](reference.md).
-
-## Agent usage
-
-- **Agent (rhino-os:explorer)** — for thesis research when evidence sources are insufficient
+## Agent usage — `rhino-os:explorer` for thesis research when evidence sources are insufficient.
 
 ## What you never do
 - Auto-bump without asking — graduating a thesis is a founder decision
@@ -121,9 +115,6 @@ For output templates, version completion cycle, narrative anti-slop rules, and f
 - Ignore disproven evidence — it's the most valuable signal
 
 ## If something breaks
-- No roadmap.yml: create one by reading git log and inferring proven theses
-- Milestone ID not found: list available IDs
-- Version doesn't exist: suggest creating it
-- predictions.tsv missing: skip velocity/contradiction checks, note "no predictions yet"
+- No roadmap.yml → create from git log. Missing ID → list available. Missing predictions → skip, note it.
 
 $ARGUMENTS

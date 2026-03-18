@@ -19,10 +19,28 @@ fi
 
 CURRENT=$(grep -m1 '^current:' "$ROADMAP" 2>/dev/null | sed 's/^current: *//' | tr -d ' ' || echo "?")
 
+# Extract a field from a version block. Stops at the next version header.
+# Usage: get_field "v7.0" "thesis"
+get_field() {
+    local ver="$1" field="$2"
+    awk -v ver="$ver" -v field="$field" '
+        /^  v[0-9]/ {
+            if (found) exit
+            if ($0 ~ "^  " ver ":") found=1
+            next
+        }
+        found && $0 ~ "^    " field ":" {
+            sub(/.*: */, "")
+            gsub(/"/, "")
+            print
+            exit
+        }
+    ' "$ROADMAP" 2>/dev/null || true
+}
+
 # If filtering to one version, show detail view
 if [[ -n "$VERSION_FILTER" ]]; then
     V="$VERSION_FILTER"
-    # Check version exists
     if ! grep -qE "^  ${V}:" "$ROADMAP" 2>/dev/null; then
         echo "  version $V not found"
         echo "  available:"
@@ -30,13 +48,12 @@ if [[ -n "$VERSION_FILTER" ]]; then
         exit 1
     fi
 
-    # Extract fields for this version
-    THESIS=$(awk "/^  ${V}:/{found=1} found && /thesis:/{print; exit}" "$ROADMAP" | sed 's/.*thesis: *//' | sed 's/"//g')
-    TIER=$(awk "/^  ${V}:/{found=1} found && /tier:/{print; exit}" "$ROADMAP" | sed 's/.*tier: *//')
-    STATUS=$(awk "/^  ${V}:/{found=1} found && /status:/{print; exit}" "$ROADMAP" | sed 's/.*status: *//')
-    PROVEN_DATE=$(awk "/^  ${V}:/{found=1} found && /proven:/{print; exit}" "$ROADMAP" | sed 's/.*proven: *//')
-    SUMMARY=$(awk "/^  ${V}:/{found=1} found && /summary:/{print; exit}" "$ROADMAP" | sed 's/.*summary: *//' | sed 's/"//g')
-    PARENT=$(awk "/^  ${V}:/{found=1} found && /parent:/{print; exit}" "$ROADMAP" | sed 's/.*parent: *//')
+    THESIS=$(get_field "$V" "thesis")
+    TIER=$(get_field "$V" "tier")
+    STATUS=$(get_field "$V" "status")
+    PROVEN_DATE=$(get_field "$V" "proven")
+    SUMMARY=$(get_field "$V" "summary")
+    PARENT=$(get_field "$V" "parent")
 
     case "${STATUS:-unknown}" in
         proven) ICON="✓" ;;
@@ -48,9 +65,9 @@ if [[ -n "$VERSION_FILTER" ]]; then
     echo ""
     echo "  $ICON $V [${TIER:-?}] — \"${THESIS}\""
     echo "    status: ${STATUS:-unknown}"
-    [[ -n "${PROVEN_DATE}" ]] && echo "    proven: $PROVEN_DATE"
-    [[ -n "${SUMMARY}" ]] && echo "    summary: $SUMMARY"
-    [[ -n "${PARENT}" ]] && echo "    parent: $PARENT"
+    [[ -n "$PROVEN_DATE" ]] && echo "    proven: $PROVEN_DATE"
+    [[ -n "$SUMMARY" ]] && echo "    summary: $SUMMARY"
+    [[ -n "$PARENT" ]] && echo "    parent: $PARENT"
     [[ "$V" == "$CURRENT" ]] && echo "    ** current version **"
 
     # Show child versions
@@ -59,11 +76,11 @@ if [[ -n "$VERSION_FILTER" ]]; then
     HAS_CHILDREN=0
     while IFS= read -r child_line; do
         CHILD_V=$(echo "$child_line" | sed 's/://;s/^ *//')
-        CHILD_PARENT=$(awk "/^  ${CHILD_V}:/{found=1} found && /parent:/{print; exit}" "$ROADMAP" | sed 's/.*parent: *//')
+        CHILD_PARENT=$(get_field "$CHILD_V" "parent")
         if [[ "$CHILD_PARENT" == "$V" ]]; then
-            CHILD_THESIS=$(awk "/^  ${CHILD_V}:/{found=1} found && /thesis:/{print; exit}" "$ROADMAP" | sed 's/.*thesis: *//' | sed 's/"//g')
-            CHILD_TIER=$(awk "/^  ${CHILD_V}:/{found=1} found && /tier:/{print; exit}" "$ROADMAP" | sed 's/.*tier: *//')
-            CHILD_STATUS=$(awk "/^  ${CHILD_V}:/{found=1} found && /status:/{print; exit}" "$ROADMAP" | sed 's/.*status: *//')
+            CHILD_THESIS=$(get_field "$CHILD_V" "thesis")
+            CHILD_TIER=$(get_field "$CHILD_V" "tier")
+            CHILD_STATUS=$(get_field "$CHILD_V" "status")
             case "${CHILD_STATUS:-?}" in
                 proven) CI="✓" ;;
                 testing|active) CI="▸" ;;
@@ -87,12 +104,12 @@ echo ""
 while IFS= read -r ver_line; do
     V=$(echo "$ver_line" | sed 's/://;s/^ *//')
 
-    THESIS=$(awk "/^  ${V}:/{found=1} found && /thesis:/{print; exit}" "$ROADMAP" | sed 's/.*thesis: *//' | sed 's/"//g')
-    TIER=$(awk "/^  ${V}:/{found=1} found && /tier:/{print; exit}" "$ROADMAP" | sed 's/.*tier: *//')
-    STATUS=$(awk "/^  ${V}:/{found=1} found && /status:/{print; exit}" "$ROADMAP" | sed 's/.*status: *//')
-    PROVEN_DATE=$(awk "/^  ${V}:/{found=1} found && /proven:/{print; exit}" "$ROADMAP" | sed 's/.*proven: *//')
-    SUMMARY=$(awk "/^  ${V}:/{found=1} found && /summary:/{print; exit}" "$ROADMAP" | sed 's/.*summary: *//' | sed 's/"//g')
-    PARENT=$(awk "/^  ${V}:/{found=1} found && /parent:/{print; exit}" "$ROADMAP" | sed 's/.*parent: *//')
+    THESIS=$(get_field "$V" "thesis")
+    TIER=$(get_field "$V" "tier")
+    STATUS=$(get_field "$V" "status")
+    PROVEN_DATE=$(get_field "$V" "proven")
+    SUMMARY=$(get_field "$V" "summary")
+    PARENT=$(get_field "$V" "parent")
 
     case "${STATUS:-unknown}" in
         proven) ICON="✓" ;;
@@ -101,7 +118,6 @@ while IFS= read -r ver_line; do
         *) ICON="·" ;;
     esac
 
-    # Indent patches/minors under parents
     INDENT=""
     [[ -n "$PARENT" ]] && INDENT="  "
 
@@ -110,7 +126,6 @@ while IFS= read -r ver_line; do
 
     echo "  ${INDENT}$ICON $V [${TIER:-?}] — \"${THESIS}\"${DATE_SUFFIX}"
 
-    # Summary for proven versions
     if [[ "$STATUS" == "proven" ]] && [[ -n "$SUMMARY" ]]; then
         echo "  ${INDENT}  ${SUMMARY}"
     fi
@@ -124,9 +139,8 @@ echo "  ▾ thesis arc"
 ARC=""
 while IFS= read -r ver_line; do
     V=$(echo "$ver_line" | sed 's/://;s/^ *//')
-    TIER=$(awk "/^  ${V}:/{found=1} found && /tier:/{print; exit}" "$ROADMAP" | sed 's/.*tier: *//')
+    TIER=$(get_field "$V" "tier")
     if [[ "$TIER" == "major" ]]; then
-        THESIS=$(awk "/^  ${V}:/{found=1} found && /thesis:/{print; exit}" "$ROADMAP" | sed 's/.*thesis: *//' | sed 's/"//g' | cut -c1-50)
         [[ -n "$ARC" ]] && ARC="$ARC → "
         ARC="${ARC}${V}"
     fi
@@ -140,8 +154,8 @@ PREV_DATE=""
 PREV_V=""
 while IFS= read -r ver_line; do
     V=$(echo "$ver_line" | sed 's/://;s/^ *//')
-    TIER=$(awk "/^  ${V}:/{found=1} found && /tier:/{print; exit}" "$ROADMAP" | sed 's/.*tier: *//')
-    PROVEN_DATE=$(awk "/^  ${V}:/{found=1} found && /proven:/{print; exit}" "$ROADMAP" | sed 's/.*proven: *//')
+    TIER=$(get_field "$V" "tier")
+    PROVEN_DATE=$(get_field "$V" "proven")
     if [[ "$TIER" == "major" ]] && [[ -n "$PROVEN_DATE" ]]; then
         if [[ -n "$PREV_DATE" ]]; then
             D1=$(date -j -f "%Y-%m-%d" "$PREV_DATE" +%s 2>/dev/null || echo "")

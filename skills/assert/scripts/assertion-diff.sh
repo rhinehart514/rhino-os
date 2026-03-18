@@ -69,8 +69,8 @@ fi
 # --- Check pass/fail changes from history ---
 if [[ -f "$HISTORY" ]]; then
     echo ""
-    # Get the two most recent run dates
-    RUN_DATES=$(cut -f1 "$HISTORY" | sort -u | tail -2)
+    # Get the two most recent run dates (skip header row)
+    RUN_DATES=$(tail -n +2 "$HISTORY" | cut -f1 | sort -u | tail -2)
     DATE_COUNT=$(echo "$RUN_DATES" | grep -c . 2>/dev/null || echo "0")
 
     if [[ "$DATE_COUNT" -ge 2 ]]; then
@@ -80,9 +80,9 @@ if [[ -f "$HISTORY" ]]; then
         echo "  pass/fail changes ($PREV_DATE → $CURR_DATE):"
         echo ""
 
-        # Newly passing (was fail, now pass)
-        PREV_FAILS=$(grep "^$PREV_DATE" "$HISTORY" | grep "fail" | cut -f2 | sort)
-        CURR_PASSES=$(grep "^$CURR_DATE" "$HISTORY" | grep "pass" | cut -f2 | sort)
+        # Newly passing (was FAIL, now PASS) — history uses assertion_id in field 3
+        PREV_FAILS=$(grep "^$PREV_DATE" "$HISTORY" | grep -i "FAIL" | cut -f3 | sort)
+        CURR_PASSES=$(grep "^$CURR_DATE" "$HISTORY" | grep -i "PASS" | cut -f3 | sort)
         NEWLY_PASSING=$(comm -12 <(echo "$PREV_FAILS") <(echo "$CURR_PASSES"))
 
         if [[ -n "$NEWLY_PASSING" ]]; then
@@ -94,9 +94,9 @@ if [[ -f "$HISTORY" ]]; then
             done
         fi
 
-        # Newly failing (was pass, now fail)
-        PREV_PASSES=$(grep "^$PREV_DATE" "$HISTORY" | grep "pass" | cut -f2 | sort)
-        CURR_FAILS=$(grep "^$CURR_DATE" "$HISTORY" | grep "fail" | cut -f2 | sort)
+        # Newly failing (was PASS, now FAIL)
+        PREV_PASSES=$(grep "^$PREV_DATE" "$HISTORY" | grep -i "PASS" | cut -f3 | sort)
+        CURR_FAILS=$(grep "^$CURR_DATE" "$HISTORY" | grep -i "FAIL" | cut -f3 | sort)
         NEWLY_FAILING=$(comm -12 <(echo "$PREV_PASSES") <(echo "$CURR_FAILS"))
 
         if [[ -n "$NEWLY_FAILING" ]]; then

@@ -15,11 +15,11 @@ if [[ ! -f "$PRED_FILE" ]]; then
 fi
 
 TOTAL=$(tail -n +2 "$PRED_FILE" | wc -l | tr -d ' ')
-GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 != "" { c++ } END { print c+0 }')
+GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
 UNGRADED=$((TOTAL - GRADED))
-CORRECT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "yes" { c++ } END { print c+0 }')
-PARTIAL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "partial" { c++ } END { print c+0 }')
-WRONG=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "no" { c++ } END { print c+0 }')
+CORRECT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
+PARTIAL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
+WRONG=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "no" { c++ } END { print c+0 }')
 
 echo "  total: $TOTAL"
 echo "  graded: $GRADED (ungraded: $UNGRADED)"
@@ -45,9 +45,9 @@ fi
 echo ""
 echo "  ── by domain ──"
 tail -n +2 "$PRED_FILE" | awk -F'\t' '
-$5 != "" {
-    pred = tolower($2)
-    grade = $5
+$6 != "" {
+    pred = tolower($3)
+    grade = $6
     # Extract domain from prediction text
     domain = "other"
     if (pred ~ /score|scoring|health/) domain = "score"
@@ -76,8 +76,8 @@ END {
 # Recent wrong predictions (highest learning value)
 echo ""
 echo "  ── recent wrong ──"
-tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "no" { print "  ✗ "$1" · "$2 }' | tail -5
-WRONG_COUNT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "no" { c++ } END { print c+0 }')
+tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "no" { print "  ✗ "$1" · "$3 }' | tail -5
+WRONG_COUNT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "no" { c++ } END { print c+0 }')
 if [[ "$WRONG_COUNT" -eq 0 ]]; then
     echo "  (none — either well-calibrated or not enough predictions)"
 fi
@@ -86,9 +86,9 @@ fi
 echo ""
 echo "  ── ungraded backlog ──"
 if [[ "$UNGRADED" -gt 0 ]]; then
-    OLDEST=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "" { print $1; exit }')
+    OLDEST=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "" { print $1; exit }')
     echo "  $UNGRADED ungraded (oldest: $OLDEST)"
-    tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "" { print "  · "$1" · "$2 }' | head -5
+    tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "" { print "  · "$1" · "$3 }' | head -5
 else
     echo "  all caught up"
 fi

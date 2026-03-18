@@ -66,10 +66,10 @@ echo ""
 echo "  ── accuracy trend ──"
 if [[ -f "$PRED_FILE" ]]; then
     tail -n +2 "$PRED_FILE" | awk -F'\t' '
-    $5 != "" {
+    $6 != "" {
         n++
-        if ($5 == "yes") score[n] = 1
-        else if ($5 == "partial") score[n] = 0.5
+        if ($6 == "yes") score[n] = 1
+        else if ($6 == "partial") score[n] = 0.5
         else score[n] = 0
         dates[n] = $1
     }
