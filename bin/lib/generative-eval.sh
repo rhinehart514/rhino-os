@@ -204,8 +204,9 @@ for i, c in enumerate(text):
     fi
 }
 
-# Full product quality audit — evaluates whether a feature is genuinely good
-# Returns JSON: {"delivery_score":N,"craft_score":N,"viability_score":N,"score":N,"verdict":"...","gaps":[...],"strengths":[...],"evidence":"..."}
+# Code quality audit — evaluates delivery and craft for a feature
+# Returns JSON: {"delivery_score":N,"craft_score":N,"score":N,"verdict":"...","gaps":[...],"strengths":[...],"evidence":"..."}
+# NOTE: viability is scored separately by /score via agent-backed research
 run_logic_research() {
     local feat_name="$1"
     local delivers="$2"
@@ -254,7 +255,7 @@ WHAT THE SCORES MEAN:
 - 30-49: Half-built. Skeleton is there but does not really deliver.
 - 0-29: Does not exist or fundamentally broken.
 
-GRADE THESE THREE DIMENSIONS:
+GRADE THESE TWO DIMENSIONS:
 
 1. DELIVERY (delivery_score, 0-100)
    Does this feature deliver real value to the target user? Not does-a-file-exist — does the LOGIC work end-to-end?
@@ -272,13 +273,7 @@ GRADE THESE THREE DIMENSIONS:
    - Taste: does this feel like craft or like it was generated? Would you be proud to show it?
    - Cite file:line for the best and worst parts.
 
-3. VIABILITY (viability_score, 0-100)
-   Would this survive contact with the market? Judge adoption odds and competitive position:
-   - Is there a real audience for this? How many people would actually use it?
-   - What are the alternatives? Is this meaningfully better than what already exists?
-   - Is there something novel here — a new approach, a unique angle, a fresh combination?
-   - Would someone choose this over the obvious alternative? Why?
-   - Cite specific evidence of viability or lack thereof.
+NOTE: Viability (market fit, competitive position) is scored separately by /score using agent-backed research. Do NOT score viability here.
 ${rubric_section}
 PROCEDURE:
 1. Read all the code. Form an overall impression first — good, bad, somewhere in between.
@@ -294,7 +289,7 @@ INTEGRITY:
 - You are grading against the best you have seen, not against average. 70 is genuinely good.
 
 Output ONLY this JSON object — no markdown fences, no text before or after:
-{\"delivery_score\":55,\"craft_score\":50,\"viability_score\":45,\"gaps\":[\"specific problem with file:line evidence\"],\"strengths\":[\"what genuinely works well\"],\"evidence\":\"1-2 sentence overall judgment\"}"
+{\"delivery_score\":55,\"craft_score\":50,\"gaps\":[\"specific problem with file:line evidence\"],\"strengths\":[\"what genuinely works well\"],\"evidence\":\"1-2 sentence overall judgment\"}"
 
     local api_key="${ANTHROPIC_API_KEY:-}"
     local result=""
@@ -339,12 +334,11 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
                             properties:{
                                 delivery_score:{type:"integer",description:"Delivery 0-100: does this feature deliver real value to the target user?"},
                                 craft_score:{type:"integer",description:"Craft 0-100: is this well-made — both code quality and experience quality?"},
-                                viability_score:{type:"integer",description:"Viability 0-100: would this survive the market — alternatives, novelty, adoption odds?"},
                                 gaps:{type:"array",items:{type:"string"},description:"Specific problems with file:line citations"},
                                 strengths:{type:"array",items:{type:"string"},description:"What genuinely works well"},
                                 evidence:{type:"string",description:"1-2 sentence overall judgment"}
                             },
-                            required:["delivery_score","craft_score","viability_score","gaps","strengths","evidence"]
+                            required:["delivery_score","craft_score","gaps","strengths","evidence"]
                         }
                     }],
                     messages:[{role:"user",content:$prompt}]
@@ -500,21 +494,20 @@ for i, c in enumerate(text):
         fi
 
         # Try 7: extract sub-scores or single score from free text and build JSON
-        local extracted_value extracted_quality extracted_ux extracted_verdict
+        local extracted_value extracted_quality extracted_verdict
         # Match both quoted and unquoted key names, colon with optional spaces
         extracted_value=$(echo "$cleaned" | grep -oE '("|'"'"')?delivery_score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         extracted_quality=$(echo "$cleaned" | grep -oE '("|'"'"')?craft_score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
-        extracted_ux=$(echo "$cleaned" | grep -oE '("|'"'"')?viability_score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         extracted_verdict=$(echo "$cleaned" | grep -oiE '("|'"'"')?verdict("|'"'"')?\s*:\s*"[A-Z]+"' | head -1 | grep -oE '"[A-Z]+"$' | tr -d '"')
         if [[ -n "$extracted_value" ]]; then
-            echo "{\"delivery_score\":${extracted_value},\"craft_score\":${extracted_quality:-${extracted_value}},\"viability_score\":${extracted_ux:-${extracted_value}},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
+            echo "{\"delivery_score\":${extracted_value},\"craft_score\":${extracted_quality:-${extracted_value}},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
         # Legacy fallback: single score
         local extracted_score
         extracted_score=$(echo "$cleaned" | grep -oE '("|'"'"')?score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         if [[ -n "$extracted_score" ]]; then
-            echo "{\"delivery_score\":${extracted_score},\"craft_score\":${extracted_score},\"viability_score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
+            echo "{\"delivery_score\":${extracted_score},\"craft_score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
 
@@ -528,7 +521,7 @@ for i, c in enumerate(text):
     else
         echo "[eval] ${feat_name:-unknown}: LLM returned empty response (no API key? CLI unavailable?)" >&2
     fi
-    echo '{"delivery_score":30,"craft_score":30,"viability_score":30,"score":30,"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed"}'
+    echo '{"delivery_score":30,"craft_score":30,"score":30,"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed"}'
 }
 
 # Validate parsed JSON has expected score fields, then emit through antisycophancy filter
@@ -537,10 +530,10 @@ _validate_and_emit() {
     local json="$1"
 
     # Ensure delivery_score exists and is a number
-    local ds cs vs
+    # NOTE: viability_score removed — scored by /score via agents, not eval
+    local ds cs
     ds=$(echo "$json" | jq -r '.delivery_score // empty' 2>/dev/null)
     cs=$(echo "$json" | jq -r '.craft_score // empty' 2>/dev/null)
-    vs=$(echo "$json" | jq -r '.viability_score // empty' 2>/dev/null)
 
     # If sub-scores are missing but legacy .score exists, derive from it
     if [[ -z "$ds" || ! "$ds" =~ ^[0-9]+$ ]]; then
@@ -549,22 +542,21 @@ _validate_and_emit() {
         if [[ -n "$legacy" && "$legacy" =~ ^[0-9]+$ ]]; then
             # Convert 1-5 scale to 0-100 if needed
             [[ "$legacy" -le 5 ]] && legacy=$((legacy * 20))
-            # Use legacy score for any missing/non-numeric sub-scores
             local safe_cs="${cs}"
-            local safe_vs="${vs}"
             [[ -z "$safe_cs" || ! "$safe_cs" =~ ^[0-9]+$ ]] && safe_cs="$legacy"
-            [[ -z "$safe_vs" || ! "$safe_vs" =~ ^[0-9]+$ ]] && safe_vs="$legacy"
-            json=$(echo "$json" | jq -c --argjson d "$legacy" --argjson c "$safe_cs" --argjson v "$safe_vs" \
-                '.delivery_score = $d | .craft_score = $c | .viability_score = $v' 2>/dev/null) || true
+            json=$(echo "$json" | jq -c --argjson d "$legacy" --argjson c "$safe_cs" \
+                '.delivery_score = $d | .craft_score = $c | del(.viability_score)' 2>/dev/null) || true
         fi
     fi
+
+    # Strip viability_score if LLM still returned it (backward compat)
+    json=$(echo "$json" | jq -c 'del(.viability_score)' 2>/dev/null) || true
 
     # Clamp scores to 0-100 range (LLMs occasionally return negatives or >100)
     json=$(echo "$json" | jq -c '
         def clamp: if . < 0 then 0 elif . > 100 then 100 else . end;
         if .delivery_score then .delivery_score = (.delivery_score | clamp) else . end |
-        if .craft_score then .craft_score = (.craft_score | clamp) else . end |
-        if .viability_score then .viability_score = (.viability_score | clamp) else . end
+        if .craft_score then .craft_score = (.craft_score | clamp) else . end
     ' 2>/dev/null) || true
 
     # Ensure gaps is an array (LLMs sometimes return a string)
@@ -585,27 +577,25 @@ _apply_logic_antisycophancy() {
     input=$(cat)
 
     # Extract sub-scores (fall back to legacy .score if sub-scores missing)
-    local delivery_score craft_score viability_score
+    # NOTE: viability is no longer scored by eval — it's scored by /score via agents
+    local delivery_score craft_score
     delivery_score=$(echo "$input" | jq -r '.delivery_score // empty' 2>/dev/null)
     craft_score=$(echo "$input" | jq -r '.craft_score // empty' 2>/dev/null)
-    viability_score=$(echo "$input" | jq -r '.viability_score // empty' 2>/dev/null)
 
     # Legacy fallback: if no sub-scores, derive from single .score
-    if [[ -z "$delivery_score" || -z "$craft_score" || -z "$viability_score" ]]; then
+    if [[ -z "$delivery_score" || -z "$craft_score" ]]; then
         local legacy_score
         legacy_score=$(echo "$input" | jq -r '.score // 50' 2>/dev/null)
         [[ "$legacy_score" -le 5 ]] && legacy_score=$((legacy_score * 20))
         delivery_score="${delivery_score:-$legacy_score}"
         craft_score="${craft_score:-$legacy_score}"
-        viability_score="${viability_score:-$legacy_score}"
-        input=$(echo "$input" | jq -c --argjson v "$delivery_score" --argjson q "$craft_score" --argjson u "$viability_score" \
-            '.delivery_score = $v | .craft_score = $q | .viability_score = $u')
+        input=$(echo "$input" | jq -c --argjson v "$delivery_score" --argjson q "$craft_score" \
+            '.delivery_score = $v | .craft_score = $q')
     fi
 
     # Normalize: if any score came back on 1-5 scale, convert to 0-100
     [[ "$delivery_score" -le 5 ]] && delivery_score=$((delivery_score * 20))
     [[ "$craft_score" -le 5 ]] && craft_score=$((craft_score * 20))
-    [[ "$viability_score" -le 5 ]] && viability_score=$((viability_score * 20))
 
     local gap_count
     gap_count=$(echo "$input" | jq -r '.gaps | length // 0' 2>/dev/null)
@@ -614,7 +604,6 @@ _apply_logic_antisycophancy() {
     if [[ "$gap_count" -eq 0 ]]; then
         [[ "$delivery_score" -gt 60 ]] && delivery_score=60
         [[ "$craft_score" -gt 60 ]] && craft_score=60
-        [[ "$viability_score" -gt 60 ]] && viability_score=60
         input=$(echo "$input" | jq -c '.gaps += ["integrity: 0 problems found — audit was not thorough enough"]')
     fi
 
@@ -622,14 +611,12 @@ _apply_logic_antisycophancy() {
     if [[ "$gap_count" -gt 0 ]]; then
         [[ "$delivery_score" -gt 80 ]] && delivery_score=75
         [[ "$craft_score" -gt 80 ]] && craft_score=75
-        [[ "$viability_score" -gt 80 ]] && viability_score=75
     fi
 
     # Any sub-score > 70 with 3+ gaps → cap at 65
     if [[ "$gap_count" -ge 3 ]]; then
         [[ "$delivery_score" -gt 70 ]] && delivery_score=65
         [[ "$craft_score" -gt 70 ]] && craft_score=65
-        [[ "$viability_score" -gt 70 ]] && viability_score=65
     fi
 
     # Stage cap: read project stage from rhino.yml
@@ -646,10 +633,9 @@ _apply_logic_antisycophancy() {
     fi
     [[ "$delivery_score" -gt "$stage_cap" ]] && delivery_score="$stage_cap"
     [[ "$craft_score" -gt "$stage_cap" ]] && craft_score="$stage_cap"
-    [[ "$viability_score" -gt "$stage_cap" ]] && viability_score="$stage_cap"
 
-    # Compute weighted total in bash (not LLM): delivery*0.5 + craft*0.3 + viability*0.2
-    local score=$(( delivery_score * 50 / 100 + craft_score * 30 / 100 + viability_score * 20 / 100 ))
+    # Compute weighted total in bash (not LLM): delivery*0.6 + craft*0.4
+    local score=$(( delivery_score * 60 / 100 + craft_score * 40 / 100 ))
 
     # Stage cap on total too
     [[ "$score" -gt "$stage_cap" ]] && score="$stage_cap"
@@ -659,9 +645,9 @@ _apply_logic_antisycophancy() {
         score=75
     fi
 
-    # Write all scores back
-    input=$(echo "$input" | jq -c --argjson v "$delivery_score" --argjson q "$craft_score" --argjson u "$viability_score" --argjson s "$score" \
-        '.delivery_score = $v | .craft_score = $q | .viability_score = $u | .score = $s')
+    # Write scores back (strip viability_score if LLM still returned it)
+    input=$(echo "$input" | jq -c --argjson v "$delivery_score" --argjson q "$craft_score" --argjson s "$score" \
+        '.delivery_score = $v | .craft_score = $q | .score = $s | del(.viability_score)')
 
     echo "$input"
 }

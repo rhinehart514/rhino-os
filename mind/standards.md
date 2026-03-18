@@ -14,8 +14,12 @@ Most dev tools measure bottom-up: health → craft → maybe value. rhino-os mea
 
 **How they map to tools:**
 - `rhino score .` → Health (structural lint: build, structure, hygiene)
+- `/taste <url> flows` → Delivery (does the frontend work? behavioral audit, issue list)
 - `/taste <url>` → Craft (visual product intelligence, 0-100 scale)
-- `rhino eval .` → Value (assertion pass rate: do the things that matter actually work?)
+- `rhino eval .` → Value (delivery + craft per feature from code analysis)
+- `/score` → **Unified** (orchestrates all tiers + agent-backed viability into one number)
+
+`/score` is the authoritative product quality number. It composes health + eval + taste + flows + viability (via market-analyst and customer agents). Each tier runs independently; /score synthesizes.
 
 Score is a SUPPORTING metric. A 100/100 score with zero value is a beautiful corpse. **Eval pass rate is the north star.**
 

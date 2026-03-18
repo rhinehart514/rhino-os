@@ -10,9 +10,11 @@
 | 30-49 | building | Half-built. Skeleton without real delivery. | Partial implementation, major paths missing |
 | 0-29 | planned | Does not exist or fundamentally broken. | Little or no functional code |
 
-## Three Dimensions
+## Two Dimensions
 
-**Formula:** `delivery * 0.50 + craft * 0.30 + viability * 0.20`
+**Formula:** `delivery * 0.60 + craft * 0.40`
+
+NOTE: Viability (market fit, UVP) is scored separately by `/score` using agent-backed research. Eval focuses on what it can measure from code: delivery and craft.
 
 ### Delivery (50%)
 
@@ -44,30 +46,11 @@ Is this well-made AS A SYSTEM? Two layers:
 
 **Hard rule:** craft > 70 requires zero critical unhandled error paths.
 
-### Viability (20%) — Unique Value Proposition
+### Viability — Scored by /score, NOT eval
 
-**Viability is about UVP, not usage data.** Is this differentiated? Does the value proposition land? Would someone choose this over every alternative?
+Viability (market fit, UVP, competitive position) is scored by `/score` using agent-backed research — market-analyst and customer agents gather real evidence. See `skills/score/references/viability-guide.md`.
 
-**Don't score viability from code.** Score it from:
-- `config/product-spec.yml` — competitors, why_now, not_building
-- `.claude/plans/strategy.yml` — stage, competitive position
-- `.claude/cache/market-context.json` — real competitor data
-- `.claude/cache/customer-intel.json` — demand signals, unmet needs
-- The feature's `delivers:` claim — is this unique or commodity?
-
-**The question is not "has someone tested this?" The question is "is this worth existing?"**
-
-**Scoring anchors:**
-- 90+: Clear UVP that no competitor has. Evidence of demand (customer-intel, forum posts, user requests). Someone would switch FROM an alternative TO this.
-- 70-89: Differentiated approach. Can name what's unique AND why it matters. Must name competitors and explain gap.
-- 50-69: Useful but the UVP is unclear. "It works" isn't a value prop. Why THIS over doing it manually or using something else?
-- 30-49: No clear differentiator. Could be a feature of something else, not a product.
-- 0-29: No positioning. Building without knowing who it's for or why they'd care.
-
-**Hard rules:**
-- viability > 70 requires naming a specific differentiator no competitor has
-- viability > 85 requires evidence of demand (not just "we think people want this")
-- viability score should come from product-spec + strategy + market data, not from reading code
+**Why this moved:** An LLM reading code and guessing market fit produced self-assessment bias (85-92 scores with zero external data). Agent-backed viability requires cited evidence from market-context.json and customer-intel.json. No evidence = capped at 30.
 
 ## Honesty Rules
 

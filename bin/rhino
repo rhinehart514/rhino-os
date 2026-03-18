@@ -4,7 +4,7 @@ set -euo pipefail
 # rhino — CLI for rhino-os v9
 # A cofounder in your terminal. Measurement, agents, startup intelligence.
 
-VERSION="9.3.01"
+VERSION="9.4.01"
 if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
     RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
 else
@@ -549,6 +549,7 @@ case "${1:-help}" in
     serve)      shift; require_dep "node" "rhino serve"; node "$RHINO_DIR/bin/serve.mjs" "$@" ;;
     init)       shift; bash "$RHINO_DIR/bin/init.sh" "$@" ;;
     trail)      shift; bash "$RHINO_DIR/bin/trail.sh" "$@" ;;
+    tier)       shift; bash "$RHINO_DIR/bin/maturity-tier.sh" "${@:-.}" ;;
     update)     cmd_update ;;
     doctor)     cmd_doctor ;;
     install)    shift; bash "$RHINO_DIR/install.sh" "$@" ;;

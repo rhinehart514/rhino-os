@@ -5,14 +5,17 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 ## Capabilities
 
 ### Measurement Stack
-- `rhino score .` — value scoring with health gate. Status: operational. Now includes reasons for each penalty.
-- `rhino eval .` — generative feature eval (Claude judges claim vs code). Status: operational.
-- `/taste <url>` — visual product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Market-calibrated, persistent memory, auto-creates todos, self-improving. Status: operational. Legacy CLI: `rhino taste` (1-5 scale, backward compat).
+- `/score` — **unified product quality score**. Orchestrates all tiers: health + code eval + visual taste + behavioral flows + agent-backed viability. The authoritative "is this good?" number. Status: operational (v9.3).
+- `rhino score .` — health tier (structural lint, build gate). Fast, free, every change. Used internally by /score.
+- `rhino eval .` — code eval tier (delivery + craft per feature). LLM judges claim vs code. Viability removed — now scored by /score via agents. Status: operational.
+- `/taste <url>` — visual tier. Product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Status: operational.
+- `/taste <url> flows` — behavioral tier. Frontend delivery audit via Playwright MCP. 6-layer checklist. Status: operational.
+- `rhino tier` — maturity tier router. Determines project tier (fix/deepen/strengthen/expand/mature) from score + eval data. Consumed by /plan, /go, session hook. Status: operational.
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
 ### Skills (the product surface)
-21 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
-/plan, /go, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product, /configure, /money, /copy
+22 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
+/plan, /go, /score, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product, /configure, /money, /copy
 
 ### Agents
 14 custom agents in agents/: measurer, explorer, builder, reviewer, evaluator, market-analyst, grader, debugger, refactorer, customer, founder-coach, consolidator, gtm, copywriter

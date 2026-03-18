@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v9.3
+current: v9.4
 
 versions:
 
@@ -271,6 +271,28 @@ versions:
       - id: quality-gates-catch-issues
         question: "Do mechanical quality gates (belief-lint, coherence-check, pre-flight) catch real issues?"
         status: todo
+
+  v9.4:
+    thesis: "Unified product quality score — viability earns its number through agent-backed evidence, not LLM self-assessment"
+    tier: minor
+    parent: v9.0
+    status: active
+    started: 2026-03-18
+    goal: "/score orchestrates health + eval + taste + flows + viability into one authoritative number. Eval loses viability (now delivery*0.6 + craft*0.4). Viability requires market-analyst + customer agent evidence — capped at 30 without external data."
+    evidence_needed:
+      - id: viability-cap-honest
+        question: "Does capping viability at 30 without agent data produce more honest scores than LLM self-assessment?"
+        status: todo
+      - id: agents-find-signal
+        question: "Do market-analyst and customer agents return actionable evidence that changes viability scores?"
+        status: todo
+      - id: unified-score-actionable
+        question: "Does the unified /score output tell founders what to fix better than separate /eval + /taste?"
+        status: todo
+      - id: weight-redistribution-fair
+        question: "When visual/behavioral tiers are missing, does weight redistribution produce reasonable scores?"
+        status: proven
+        evidence: "synthesize.sh tested — code-only mode (d*0.60 + c*0.40) produces scores consistent with eval-cache."
 
   # Version tiers: major (new thesis), minor (improvement within thesis), patch (bug fix/polish)
   # Future theses emerge from evidence. /roadmap ideate when ready.

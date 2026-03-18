@@ -620,7 +620,7 @@ run_generative_eval() {
         cached=$(check_eval_cache "$feat_name")
 
         local verdict="" gaps="" evidence="" feat_score=""
-        local delivery_score="" craft_score="" viability_score=""
+        local delivery_score="" craft_score=""
 
         if [[ -n "$cached" && "$cached" != "" ]]; then
             verdict=$(echo "$cached" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
@@ -629,7 +629,6 @@ run_generative_eval() {
             feat_score=$(echo "$cached" | jq -r '.score // 50' 2>/dev/null)
             delivery_score=$(echo "$cached" | jq -r '.delivery_score // empty' 2>/dev/null)
             craft_score=$(echo "$cached" | jq -r '.craft_score // empty' 2>/dev/null)
-            viability_score=$(echo "$cached" | jq -r '.viability_score // empty' 2>/dev/null)
         else
             # Gather code and call Claude
             local code_context
@@ -667,7 +666,6 @@ run_generative_eval() {
                 feat_score=$(echo "$judge_result" | jq -r '.score // 50' 2>/dev/null)
                 delivery_score=$(echo "$judge_result" | jq -r '.delivery_score // empty' 2>/dev/null)
                 craft_score=$(echo "$judge_result" | jq -r '.craft_score // empty' 2>/dev/null)
-                viability_score=$(echo "$judge_result" | jq -r '.viability_score // empty' 2>/dev/null)
             else
                 verdict="MISSING"
                 gaps="no code files found"
@@ -675,7 +673,6 @@ run_generative_eval() {
                 feat_score=0
                 delivery_score=0
                 craft_score=0
-                viability_score=0
             fi
         fi
 
@@ -718,7 +715,6 @@ run_generative_eval() {
             local _sub_scores=""
             [[ -n "$delivery_score" && "$delivery_score" != "null" ]] && _sub_scores="d:${delivery_score}"
             [[ -n "$craft_score" && "$craft_score" != "null" ]] && _sub_scores="${_sub_scores:+${_sub_scores} }c:${craft_score}"
-            [[ -n "$viability_score" && "$viability_score" != "null" ]] && _sub_scores="${_sub_scores:+${_sub_scores} }v:${viability_score}"
             GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}|${_sub_scores}")
         fi
 
@@ -727,7 +723,6 @@ run_generative_eval() {
         local cache_extras=""
         [[ -n "$delivery_score" ]] && cache_extras+=",\"delivery_score\":${delivery_score}"
         [[ -n "$craft_score" ]] && cache_extras+=",\"craft_score\":${craft_score}"
-        [[ -n "$viability_score" ]] && cache_extras+=",\"viability_score\":${viability_score}"
         [[ -n "$delta" ]] && cache_extras+=",\"delta\":\"${delta}\""
         [[ -n "$delta_vs" ]] && cache_extras+=",\"delta_vs\":${delta_vs}"
         # Use printf %s to avoid trailing newline that contaminates jq -Rs output
