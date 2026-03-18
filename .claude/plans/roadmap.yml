@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v9.1
+current: v9.3
 
 versions:
 
