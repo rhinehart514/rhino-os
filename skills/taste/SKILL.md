@@ -96,25 +96,73 @@ Use template from `templates/taste-report.md` for the active mode.
 
 Read `references/calibration-guide.md` for the full calibration protocol. Sub-modes: `profile`, `design-system`, `verify`, `drift`, or no arg for full calibration.
 
-## Task generation (aggressive)
+## Task generation — the path to visual completion
 
-**Every visual issue found = a task created.** Don't summarize — create specific, actionable tasks.
+**/taste's job is not just scoring. It's generating EVERY task needed to reach 80+ on every dimension.** The backlog IS the roadmap to a beautiful product. If /taste doesn't populate /todo, the founder has scores but no path to fixing them.
 
-For EVERY dimension scored, generate tasks from:
-- **Each dimension scoring below 60** → task: "[dimension] at [score] on [page] — [specific issue seen in screenshot]"
-- **Each specific visual issue identified** → task: "fix [issue] on [page] — [what's wrong, what it should look like]"
-- **Each accessibility gap** → task: "accessibility: [issue] — [element] on [page]"
-- **Each mobile/responsive issue** → task: "responsive: [issue] at [viewport] on [page]"
-- **Each consistency violation** → task: "inconsistency: [element A] vs [element B] — [which page]"
-- **Each empty state or dead end found** → task: "UX gap: [page/state] has no [guidance/CTA/next step]"
-- **Each loading/error state missing** → task: "missing state: [action] has no [loading/error/success] feedback"
-- **Each typography/spacing/color issue** → task: "visual: [specific issue] on [page]"
-- **Dimension regression vs previous taste** → task: "regression: [dimension] dropped [old]→[new] — investigate"
-- **Competitor comparison gaps** → task: "competitor gap: [competitor] has [feature/quality] we lack"
+**For EVERY page/screen evaluated, generate the complete task list to reach visual excellence:**
 
-Tag every task with `source: /taste` and the URL. Use TaskCreate for each.
+### Per-dimension tasks (for each of the 11 dimensions)
+For each dimension scoring below 80, generate SPECIFIC tasks:
+- What exactly is wrong (cite the screenshot, the element, the coordinates)
+- What it should look like instead (cite the design system, calibration, or market reference)
+- Which file/component to change
 
-**Target: 8-20 tasks per taste session.** Visual evaluation should produce the MOST tasks of any skill — every pixel that's wrong is a task. If you only found 2-3 issues, you evaluated at surface level.
+### Layout & composition tasks
+- Misaligned elements — which ones, by how many pixels
+- Inconsistent spacing — where, what the spacing should be
+- Visual hierarchy violations — what draws the eye vs what should
+- Content that overflows or clips at any viewport
+
+### Typography tasks
+- Font size/weight inconsistencies between similar elements
+- Line height issues (too tight, too loose)
+- Missing text truncation on dynamic content
+- Heading hierarchy violations (h3 looks bigger than h2)
+
+### Color & contrast tasks
+- Contrast ratio failures (WCAG AA = 4.5:1 for text)
+- Inconsistent color usage (same semantic meaning, different colors)
+- Missing dark mode support (if applicable)
+- Color-only information (no alternative for colorblind users)
+
+### Interaction & feedback tasks
+- Hover/focus states missing on interactive elements
+- Click targets smaller than 44px
+- Missing loading states on async actions
+- Missing error states on forms
+- Missing success confirmation after actions
+- Disabled states that look clickable
+
+### Responsive tasks
+- Layout breaks at specific breakpoints
+- Touch targets too small on mobile
+- Horizontal scroll at any viewport
+- Content that's invisible or inaccessible on mobile
+- Navigation that doesn't work on small screens
+
+### Empty state & dead end tasks
+- Pages with no data that show blank
+- Flows that end without a next step
+- Error pages with no recovery path
+- First-time experience with no guidance
+
+### Consistency tasks
+- Same component styled differently on different pages
+- Same action labeled differently in different places
+- Same icon meaning different things
+- Different navigation patterns on similar pages
+
+### Competitor gap tasks
+- Visual patterns competitors nail that we don't
+- Polish level differences (animations, transitions, micro-interactions)
+- Information density differences (too much vs too little vs just right)
+
+**Write ALL tasks to /todo.** Tag with `source: /taste`, URL, and dimension. Priority: tasks on dimensions scoring lowest first.
+
+**There is no cap on task count.** A page with 5 dimensions below 60 might need 30 tasks. Generate all of them. The founder uses /plan to pick which to work on — /taste's job is to make sure EVERY visual issue is captured.
+
+After writing tasks, show: "Generated N tasks across M dimensions. Worst dimension: [name] at [score] needs [X] tasks."
 
 ## Boundaries
 

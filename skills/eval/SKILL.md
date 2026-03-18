@@ -91,23 +91,51 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 `config/rhino.yml`, `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists).
 
-## Task generation (aggressive)
+## Task generation — the path to completion
 
-**Every gap found = a task created.** Don't summarize gaps — create actionable tasks for each one.
+**The eval's job is not just scoring. It's generating EVERY task needed to reach 90+ on every feature.** The backlog IS the roadmap to completion. If /eval doesn't populate /todo, the founder has scores but no path forward.
 
-For EVERY feature scored, generate tasks from:
-- **Each gap in the evaluator's report** → task: "fix [specific gap] in [feature] — [file:line]"
-- **Each rubric criterion not met** → task: "[criterion] not satisfied — [what's missing]"
-- **Each sub-score below 50** → task: "raise [dimension] on [feature] — currently [score], needs [specific fix]"
-- **Each failing assertion** → task: "fix failing assertion [id] — [what's broken]"
-- **Each missing assertion type** → task: "add [type] assertion for [feature] — [what to test]"
-- **Score regression vs previous eval** → task: "investigate regression in [feature] — [old]→[new]"
-- **Missing rubric** → task: "create rubric for [feature] — no anchoring exists"
-- **Delivery-craft gap >15** → task: "close delivery/craft gap on [feature] — d:[X] c:[Y]"
+**For EVERY feature scored, generate the complete task list to reach the next maturity level:**
 
-Tag every task with `source: /eval` and the feature name. Use TaskCreate for each.
+### Delivery tasks (what's missing to deliver the claim)
+- Each gap between what the feature CLAIMS to deliver and what the code ACTUALLY does → task with file:line
+- Each code path that's stubbed, incomplete, or returns placeholder data
+- Each user-facing flow that dead-ends or errors without recovery
+- Each dependency that's broken or missing
+- Missing error handling on critical paths
+- Missing input validation on user-facing interfaces
 
-**Target: 5-15 tasks per eval session.** If you only found 2-3, you didn't look hard enough. Every number in the eval report that isn't where it should be is a task.
+### Craft tasks (what's missing to be well-built)
+- Each rubric criterion not met → task with specific fix
+- Each unhandled edge case identified during code read
+- Each inconsistency between similar code patterns
+- Missing tests or assertions for critical behavior
+- Code that works but is fragile (grep/sed parsing, hardcoded paths, silent failures)
+- Scripts that aren't executable or have syntax issues
+
+### Viability tasks (what's missing to succeed)
+- Missing or vague documentation for the feature
+- No example usage or unclear interface
+- Competitor has this feature done better — specific gap
+- No assertion coverage for this feature
+- Feature depends on manual steps that should be automated
+
+### Coverage tasks (assertion gaps)
+- Each feature with <3 assertions → tasks to add assertions by type
+- Each feature with only file_check assertions → tasks to upgrade to content_check or command_check
+- Each passing assertion that tests existence not behavior → task to strengthen
+- Missing assertion types: if no command_check exists, create one. If no content_check, create one.
+
+### Regression tasks
+- Each score that dropped vs previous eval → investigate task
+- Each assertion that was passing and now fails → fix task
+- Each feature where delta is "worse" → diagnosis task
+
+**Write ALL tasks to /todo via the todo system.** Tag with `source: /eval`, feature name, and dimension (delivery/craft/viability). Priority: tasks on highest-weight features first.
+
+**There is no cap on task count.** A feature scoring 30 might need 20 tasks to reach 70. Generate all of them. The founder uses /plan to pick which to work on — /eval's job is to make sure NOTHING is missing from the backlog.
+
+After writing tasks, show the count: "Generated N tasks across M features. Worst feature: [name] needs [X] tasks to reach [target]."
 
 ## Cross-skill synthesis
 
