@@ -10,6 +10,12 @@ Playwright screenshots fire after `wait_for(time: 3)` but some SPAs take longer.
 
 shadcn/Tailwind defaults describe half the internet. Penalize *undifferentiated* defaults, not defaults themselves. A card grid that serves the content well is fine. The slop rule asks: "could AI generate this by prompting 'build me a [category] page'?" — not "does it use rounded corners?"
 
+**The 80+ bar is now enforced.** If the product uses only framework defaults with no custom layout, motion, or interaction craft — hard cap at 79 on layout_coherence, polish, and distinctiveness. This isn't about using fancy libraries for the sake of it. It's about whether the builder made intentional choices beyond what a framework provides. 80+ means craft that's visible, psychologically grounded, and technically sophisticated. Read the "The 80+ Bar" section in `references/dimensions.md` before scoring any dimension above 79.
+
+## Static pages cap at 75 for polish and scroll
+
+No motion library (Framer Motion, GSAP, react-spring, etc.) in the codebase → polish and scroll_experience cap at 75. A static page can be clean, well-organized, properly spaced. It cannot be exceptional. Exceptional means the interface responds, breathes, guides — and that requires motion. Check `package.json` or imports before scoring these dimensions above 75.
+
 ## Dimension subjectivity produces session variance
 
 "Emotional tone" and "distinctiveness" vary 10-15 points across sessions. Without `founder-taste.md`, these dimensions are noise. When calibration exists, anchor to it. When it doesn't, weight these lower mentally and note "uncalibrated — variance expected" in the report.

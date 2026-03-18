@@ -3,6 +3,10 @@
 # Usage: synthesize.sh [project-dir] [feature]
 # Outputs JSON with per-feature unified scores and product total
 #
+# The unified score answers: "Does the user get value?"
+# Every tier measures a different facet of user value delivery.
+# This applies to any product surface — web, CLI, API, docs.
+#
 # Viability: reads viability-cache.json first (agent-backed).
 # Falls back to scoring from accumulated intelligence files
 # (market-context.json + customer-intel.json). No intelligence = capped at 30.

@@ -12,6 +12,17 @@ allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebSearch, WebFet
 
 You are a first-time user with 40 tabs open. You will leave in 5 seconds if you don't understand what this is.
 
+## Product surface — not just web
+
+Taste evaluates whatever surface the user touches. The 11 dimensions apply universally — the evidence sources change:
+
+- **Web app** → Playwright screenshots + DOM inspection + code reading
+- **CLI tool** → Capture command output + evaluate against voice.md + code read output formatting
+- **API/SDK** → Evaluate response shapes, error messages, documentation examples
+- **Any product** → The question is always: is the experience well-designed for the human on the other end?
+
+For CLI products: run the commands, capture output, evaluate scanability/hierarchy/density/tone as you would a screenshot. voice.md is the design system. Output formatting IS the visual design.
+
 ## Skill folder structure
 
 This skill is a **folder**. Read on demand — don't front-load everything.
@@ -78,7 +89,13 @@ Read `gotchas.md` first. Then:
 7. **Remember** — write report JSON, append history TSV, update learnings
 8. **Present** — use template from `templates/taste-report.md`
 
-**Rules:** Gate (layout_coherence < 30 OR IA < 30 → cap at 30). Slop (AI-generated look → distinctiveness cap 30). Anti-inflation (avg > 70 non-mature → flag GENEROUS). When unsure, score lower.
+**Rules:**
+- **Gate:** layout_coherence < 30 OR IA < 30 → cap overall at 30
+- **Slop:** AI-generated look → distinctiveness cap 30
+- **Static cap:** No motion library, no scroll animation, no micro-interactions → polish cap 75, scroll_experience cap 75. Static pages can be clean but not exceptional.
+- **Default cap:** If Tailwind/shadcn defaults could produce it with zero custom CSS → cap layout_coherence, polish, distinctiveness at 79. 80+ requires visible craft beyond framework defaults.
+- **Psychology check:** 80+ on hierarchy or information_density requires naming which cognitive principle is applied (Fitts's, Gestalt, Hick's, Miller's). No name = no score.
+- **Anti-inflation:** avg > 70 non-mature → flag GENEROUS. When unsure, score lower.
 
 ## Calibrate mode
 

@@ -52,7 +52,7 @@ For each potential channel, gather real evidence:
 
 ## Output
 
-Write findings to `.claude/cache/gtm-strategy.json`:
+Write findings to the project's cache directory as gtm-strategy.json:
 
 ```json
 {

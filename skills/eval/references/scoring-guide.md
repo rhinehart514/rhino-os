@@ -16,7 +16,7 @@
 
 NOTE: Viability (market fit, UVP) is scored separately by `/score` using agent-backed research. Eval focuses on what it can measure from code: delivery and craft.
 
-### Delivery (50%)
+### Delivery (60%)
 
 Does this feature deliver real value to its target user? Not "does code exist" but "would a human care?"
 
@@ -29,22 +29,47 @@ Read the `delivers:` field (the promise) and `for:` field (who it promises to). 
 - 30-49: Skeleton exists, but a user couldn't get value from it
 - 0-29: Claim exists, code doesn't deliver it
 
-### Craft (30%)
+**Delivery includes user understanding.** Code that works but confuses the user is not delivering. For every feature, evaluate the product surface the user actually touches — the output they see, the interface they interact with, the feedback they receive. Ask these questions:
 
-Is this well-made AS A SYSTEM? Two layers:
+1. **5-second test:** If someone encounters this feature cold, do they understand what it does and what to do in 5 seconds? If not, delivery is capped at 69 regardless of code quality.
+2. **Value moment:** How many steps from first encounter to "I got something useful"? Every step is friction. One step = potential 90+. Five steps = cap at 70.
+3. **Next action clarity:** After the feature runs/renders/responds, does the user know what to do next? No clear next action = cap at 75.
+4. **Error communication:** When something goes wrong, does the user understand what happened AND how to fix it? Generic errors or silent failures = delivery penalty.
+5. **Return trigger:** Is there a reason to come back? Features without pull are furniture.
+
+These apply to ANY product surface:
+- **Web UI:** Does the page communicate its purpose? Is the CTA obvious? Does the loading state reassure?
+- **CLI output:** Is it scannable in 2 seconds? Does it name the next command? Is signal separated from noise?
+- **API response:** Is the shape intuitive? Are errors actionable? Does the response give enough context to proceed?
+- **Docs/onboarding:** Does the reader know what to do after reading? Or just what exists?
+- **Email/notification:** Does the recipient know why they got this and what action to take?
+
+**Hard rule:** Delivery > 80 requires evidence that the product surface (not just the code) communicates clearly. Cite the specific output, UI element, or response that proves the user would understand.
+
+### Craft (40%)
+
+Is this well-made — both the code AND the experience? Three layers:
 
 **Code craft:** Error handling, architecture, code taste. When this breaks at 3am, will you know? Are errors swallowed? Is state managed cleanly?
 
 **System design:** Is the information architecture sound? Do routes/data flows/component hierarchy serve the user's mental model? Are layout decisions intentional or accidental? Does the abstraction level match the problem?
 
-**Scoring anchors:**
-- 90+: Elegant. You'd study this code to learn from it.
-- 70-89: Solid engineering. Zero critical unhandled error paths.
-- 50-69: Works but fragile. Known gaps in error handling.
-- 30-49: Functional but messy. Would cause incidents under load.
-- 0-29: Hacked together. No error handling strategy.
+**Product surface craft:** Is the output/interface/response well-made as an experience? This is where code craft meets user perception:
+- **Web:** Visual hierarchy, interaction feedback, loading states, responsive behavior, animation purpose
+- **CLI:** Output formatting, scanability, information density, color-as-signal (not decoration), consistent structure across commands
+- **API:** Response shape consistency, error format quality, pagination/filtering ergonomics, documentation accuracy
+- **Any surface:** Consistency across touchpoints (does the feature feel like the same product everywhere the user encounters it?)
 
-**Hard rule:** craft > 70 requires zero critical unhandled error paths.
+**Scoring anchors:**
+- 90+: Elegant code AND polished experience. You'd study both to learn from them. The product surface delights — not just works.
+- 70-89: Solid engineering, zero critical unhandled error paths, product surface is clear and consistent.
+- 50-69: Works but fragile. Product surface is functional but generic or inconsistent.
+- 30-49: Functional but messy. Product surface confuses or frustrates.
+- 0-29: Hacked together. Product surface is an afterthought.
+
+**Hard rules:**
+- craft > 70 requires zero critical unhandled error paths
+- craft > 80 requires evidence of intentional product surface design (not just working code that happens to output something)
 
 ### Viability — Scored by /score, NOT eval
 

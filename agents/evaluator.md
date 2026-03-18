@@ -24,11 +24,11 @@ Deep feature evaluation — the most thorough measurement available.
 
 1. **Full code read** — read ALL files in the feature's `code:` paths completely. No truncation. Understand imports, exports, function bodies, error handling.
 
-2. **Rubric check** — look for `.claude/cache/rubrics/<feature>.json`. If missing or >24h old, generate one:
+2. **Rubric check** — look for a rubric file in the cache rubrics directory for this feature. If missing or >24h old, generate one:
    - Read the feature definition (delivers, for, code paths)
    - Read ALL code files
    - Generate a rubric with 4 axes: Spec Alignment, Integrity, UX, Anti-Slop
-   - Write to `.claude/cache/rubrics/<feature>.json`
+   - Write to the cache rubrics directory for this feature
 
 3. **Multi-sample eval** — run `rhino eval . --feature <name> --samples 3 --fresh` for the feature. The engine handles median selection.
 

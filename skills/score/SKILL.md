@@ -9,7 +9,11 @@ allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, WebSear
 
 # /score — Unified Product Quality
 
-You are the final judge. Not one dimension — all of them. Health, code, visuals, behavior, market viability. One number, fully backed.
+You are the final judge. The question is always: **does the user get it?**
+
+Not "is the code clean" or "does it build" — does a real human encounter this product, understand what it does, get value, and want to come back? Every tier measures a facet of that question. Health checks the foundation. Delivery checks whether the user cares. Craft checks whether the experience is well-made. Visual checks whether it looks/feels right. Behavioral checks whether it actually works. Viability checks whether the market cares.
+
+This applies to any product — web, CLI, API, library, docs. The evidence sources change. The question doesn't.
 
 ## Skill folder structure
 

@@ -1,5 +1,15 @@
 # Scoring Methodology
 
+## The Question Every Tier Must Answer
+
+**Does the user get it?**
+
+Every tier — health, delivery, craft, visual, behavioral, viability — exists to answer one question from a different angle: does the person using this product understand what it does, get value from it, and want to come back?
+
+A product with perfect code that confuses users scores low. A product with rough code that delights users scores higher. The tiers measure different facets of user value delivery, not different aspects of code quality.
+
+This applies universally — web UI, CLI output, API responses, documentation, notifications. Whatever surface the user touches IS the product.
+
 ## Tier Weights
 
 Default weights (all tiers available):
@@ -7,17 +17,32 @@ Default weights (all tiers available):
 | Tier | Weight | Source | What it measures |
 |------|--------|--------|-----------------|
 | Health | gate | `rhino score .` | Build passes, structure, hygiene. < 20 = score 0. |
-| Delivery | 40% | `/eval` | Does the code deliver real value? |
-| Craft | 25% | `/eval` | Is the code well-made? |
-| Visual | 15% | `/taste` | Does the rendered product look good? |
-| Behavioral | 10% | `/taste flows` | Does the frontend actually work? |
+| Delivery | 40% | `/eval` | Does the user get real value? (includes user understanding, not just code completeness) |
+| Craft | 25% | `/eval` | Is the experience well-made? (code craft + product surface craft) |
+| Visual | 15% | `/taste` | Does the product surface look/feel exceptional? (web: screenshots, CLI: output formatting, API: response design) |
+| Behavioral | 10% | `/taste flows` | Does the product actually work end-to-end? |
 | Viability | 10% | agents/intelligence | Would this survive the market? |
 
 **Formula:** `delivery*0.40 + craft*0.25 + visual*0.15 + behavioral*0.10 + viability*0.10`
 
+### Product-type adaptation
+
+The tiers apply to every product type, but the evidence sources change:
+
+| Product type | Visual source | Behavioral source | Delivery evidence |
+|-------------|--------------|-------------------|-------------------|
+| Web app | Playwright screenshots + taste dimensions | Playwright flow audit | UI communicates purpose, CTA obvious, value in <3 clicks |
+| CLI tool | Command output formatting, voice.md compliance, scanability | Command sequences complete tasks | Output scannable in 2s, next action named, errors actionable |
+| API/SDK | Response shape consistency, error format, docs | Integration test flows | Consumer understands response, errors guide fix, docs match reality |
+| Library | API surface design, type signatures, examples | Test suite + usage examples | User can accomplish task from README alone |
+| Docs site | Page layout, navigation, search | Reader can follow a tutorial end-to-end | Reader knows what to do after reading, not just what exists |
+
 ## Weight Redistribution
 
-When tiers are unavailable (no URL, no Playwright, no agent data), redistribute:
+When tiers are unavailable, redistribute — but note that "unavailable" means different things for different product types:
+
+**Web products without URL:** Visual and behavioral tiers skip — this is legitimate redistribution.
+**CLI/API/library products:** Visual tier evaluates output/response design (not screenshots). Behavioral tier evaluates command/call sequences. These tiers are NEVER truly unavailable — the evidence source changes, not the question.
 
 | Missing | Redistribution |
 |---------|---------------|
@@ -26,7 +51,7 @@ When tiers are unavailable (no URL, no Playwright, no agent data), redistribute:
 | Visual + Behavioral | delivery 50%, craft 30%, viability 20% |
 | Viability only | delivery 45%, craft 30%, visual 15%, behavioral 10% |
 
-Always flag redistributed tiers in output.
+Always flag redistributed tiers in output. If visual+behavioral are skipped for a CLI product, flag this as a gap — those tiers should be evaluating output quality, not being skipped.
 
 ## Staleness Thresholds
 

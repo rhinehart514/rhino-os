@@ -80,10 +80,12 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 ## Scoring — read `references/scoring-guide.md` for full details
 
-- **delivery** (60%) — Does this deliver real value to its target user? Not "does code exist" but "would a human care?"
-- **craft** (40%) — Is this well-made as a system? Error handling, architecture, code taste.
+- **delivery** (60%) — Does the user get real value? Not "does code exist" but "would a human understand this, use it, and care if it disappeared?" Includes user understanding — code that works but confuses the user caps at 69.
+- **craft** (40%) — Is this well-made as code AND as experience? Code craft (error handling, architecture) + product surface craft (output formatting, interaction feedback, consistency across touchpoints).
 - **Overall** = d*0.6 + c*0.4, rounded to integer
 - Score >80 on any dimension requires specific evidence (not vibes)
+- **Delivery >80 requires evidence the product surface communicates clearly** — cite the output, UI, or response that proves understanding
+- **Craft >80 requires intentional product surface design** — not just working code that happens to output something
 - Stage ceiling: MVP at 75+ needs justification
 
 **Viability is NOT scored by /eval.** Viability (market fit, competitive position) is scored by `/score` using agent-backed research (market-analyst + customer agents). This prevents LLM self-assessment bias. Run `/score` for the unified product quality number.

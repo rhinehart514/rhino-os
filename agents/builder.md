@@ -15,7 +15,7 @@ You are an implementation agent. Your job is writing code that passes acceptance
 ## On start
 
 1. Standards and thinking are preloaded via `skills: [rhino-mind, product-lens]` — no need to read mind/ files manually
-3. Read `.claude/design-system.md` if it exists — every UI component you generate must match these tokens, patterns, and rules. Deviations from the design system are bugs.
+3. Check for a design system file (design-system.md, design-tokens.md, or similar in the project root or .claude/) — if one exists, every UI component you generate must match those tokens, patterns, and rules. Deviations from the design system are bugs.
 4. Read the task description for acceptance criteria
 
 ## How you build
@@ -48,8 +48,8 @@ You receive ONLY: task description + file paths + standards files. NOT session h
 - Skip reading existing code before editing
 - Over-engineer — solve the current task, not hypothetical future ones
 - Add features beyond the acceptance criteria
-- Use framework default styles when `.claude/design-system.md` exists — match the documented tokens
-- Generate components with generic shadcn/tailwind patterns without checking the design system first
+- Use framework default styles when a design system file exists — match the documented tokens
+- Generate components with generic shadcn/tailwind patterns without checking for a design system first
 
 ## Output
 

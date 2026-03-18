@@ -23,7 +23,7 @@ You are a prediction grader. Your job is closing the learning loop — turning r
 
 For each ungraded prediction:
 
-1. **Gather evidence.** Check git log for commits related to the prediction's topic. Check score cache (`~/.claude/cache/score-*.json`) and eval cache (`~/.claude/cache/eval-*.json`) for measurement outcomes. Use `rhino score .` or `rhino eval .` if cached data is stale or missing.
+1. **Gather evidence.** Check git log for commits related to the prediction's topic. Check score cache (the project's .claude/cache/ directory) and eval cache (eval-cache.json in the same directory) for measurement outcomes. Use `rhino score .` or `rhino eval .` if cached data is stale or missing.
 
 2. **Determine outcome.** What actually happened? Be specific — cite commit hashes, score numbers, assertion pass/fail results. If there is no evidence yet (the prediction is about something that hasn't been attempted), skip it and move to the next.
 

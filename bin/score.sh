@@ -348,6 +348,8 @@ score_structure() {
                 [[ "$ref" == *$'\n'* || "$ref" == *" "* ]] && continue
                 # Skip refs that are clearly not file paths (contain brackets, etc.)
                 [[ "$ref" == *'['* || "$ref" == *'('* || "$ref" == *'{'* ]] && continue
+                # Skip slash commands (e.g. /taste, /plan, /go)
+                [[ "$ref" =~ ^/[a-z]+$ ]] && continue
                 # Only check refs that look like file paths (contain / or end with known extensions)
                 if [[ "$ref" == */* || "$ref" == *.sh || "$ref" == *.md || "$ref" == *.yml || "$ref" == *.json || "$ref" == *.mjs ]]; then
                     # Expand ~ to $HOME
@@ -448,8 +450,9 @@ score_hygiene() {
         # CLI hygiene: check shell scripts and JS files in bin/
 
         # Check for unfinished work markers in shell scripts and JS
+        # Exclude: todo.sh (manages TODOs), eval.sh (checks for TODOs), test files, grade.sh (reads predictions)
         local todo_count
-        todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
+        todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | grep -v "todo\.sh\|todo\.test\|eval\.sh\|grade\.sh\|tests/" | wc -l | tr -d ' ')
         tiered_penalty "$todo_count" "20:-20 10:-10 3:-5" "TODO/FIXME markers"
 
         # console.log/console.error in JS files (CLI tools should use structured output)

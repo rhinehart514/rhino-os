@@ -21,7 +21,7 @@ You are a measurement agent. Your job is honest, unbiased product evaluation.
 1. Run `rhino eval .` for generative feature evaluation
 2. Run `rhino score .` for structural health check
 3. Report per-feature verdicts: DELIVERS / PARTIAL / MISSING
-4. Compare results against `.claude/cache/score-cache.json` for deltas
+4. Compare results against the project's score cache for deltas
 5. Flag regressions (was passing, now failing)
 6. Flag progressions (was failing, now passing)
 

@@ -12,16 +12,20 @@ Three tiers, in order of what matters:
 
 Most dev tools measure bottom-up: health → craft → maybe value. rhino-os measures top-down. A product with rough edges that delivers clear value beats a polished product that doesn't.
 
+**The question every tier answers: does the user get it?**
+
+This applies to any product surface — web UI, CLI output, API responses, docs. The evidence changes. The question doesn't.
+
 **How they map to tools:**
 - `rhino score .` → Health (structural lint: build, structure, hygiene)
-- `/taste <url> flows` → Delivery (does the frontend work? behavioral audit, issue list)
-- `/taste <url>` → Craft (visual product intelligence, 0-100 scale)
-- `rhino eval .` → Value (delivery + craft per feature from code analysis)
+- `/taste flows` → Delivery (does the product work end-to-end? behavioral audit — web, CLI, or API)
+- `/taste` → Craft (product surface intelligence — visual for web, output quality for CLI, response design for API)
+- `rhino eval .` → Value (delivery + craft per feature from code analysis — includes user understanding, not just code completeness)
 - `/score` → **Unified** (orchestrates all tiers + agent-backed viability into one number)
 
 `/score` is the authoritative product quality number. It composes health + eval + taste + flows + viability (via market-analyst and customer agents). Each tier runs independently; /score synthesizes.
 
-Score is a SUPPORTING metric. A 100/100 score with zero value is a beautiful corpse. **Eval pass rate is the north star.**
+Score is a SUPPORTING metric. A 100/100 score with zero value is a beautiful corpse. **User understanding is the north star.** If a stranger can't figure out what this does in 5 seconds, the score is lying.
 
 ## The Value Checklist
 

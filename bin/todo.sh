@@ -621,15 +621,29 @@ cmd_promote() {
 
         local bottleneck_feature=""
         local bottleneck_score=999
+        local bottleneck_weight=0
         if [[ -f "$cache_file" ]] && command -v jq &>/dev/null; then
-            # Find lowest-scoring feature (the bottleneck)
+            # Find lowest-scoring active feature, weighted by importance
+            # Read feature weights from rhino.yml
+            local rhino_yml="$PROJECT_DIR/config/rhino.yml"
+            [[ ! -f "$rhino_yml" ]] && rhino_yml="$RHINO_DIR/config/rhino.yml"
             while IFS='|' read -r feat score; do
-                [[ -z "$feat" || -z "$score" ]] && continue
-                if [[ "$score" -lt "$bottleneck_score" ]]; then
+                [[ -z "$feat" || -z "$score" || "$score" == "null" ]] && continue
+                [[ ! "$score" =~ ^[0-9]+$ ]] && continue
+                # Get weight from rhino.yml (default 1)
+                local w=1
+                if [[ -f "$rhino_yml" ]]; then
+                    w=$(grep -A 10 "^  ${feat}:" "$rhino_yml" 2>/dev/null | grep "weight:" | head -1 | awk '{print $2}')
+                    w="${w:-1}"
+                fi
+                # Bottleneck = lowest score among highest-weight features
+                # Prioritize: lower score wins, then higher weight breaks ties
+                if [[ "$score" -lt "$bottleneck_score" || ("$score" -eq "$bottleneck_score" && "$w" -gt "$bottleneck_weight") ]]; then
                     bottleneck_score="$score"
                     bottleneck_feature="$feat"
+                    bottleneck_weight="$w"
                 fi
-            done < <(jq -r 'to_entries[] | "\(.key)|\(.value.score // 0)"' "$cache_file" 2>/dev/null)
+            done < <(jq -r 'to_entries[] | select(.value.score != null) | "\(.key)|\(.value.score)"' "$cache_file" 2>/dev/null)
         fi
 
         echo ""
@@ -637,7 +651,7 @@ cmd_promote() {
         echo ""
 
         if [[ -n "$bottleneck_feature" ]]; then
-            echo -e "  bottleneck: ${BOLD}${bottleneck_feature}${NC} at ${bottleneck_score}"
+            echo -e "  bottleneck: ${BOLD}${bottleneck_feature}${NC} at ${bottleneck_score} (w:${bottleneck_weight})"
             echo ""
 
             # Find todos tagged to bottleneck feature
