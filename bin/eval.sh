@@ -718,13 +718,16 @@ Output ONLY a JSON object:
         local tmp_file
         tmp_file=$(mktemp)
         echo "$rubric_prompt" > "$tmp_file"
-        rubric_result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || rubric_result=""
+        rubric_result=$(claude -p "$(cat "$tmp_file")" --model haiku --output-format text --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || {
+            # Retry without --output-format if flag not supported
+            rubric_result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || rubric_result=""
+        }
         rm -f "$tmp_file"
     else
         local payload
         payload=$(jq -n \
             --arg prompt "$rubric_prompt" \
-            '{model:"claude-haiku-4-5-20251001",max_tokens:800,temperature:0,messages:[{role:"user",content:$prompt}]}')
+            '{model:"claude-haiku-4-5-20251001",max_tokens:1500,temperature:0,messages:[{role:"user",content:$prompt}]}')
         local response
         response=$(curl -s "https://api.anthropic.com/v1/messages" \
             -H "x-api-key: $api_key" \
@@ -737,10 +740,33 @@ Output ONLY a JSON object:
     # Parse and cache the rubric
     if [[ -n "$rubric_result" ]]; then
         local cleaned
-        cleaned=$(echo "$rubric_result" | sed -E '/^```[a-zA-Z]*$/d' | sed -e '/^[[:space:]]*$/d')
-        # Extract JSON
-        local rubric_json
-        rubric_json=$(echo "$cleaned" | perl -0777 -ne 'if (/(\{(?:[^{}]|(?:\{(?:[^{}]|\{[^{}]*\})*\}))*\})/s) { print $1 }' 2>/dev/null)
+        cleaned=$(echo "$rubric_result" | sed -E '/^[[:space:]]*`{3,}[a-zA-Z]*[[:space:]]*$/d' | sed -e '/^[[:space:]]*$/d')
+        # Extract JSON — try jq first, then python3, then perl
+        local rubric_json=""
+        if echo "$cleaned" | jq -c . &>/dev/null 2>&1; then
+            rubric_json=$(echo "$cleaned" | jq -c .)
+        else
+            rubric_json=$(echo "$cleaned" | python3 -c '
+import sys, json
+text = sys.stdin.read()
+depth = 0; start = -1
+for i, c in enumerate(text):
+    if c == "{":
+        if depth == 0: start = i
+        depth += 1
+    elif c == "}":
+        depth -= 1
+        if depth == 0 and start >= 0:
+            try:
+                obj = json.loads(text[start:i+1])
+                if isinstance(obj, dict):
+                    print(json.dumps(obj, separators=(",",":")))
+                    sys.exit(0)
+            except: pass
+            start = -1
+' 2>/dev/null)
+            [[ -z "$rubric_json" ]] && rubric_json=$(echo "$cleaned" | perl -0777 -ne 'if (/(\{(?:[^{}]|(?:\{(?:[^{}]|\{[^{}]*\})*\}))*\})/s) { print $1 }' 2>/dev/null)
+        fi
         if [[ -n "$rubric_json" ]] && echo "$rubric_json" | jq -c . &>/dev/null 2>&1; then
             echo "$rubric_json" | jq -c . > "$rubric_file" 2>/dev/null || true
         fi
@@ -840,14 +866,26 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
 
     local api_key="${ANTHROPIC_API_KEY:-}"
     local result=""
+    local _parse_diag=""  # diagnostic info for stderr on parse failure
 
     if [[ -z "$api_key" ]]; then
-        # Try claude CLI (no temperature flag available — use system prompt to reduce variance)
+        # Try claude CLI — use --output-format text for clean output
         local tmp_file
         tmp_file=$(mktemp)
         echo "$prompt" > "$tmp_file"
-        result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>/dev/null </dev/null) || result=""
-        rm -f "$tmp_file"
+        # Capture both stdout and stderr to diagnose failures
+        local cli_stderr
+        cli_stderr=$(mktemp)
+        result=$(claude -p "$(cat "$tmp_file")" --model haiku --output-format text --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>"$cli_stderr" </dev/null) || {
+            _parse_diag="claude CLI exit code $?; stderr: $(head -5 "$cli_stderr" 2>/dev/null)"
+            result=""
+        }
+        # If --output-format text is not supported, retry without it
+        if [[ -z "$result" && -s "$cli_stderr" ]] && grep -qi 'output-format\|unknown.*flag\|unrecognized' "$cli_stderr" 2>/dev/null; then
+            result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>/dev/null </dev/null) || result=""
+            _parse_diag=""
+        fi
+        rm -f "$tmp_file" "$cli_stderr"
     else
         # Direct API call with temperature 0 for deterministic output
         # Try structured output via tool_use first (guaranteed valid JSON)
@@ -858,7 +896,7 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
                 --arg prompt "$prompt" \
                 '{
                     model:"claude-haiku-4-5-20251001",
-                    max_tokens:1024,
+                    max_tokens:4096,
                     temperature:0,
                     tool_choice:{type:"tool",name:"audit_result"},
                     tools:[{
@@ -884,33 +922,60 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
                 -H "anthropic-version: 2023-06-01" \
                 -H "content-type: application/json" \
                 -d "$payload" 2>/dev/null)
-            # Extract tool_use input (structured JSON)
-            result=$(echo "$response" | jq -r '.content[] | select(.type=="tool_use") | .input // empty' 2>/dev/null)
-            if [[ -n "$result" && "$result" != "null" ]]; then
-                # Structured output — already valid JSON, convert to compact
-                result=$(echo "$result" | jq -c . 2>/dev/null)
+
+            # Check for API errors first
+            local api_error
+            api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+            if [[ -n "$api_error" ]]; then
+                _parse_diag="API error: $api_error"
+                result=""
             else
-                # Structured output failed — fall back to plain text
-                result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+                # Check stop_reason — max_tokens means truncated response
+                local stop_reason
+                stop_reason=$(echo "$response" | jq -r '.stop_reason // empty' 2>/dev/null)
+
+                # Extract tool_use input (structured JSON)
+                result=$(echo "$response" | jq -c '.content[] | select(.type=="tool_use") | .input // empty' 2>/dev/null)
+                if [[ -n "$result" && "$result" != "null" && "$result" != "" ]]; then
+                    # Structured output — already valid JSON
+                    :
+                elif [[ "$stop_reason" == "max_tokens" ]]; then
+                    # Response was truncated — try to extract partial text content
+                    _parse_diag="API response truncated (stop_reason: max_tokens)"
+                    result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+                else
+                    # Structured output failed — fall back to plain text
+                    result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+                    [[ -z "$result" ]] && _parse_diag="API response had no tool_use or text content"
+                fi
             fi
         else
             payload=$(jq -n \
                 --arg prompt "$prompt" \
-                '{model:"claude-haiku-4-5-20251001",max_tokens:800,temperature:0,messages:[{role:"user",content:$prompt}]}')
+                '{model:"claude-haiku-4-5-20251001",max_tokens:2048,temperature:0,messages:[{role:"user",content:$prompt}]}')
             response=$(curl -s "https://api.anthropic.com/v1/messages" \
                 -H "x-api-key: $api_key" \
                 -H "anthropic-version: 2023-06-01" \
                 -H "content-type: application/json" \
                 -d "$payload" 2>/dev/null)
-            result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+            # Check for API errors
+            local api_error
+            api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+            if [[ -n "$api_error" ]]; then
+                _parse_diag="API error: $api_error"
+                result=""
+            else
+                result=$(echo "$response" | jq -r '.content[0].text // empty' 2>/dev/null)
+            fi
         fi
     fi
 
     # Parse the JSON response — robust extraction handles common LLM output formats
     if [[ -n "$result" ]]; then
-        # Strip markdown fences: ```json, ```, and variations with language tags
+        # Strip markdown fences: ```json, ```, and variations
+        # Handles: leading whitespace, trailing whitespace, language tags, ````-style fences
         local cleaned
-        cleaned=$(echo "$result" | sed -E '/^```[a-zA-Z]*$/d')
+        cleaned=$(echo "$result" | sed -E '/^[[:space:]]*`{3,}[a-zA-Z]*[[:space:]]*$/d')
         # Also strip leading/trailing whitespace lines
         cleaned=$(echo "$cleaned" | sed -e '/^[[:space:]]*$/d')
 
@@ -918,61 +983,166 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
         if echo "$cleaned" | jq -c . &>/dev/null 2>&1; then
             local parsed
             parsed=$(echo "$cleaned" | jq -c .)
-            echo "$parsed" | _apply_logic_antisycophancy
+            _validate_and_emit "$parsed"
             return
         fi
 
         # Try 2: extract from first { to last } on their own lines
         local json_part
-        json_part=$(echo "$cleaned" | sed -n '/^{/,/^}/p')
+        json_part=$(echo "$cleaned" | sed -n '/^[[:space:]]*{/,/^[[:space:]]*}/p')
         if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
-            echo "$json_part" | jq -c . | _apply_logic_antisycophancy
+            _validate_and_emit "$(echo "$json_part" | jq -c .)"
             return
         fi
 
         # Try 3: extract from first { to last } anywhere (not just line-start)
         json_part=$(echo "$cleaned" | sed -n '/[[:space:]]*{/,/}[[:space:]]*$/p')
         if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
-            echo "$json_part" | jq -c . | _apply_logic_antisycophancy
+            _validate_and_emit "$(echo "$json_part" | jq -c .)"
             return
         fi
 
-        # Try 4: use perl to extract first balanced JSON object (handles multi-line, nested braces)
+        # Try 4: use python3 to extract first valid JSON object (most robust)
+        json_part=$(echo "$cleaned" | python3 -c '
+import sys, json, re
+text = sys.stdin.read()
+# Find all potential JSON objects by matching { to }
+depth = 0
+start = -1
+for i, c in enumerate(text):
+    if c == "{":
+        if depth == 0:
+            start = i
+        depth += 1
+    elif c == "}":
+        depth -= 1
+        if depth == 0 and start >= 0:
+            candidate = text[start:i+1]
+            try:
+                obj = json.loads(candidate)
+                if isinstance(obj, dict) and ("delivery_score" in obj or "score" in obj):
+                    print(json.dumps(obj, separators=(",",":")))
+                    sys.exit(0)
+            except json.JSONDecodeError:
+                pass
+            start = -1
+# If no object with scores found, try any valid JSON object
+depth = 0
+start = -1
+for i, c in enumerate(text):
+    if c == "{":
+        if depth == 0:
+            start = i
+        depth += 1
+    elif c == "}":
+        depth -= 1
+        if depth == 0 and start >= 0:
+            candidate = text[start:i+1]
+            try:
+                obj = json.loads(candidate)
+                if isinstance(obj, dict):
+                    print(json.dumps(obj, separators=(",",":")))
+                    sys.exit(0)
+            except json.JSONDecodeError:
+                pass
+            start = -1
+' 2>/dev/null)
+        if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
+            _validate_and_emit "$(echo "$json_part" | jq -c .)"
+            return
+        fi
+
+        # Try 5: use perl to extract first balanced JSON object (handles multi-line, nested braces)
         json_part=$(echo "$cleaned" | perl -0777 -ne 'if (/(\{(?:[^{}]|(?:\{(?:[^{}]|\{[^{}]*\})*\}))*\})/s) { print $1 }' 2>/dev/null)
         if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
-            echo "$json_part" | jq -c . | _apply_logic_antisycophancy
+            _validate_and_emit "$(echo "$json_part" | jq -c .)"
             return
         fi
 
-        # Try 5: grep any single-line JSON object containing "delivery_score" or "score"
+        # Try 6: grep any single-line JSON object containing "delivery_score" or "score"
         json_part=$(echo "$cleaned" | grep -o '{[^}]*"delivery_score"[^}]*}' | head -1)
         [[ -z "$json_part" ]] && json_part=$(echo "$cleaned" | grep -o '{[^}]*"score"[^}]*}' | head -1)
         if [[ -n "$json_part" ]] && echo "$json_part" | jq -c . &>/dev/null 2>&1; then
-            echo "$json_part" | jq -c . | _apply_logic_antisycophancy
+            _validate_and_emit "$(echo "$json_part" | jq -c .)"
             return
         fi
 
-        # Try 6: last resort — extract sub-scores or single score from free text and build JSON
+        # Try 7: extract sub-scores or single score from free text and build JSON
         local extracted_value extracted_quality extracted_ux extracted_verdict
-        extracted_value=$(echo "$cleaned" | grep -oE '"delivery_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
-        extracted_quality=$(echo "$cleaned" | grep -oE '"craft_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
-        extracted_ux=$(echo "$cleaned" | grep -oE '"viability_score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
-        extracted_verdict=$(echo "$cleaned" | grep -oE '"verdict"\s*:\s*"[A-Z]+"' | head -1 | grep -oE '"[A-Z]+"$' | tr -d '"')
+        # Match both quoted and unquoted key names, colon with optional spaces
+        extracted_value=$(echo "$cleaned" | grep -oE '("|'"'"')?delivery_score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_quality=$(echo "$cleaned" | grep -oE '("|'"'"')?craft_score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_ux=$(echo "$cleaned" | grep -oE '("|'"'"')?viability_score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_verdict=$(echo "$cleaned" | grep -oiE '("|'"'"')?verdict("|'"'"')?\s*:\s*"[A-Z]+"' | head -1 | grep -oE '"[A-Z]+"$' | tr -d '"')
         if [[ -n "$extracted_value" ]]; then
             echo "{\"delivery_score\":${extracted_value},\"craft_score\":${extracted_quality:-${extracted_value}},\"viability_score\":${extracted_ux:-${extracted_value}},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
         # Legacy fallback: single score
         local extracted_score
-        extracted_score=$(echo "$cleaned" | grep -oE '"score"\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
+        extracted_score=$(echo "$cleaned" | grep -oE '("|'"'"')?score("|'"'"')?\s*:\s*[0-9]+' | head -1 | grep -oE '[0-9]+$')
         if [[ -n "$extracted_score" ]]; then
             echo "{\"delivery_score\":${extracted_score},\"craft_score\":${extracted_score},\"viability_score\":${extracted_score},\"verdict\":\"${extracted_verdict:-PARTIAL}\",\"gaps\":[\"response required free-text extraction — audit may be incomplete\"],\"strengths\":[],\"evidence\":\"parsed from non-JSON response\"}" | _apply_logic_antisycophancy
             return
         fi
+
+        # All parsing attempts failed — log diagnostic
+        _parse_diag="${_parse_diag:+$_parse_diag; }response length: ${#result}; first 200 chars: $(echo "$result" | head -c 200)"
     fi
 
-    # Fallback: couldn't parse at all
+    # Fallback: couldn't parse at all — log diagnostic to stderr
+    if [[ -n "$_parse_diag" ]]; then
+        echo "[eval] ${feat_name:-unknown}: LLM response unparseable — ${_parse_diag}" >&2
+    else
+        echo "[eval] ${feat_name:-unknown}: LLM returned empty response (no API key? CLI unavailable?)" >&2
+    fi
     echo '{"delivery_score":30,"craft_score":30,"viability_score":30,"score":30,"verdict":"PARTIAL","gaps":["could not evaluate — LLM response unparseable"],"evidence":"eval failed"}'
+}
+
+# Validate parsed JSON has expected score fields, then emit through antisycophancy filter
+# Usage: _validate_and_emit '{"delivery_score":55,...}'
+_validate_and_emit() {
+    local json="$1"
+
+    # Ensure delivery_score exists and is a number
+    local ds cs vs
+    ds=$(echo "$json" | jq -r '.delivery_score // empty' 2>/dev/null)
+    cs=$(echo "$json" | jq -r '.craft_score // empty' 2>/dev/null)
+    vs=$(echo "$json" | jq -r '.viability_score // empty' 2>/dev/null)
+
+    # If sub-scores are missing but legacy .score exists, derive from it
+    if [[ -z "$ds" || ! "$ds" =~ ^[0-9]+$ ]]; then
+        local legacy
+        legacy=$(echo "$json" | jq -r '.score // empty' 2>/dev/null)
+        if [[ -n "$legacy" && "$legacy" =~ ^[0-9]+$ ]]; then
+            # Convert 1-5 scale to 0-100 if needed
+            [[ "$legacy" -le 5 ]] && legacy=$((legacy * 20))
+            # Use legacy score for any missing/non-numeric sub-scores
+            local safe_cs="${cs}"
+            local safe_vs="${vs}"
+            [[ -z "$safe_cs" || ! "$safe_cs" =~ ^[0-9]+$ ]] && safe_cs="$legacy"
+            [[ -z "$safe_vs" || ! "$safe_vs" =~ ^[0-9]+$ ]] && safe_vs="$legacy"
+            json=$(echo "$json" | jq -c --argjson d "$legacy" --argjson c "$safe_cs" --argjson v "$safe_vs" \
+                '.delivery_score = $d | .craft_score = $c | .viability_score = $v' 2>/dev/null) || true
+        fi
+    fi
+
+    # Clamp scores to 0-100 range (LLMs occasionally return negatives or >100)
+    json=$(echo "$json" | jq -c '
+        def clamp: if . < 0 then 0 elif . > 100 then 100 else . end;
+        if .delivery_score then .delivery_score = (.delivery_score | clamp) else . end |
+        if .craft_score then .craft_score = (.craft_score | clamp) else . end |
+        if .viability_score then .viability_score = (.viability_score | clamp) else . end
+    ' 2>/dev/null) || true
+
+    # Ensure gaps is an array (LLMs sometimes return a string)
+    json=$(echo "$json" | jq -c '
+        if (.gaps | type) == "string" then .gaps = [.gaps]
+        elif (.gaps | type) != "array" then .gaps = []
+        else . end
+    ' 2>/dev/null) || true
+
+    echo "$json" | _apply_logic_antisycophancy
 }
 
 # Anti-sycophancy filter for audit results (0-100 scale)
@@ -1195,7 +1365,8 @@ run_generative_eval() {
         [[ -n "$viability_score" ]] && cache_extras+=",\"viability_score\":${viability_score}"
         [[ -n "$delta" ]] && cache_extras+=",\"delta\":\"${delta}\""
         [[ -n "$delta_vs" ]] && cache_extras+=",\"delta_vs\":${delta_vs}"
-        cache_json+="\"$feat_name\":{\"verdict\":$(echo "$verdict" | jq -Rs .),\"gaps\":$(if [[ -n "$gaps" ]]; then echo "$gaps" | jq -Rs 'split("; ") | map(select(length > 0))'; else echo '[]'; fi),\"evidence\":$(echo "$evidence" | jq -Rs .),\"score\":${feat_score:-50}${cache_extras},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+        # Use printf %s to avoid trailing newline that contaminates jq -Rs output
+        cache_json+="\"$feat_name\":{\"verdict\":$(printf '%s' "$verdict" | jq -Rs .),\"gaps\":$(if [[ -n "$gaps" ]]; then printf '%s' "$gaps" | jq -Rs 'split("; ") | map(select(length > 0))'; else echo '[]'; fi),\"evidence\":$(printf '%s' "$evidence" | jq -Rs .),\"score\":${feat_score:-50}${cache_extras},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
         cache_first=false
     done <<< "$features_data"
 
