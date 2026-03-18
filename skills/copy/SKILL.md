@@ -83,6 +83,48 @@ See `reference.md` for mode-specific templates. Every output ends with:
 /ship release        use this copy in release notes
 ```
 
+## Task generation — the path to great copy everywhere
+
+**/copy's job is not just writing. It's generating EVERY task needed to eliminate bad copy across the product.** Slop words, missing copy, positioning gaps, inconsistent voice — all are tasks. Every surface where users read text is /copy's responsibility.
+
+**For EVERY copy gap found, generate a task:**
+
+### Slop tasks (from slop-check.sh)
+- Each file with slop words → task: "File [X] contains slop words ([list]) — rewrite"
+- Each landing page with generic copy → task: "Landing page uses generic copy — rewrite with /copy landing"
+- Each README with slop → task: "README contains [N] slop words — rewrite hero section"
+- Each empty-state with no copy → task: "Empty state at [location] has no guidance — write copy"
+
+### Positioning tasks
+- No positioning statement → task: "No positioning — run /copy pitch to define"
+- Positioning doesn't name a person → task: "Positioning says 'developers' not a person — rewrite with /product user"
+- Positioning doesn't differentiate → task: "Positioning doesn't name alternatives — rewrite with competitor awareness"
+- Positioning claims undelivered features → task: "Copy claims [X] but feature scores [Y] — fix code or fix claim"
+
+### Voice consistency tasks
+- No voice-guide.md → task: "No voice guide — create from existing copy patterns"
+- Different voice across pages → task: "Voice inconsistent between [page A] and [page B] — align"
+- Marketing voice doesn't match product voice → task: "Landing page tone differs from in-app — harmonize"
+
+### Coverage tasks
+- No landing page copy → task: "No landing page — run /copy landing"
+- No README hero section → task: "README missing hero section — run /copy landing for content"
+- No onboarding copy → task: "No first-screen copy — run /copy onboard"
+- No empty-state copy → task: "Empty states have no guidance — run /copy empty-states"
+- No release notes for current version → task: "No release notes — run /copy release"
+- No pitch (elevator/tweet/paragraph) → task: "No pitch copy — run /copy pitch"
+
+### Quality tasks
+- Copy that fails the quality gate → task: "Copy at [location] fails gate: [which check] — rewrite"
+- Copy not grounded in customer language → task: "Copy uses founder language not customer language — rewrite with customer-intel.json"
+- Copy not design-system aligned → task: "Copy doesn't match design system tone — align"
+
+**Write ALL tasks to /todo.** Tag with `source: /copy` and type (slop/positioning/voice/coverage/quality). Priority: slop on user-facing surfaces first.
+
+**There is no cap on task count.** A product with no copy strategy might need 20+ tasks. Generate all of them.
+
+After copy generation, show: "Generated N copy tasks. [M] slop issues, [X] positioning gaps, [Y] coverage gaps."
+
 ## What you never do
 
 - Write copy without reading market context — unpositioned copy is generic copy
