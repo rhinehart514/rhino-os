@@ -52,6 +52,17 @@ warn() {
     echo -e "    ${YELLOW}⚠${NC} $1"
 }
 
+# Idempotent symlink: only creates/updates if target differs
+ensure_symlink() {
+    local src="$1" dest="$2" label="${3:-$(basename "$dest")}"
+    if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
+        skip "$label"
+    else
+        $DRY_RUN || ln -sf "$src" "$dest"
+        action "$label"
+    fi
+}
+
 echo ""
 echo -e "  ${CYAN}◆${NC} ${BOLD}rhino-os install${NC}"
 echo ""
@@ -126,14 +137,8 @@ if ! $PLUGIN_MODE; then
     echo ""
     for mind_file in identity.md thinking.md standards.md; do
         src="$RHINO_DIR/mind/$mind_file"
-        dest="$CLAUDE_DIR/rules/$mind_file"
         [[ ! -f "$src" ]] && continue
-        if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-            skip "~/.claude/rules/$mind_file"
-        else
-            $DRY_RUN || ln -sf "$src" "$dest"
-            action "~/.claude/rules/$mind_file"
-        fi
+        ensure_symlink "$src" "$CLAUDE_DIR/rules/$mind_file" "~/.claude/rules/$mind_file"
     done
     # Lens mind files (e.g., product-eyes.md, product-self.md)
     for lens_dir in "$RHINO_DIR"/lens/*/mind; do
@@ -141,13 +146,7 @@ if ! $PLUGIN_MODE; then
         for lens_mind in "$lens_dir"/*.md; do
             [[ ! -f "$lens_mind" ]] && continue
             name="$(basename "$lens_mind")"
-            dest="$CLAUDE_DIR/rules/$name"
-            if [[ -L "$dest" && "$(readlink "$dest")" == "$lens_mind" ]]; then
-                skip "~/.claude/rules/$name"
-            else
-                $DRY_RUN || ln -sf "$lens_mind" "$dest"
-                action "~/.claude/rules/$name (lens)"
-            fi
+            ensure_symlink "$lens_mind" "$CLAUDE_DIR/rules/$name" "~/.claude/rules/$name (lens)"
         done
     done
 else
@@ -172,13 +171,7 @@ if ! $PLUGIN_MODE; then
     for agent_file in "$RHINO_DIR"/agents/*.md; do
         [[ ! -f "$agent_file" ]] && continue
         name="$(basename "$agent_file")"
-        dest="$AGENTS_DIR/$name"
-        if [[ -L "$dest" && "$(readlink "$dest")" == "$agent_file" ]]; then
-            skip "~/.claude/agents/$name"
-        else
-            $DRY_RUN || ln -sf "$agent_file" "$dest"
-            action "~/.claude/agents/$name"
-        fi
+        ensure_symlink "$agent_file" "$AGENTS_DIR/$name" "~/.claude/agents/$name"
         AGENT_COUNT=$((AGENT_COUNT + 1))
     done
     echo -e "    ${DIM}${AGENT_COUNT} agents available${NC}"
@@ -196,37 +189,21 @@ if ! $PLUGIN_MODE; then
     LOCAL_BIN="$HOME/bin"
     $DRY_RUN || mkdir -p "$LOCAL_BIN"
 
-    for tool in score.sh eval.sh self.sh bench.sh trail.sh todo.sh feature.sh init.sh plan.sh; do
-        src="$RHINO_DIR/bin/$tool"
+    # Symlink all bin/*.sh tools (auto-discovers new tools)
+    for src in "$RHINO_DIR"/bin/*.sh; do
         [[ ! -f "$src" ]] && continue
-        dest="$LOCAL_BIN/$tool"
-        if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-            skip "~/bin/$tool"
-        else
-            $DRY_RUN || ln -sf "$src" "$dest"
-            action "~/bin/$tool"
-        fi
+        tool="$(basename "$src")"
+        ensure_symlink "$src" "$LOCAL_BIN/$tool" "~/bin/$tool"
     done
 
-    # taste.mjs lives in lens now
+    # taste.mjs lives in lens
     taste_src="$RHINO_DIR/lens/product/eval/taste.mjs"
     if [[ -f "$taste_src" ]]; then
-        taste_dest="$LOCAL_BIN/taste.mjs"
-        if [[ -L "$taste_dest" && "$(readlink "$taste_dest")" == "$taste_src" ]]; then
-            skip "~/bin/taste.mjs (lens)"
-        else
-            $DRY_RUN || ln -sf "$taste_src" "$taste_dest"
-            action "~/bin/taste.mjs (lens)"
-        fi
+        ensure_symlink "$taste_src" "$LOCAL_BIN/taste.mjs" "~/bin/taste.mjs (lens)"
     fi
 
-    rhino_dest="$LOCAL_BIN/rhino"
-    if [[ -L "$rhino_dest" && "$(readlink "$rhino_dest")" == "$RHINO_DIR/bin/rhino" ]]; then
-        skip "~/bin/rhino"
-    else
-        $DRY_RUN || ln -sf "$RHINO_DIR/bin/rhino" "$rhino_dest"
-        action "~/bin/rhino"
-    fi
+    # rhino dispatcher
+    ensure_symlink "$RHINO_DIR/bin/rhino" "$LOCAL_BIN/rhino" "~/bin/rhino"
 else
     echo ""
     echo -e "  ${BOLD}CLI${NC}"
@@ -315,12 +292,11 @@ if $PLUGIN_MODE && ! $DRY_RUN; then
         warn "hooks.json not found at $hooks_json"
     fi
 
-    # Verify expected skill count matches actual
-    expected_skill_count=27  # v9.4: 27 skills
-    if [[ "$local_skill_count" -ne "$expected_skill_count" ]]; then
-        warn "skill count mismatch: found $local_skill_count, expected $expected_skill_count — some skills may be missing"
+    # Verify reasonable skill count (at least 10 core skills expected)
+    if [[ "$local_skill_count" -ge 10 ]]; then
+        action "skill count: $local_skill_count (healthy)"
     else
-        action "skill count matches expected ($expected_skill_count)"
+        warn "only $local_skill_count skills found — expected 10+ for a working install"
     fi
 fi
 

@@ -10,7 +10,7 @@ rhino-os closes that gap. It measures **product quality** (not code quality), le
 
 Most dev tools measure code quality — linting, test coverage, type safety. rhino-os measures **product quality**: does the user get value? It plants testable beliefs about your product ("the signup flow completes in under 30 seconds"), scores them, and reverts changes that make things worse. SonarQube tells you your code is clean. rhino-os tells you your product is better.
 
-The `/score` command orchestrates 5 measurement tiers — health, code eval, visual quality, behavioral testing, and agent-backed market viability — into one honest number with a confidence badge (●●●○○) showing how many tiers have data.
+The `/score` command orchestrates 5 measurement tiers — health, code eval, visual quality, behavioral testing, and agent-backed market viability — into one honest number. The confidence badge (●●●○○ = 3 of 5 tiers have data) tells you how much of that number to trust.
 
 ## vs alternatives
 
@@ -75,8 +75,8 @@ Just ask — rhino-os routes to `/plan`:
 
   score: 95 ●●●○○  · assertions: 55/60 · thesis: v9.4
 
-  bottleneck: docs at 60 — w:3, walkthrough stale, no quickstart
-    d:62 c:57
+  bottleneck: docs at 60 — weight:3, walkthrough stale, no quickstart
+    delivery:62 craft:57
 
   move 1: update README with current data + add quickstart
     predict: "docs delivery moves from 62 to 72 in one session"
@@ -109,12 +109,13 @@ The `/go` loop predicts, builds, measures, and learns:
 ```
 ◆ eval — 6 features
 
-  docs         ████████████░░░░░░░░  60  d:62 c:57
-  todo         ████████████░░░░░░░░  62  d:64 c:60
-  learning     █████████████░░░░░░░  67  d:70 c:62
-  commands     ██████████████░░░░░░  72  d:75 c:68
-  install      ██████████████░░░░░░  72  d:75 c:68
-  scoring      ███████████████░░░░░  75  d:78 c:70
+  feature      ████████████████████  score  delivery  craft
+  docs         ████████████░░░░░░░░   60      62       57
+  todo         ████████████░░░░░░░░   62      64       60
+  learning     █████████████░░░░░░░   67      70       62
+  commands     ██████████████░░░░░░   72      75       68
+  install      ██████████████░░░░░░   72      75       68
+  scoring      ███████████████░░░░░   75      78       70
 
   beliefs: 55/60 passing
   bottleneck: docs at 60 — walkthrough stale, no quickstart
@@ -190,7 +191,7 @@ You don't need to memorize these. Just talk — rhino-os routes your intent.
 
 ## The score
 
-Your score is the percentage of assertions that pass. Not lint. Not code quality. **Does your product do what you said it should do?**
+Your score combines assertion pass rate, feature eval scores, and health checks into one number. Assertions are the foundation — testable beliefs about your product like "the signup flow completes" or "score.sh exits 0 on a healthy repo." `/score` layers feature-level eval (delivery + craft per feature) and structural health on top.
 
 Score goes up = you shipped value. Score drops = the change gets reverted.
 
@@ -204,41 +205,23 @@ rhino-os has three layers that work together:
 
 **Strategy** — 14 specialized agents handle different jobs. The builder writes code in isolated worktrees. The founder-coach detects startup failure modes (building without a named user, polishing before delivering). The customer agent synthesizes real signal. The gtm agent handles pricing and distribution. They're coordinated by commands like `/go` and `/plan`, not invoked manually.
 
-## Quick examples
+## On a fresh project
 
-**Find the bottleneck and fix it:**
+If you run rhino-os on a project it's never seen, it starts from scratch:
+
 ```
-> what should I work on?
+cd some-new-project
+claude
+> /onboard
 
-◆ plan
-  score: 95 ●●●○○ · assertions: 55/60
-  bottleneck: docs at 60 — walkthrough stale, no quickstart
-  move 1: update README — push docs to 70+
-```
-
-**Score every feature:**
-```
-> /eval
-
-◆ eval — 6 features
-  docs       ████████████░░░░░░░░  60  d:62 c:57
-  scoring    ███████████████░░░░░  75  d:78 c:70
-  commands   ██████████████░░░░░░  72  d:75 c:68
-  beliefs: 55/60 passing
+◆ onboard — some-new-project
+  detected: Node.js web app, 12 routes, 3 API endpoints
+  generated: 6 features, 10 assertions, initial roadmap
+  score: 45 ●○○○○ — structural issues found, no eval data yet
+  → run /go to start improving
 ```
 
-**Autonomous build loop:**
-```
-> /go
-
-◆ go — scoring
-  predict: "contextual output → scoring d:70→78"
-  ▾ commit
-    assertions show "85% — 9 failures block polished"
-    errors surface recovery actions instead of silence
-  measure: scoring at 75 (d:78 c:70) ↑7
-  grade: "Predicted d:78, got 78. Correct."
-```
+No manual configuration. rhino-os reads your code, infers what the product does, generates assertions, and gives you a score. The score starts low — that's honest, not broken.
 
 ## Tested on
 
@@ -247,14 +230,29 @@ rhino-os has three layers that work together:
 
 ## Troubleshooting
 
-**`jq: command not found` when running rhino commands**
-Install jq: `brew install jq` (macOS) or `sudo apt install jq` (Linux). rhino-os uses jq for scoring, eval, init, and session boot. Everything else works without it, but scores will be blank.
+**`jq: command not found` or install fails**
+jq is required. Install it: `brew install jq` (macOS) or `sudo apt install jq` (Linux), then re-run `./install.sh`. rhino-os uses jq for scoring, eval, session boot, and most commands.
 
 **Plugin not loading after `claude /plugin install`**
 Check that `skills/rhino-mind/SKILL.md` exists in the plugin root. This skill delivers mind files — without it, rhino-os loads as an empty plugin. Run `./install.sh --test` to verify the plugin structure. If the skill count is wrong, re-clone or re-install from marketplace.
 
 **`Permission denied` when running `rhino` or `./install.sh`**
 Run `chmod +x install.sh bin/rhino bin/*.sh` from the rhino-os directory. The installer sets permissions automatically, but git clone sometimes strips execute bits depending on your `core.fileMode` setting.
+
+## Limitations
+
+- **LLM eval variance.** Feature scores from `/eval` can vary ~15 points between runs because Claude is the judge. rhino-os uses multi-sample median when available, but single-run scores are directional, not precise.
+- **macOS/Linux only.** No Windows support. Shell scripts assume bash/zsh and Unix tooling.
+- **Claude Code required.** rhino-os is a Claude Code plugin — it doesn't work standalone or with other AI coding tools.
+- **Solo founder optimized.** The workflow assumes one person making decisions. Multi-user or team workflows aren't supported.
+- **No automated testing integration.** rhino-os assertions check product behavior, not unit tests. It doesn't replace your test suite — it complements it.
+
+## What's next
+
+After your first session:
+- **`/retro`** — grade your predictions and update the knowledge model. This is how rhino-os gets smarter.
+- **Keep running `/go`** — each session picks up where the last one left off. The score compounds.
+- **Check `/rhino`** periodically — the dashboard shows your trajectory.
 
 ---
 
