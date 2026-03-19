@@ -516,6 +516,11 @@ items:
 EOF
     fi
 
+    # Clear empty array literal before first append
+    if grep -q '^items: \[\]' "$BACKLOG_FILE"; then
+        sed -i '' 's/^items: \[\]/items:/' "$BACKLOG_FILE"
+    fi
+
     cat >> "$BACKLOG_FILE" << EOF
 
   - id: ${id}
@@ -1075,6 +1080,11 @@ cmd_import() {
 
 items:
 EOF
+    fi
+
+    # Clear empty array literal before first append
+    if grep -q '^items: \[\]' "$BACKLOG_FILE"; then
+        sed -i '' 's/^items: \[\]/items:/' "$BACKLOG_FILE"
     fi
 
     local today count=0 skipped=0

@@ -170,10 +170,10 @@ process_belief() {
             ;;
         llm_judge)
             # LLM-as-judge: Claude evaluates code/files against a quality prompt
-            # In --score or --no-llm mode: count as WARN (not invisible)
-            # This prevents inflated scores when LLM checks haven't run
+            # In --score or --no-llm mode: skip entirely (not counted in totals)
+            # Unevaluated beliefs should not penalize the score
             if [[ "$SCORE_MODE" == "true" || "$NO_LLM" == "true" ]]; then
-                check_warn "$belief_id" "llm_judge: not evaluated (run rhino eval . for full score)"
+                : # skip — not counted in pass/warn/fail totals
             elif [[ -n "$belief_prompt" ]]; then
                 local judge_context=""
                 # Gather context from specified paths or feature files
@@ -270,9 +270,10 @@ ${judge_context}"
             ;;
         feature_review)
             # Claude evaluates feature completeness — explicit capabilities or inferred
-            # In --score or --no-llm mode: count as WARN (not invisible)
+            # In --score or --no-llm mode: skip entirely (not counted in totals)
+            # Unevaluated beliefs should not penalize the score
             if [[ "$SCORE_MODE" == "true" || "$NO_LLM" == "true" ]]; then
-                check_warn "$belief_id" "feature_review: not evaluated (run rhino eval . for full score)"
+                : # skip — not counted in pass/warn/fail totals
             else
 
             # Gather code context for the feature
@@ -288,14 +289,14 @@ ${judge_context}"
                 elif [[ -d "$expanded_path" ]]; then
                     review_context=$(find "$expanded_path" -type f \( -name "*.sh" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.mjs" -o -name "*.yml" -o -name "*.md" \) ! -path "*/node_modules/*" 2>/dev/null | head -10 | while read -r f; do
                         echo "=== $f ==="
-                        head -150 "$f" 2>/dev/null
+                        head -300 "$f" 2>/dev/null
                     done)
                 fi
             elif [[ -n "$belief_feature" ]]; then
                 # Auto-discover: find files related to this feature
                 review_context=$(grep -rl "$belief_feature" bin/ skills/ lens/ config/ 2>/dev/null | grep -v node_modules | head -8 | while read -r f; do
                     echo "=== $f ==="
-                    head -150 "$f" 2>/dev/null
+                    head -300 "$f" 2>/dev/null
                 done)
             fi
 

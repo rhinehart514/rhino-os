@@ -1,149 +1,50 @@
-{
-  "scoring": {
-    "score": 75,
-    "delivery_score": 78,
-    "craft_score": 70,
-    "delta": "better",
-    "delta_vs": 68,
-    "gaps": [
-      "score.sh at 1200+ lines — too much in one file, needs decomposition",
-      "synthesize.sh --text mode has no color/bars — inconsistent with score.sh style",
-      "~20 remaining 2>/dev/null for legitimate ops (stat, find) — not critical but noisy",
-      "mktemp error capture pattern repeated 4x — not DRY",
-      "no automated tests for error communication paths"
-    ],
-    "strengths": [
-      "boot card passes 5-second test with contextual numbers: assertions show % + maturity impact",
-      "prediction accuracy shows calibration context (target: 50-70%)",
-      "stage ceiling shown inline when score exceeds it",
-      "synthesize.sh --text mode with per-feature direction hints and bottleneck identification",
-      "critical error swallows replaced with actionable messages (eval failure, cache corruption, missing paths)",
-      "eval-cache pre-validation deduplicates error output",
-      "formula documented in header (score.sh:7-45)",
-      "score trend creates return trigger"
-    ],
-    "evidence": "Product surface now teaches instead of just displaying. Numbers have context (85% — 9 failures block polished). Errors communicate recovery actions. synthesize.sh --text is a new formatted output mode. Critical 2>/dev/null sites fixed with actionable messages. score.sh size remains the top craft gap.",
-    "criteria_version": "user-delivery-v1",
-    "cached_at": "2026-03-18T23:30:00Z"
-  },
-  "learning": {
-    "score": 67,
-    "delivery_score": 70,
-    "craft_score": 62,
-    "delta": "better",
-    "delta_vs": 65,
-    "gaps": [
-      "experiment-learnings.md is append-only — 55 patterns, no staleness detection",
-      "grade.sh at 1538 lines — largest file in codebase",
-      "no test suite for 23 grading patterns",
-      "model_update column often empty even on wrong predictions",
-      "session_start.sh handles grading display — should be in grade.sh"
-    ],
-    "strengths": [
-      "auto-grade on session boot — zero manual intervention",
-      "23 grading patterns in grade.sh",
-      "prediction accuracy shows calibration context: 60% accurate (target: 50-70%)",
-      "out-of-range accuracy gets diagnosis: >70% = too safe, <50% = model needs updating",
-      "prediction accuracy trend on boot card",
-      "trail.sh cleanly scoped at 258 lines"
-    ],
-    "evidence": "Mechanical loop works and now communicates meaning. Accuracy context added (target: 50-70%). Still missing staleness detection and model_update enforcement.",
-    "criteria_version": "user-delivery-v1",
-    "cached_at": "2026-03-18T23:30:00Z"
-  },
-  "commands": {
-    "score": 72,
-    "delivery_score": 75,
-    "craft_score": 68,
-    "delta": "worse",
-    "delta_vs": 92,
-    "gaps": [
-      "0 external users — all depth is self-validated",
-      "evidence-scan.sh fails in plugin mode (path resolution)",
-      "scripts assume repo root but plugin cache changes working dir",
-      "voice.md compliance unverified — no mechanical check",
-      "each skill has its own state-gathering script reading overlapping sources",
-      "no shared state layer across skills"
-    ],
-    "strengths": [
-      "27 skills with consistent folder structure (SKILL.md + scripts/ + references/ + gotchas.md)",
-      "intent routing covers 20+ intents",
-      "/plan output passes 5-second test — bottleneck named, moves proposed",
-      "cross-skill synthesis suggests next command",
-      "14 named agents with model tiers"
-    ],
-    "evidence": "Skills are deep and well-structured. Intent routing is genuine value. But untested on real users, plugin mode has known path resolution bugs, and voice.md compliance is aspirational not verified.",
-    "criteria_version": "user-delivery-v1",
-    "cached_at": "2026-03-18T22:00:00Z"
-  },
-  "install": {
-    "score": 72,
-    "delivery_score": 75,
-    "craft_score": 68,
-    "delta": "worse",
-    "delta_vs": 85,
-    "gaps": [
-      "expected_skill_count hardcoded as 21 but actual is 27 (install.sh:319)",
-      "no uninstall path",
-      "plugin install is recommended but install.sh is irrelevant for that path",
-      "post-install doesn't suggest 'now run /rhino' — just shows check results",
-      "color helpers duplicated across 4+ files"
-    ],
-    "strengths": [
-      "opens with ◆ rhino-os install and dependency checks — clear 5-second test",
-      "missing jq shows specific install command per OS",
-      "--check dry-run, --test self-test",
-      "GNU/BSD fallbacks, idempotent design"
-    ],
-    "evidence": "Good user-facing design for manual install path. But plugin mode (recommended) bypasses install.sh entirely — first experience is session_start hook. Hardcoded skill count produces false warning.",
-    "criteria_version": "user-delivery-v1",
-    "cached_at": "2026-03-18T22:00:00Z"
-  },
-  "docs": {
-    "score": 60,
-    "delivery_score": 62,
-    "craft_score": 57,
-    "delta": "worse",
-    "delta_vs": 84,
-    "gaps": [
-      "walkthrough output stale — shows 68/56 but current is 88/51",
-      "no 'your first 5 minutes' quickstart section",
-      "no clear next action after reading README — what does the founder DO?",
-      "headline is just 'rhino-os' — METR hook is in paragraph 1, not the title",
-      "comparison table uses markdown table — voice.md says no tables",
-      "README violates its own product's formatting standard"
-    ],
-    "strengths": [
-      "UVP clear: product quality not code quality",
-      "METR -19% study hook is compelling positioning",
-      "real walkthrough with actual output (even if stale)",
-      "dual install instructions (plugin + manual)"
-    ],
-    "evidence": "Strong UVP and positioning. Fails on user understanding: stale walkthrough data undermines credibility, no quickstart for the impatient, no clear first action. The front door doesn't practice what the product preaches.",
-    "criteria_version": "user-delivery-v1",
-    "cached_at": "2026-03-18T22:00:00Z"
-  },
-  "todo": {
-    "score": 62,
-    "delivery_score": 64,
-    "craft_score": 60,
-    "delta": "worse",
-    "delta_vs": 82,
-    "gaps": [
-      "smart promote doesn't actually read eval-cache for bottleneck features",
-      "grep/sed YAML parsing breaks on multiline values",
-      "no empty state guidance — what if there are no todos?",
-      "output doesn't suggest next action — it's a list, not a guide",
-      "todo.sh at 1177 lines for a backlog manager",
-      "commodity feature with undifferentiated UX"
-    ],
-    "strengths": [
-      "complete CRUD: health/add/list/done/promote/decay/import",
-      "file locking, YAML validation, duplicate ID detection",
-      "TTY-aware colors"
-    ],
-    "evidence": "Robust backlog system but commodity. Promote/decay are novel but promote doesn't use eval data. Empty state unhandled. Output is data without direction.",
-    "criteria_version": "user-delivery-v1",
-    "cached_at": "2026-03-18T22:00:00Z"
-  }
-}
+{"scoring":{"verdict":"PARTIAL","gaps":[
+  "mktemp error handling missing at 4 sites — silent failure if /tmp full",
+  "INTEGRITY_JSON string concat breaks on warnings containing double-quotes (score.sh:817-828)",
+  "cache write not atomic — concurrent runs produce corrupted JSON (score.sh:873-875)",
+  "score.sh 1260 lines — output rendering (895-1258) should extract to lib/output.sh",
+  "lens extension sourcing without syntax validation (score.sh:91-93)",
+  "zero automated tests for scoring or error paths",
+  "synthesize.sh --text has no color/bars — inconsistent with score.sh"
+],"evidence":"Eval-colored bars (score.sh:1117-1134) directly fix the taste finding that bars lie. belief-processor skip stops unevaluated LLM judges from inflating WARN counts. Comment-only TODO grep eliminates false positives. All three changes targeted and minimal.","score":73,"delivery_score":76,"craft_score":68,"delta":"same","delta_vs":73,"cached_at":"2026-03-19T02:05:32Z"},"learning":{"verdict":"PARTIAL","gaps":[
+  "No closure enforcement: predictions can sit ungraded forever if no claim/signal match (grade.sh:153-159)",
+  "Staleness detection flag-only: grade-consolidation.sh:164-170 prints but never demotes/removes stale entries",
+  "Learning velocity mislabeled: session_start.sh:416-457 shows accuracy trend, not pattern acquisition rate",
+  "Dedup fragile: grade-consolidation.sh:22 uses first 40 chars — collision-prone",
+  "Signal keyword matching too loose: grade-signals.sh:38-44 matches any 5+ char word",
+  "Consolidation loses context: no session/commit traceability in grade-consolidation.sh:27",
+  "self.sh Learn checks are existence-based not quality-based (lines 486-623)",
+  "No tests for any of the 4 grade lib files"
+],"evidence":"grade.sh decomposed: 1539→275 lines + 4 libs (grade-data.sh 112, grade-signals.sh 290, grade-claims.sh 717, grade-consolidation.sh 172). trail.sh sparkline capped at 20. trail.sh next-action added. Delivery gaps (closure, staleness, velocity label) persist unchanged.","score":63,"delivery_score":64,"craft_score":62,"delta":"same","delta_vs":63,"cached_at":"2026-03-19T02:05:32Z"},"commands":{"verdict":"PARTIAL","gaps":[
+  "plateau-check.sh:65-69 ZERO_DELTA subshell scope bug — session plateau detection broken",
+  "system-pulse.sh:72 checks $6 vs session-context.sh:77 checks $5 for graded predictions — column mismatch",
+  "5 of 8 skills (/go, /taste, /research, /ideate, /feature) lack first-run handling",
+  "2>/dev/null suppresses real jq parse errors in session-context.sh and system-pulse.sh",
+  "No flock/locking on eval-cache.json — parallel evaluator agents can race",
+  "Mode count unmitigated — taste 8 modes, research 10, no simplified default",
+  "Task generation categories ~200 lines inline per skill despite shared reference",
+  "No integration test for plan->go->eval->plan loop"
+],"evidence":"first-run-detect.sh (45 lines, 3 signals). Step 0 added to plan/rhino/eval skills. task-generation.md first-run section. Scripts real: session-context.sh 208 lines, startup-check.sh 159 lines. Gotchas project-specific with 12+ patterns each.","score":70,"delivery_score":72,"craft_score":66,"delta":"same","delta_vs":70,"cached_at":"2026-03-19T02:05:32Z"},"install":{"verdict":"PARTIAL","gaps":[
+  "README.md:251 says 'Everything else works without [jq]' but install.sh:67-71 exits 1 — documentation contradicts behavior",
+  "install.sh:199 hardcoded tool list — should glob bin/*.sh",
+  "install.sh:319 hardcoded expected_skill_count=27 — stale on next skill add/remove",
+  "install.sh:127-229 symlink pattern repeated 4 times — extract to ensure_symlink() function",
+  "install.sh:124,165,192,237 plugin/manual conditional duplicated 5 times"
+],"evidence":"jq fix at install.sh:63-72 (red error + install commands + exit 1). Smoke test at install.sh:327-397 (4 checks). Self-test at install.sh:444-567. Idempotency guards throughout. README contradiction at line 251 is new finding from jq fix.","score":69,"delivery_score":70,"craft_score":68,"delta":"same","delta_vs":69,"cached_at":"2026-03-19T02:05:32Z"},"todo":{"verdict":"PARTIAL","gaps":[
+  "graduation: SKILL.md core behavior (line 54) — cmd_done never calls todo-promote.sh",
+  "auto-tag: SKILL.md line 58 — cmd_add does no feature detection from title or rhino.yml",
+  "version filter: SKILL.md routing table line 44 — no implementation",
+  "meta-task generation: SKILL.md lines 72-107 — 35 lines of spec, zero code",
+  "duplicate implementations: bin/todo.sh vs skills/todo/scripts/ — two codebases",
+  "field naming: created vs created_at inconsistency across scripts",
+  "awk substring ID matching: bin/todo.sh:83 — regex could false-match"
+],"evidence":"bin/todo.sh:365-378 (empty state fix confirmed). Promote→plan.yml works. File locking implemented. Spec-implementation gap is the main ceiling: graduation, auto-tag, version filter, meta-tasks all specced but unimplemented.","score":62,"delivery_score":64,"craft_score":60,"delta":"same","delta_vs":62,"cached_at":"2026-03-19T02:05:32Z"},"docs":{"verdict":"PARTIAL","gaps":[
+  "w:3 notation unexplained at line 78",
+  "d:/c: notation undefined on first use at line 112",
+  "score definition contradiction: line 193 vs line 13",
+  "Quick Examples section (lines 207-241) nearly duplicates walkthrough",
+  "No What's Next section — README ends at MIT license",
+  "No fresh-project example",
+  "No limitations disclosure",
+  "confidence badge used at line 13 but not explained until line 136"
+],"evidence":"No code changes. delivery 71: core value clear, install complete, walkthrough real. craft 62: good structure, real output, troubleshooting present. Held back by undefined notation, redundancy, no next steps.","score":67,"delivery_score":71,"craft_score":62,"delta":"same","delta_vs":67,"cached_at":"2026-03-19T02:05:32Z"}}

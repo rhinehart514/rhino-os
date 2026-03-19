@@ -73,6 +73,12 @@ done
 # Resolve script dir before cd (so relative $0 still works)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Validate target directory exists before cd
+if [[ ! -d "$PROJECT_DIR" ]]; then
+    echo "  error: directory not found: $PROJECT_DIR" >&2
+    exit 1
+fi
+
 cd "$PROJECT_DIR"
 
 # --- Cross-platform file mtime (epoch seconds) ---
@@ -449,10 +455,11 @@ score_hygiene() {
     if [[ "$PROJECT_TYPE" == "cli" ]]; then
         # CLI hygiene: check shell scripts and JS files in bin/
 
-        # Check for unfinished work markers in shell scripts and JS
+        # Check for unfinished work markers (comment-style only, not variable names)
+        # Uses # TODO / // TODO / /* TODO patterns to avoid matching PLAN_TODO, READY_TODOS, etc.
         # Exclude: todo.sh (manages TODOs), eval.sh (checks for TODOs), test files, grade.sh (reads predictions)
         local todo_count
-        todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | grep -v "todo\.sh\|todo\.test\|eval\.sh\|grade\.sh\|tests/" | wc -l | tr -d ' ')
+        todo_count=$(grep -rn '#[[:space:]]*\(TODO\|FIXME\|HACK\|XXX\)\|//[[:space:]]*\(TODO\|FIXME\|HACK\|XXX\)\|/\*[[:space:]]*\(TODO\|FIXME\|HACK\|XXX\)' --include="*.sh" --include="*.mjs" "$SRC_DIR" 2>/dev/null | grep -v "node_modules" | grep -v "todo\.sh\|todo\.test\|eval\.sh\|grade\.sh\|tests/" | wc -l | tr -d ' ')
         tiered_penalty "$todo_count" "20:-20 10:-10 3:-5" "TODO/FIXME markers"
 
         # console.log/console.error in JS files (CLI tools should use structured output)
@@ -1113,7 +1120,24 @@ EOF
                         [[ "$ftotal" -gt 0 ]] && fscore=$((fpass * 100 / ftotal))
                     fi
 
-                    fcolor=$(dim_color "$fscore")
+                    # Color from eval-cache score (actual quality) if available,
+                    # otherwise fall back to assertion-based score
+                    _eval_color_score=""
+                    if [[ -f ".claude/cache/eval-cache.json" ]]; then
+                        _cached_score=$(jq -r ".\"$fname\".score // empty" ".claude/cache/eval-cache.json" 2>/dev/null)
+                        if [[ -n "$_cached_score" && "$_cached_score" =~ ^[0-9]+$ ]]; then
+                            _eval_color_score="$_cached_score"
+                        fi
+                    fi
+                    if [[ -n "$_eval_color_score" ]]; then
+                        # Eval-aware color: green >= 70, yellow 50-69, red < 50
+                        if [[ "$_eval_color_score" -ge 70 ]]; then fcolor="\033[0;32m"
+                        elif [[ "$_eval_color_score" -ge 50 ]]; then fcolor="\033[1;33m"
+                        else fcolor="\033[0;31m"
+                        fi
+                    else
+                        fcolor=$(dim_color "$fscore")
+                    fi
                     fbar=$(make_bar "$fscore")
 
                     # Delta from previous

@@ -64,11 +64,11 @@ echo ""
 if command -v jq &>/dev/null; then
     action "jq available ($(jq --version 2>&1 || echo 'unknown'))"
 else
-    warn "jq not found — needed by scoring, eval, init, and session boot"
+    echo -e "    ${RED}✗${NC} jq is required — install it and re-run install.sh"
     echo -e "      ${DIM}Install: brew install jq  (macOS) or apt install jq  (Linux)${NC}"
     echo -e "      ${DIM}https://jqlang.github.io/jq/download/${NC}"
     echo ""
-    echo -e "      ${DIM}Continuing install — jq can be added later.${NC}"
+    exit 1
 fi
 
 # Claude Code is required

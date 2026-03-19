@@ -120,9 +120,9 @@ score_hygiene_product() {
     console_count=$(grep -rn "console\.\(log\|warn\|error\)" --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | grep -v "node_modules\|test\|spec\|__test__\|logger" | wc -l | tr -d ' ')
     _product_tiered_penalty "$console_count" "30:-25 15:-15 5:-5 1:-3" "console.log in prod code"
 
-    # Unfinished work markers
+    # Unfinished work markers (comment-style only, not variable names)
     local todo_count
-    todo_count=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
+    todo_count=$(grep -rn '//[[:space:]]*\(TODO\|FIXME\|HACK\|XXX\)\|/\*[[:space:]]*\(TODO\|FIXME\|HACK\|XXX\)\|#[[:space:]]*\(TODO\|FIXME\|HACK\|XXX\)' --include="*.ts" --include="*.$comp_ext" "$src_dir" 2>/dev/null | grep -v "node_modules" | wc -l | tr -d ' ')
     _product_tiered_penalty "$todo_count" "30:-20 15:-10 5:-5 1:-3" "TODO/FIXME markers"
 
     # Unused imports (rough signal — files with 10+ imports are suspicious)
