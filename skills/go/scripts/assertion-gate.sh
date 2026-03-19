@@ -5,7 +5,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Resolve RHINO_DIR: env var > install-path > relative to script
+if [[ -n "${RHINO_DIR:-}" && -d "$RHINO_DIR/bin" ]]; then
+    : # use existing RHINO_DIR
+elif [[ -f "$HOME/.config/rhino-os/install-path" ]]; then
+    RHINO_DIR="$(cat "$HOME/.config/rhino-os/install-path")"
+else
+    RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 FEATURE=""
 DIFF_MODE=false
 

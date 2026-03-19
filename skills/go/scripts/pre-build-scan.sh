@@ -6,12 +6,23 @@ set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Check dependencies
-source "$RHINO_DIR/bin/lib/check-deps.sh"
-require_cmd jq "brew install jq"
-require_cmd python3 "brew install python3"
+# Resolve RHINO_DIR: env var > install-path > relative to script
+if [[ -n "${RHINO_DIR:-}" && -d "$RHINO_DIR/bin" ]]; then
+    : # use existing RHINO_DIR
+elif [[ -f "$HOME/.config/rhino-os/install-path" ]]; then
+    RHINO_DIR="$(cat "$HOME/.config/rhino-os/install-path")"
+else
+    RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+# Check dependencies (graceful if check-deps.sh missing in plugin cache)
+if [[ -f "$RHINO_DIR/bin/lib/check-deps.sh" ]]; then
+    source "$RHINO_DIR/bin/lib/check-deps.sh"
+    require_cmd jq "brew install jq"
+else
+    command -v jq &>/dev/null || { echo "jq required: brew install jq"; exit 1; }
+fi
 
 # --- Current score ---
 echo "=== CURRENT SCORE ==="
