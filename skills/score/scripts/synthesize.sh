@@ -112,7 +112,7 @@ get_behavioral_score() {
     _flows_err=$(mktemp /tmp/rhino-flows-err.XXXXXX)
     local _flows_result
     _flows_result=$(jq -r '
-        def count_severity(s): [.issues[]? | select(.severity == s)] | length;
+        def count_severity(s): [.issues[]? | select(.severity == s and (.fixed // false | not))] | length;
         100 - (count_severity("blocker") * 25) - (count_severity("major") * 10) - (count_severity("minor") * 3) |
         if . < 0 then 0 else . end
     ' "$latest" 2>"$_flows_err")

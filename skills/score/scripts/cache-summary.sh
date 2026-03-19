@@ -122,7 +122,7 @@ fi
 echo -n "behavioral  "
 latest_flows=$(ls -t "$TASTE_DIR"/flows-*.json 2>/dev/null | head -1)
 if [[ -n "$latest_flows" ]]; then
-    blockers=$(jq '[.issues[]? | select(.severity == "blocker")] | length' "$latest_flows" 2>/dev/null || echo "?")
+    blockers=$(jq '[.issues[]? | select(.severity == "blocker" and (.fixed // false | not))] | length' "$latest_flows" 2>/dev/null || echo "?")
     echo "$(basename "$latest_flows")  blockers:${blockers}  $(staleness "$latest_flows")  confidence:$(confidence "$latest_flows" 172800 345600)"
 else
     echo "no data"

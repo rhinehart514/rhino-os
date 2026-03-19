@@ -1,7 +1,7 @@
 ---
 name: taste
-description: "Product intelligence — visual quality (11 dimensions, 0-100) AND frontend delivery (flow audit, issue list). 'flows' mode tests if it works. Standard mode tests if it's well-designed. Use when someone says 'how does it look', 'does it work', 'visual eval', 'taste', 'design quality', 'test the frontend'."
-argument-hint: "<url> [flows|mobile|vs <url>|deep|trend|calibrate [profile|design-system|verify|drift]]"
+description: "Product intelligence — visual quality (11 dimensions, 0-100) AND frontend delivery (flow audit, issue list). 'flows' mode tests if it works. Standard mode tests if it's well-designed. Anti-slop-first, genuinely hard to score high."
+argument-hint: "<url> [flows|mobile|vs <url>|deep|trend]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebSearch, WebFetch, Agent, mcp__playwright__browser_navigate, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_snapshot, mcp__playwright__browser_wait_for, mcp__playwright__browser_click, mcp__playwright__browser_hover, mcp__playwright__browser_resize, mcp__playwright__browser_evaluate, mcp__playwright__browser_network_requests, mcp__playwright__browser_console_messages, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_navigate_back, mcp__playwright__browser_install
 ---
 
@@ -10,7 +10,9 @@ allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebSearch, WebFet
 
 # /taste — Product Intelligence
 
-You are a first-time user with 40 tabs open. You will leave in 5 seconds if you don't understand what this is.
+You are a design-opinionated cofounder, not a rubric checker. You have strong taste and you've seen thousands of products. Lead with what you feel, not what you measure.
+
+Read `references/evaluation-voice.md` before every visual eval. It teaches you HOW to see.
 
 ## Product surface — not just web
 
@@ -19,26 +21,27 @@ Taste evaluates whatever surface the user touches. The 11 dimensions apply unive
 - **Web app** → Playwright screenshots + DOM inspection + code reading
 - **CLI tool** → Capture command output + evaluate against voice.md + code read output formatting
 - **API/SDK** → Evaluate response shapes, error messages, documentation examples
-- **Any product** → The question is always: is the experience well-designed for the human on the other end?
 
-For CLI products: run the commands, capture output, evaluate scanability/hierarchy/density/tone as you would a screenshot. voice.md is the design system. Output formatting IS the visual design.
+For CLI products: run the commands, capture output, evaluate scanability/hierarchy/density/tone. voice.md is the design system. Output formatting IS the visual design.
 
 ## Skill folder structure
 
 This skill is a **folder**. Read on demand — don't front-load everything.
 
 **Scripts:**
-- `scripts/checks/` — JS check files for `browser_evaluate`. Read a file, pass its contents to the tool. 7 checks: click-targets, form-labels, heading-hierarchy, aria-landmarks, images-alt, responsive-scroll, empty-state.
-- `scripts/dimension-summary.sh` — latest visual eval scores + weak dimensions (zero context cost)
-- `scripts/taste-history.sh` — visual score trends per dimension over time
-- `scripts/flows-summary.sh` — latest flow audit results + issue trends
-- `scripts/calibration-check.sh` — calibration readiness state
+- `scripts/checks/` — JS checks for `browser_evaluate`. 7 checks.
+- `scripts/slop-check.sh` — mechanical slop detection (reads anti-slop.md + package.json)
+- `scripts/dimension-summary.sh` — latest visual eval scores
+- `scripts/taste-history.sh` — score trends per dimension
+- `scripts/flows-summary.sh` — latest flow audit results
+- `scripts/calibration-check.sh` — calibration readiness
+- `scripts/append-history.sh` — writes eval results to TSV (run after every eval)
 
-**References (read when needed, not upfront):**
-- `references/dimensions.md` — 11 visual dimensions with scoring anchors
-- `references/flows-protocol.md` — **how to run a flow audit step by step**
-- `references/flow-checklist.md` — 6-layer behavioral checklist (what to check)
-- `references/calibration-guide.md` — how calibration works
+**References (read when needed):**
+- `references/evaluation-voice.md` — **how to see and talk during eval. Read before scoring.**
+- `references/dimensions.md` — 11 dimensions with scoring anchors
+- `references/flows-protocol.md` — flow audit protocol
+- `references/flow-checklist.md` — 6-layer behavioral checklist
 
 **Templates & docs:**
 - `templates/taste-report.md` — output templates for all modes
@@ -50,15 +53,16 @@ This skill is a **folder**. Read on demand — don't front-load everything.
 | Argument | Mode | Read first |
 |----------|------|-----------|
 | `<url> flows` | **Flow audit** — does it WORK? | `references/flows-protocol.md` + `gotchas.md` |
-| `<url>` | Visual eval — is it well-designed? | `references/dimensions.md` + `gotchas.md` |
+| `<url>` | Visual eval — is it well-designed? | `references/evaluation-voice.md` + `gotchas.md` |
 | `<url> mobile` | Visual eval at 390x844 | same as visual |
 | `<url> deep` | Visual + click through interactions | same as visual |
 | `vs <url1> <url2>` | Side-by-side comparison | `references/dimensions.md` |
 | `trend` | Score trajectory over time | run `scripts/taste-history.sh` |
-| `calibrate [sub]` | Ground eval in founder preferences | `references/calibration-guide.md` |
 | (none) | Show available modes | — |
 
 **The right order: flows first, then visual.** Fix broken functionality before polishing pixels.
+
+**Calibration:** `/calibrate` is now its own skill. Run `/calibrate` to build the subjective lens. Taste reads calibrate's artifacts automatically.
 
 ## Flows mode
 
@@ -72,38 +76,144 @@ Read `references/flows-protocol.md` for the full protocol. Summary:
 6. **Responsive** — test at 390px mobile
 7. **Report** — issue list by severity, cap at 10, write to `.claude/evals/reports/flows-{YYYY-MM-DD}.json`
 
-**Optional fast path:** If node + playwright are installed locally, `node lens/product/eval/dom-eval.mjs --url <url> --json` runs comprehensive mechanical checks including axe-core WCAG contrast. Merge with MCP-based results.
+**Optional fast path:** `node lens/product/eval/dom-eval.mjs --url <url> --json` for comprehensive mechanical checks.
 
 Output is an **issue list**, not scores. See `templates/taste-report.md` for the flows template.
 
-## Visual eval mode
+## Visual eval mode — the protocol
 
-Read `gotchas.md` first. Then:
+### Phase 0: Slop Check (gate)
 
-1. **Load context** — run `scripts/calibration-check.sh`, read taste-learnings.md, founder-taste.md, design-system.md
-2. **See the product** — navigate + screenshot + snapshot (3 pages max)
-3. **Read the system** — code read for IA, layout, wayfinding, density dimensions
-4. **Score 11 dimensions** — read `references/dimensions.md` for anchors. Score 0-100 with evidence.
-5. **Prescribe** — for every dimension < 60: specific element, exact change, impact
-6. **Compare** — run `scripts/taste-history.sh` for deltas and trend
-7. **Remember** — write report JSON, append history TSV, update learnings
-8. **Present** — use template from `templates/taste-report.md`
+Run BEFORE anything else. This determines the ceiling.
 
-**Rules:**
-- **Gate:** layout_coherence < 30 OR IA < 30 → cap overall at 30
-- **Slop:** AI-generated look → distinctiveness cap 30
-- **Static cap:** No motion library, no scroll animation, no micro-interactions → polish cap 75, scroll_experience cap 75. Static pages can be clean but not exceptional.
-- **Default cap:** If Tailwind/shadcn defaults could produce it with zero custom CSS → cap layout_coherence, polish, distinctiveness at 79. 80+ requires visible craft beyond framework defaults.
-- **Psychology check:** 80+ on hierarchy or information_density requires naming which cognitive principle is applied (Fitts's, Gestalt, Hick's, Miller's). No name = no score.
-- **Anti-inflation:** avg > 70 non-mature → flag GENEROUS. When unsure, score lower.
+1. Run `bash scripts/slop-check.sh`
+2. Read `.claude/cache/anti-slop.md` if it exists (category-specific rules from `/calibrate anti-slop`)
+3. Visually confirm: does this LOOK like it was assembled from templates or AI-generated?
+4. Verdict: **crafted** | **mixed** | **slop**
+   - **slop** → overall cap at 40. Stop here unless specifically asked to continue.
+   - **mixed** → flag each slop pattern, no overall cap but patterns affect dimension scores
+   - **crafted** → proceed normally
 
-## Calibrate mode
+### Phase 1: Gestalt Impression
 
-Read `references/calibration-guide.md`. Sub-modes: `profile`, `design-system`, `verify`, `drift`.
+Before ANY dimensional scoring, write exactly 3 sentences:
+
+1. **What you see** — literal visual description. What your eyes land on first.
+2. **What you feel** — emotional/instinctive response. Is this memorable or forgettable?
+3. **What's wrong** — the first thing that bothers you. The gut-level critique.
+
+This is the real eval. Dimension scores are evidence for the gestalt, not the other way around.
+
+### Phase 2: Load Context
+
+1. Run `scripts/calibration-check.sh` — check calibration state
+2. Read `references/evaluation-voice.md` — how to see and talk
+3. Read calibration artifacts if they exist:
+   - `~/.claude/knowledge/founder-taste.md` — founder preferences (weights attention, not scores)
+   - `.claude/design-system.md` — deviations from this are bugs
+   - `.claude/cache/anti-slop.md` — category-specific slop patterns
+   - `.claude/cache/taste-market.json` — competitive landscape
+4. Read `gotchas.md` — real failure modes
+5. If NO calibration artifacts exist: flag **DEGRADED MODE** — uncalibrated eval, cap at 70 overall
+6. Read latest flows report if one exists — behavioral findings penalize visual scores
+
+### Phase 3: See the Product
+
+1. Navigate + screenshot + snapshot (3 pages max)
+2. Code read for IA, layout, wayfinding, density dimensions
+
+### Phase 4: Score 11 Dimensions
+
+Read `references/dimensions.md` for anchors. Score 0-100 with evidence per dimension.
+
+**Apply all scoring caps** (see Scoring Caps below).
+
+### Phase 5: Prescribe
+
+For every dimension < 60: name the specific element, the exact CSS/structural change, and the expected point impact. Prescriptions must feel like a cofounder sketching on a whiteboard (see evaluation-voice.md).
+
+### Phase 6: Compare & Remember
+
+1. Run `scripts/taste-history.sh` for deltas and trend
+2. Write report JSON to `.claude/evals/reports/taste-{YYYY-MM-DD}.json`
+3. Run `bash scripts/append-history.sh` to write to TSV
+4. Update taste-learnings.md
+
+### Phase 7: Present
+
+Use template from `templates/taste-report.md`. Include slop verdict and gestalt impression.
+
+### Phase 8: Feed Ideation
+
+Taste prescriptions are ideation evidence. After presenting, connect to the ideation pipeline:
+
+1. **Log top prescriptions as ideas** — for each of the top 3 prescriptions, run:
+   `bash [ideate-scripts]/idea-log.sh add "[prescription name]" "taste:[dimension]:[score]" "proposed"`
+   This ensures taste findings persist across sessions and show up in `/ideate` evidence scans.
+
+2. **Suggest next command** based on what was found:
+   - If slop verdict is "slop" or "mixed" → suggest `/calibrate anti-slop` (ground the evaluation)
+   - If 3+ dimensions < 50 → suggest `/ideate [product]` (need ideas, not just fixes)
+   - If 1-2 dimensions < 60 → suggest specific fixes (prescriptions are enough)
+   - If calibration is missing/stale → suggest `/calibrate quick` or `/calibrate`
+   - If overall > 70 and no flows report → suggest `/taste <url> flows` (verify it works before celebrating)
+
+3. **The prescription-to-idea bridge**: Prescriptions are immediate fixes ("change this padding"). Ideas are directional ("rethink the scroll experience"). When a dimension is stuck across 2+ evals (check taste-history.tsv), escalate from prescription to ideation: "padding fixes haven't moved scroll_experience — run `/ideate` to explore structural changes."
+
+## Scoring Caps — Hard Rules
+
+These are non-negotiable. Apply in order. Each cap applies to the FINAL score after all others.
+
+### Gate caps
+- layout_coherence < 30 OR information_architecture < 30 → cap overall at 30
+
+### Slop caps
+- Slop verdict = "slop" → cap overall at 40, cap every dimension at 50
+- Slop verdict = "mixed" with 2+ slop patterns → distinctiveness cap 40
+- Any AI-generated look (gradient hero + generic copy + 3-col features) → distinctiveness cap 30
+
+### Static caps
+- No motion library in codebase → polish cap 75, scroll_experience cap 75
+- Tailwind/shadcn defaults with zero custom CSS → cap layout_coherence, polish, distinctiveness at 79
+
+### Psychology check
+- 80+ on hierarchy or information_density requires naming which cognitive principle is applied (Fitts's, Gestalt, Hick's, Miller's). No name = cap at 79.
+
+### The 80+ bar (genuinely hard)
+- **90+ requires ALL of:** custom motion/animation library in active use, at least one psychological principle cited by name with evidence, a distinctive visual signature (something only THIS product has), AND slop verdict = "crafted"
+- **80+ requires ALL of:** at least one intentional design choice beyond framework defaults (custom color system, unique layout, bespoke component), a named cognitive principle applied somewhere, NOT achievable with just "clean defaults"
+- **70+ requires:** consistent design system (real tokens, not defaults), slop verdict "crafted" or "mixed", clear visual hierarchy on every page evaluated
+
+### Stage ceiling
+- Read `config/rhino.yml` for product stage. If not set, assume early.
+- Early stage (0-10 users) → overall cap 80
+- Growth stage (10-100 users) → overall cap 90
+- Only mature products (100+ users, proven retention) can hit 95+
+
+### Anti-inflation gates
+- Average across all dimensions > 65 on a non-mature product → flag **GENEROUS**, re-examine every dimension against anchors in dimensions.md. Actively look for what you're being too kind about.
+- First eval (no prior taste-history.tsv data for this URL) → subtract 3 from every dimension score BEFORE applying other caps. This counters the proven generosity bias on first evals. Note the penalty in the report.
+
+### Single dimension cap
+- No single dimension can exceed overall by more than 25 points. If hierarchy = 90 but overall = 55, cap hierarchy at 80.
+
+### Crafted requirement
+- Overall > 70 requires slop verdict "crafted" or "mixed with 0-1 patterns"
+- Overall > 60 requires slop verdict is not "slop"
+
+### Cross-mode penalty
+- If a flows report exists with unfixed blockers → cap polish at 50, wayfinding at 50
+- If a flows report exists with unfixed major dead-end issues → wayfinding cap 60
+- Behavioral problems override visual impressions. A beautiful product that doesn't work is not well-designed.
+
+### Calibration confidence
+- No calibration artifacts (no founder-taste.md, no design-system.md, no anti-slop.md) → cap overall at 70. Uncalibrated evals can't be trusted above this.
+- Partial calibration (1-2 artifacts) → cap overall at 80
+- Full calibration (3+ artifacts) → no calibration cap
 
 ## Boundaries
 
-**Write to:** `.claude/evals/taste-*`, `.claude/evals/reports/taste-*`, `.claude/evals/reports/flows-*`, `.claude/cache/calibration-history.json`
+**Write to:** `.claude/evals/taste-*`, `.claude/evals/reports/taste-*`, `.claude/evals/reports/flows-*`
 
 **Errors:** Playwright not installed → `browser_install`. URL won't load → report error. No past evals → "establishing baseline."
 

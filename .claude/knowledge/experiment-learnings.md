@@ -80,6 +80,99 @@
 
 - **Auto-graded** (2026-03-18): Confirmed: Score 86 (target was 86, within 5pt margin)
 
+
+- **Auto-graded** (2026-03-18): Prediction missed target. Actual outcome: No improvement signal: Feature docs eval: score=67, delivery=71, trend=same
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?

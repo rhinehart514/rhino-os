@@ -286,6 +286,20 @@ acquire_lock() {
     local retries=0
     while ! mkdir "$LOCK_DIR" 2>/dev/null; do
         retries=$((retries + 1))
+        # Auto-clean stale locks older than 30 seconds
+        if [[ "$retries" -eq 5 ]]; then
+            local lock_age=0
+            if [[ -d "$LOCK_DIR" ]]; then
+                local lock_mtime now_ts
+                lock_mtime=$(stat -f %m "$LOCK_DIR" 2>/dev/null || stat -c %Y "$LOCK_DIR" 2>/dev/null || echo "0")
+                now_ts=$(date +%s)
+                lock_age=$((now_ts - lock_mtime))
+            fi
+            if [[ "$lock_age" -gt 30 ]]; then
+                rmdir "$LOCK_DIR" 2>/dev/null || true
+                continue
+            fi
+        fi
         if [[ "$retries" -ge 10 ]]; then
             echo -e "  ${RED}error${NC}: could not acquire todo lock after ${retries} attempts" >&2
             echo -e "  ${DIM}stale lock? run: rmdir ${LOCK_DIR}${NC}" >&2
@@ -524,7 +538,8 @@ EOF
 
     # Clear empty array literal before first append
     if grep -q '^items: \[\]' "$BACKLOG_FILE"; then
-        sed -i '' 's/^items: \[\]/items:/' "$BACKLOG_FILE"
+        local _sedtmp="${BACKLOG_FILE}.sedtmp"
+        sed 's/^items: \[\]/items:/' "$BACKLOG_FILE" > "$_sedtmp" && mv "$_sedtmp" "$BACKLOG_FILE"
     fi
 
     cat >> "$BACKLOG_FILE" << EOF
@@ -1181,7 +1196,8 @@ EOF
 
     # Clear empty array literal before first append
     if grep -q '^items: \[\]' "$BACKLOG_FILE"; then
-        sed -i '' 's/^items: \[\]/items:/' "$BACKLOG_FILE"
+        local _sedtmp="${BACKLOG_FILE}.sedtmp"
+        sed 's/^items: \[\]/items:/' "$BACKLOG_FILE" > "$_sedtmp" && mv "$_sedtmp" "$BACKLOG_FILE"
     fi
 
     local today count=0 skipped=0

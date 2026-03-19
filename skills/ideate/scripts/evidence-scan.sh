@@ -54,7 +54,7 @@ fi
 TODOS_FILE="$PROJECT_DIR/.claude/plans/todos.yml"
 if [[ -f "$TODOS_FILE" ]]; then
     echo "=== BACKLOG CLUSTERS ==="
-    grep -E 'feature:|tag:' "$TODOS_FILE" 2>/dev/null | sed 's/.*: *//' | sort | uniq -c | sort -rn | head -5 | while read -r count tag; do
+    { grep -E 'feature:|tag:' "$TODOS_FILE" 2>/dev/null || true; } | sed 's/.*: *//' | sort | uniq -c | sort -rn | head -5 | while read -r count tag; do
         [[ "$count" -ge 3 ]] && echo "  $tag: $count todos (cluster)"
         [[ "$count" -lt 3 ]] && echo "  $tag: $count todos"
     done
@@ -75,10 +75,40 @@ LEARNINGS="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
 [[ ! -f "$LEARNINGS" ]] && LEARNINGS="$HOME/.claude/knowledge/experiment-learnings.md"
 if [[ -f "$LEARNINGS" ]]; then
     echo "=== DEAD ENDS ==="
-    awk '/^## Dead Ends/,/^## /{if(/^## / && !/Dead Ends/) exit; print}' "$LEARNINGS" 2>/dev/null | grep -E '^\s*-' | head -5
+    { awk '/^## Dead Ends/,/^## /{if(/^## / && !/Dead Ends/) exit; print}' "$LEARNINGS" 2>/dev/null || true; } | grep -E '^\s*-' | head -5 || true
     echo ""
     echo "=== UNKNOWN TERRITORY ==="
-    awk '/^## Unknown Territory/,/^## /{if(/^## / && !/Unknown/) exit; print}' "$LEARNINGS" 2>/dev/null | grep -E '^\s*-' | head -10
+    { awk '/^## Unknown Territory/,/^## /{if(/^## / && !/Unknown/) exit; print}' "$LEARNINGS" 2>/dev/null || true; } | grep -E '^\s*-' | head -10 || true
+    echo ""
+fi
+
+# --- Taste eval (visual/behavioral evidence) ---
+TASTE_DIR="$PROJECT_DIR/.claude/evals/reports"
+LATEST_TASTE=$(ls -t "$TASTE_DIR"/taste-*.json 2>/dev/null | head -1)
+if [[ -n "$LATEST_TASTE" ]] && command -v jq &>/dev/null; then
+    echo "=== TASTE EVAL ==="
+    TASTE_DATE=$(jq -r '.date // "unknown"' "$LATEST_TASTE" 2>/dev/null)
+    TASTE_OVERALL=$(jq -r '.overall // "?"' "$LATEST_TASTE" 2>/dev/null)
+    TASTE_SLOP=$(jq -r '.slop_verdict // "unknown"' "$LATEST_TASTE" 2>/dev/null)
+    echo "  date: $TASTE_DATE  overall: $TASTE_OVERALL  slop: $TASTE_SLOP"
+
+    # Weak dimensions (< 55)
+    echo "  weak dimensions:"
+    jq -r '.dimensions | to_entries[] | select(.value.score < 55) | "    \(.key): \(.value.score)"' "$LATEST_TASTE" 2>/dev/null || true
+
+    # Top issues
+    echo "  top issues:"
+    jq -r '.top_issues[]? | "    · \(.issue)"' "$LATEST_TASTE" 2>/dev/null | head -3
+    echo ""
+fi
+
+LATEST_FLOWS=$(ls -t "$TASTE_DIR"/flows-*.json 2>/dev/null | head -1)
+if [[ -n "$LATEST_FLOWS" ]] && command -v jq &>/dev/null; then
+    echo "=== FLOWS AUDIT ==="
+    UNFIXED=$(jq '[.issues[]? | select(.fixed != true)] | length' "$LATEST_FLOWS" 2>/dev/null || echo "?")
+    BLOCKERS=$(jq '[.issues[]? | select(.severity == "blocker" and (.fixed != true))] | length' "$LATEST_FLOWS" 2>/dev/null || echo "?")
+    echo "  unfixed issues: $UNFIXED (blockers: $BLOCKERS)"
+    jq -r '.issues[]? | select(.fixed != true) | "    [\(.severity)] \(.issue)"' "$LATEST_FLOWS" 2>/dev/null | head -5
     echo ""
 fi
 

@@ -199,8 +199,15 @@ echo ""
 # Top learnings (last 5, deduplicated) — from sessions or model_update column in predictions.tsv
 if [[ -z "$LEARNINGS" ]]; then
     PRED_FILE="$PROJECT_DIR/.claude/knowledge/predictions.tsv"
-    [[ ! -f "$PRED_FILE" ]] && PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
-    if [[ -f "$PRED_FILE" ]]; then
+    # Only fall back to global predictions if running from within rhino-os itself
+    if [[ ! -f "$PRED_FILE" ]]; then
+        if [[ -f "$PROJECT_DIR/config/rhino.yml" ]]; then
+            PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
+        else
+            PRED_FILE=""
+        fi
+    fi
+    if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
         # Extract non-empty model_update entries (column 7) from graded predictions
         LEARNINGS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$7 != "" && $6 != "" { print $7 }' | tail -10 | sort -u | tail -5 | while IFS= read -r l; do
             [[ -n "$l" ]] && echo "${l}\n"
@@ -218,9 +225,13 @@ fi
 
 # --- Knowledge model growth ---
 LEARNINGS_FILE="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
-[[ ! -f "$LEARNINGS_FILE" ]] && LEARNINGS_FILE="$HOME/.claude/knowledge/experiment-learnings.md"
+if [[ ! -f "$LEARNINGS_FILE" && -f "$PROJECT_DIR/config/rhino.yml" ]]; then
+    LEARNINGS_FILE="$HOME/.claude/knowledge/experiment-learnings.md"
+elif [[ ! -f "$LEARNINGS_FILE" ]]; then
+    LEARNINGS_FILE=""
+fi
 
-if [[ -f "$LEARNINGS_FILE" ]]; then
+if [[ -n "$LEARNINGS_FILE" && -f "$LEARNINGS_FILE" ]]; then
     KNOWN_CT=$(awk '/^## Known Patterns/,/^## /' "$LEARNINGS_FILE" 2>/dev/null | grep -c '^\s*-\s' 2>/dev/null || true)
     [[ -z "$KNOWN_CT" || ! "$KNOWN_CT" =~ ^[0-9]+$ ]] && KNOWN_CT=0
     UNCERTAIN_CT=$(awk '/^## Uncertain Patterns/,/^## /' "$LEARNINGS_FILE" 2>/dev/null | grep -c '^\s*-\s' 2>/dev/null || true)
@@ -237,9 +248,14 @@ fi
 
 # --- Prediction accuracy trend across sessions ---
 PRED_FILE="$PROJECT_DIR/.claude/knowledge/predictions.tsv"
-[[ ! -f "$PRED_FILE" ]] && PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
+# Only fall back to global if this is a rhino-managed project
+if [[ ! -f "$PRED_FILE" && -f "$PROJECT_DIR/config/rhino.yml" ]]; then
+    PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
+elif [[ ! -f "$PRED_FILE" ]]; then
+    PRED_FILE=""
+fi
 
-if [[ -f "$PRED_FILE" ]]; then
+if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
     GRADED_ALL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != ""' 2>/dev/null)
     GRADED_TOTAL=$(echo "$GRADED_ALL" | grep -c '.' 2>/dev/null || echo "0")
     if [[ "$GRADED_TOTAL" -ge 3 ]]; then

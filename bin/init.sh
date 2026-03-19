@@ -786,7 +786,7 @@ if [[ ! -f ".claude/plans/todos.yml" ]]; then
 # /plan promotes items from here. /go works through them.
 # Format: - id: short-id | title: text | feature: name | status: backlog|active|done
 
-items: []
+items:
 TODOS
     echo -e "  ${GREEN}✓${NC} .claude/plans/todos.yml"
 fi

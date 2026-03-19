@@ -8,9 +8,21 @@ Use these templates for all taste output modes. Copy the structure exactly — t
 
 ```
 ◆ taste — <url>                              <category>
-  calibrated against: <refs or "uncalibrated">
+  calibrated against: <refs or "uncalibrated — cap 70">
+  [DEGRADED: uncalibrated eval — run /calibrate for honest scores]
+
+  ▸ slop check
+    verdict: <crafted|mixed|slop>  [cap: <none|40>]
+    evidence: <what was found>
+
+  ▸ gestalt (3 sentences, before any scoring)
+    see:  <what your eyes land on>
+    feel: <emotional/instinctive response>
+    wrong: <the first thing that bothers you>
 
   overall   **<score>**/100  ████████████████░░░░  [+/-delta]
+  [caps applied: <list of active caps>]
+  [FIRST EVAL: -5 penalty applied to all dimensions]
 
   ▸ gates
     layout_coherence         <score>/100  [+/-delta]  <evidence>
@@ -22,9 +34,6 @@ Use these templates for all taste output modes. Copy the structure exactly — t
                           rx: <prescription>
     <dim>   <score>/100  [+/-delta]  <evidence>
                           rx: <prescription>
-
-  ▸ slop check
-    <page>: <verdict>
 
   ▸ top 3 fixes
     1. <element> → <change> → <dim> +<N>pts
@@ -43,7 +52,7 @@ Use these templates for all taste output modes. Copy the structure exactly — t
   verdict: <would_return + one_thing>
 
 /taste <url>          re-evaluate after changes
-/todo                 capture the fixes
+/calibrate            ground evals in founder preferences
 /go [feature]         build the top fix
 ```
 
@@ -66,14 +75,23 @@ Write to `.claude/evals/reports/taste-{YYYY-MM-DD}.json`:
     }
   },
   "gates": { "layout_coherence": 0, "information_architecture": 0, "capped": false },
-  "slop": { "detected": false, "pages": [], "anti_slop": [] },
+  "slop": { "verdict": "crafted|mixed|slop", "signals": 0, "evidence": [], "cap_applied": null },
+  "gestalt": { "see": "", "feel": "", "wrong": "" },
+  "caps_applied": ["<list of active scoring caps>"],
+  "first_eval_penalty": false,
   "strongest": "<dimension + why>",
   "weakest": "<dimension + why>",
   "would_return": "<yes/no + reason>",
   "one_thing": "<highest-impact change>",
   "top_3_fixes": [{ "element": "", "change": "", "impact": "" }],
   "routes_evaluated": 0,
-  "meta": { "mode": "standard", "market_research": "cached|none", "has_past_eval": false }
+  "meta": {
+    "mode": "standard",
+    "calibration": "full|partial|none",
+    "calibration_cap": null,
+    "has_past_eval": false,
+    "stage": "early|growth|mature"
+  }
 }
 ```
 
@@ -142,57 +160,15 @@ date	url	overall	hierarchy	breathing_room	contrast	polish	emotional_tone	informa
 
 ---
 
-## Calibrate
+## Calibrate (redirects to /calibrate)
 
-```
-◆ taste calibrate
-
-  --- founder profile ---
-
-  ✓ written to ~/.claude/knowledge/founder-taste.md
-    preferences: 3 loves, 2 anti-patterns
-    pain: [current pain point]
-
-  --- design system ---
-
-  ✓ written to .claude/design-system.md
-    tokens:      5 color, 4 spacing, 3 radius, 2 shadow, 3 typography
-    components:  card, button, input, nav (4 patterns)
-    rules:       6 anti-slop rules
-
-  --- dimension knowledge ---
-
-  calibrated: ████████░░░░  4/11
-    hierarchy          ✓ researched
-    breathing_room     ✓ researched
-    ...
-
-  ✓ calibration logged to .claude/cache/calibration-history.json
-
-/taste <url>                  run with calibrated knowledge
-/taste calibrate verify       check if calibration is working
-/taste calibrate drift        check for score drift over time
-```
-
----
-
-## Verify (`/taste calibrate verify`)
-
-```
-◆ taste calibrate verify
-
-  dimension              expected   actual   gap    status
-  hierarchy              high       58       -12    ⚠ miscalibrated
-  breathing_room         medium     41        +1    ✓ aligned
-  contrast               high       70        +0    ✓ aligned
-  polish                 high       48       -22    ✗ miscalibrated
-
-  calibrated: 4/11 · aligned: 2/4 · miscalibrated: 2/4
-
-/taste calibrate profile    update preferences
-/taste <url>                re-evaluate
-/taste calibrate drift      check for shifts over time
-```
+Calibration is now a separate skill. Run `/calibrate` for:
+- `/calibrate profile` — founder taste interview
+- `/calibrate design-system` — extract tokens from code
+- `/calibrate anti-slop` — build category-specific slop profile
+- `/calibrate market` — competitive landscape + 2026 trends
+- `/calibrate verify` — check calibration accuracy
+- `/calibrate drift` — detect preference/market drift
 
 ---
 

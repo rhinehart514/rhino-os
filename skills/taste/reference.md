@@ -16,7 +16,10 @@ The `/taste` skill uses Claude Code natively — Playwright MCP for screenshots,
 | `skills/taste/scripts/dimension-summary.sh` | Latest scores, weakest/strongest, pending prescriptions |
 | `skills/taste/scripts/taste-history.sh` | Score trends per dimension, trajectory classification |
 | `skills/taste/scripts/calibration-check.sh` | Calibration state: profile, design system, dimension knowledge |
+| `skills/taste/scripts/slop-check.sh` | Mechanical slop detection — runs before every visual eval |
+| `skills/taste/scripts/append-history.sh` | Append eval results to taste-history.tsv after every eval |
 | `skills/taste/references/dimensions.md` | All 11 dimensions with scoring anchors |
+| `skills/taste/references/evaluation-voice.md` | How to see and talk during eval — read before scoring |
 | `skills/taste/references/calibration-guide.md` | Calibration protocol and traps |
 | `skills/taste/templates/taste-report.md` | Output templates for all modes |
 | `skills/taste/gotchas.md` | Real failure modes — read before every eval |
