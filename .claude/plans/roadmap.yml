@@ -294,5 +294,12 @@ versions:
         status: proven
         evidence: "synthesize.sh tested — code-only mode (d*0.60 + c*0.40) produces scores consistent with eval-cache."
 
+  v9.4.04:
+    tier: patch
+    parent: v9.4
+    status: proven
+    proven: 2026-03-19
+    summary: "Taste + calibrate rewrite. /calibrate restored as real research-backed skill (7 modes, anti-slop taxonomy, founder interview protocol, competitive screenshots). /taste rewritten with anti-slop gate, gestalt-first evaluation, hard scoring caps (stage ceiling, first eval penalty, calibration confidence, 90+ requires motion+psychology+signature). Slop-check.sh detects web + CLI surface slop mechanically. Evaluation-voice.md teaches Claude to evaluate like a cofounder. append-history.sh fixes taste TSV pipeline bug. Ideation pipeline wired: evidence-scan reads taste/flows reports, taste Phase 8 logs prescriptions as ideas, calibrate suggests ideation after discoveries."
+
   # Version tiers: major (new thesis), minor (improvement within thesis), patch (bug fix/polish)
   # Future theses emerge from evidence. /roadmap ideate when ready.
