@@ -61,13 +61,15 @@ if [[ -f "$BUILD_LOG" ]] && command -v jq &>/dev/null; then
     SESSION_CT=$(echo "$RECENT" | wc -l | tr -d ' ')
 
     if [[ "$SESSION_CT" -ge "$THRESHOLD" ]]; then
+        # Count sessions with zero or negative score delta
+        # Avoid subshell scope bug: use process substitution instead of pipe
         ZERO_DELTA=0
-        echo "$RECENT" | while IFS= read -r line; do
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
             D=$(echo "$line" | jq -r '(.score_after // 0) - (.score_before // 0)' 2>/dev/null || echo "0")
             [[ "$D" -le 0 ]] && ZERO_DELTA=$((ZERO_DELTA + 1))
-            echo "$ZERO_DELTA"
-        done | tail -1 | read -r ZD || ZD=0
-        if [[ "${ZD:-0}" -ge "$THRESHOLD" ]]; then
+        done <<< "$RECENT"
+        if [[ "$ZERO_DELTA" -ge "$THRESHOLD" ]]; then
             echo ""
             echo "SESSION PLATEAU: $THRESHOLD consecutive sessions with no score improvement"
             echo "  action: rethink at a higher level — /strategy or /ideate, not more building"

@@ -74,10 +74,10 @@ PRED_FILE="$PROJECT_DIR/.claude/knowledge/predictions.tsv"
 if [[ -f "$PRED_FILE" ]]; then
     echo "▸ predictions"
     TOTAL=$(tail -n +2 "$PRED_FILE" | wc -l | tr -d ' ')
-    GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 != ""' | wc -l | tr -d ' ')
-    CORRECT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "yes"' | wc -l | tr -d ' ')
-    PARTIAL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "partial"' | wc -l | tr -d ' ')
-    WRONG=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "no"' | wc -l | tr -d ' ')
+    GRADED=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != ""' | wc -l | tr -d ' ')
+    CORRECT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "yes"' | wc -l | tr -d ' ')
+    PARTIAL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "partial"' | wc -l | tr -d ' ')
+    WRONG=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "no"' | wc -l | tr -d ' ')
     UNGRADED=$((TOTAL - GRADED))
     if [[ "$GRADED" -gt 0 ]]; then
         # partial counts as 0.5
@@ -94,7 +94,7 @@ if [[ -f "$PRED_FILE" ]]; then
     echo "  last_7_days: $RECENT"
 
     # Recent wrong predictions (highest signal)
-    WRONG_RECENT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 == "no" || $5 == "partial"' | tail -3)
+    WRONG_RECENT=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 == "no" || $6 == "partial"' | tail -3)
     if [[ -n "$WRONG_RECENT" ]]; then
         echo "  recent wrong:"
         echo "$WRONG_RECENT" | while IFS=$'\t' read -r date pred evidence result correct update; do
