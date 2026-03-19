@@ -570,8 +570,13 @@ score_completion() {
 
 # Assertion pass rate: wraps eval.sh --score
 score_assertions() {
-    local eval_score
-    eval_score=$("$SCRIPT_DIR/eval.sh" . --score 2>/dev/null) || eval_score=""
+    local eval_score _sa_err
+    _sa_err=$(mktemp /tmp/rhino-sa-err.XXXXXX)
+    eval_score=$("$SCRIPT_DIR/eval.sh" . --score 2>"$_sa_err") || eval_score=""
+    if [[ -z "$eval_score" && -s "$_sa_err" ]]; then
+        echo "score: assertion eval failed — $(head -1 "$_sa_err"). Run 'rhino eval .' to debug." >&2
+    fi
+    rm -f "$_sa_err"
     if [[ -n "$eval_score" && "$eval_score" =~ ^[0-9]+$ ]]; then
         echo "$eval_score"
     else
@@ -643,9 +648,17 @@ fi
 if [[ "$ASSERTION_COUNT" -gt 0 ]]; then
     # Assertions exist → score = assertion pass rate
     # Single eval.sh call with --json for score + features + pass count
-    eval_json=$("$SCRIPT_DIR/eval.sh" . --score --json --no-generative 2>/dev/null) || eval_json=""
+    _eval_err=$(mktemp /tmp/rhino-eval-err.XXXXXX)
+    eval_json=$("$SCRIPT_DIR/eval.sh" . --score --json --no-generative 2>"$_eval_err") || eval_json=""
+    if [[ -z "$eval_json" && -s "$_eval_err" ]]; then
+        echo "score: eval failed — $(head -1 "$_eval_err"). Run 'rhino eval .' to debug." >&2
+    fi
+    rm -f "$_eval_err"
     if [[ -n "$eval_json" ]] && command -v jq &>/dev/null; then
         eval_score=$(echo "$eval_json" | jq -r '.score // empty' 2>/dev/null) || eval_score=""
+        if [[ -z "$eval_score" ]]; then
+            echo "score: eval output parse error — eval returned JSON but score field missing. Run /eval to rebuild." >&2
+        fi
         ASSERTION_PASS_COUNT=$(echo "$eval_json" | jq -r '.pass // 0' 2>/dev/null) || ASSERTION_PASS_COUNT=0
         ASSERTION_COUNT=$(echo "$eval_json" | jq -r '.beliefs_total // 0' 2>/dev/null) || ASSERTION_COUNT=0
         FEATURES_JSON=$(echo "$eval_json" | jq -c '.features // {}' 2>/dev/null) || FEATURES_JSON="{}"
@@ -1064,7 +1077,20 @@ EOF
 
         if [[ "$SCORING_MODE" == "assertions" ]]; then
             bar=$(make_bar "$local_min")
-            echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m${score_delta_display}  ${overall_color}${bar}\033[0m  \033[2m(${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT} beliefs)\033[0m"
+            _fail_ct=$((ASSERTION_COUNT - ASSERTION_PASS_COUNT))
+            _pct_str=""
+            if [[ "$ASSERTION_COUNT" -gt 0 ]]; then
+                _pct=$((ASSERTION_PASS_COUNT * 100 / ASSERTION_COUNT))
+                _pct_str="${_pct}% — "
+                if [[ "$_pct" -lt 70 ]]; then
+                    _pct_str="${_pct_str}${_fail_ct} failures block working"
+                elif [[ "$_pct" -lt 90 ]]; then
+                    _pct_str="${_pct_str}${_fail_ct} failures block polished"
+                else
+                    _pct_str="${_pct_str}near complete"
+                fi
+            fi
+            echo -e "  \033[1mScore: ${overall_color}${local_min}/100\033[0m${score_delta_display}  ${overall_color}${bar}\033[0m  \033[2m(${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT} beliefs · ${_pct_str})\033[0m"
 
             # Per-feature breakdown — score + top gap
             if [[ -n "$FEATURES_JSON" && "$FEATURES_JSON" != "{}" ]] && command -v jq &>/dev/null; then
@@ -1144,6 +1170,24 @@ EOF
             echo ""
             echo -e "  \033[2mrhino-os doesn't know what this project does yet.\033[0m"
             echo -e "  \033[2mRun /init to set up scoring — it reads your code and generates config.\033[0m"
+        fi
+
+        # Stage ceiling reminder (inline, below features)
+        local_stage=$(cfg project.stage "mvp")
+        _ceiling=""
+        case "$local_stage" in
+            mvp)    _ceiling=65 ;;
+            early)  _ceiling=80 ;;
+            growth) _ceiling=90 ;;
+            mature) _ceiling=95 ;;
+        esac
+        if [[ -n "$_ceiling" ]]; then
+            echo ""
+            if [[ "$local_min" -ge "$_ceiling" ]]; then
+                echo -e "  \033[1;33m⚠\033[0m Score at/above ${local_stage} stage ceiling (${_ceiling}). Verify or advance stage in rhino.yml."
+            else
+                echo -e "  \033[2mstage: ${local_stage} · ceiling: ${_ceiling}\033[0m"
+            fi
         fi
 
         # Taste — still shown if available

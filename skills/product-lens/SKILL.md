@@ -56,3 +56,10 @@ LLMs consistently miss them. You will too unless you explicitly check.
 10. **Information density** — Too much? Progressive disclosure. Too little? More context. Match density to task.
 
 These aren't polish. They're the gap between "code that works" and "product users love."
+
+## If something breaks
+
+- `rhino score .` returns 0 with no details: `config/rhino.yml` may be missing or have no features — run `/onboard`
+- `/taste` fails to connect: Playwright MCP must be available and the target URL must be reachable — check dev server is running
+- DOM eval returns "no elements found": the dev server may not be serving the expected page — verify the URL and check for client-side rendering that needs time to hydrate
+- Copy eval scores everything low: check that the page has actual content rendered (not just loading spinners) — add `browser_wait_for` if needed

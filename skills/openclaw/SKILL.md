@@ -54,4 +54,10 @@ Show the 5 commands with one-line descriptions.
 - Recommend slash commands — the user might not be in Claude Code
 - Skip the opinion — every response ends with what to do next
 
+## If something breaks
+
+- `pulse` returns "no score": run `rhino score .` first — pulse reads from score-cache which requires at least one score run
+- `grunt` builder agent fails: the worktree may have conflicts — check `git status` in the worktree, or the project may not have a clean main branch
+- `bet` prediction not logged: check that `~/.claude/knowledge/predictions.tsv` exists with the correct header row
+
 $ARGUMENTS

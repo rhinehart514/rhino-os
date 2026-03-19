@@ -74,6 +74,12 @@
 
 - **Auto-graded** (2026-03-19): Partially confirmed: Strategy signal: Matches resolved strategy unknown:     result: "commander.js: init→score validated 2026-03-15. 80/100 on first init (6 features, 8/10 a
 
+
+- **Auto-graded** (2026-03-18): Confirmed: Score reached 88 (target was 78+)
+
+
+- **Auto-graded** (2026-03-18): Confirmed: Score 86 (target was 86, within 5pt margin)
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?

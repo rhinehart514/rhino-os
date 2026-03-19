@@ -148,4 +148,11 @@ After writing tasks, show: "Generated N tasks. [M] blockers must be fixed before
 | No eval-cache | Warn: "Run `/eval` for full pre-flight data" |
 | WebFetch fails | "URL unreachable. Check deploy status manually." |
 
+## If something breaks
+
+- pre-flight.sh exits with "no score": run `rhino score .` first — pre-flight needs a baseline score
+- `gh release create` fails: check `gh auth status` — you may need to re-authenticate with `gh auth login`
+- Push rejected on deploy: check branch protection rules, run `git pull --rebase` to sync with remote
+- Rollback fails with merge conflicts: the revert may conflict with subsequent commits — resolve conflicts manually, then re-run `/ship verify` to confirm
+
 $ARGUMENTS

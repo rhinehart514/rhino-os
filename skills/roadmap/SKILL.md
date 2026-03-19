@@ -87,7 +87,7 @@ Proven claims, honest gaps, differentiators, where behind. Present via AskUserQu
 Run `scripts/version-history.sh v7.0`. Show thesis, what it proved, what it taught, how it shaped what came after.
 
 ### `bump` → prove/graduate with auto-synthesis
-Read `references/version-guide.md` for tier rules. Auto-detect tier (thesis changed → major, new features/evidence → minor, fixes → patch). Auto-synthesize summary from evidence + predictions + git log. Present via AskUserQuestion. Transfer thesis → Known Pattern in experiment-learnings.md.
+Read `references/version-guide.md` for tier rules. Auto-detect tier: MAJOR (thesis changed, big new question), MINOR (new features/evidence within current thesis), PATCH (fixes, polish, incremental). Auto-synthesize summary from evidence + predictions + git log. Present via AskUserQuestion. Transfer thesis → Known Pattern in experiment-learnings.md.
 
 ### `add [version] [milestone]` → add evidence needed
 ### `done [milestone-id]` → mark evidence as proven

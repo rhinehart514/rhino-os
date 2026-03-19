@@ -136,4 +136,11 @@ Log session via `scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. 
 - Write model updates without citing a graded prediction
 - Grade everything as "partial" to avoid committing
 
+## If something breaks
+
+- predictions.tsv has no ungraded entries: all predictions are already graded — run `/retro health` or `/retro dimensions` for model analysis instead
+- grade.sh fails with "malformed TSV": check predictions.tsv for tab corruption — open in a text editor and ensure columns are tab-separated, not spaces
+- consolidator agent produces empty output: experiment-learnings.md may be missing — create it with the standard four-zone template (Known/Uncertain/Unknown/Dead)
+- stale-knowledge.sh reports everything as stale: the dates in experiment-learnings.md may use a non-standard format — use `YYYY-MM-DD`
+
 $ARGUMENTS

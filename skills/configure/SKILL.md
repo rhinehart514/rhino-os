@@ -68,4 +68,10 @@ Confirm via AskUserQuestion. Delete preferences.yml. Show defaults.
 - Skip confirmation on reset
 - Recommend config changes to fix scores — the product needs work, not the config
 
+## If something breaks
+
+- preferences.yml parse error: delete `~/.claude/preferences.yml` and re-run `/configure reset`
+- config-diff.sh shows no output: `config/rhino.yml` may be missing — run `/onboard` first
+- Agent model override not taking effect: preferences.yml must use exact keys from `references/config-reference.md` — check spelling and nesting
+
 $ARGUMENTS

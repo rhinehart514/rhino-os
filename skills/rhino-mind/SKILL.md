@@ -141,3 +141,9 @@ The system's job is to **build an increasingly accurate model of what makes the 
 - Simplicity bias — deleting code for equal results is always a keep.
 
 For self-model details, calibration data, MCP tools, and meta-learning, see [reference.md](reference.md).
+
+## If something breaks
+
+- predictions.tsv not found: create at `~/.claude/knowledge/predictions.tsv` with header `date\tprediction\tevidence\tresult\tcorrect\tmodel_update`
+- experiment-learnings.md missing: create at `~/.claude/knowledge/experiment-learnings.md` with the four-zone template (Known Patterns, Uncertain Patterns, Unknown Territory, Dead Ends)
+- Score commands return errors: check that `config/rhino.yml` exists and has a valid features section — run `/onboard` if the project is not initialized

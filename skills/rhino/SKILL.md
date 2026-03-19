@@ -133,4 +133,11 @@ If coherence is aligned, skip the section (no data = no zone). Mismatches mean t
 - Show zones with no data — skip them
 - Make up numbers
 
+## If something breaks
+
+- system-pulse.sh returns mostly empty: the project is not onboarded — run `/onboard` to generate config, features, and assertions
+- Snapshot comparison shows no previous snapshot: `.claude/cache/rhino-snapshots.json` is missing or empty — run `/rhino` once to create the first snapshot
+- skill-catalog.sh lists zero skills: the plugin may not be installed correctly — check that `CLAUDE_PLUGIN_ROOT` is set or skills are symlinked
+- Dashboard shows stale data everywhere: score-cache and eval-cache are old — run `rhino score .` and `/eval` to refresh
+
 $ARGUMENTS

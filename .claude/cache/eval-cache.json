@@ -1,137 +1,149 @@
 {
   "scoring": {
-    "score": 90,
-    "delivery_score": 92,
-    "craft_score": 88,
-    "viability_score": 85,
+    "score": 75,
+    "delivery_score": 78,
+    "craft_score": 70,
     "delta": "better",
-    "delta_vs": 86,
+    "delta_vs": 68,
     "gaps": [
-      "LLM judge variance still ~5pts even with median",
-      "no external demand signal for product-quality scoring"
+      "score.sh at 1200+ lines — too much in one file, needs decomposition",
+      "synthesize.sh --text mode has no color/bars — inconsistent with score.sh style",
+      "~20 remaining 2>/dev/null for legitimate ops (stat, find) — not critical but noisy",
+      "mktemp error capture pattern repeated 4x — not DRY",
+      "no automated tests for error communication paths"
     ],
     "strengths": [
-      "eval.sh 1347 lines with 2 extracted libs",
-      "22 integration tests + failure mode tests",
-      "multi-sample median",
-      "scoring methodology documented",
-      "UVP: only tool measuring product quality (not code quality) inside Claude Code"
+      "boot card passes 5-second test with contextual numbers: assertions show % + maturity impact",
+      "prediction accuracy shows calibration context (target: 50-70%)",
+      "stage ceiling shown inline when score exceeds it",
+      "synthesize.sh --text mode with per-feature direction hints and bottleneck identification",
+      "critical error swallows replaced with actionable messages (eval failure, cache corruption, missing paths)",
+      "eval-cache pre-validation deduplicates error output",
+      "formula documented in header (score.sh:7-45)",
+      "score trend creates return trigger"
     ],
-    "evidence": "Category of one: plant-and-revert loop tied to product beliefs. SonarQube/CI measure code. rhino-os measures user value. No named competitor.",
-    "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP \u2014 unique value proposition, not usage data"
+    "evidence": "Product surface now teaches instead of just displaying. Numbers have context (85% — 9 failures block polished). Errors communicate recovery actions. synthesize.sh --text is a new formatted output mode. Critical 2>/dev/null sites fixed with actionable messages. score.sh size remains the top craft gap.",
+    "criteria_version": "user-delivery-v1",
+    "cached_at": "2026-03-18T23:30:00Z"
   },
   "learning": {
-    "score": 90,
-    "delivery_score": 90,
-    "craft_score": 90,
-    "viability_score": 88,
+    "score": 67,
+    "delivery_score": 70,
+    "craft_score": 62,
     "delta": "better",
-    "delta_vs": 86,
+    "delta_vs": 65,
     "gaps": [
-      "grading ceiling ~75% on qualitative predictions",
-      "no multi-project proof of compounding"
+      "experiment-learnings.md is append-only — 55 patterns, no staleness detection",
+      "grade.sh at 1538 lines — largest file in codebase",
+      "no test suite for 23 grading patterns",
+      "model_update column often empty even on wrong predictions",
+      "session_start.sh handles grading display — should be in grade.sh"
     ],
     "strengths": [
-      "23+ grading patterns",
-      "trail.sh independent",
-      "dry-run flag",
-      "42 tests",
-      "zone-aware consolidation",
-      "UVP: predict-grade-consolidate loop that compounds across sessions \u2014 no competitor has this"
+      "auto-grade on session boot — zero manual intervention",
+      "23 grading patterns in grade.sh",
+      "prediction accuracy shows calibration context: 60% accurate (target: 50-70%)",
+      "out-of-range accuracy gets diagnosis: >70% = too safe, <50% = model needs updating",
+      "prediction accuracy trend on boot card",
+      "trail.sh cleanly scoped at 258 lines"
     ],
-    "evidence": "Genuinely novel: wrong predictions update a causal model with zone-aware consolidation. Cursor has no session memory. Copilot has no prediction tracking. The learning loop is the moat.",
-    "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP \u2014 unique value proposition, not usage data"
+    "evidence": "Mechanical loop works and now communicates meaning. Accuracy context added (target: 50-70%). Still missing staleness detection and model_update enforcement.",
+    "criteria_version": "user-delivery-v1",
+    "cached_at": "2026-03-18T23:30:00Z"
   },
   "commands": {
-    "score": 92,
-    "delivery_score": 92,
-    "craft_score": 92,
-    "viability_score": 92,
-    "delta": "better",
-    "delta_vs": 90,
+    "score": 72,
+    "delivery_score": 75,
+    "craft_score": 68,
+    "delta": "worse",
+    "delta_vs": 92,
     "gaps": [
-      "0 external users",
-      "90+ files maintenance burden"
+      "0 external users — all depth is self-validated",
+      "evidence-scan.sh fails in plugin mode (path resolution)",
+      "scripts assume repo root but plugin cache changes working dir",
+      "voice.md compliance unverified — no mechanical check",
+      "each skill has its own state-gathering script reading overlapping sources",
+      "no shared state layer across skills"
     ],
     "strengths": [
-      "21 skills, 230+ files, 14 agents",
-      "dynamic technique listing",
-      "quick-start flows",
-      "shared task-gen",
-      "dep checking",
-      "UVP: deepest CC plugin in existence \u2014 intent routing + measurement + multi-agent orchestration"
+      "27 skills with consistent folder structure (SKILL.md + scripts/ + references/ + gotchas.md)",
+      "intent routing covers 20+ intents",
+      "/plan output passes 5-second test — bottleneck named, moves proposed",
+      "cross-skill synthesis suggests next command",
+      "14 named agents with model tiers"
     ],
-    "evidence": "Category-defining. No other CC plugin has 21 deep skills with scripts, references, templates, and 14 named agents. Closest competitors are single-file CLAUDE.md configs. No named competitor.",
-    "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP \u2014 unique value proposition, not usage data"
+    "evidence": "Skills are deep and well-structured. Intent routing is genuine value. But untested on real users, plugin mode has known path resolution bugs, and voice.md compliance is aspirational not verified.",
+    "criteria_version": "user-delivery-v1",
+    "cached_at": "2026-03-18T22:00:00Z"
   },
   "install": {
-    "score": 82,
-    "delivery_score": 86,
-    "craft_score": 86,
-    "viability_score": 68,
+    "score": 72,
+    "delivery_score": 75,
+    "craft_score": 68,
     "delta": "worse",
-    "delta_vs": 78,
+    "delta_vs": 85,
     "gaps": [
-      "plugin end-to-end not tested in CI",
-      "install is commodity \u2014 not a differentiator"
+      "expected_skill_count hardcoded as 21 but actual is 27 (install.sh:319)",
+      "no uninstall path",
+      "plugin install is recommended but install.sh is irrelevant for that path",
+      "post-install doesn't suggest 'now run /rhino' — just shows check results",
+      "color helpers duplicated across 4+ files"
     ],
     "strengths": [
-      "11 symlinks",
-      "--test with plugin mode",
-      "plugin verification",
-      "Linux compat",
-      "troubleshooting in README"
+      "opens with ◆ rhino-os install and dependency checks — clear 5-second test",
+      "missing jq shows specific install command per OS",
+      "--check dry-run, --test self-test",
+      "GNU/BSD fallbacks, idempotent design"
     ],
-    "evidence": "Well-executed but undifferentiated. Plugin marketplace install is the CC standard. Nobody chooses a product because install.sh is good.",
-    "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP \u2014 unique value proposition, not usage data"
-  },
-  "todo": {
-    "score": 80,
-    "delivery_score": 84,
-    "craft_score": 84,
-    "viability_score": 65,
-    "delta": "worse",
-    "delta_vs": 74,
-    "gaps": [
-      "import not wired to skill task generation yet",
-      "backlog management is the most crowded dev tool category"
-    ],
-    "strengths": [
-      "health command with velocity",
-      "48 tests",
-      "import from stdin",
-      "file locking",
-      "smart promote",
-      "actionable decay"
-    ],
-    "evidence": "Complete backlog system but commodity category. Linear, Jira, Todoist, GitHub Issues all exist. Decay + eval-aware promote is mildly interesting but not a reason to install.",
-    "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP \u2014 unique value proposition, not usage data"
+    "evidence": "Good user-facing design for manual install path. But plugin mode (recommended) bypasses install.sh entirely — first experience is session_start hook. Hardcoded skill count produces false warning.",
+    "criteria_version": "user-delivery-v1",
+    "cached_at": "2026-03-18T22:00:00Z"
   },
   "docs": {
-    "score": 85,
-    "delivery_score": 88,
-    "craft_score": 84,
-    "viability_score": 78,
+    "score": 60,
+    "delivery_score": 62,
+    "craft_score": 57,
+    "delta": "worse",
+    "delta_vs": 84,
+    "gaps": [
+      "walkthrough output stale — shows 68/56 but current is 88/51",
+      "no 'your first 5 minutes' quickstart section",
+      "no clear next action after reading README — what does the founder DO?",
+      "headline is just 'rhino-os' — METR hook is in paragraph 1, not the title",
+      "comparison table uses markdown table — voice.md says no tables",
+      "README violates its own product's formatting standard"
+    ],
+    "strengths": [
+      "UVP clear: product quality not code quality",
+      "METR -19% study hook is compelling positioning",
+      "real walkthrough with actual output (even if stale)",
+      "dual install instructions (plugin + manual)"
+    ],
+    "evidence": "Strong UVP and positioning. Fails on user understanding: stale walkthrough data undermines credibility, no quickstart for the impatient, no clear first action. The front door doesn't practice what the product preaches.",
+    "criteria_version": "user-delivery-v1",
+    "cached_at": "2026-03-18T22:00:00Z"
+  },
+  "todo": {
+    "score": 62,
+    "delivery_score": 64,
+    "craft_score": 60,
     "delta": "worse",
     "delta_vs": 82,
     "gaps": [
-      "walkthrough output may drift from actual",
-      "docs viability is derivative \u2014 communicates other features' UVP, doesn't create its own"
+      "smart promote doesn't actually read eval-cache for bottleneck features",
+      "grep/sed YAML parsing breaks on multiline values",
+      "no empty state guidance — what if there are no todos?",
+      "output doesn't suggest next action — it's a list, not a guide",
+      "todo.sh at 1177 lines for a backlog manager",
+      "commodity feature with undifferentiated UX"
     ],
     "strengths": [
-      "real walkthrough with actual output",
-      "results section with trajectory",
-      "how-it-works diagram",
-      "comparison table names 4 competitors",
-      "troubleshooting section"
+      "complete CRUD: health/add/list/done/promote/decay/import",
+      "file locking, YAML validation, duplicate ID detection",
+      "TTY-aware colors"
     ],
-    "evidence": "README clearly communicates 'product quality not code quality' \u2014 a claim no competitor makes. Comparison table differentiates against SonarQube, CI, Linear, Cursor. But docs reflect the product's UVP, they don't create their own.",
-    "cached_at": "2026-03-18T12:00:00Z",
-    "viability_method": "UVP \u2014 unique value proposition, not usage data"
+    "evidence": "Robust backlog system but commodity. Promote/decay are novel but promote doesn't use eval data. Empty state unhandled. Output is data without direction.",
+    "criteria_version": "user-delivery-v1",
+    "cached_at": "2026-03-18T22:00:00Z"
   }
 }

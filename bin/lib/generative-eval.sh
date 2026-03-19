@@ -87,6 +87,8 @@ $(sed -n "${start},${end}p" "$expanded" 2>/dev/null)
             done)
             context+="
 "
+        else
+            echo "eval: feature '${feat_name:-?}' lists code path '${path}' that doesn't exist — check config/rhino.yml" >&2
         fi
     done
     IFS="$OLD_IFS"

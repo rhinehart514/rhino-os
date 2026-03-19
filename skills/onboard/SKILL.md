@@ -120,4 +120,11 @@ After onboarding, show: "Generated N tasks to get started. First priority: [task
 - Skip the learning loop setup
 - Apologize for low scores
 
+## If something breaks
+
+- detect-project.sh returns "unknown": the project has no recognizable package manager or entry point — manually specify the language and framework in rhino.yml
+- first-score.sh fails with "no features": rhino.yml was generated but features section is empty — re-run with `--force` or manually add features
+- beliefs.yml assertions all fail on first eval: assertions were generated from code analysis but the project may not be building — check if `npm run build` or equivalent succeeds first
+- "Already initialized" but config is stale: use `/onboard --force` to regenerate everything from scratch
+
 $ARGUMENTS

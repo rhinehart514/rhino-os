@@ -184,4 +184,15 @@ Tag with `source: /plan` and opportunity type. Priority: bottleneck-related oppo
 - Generate 3-5 tasks when 1-2 moves would cover it
 - Ignore startup pattern warnings without naming the tradeoff
 
+## Next commands
+
+After planning, run `/go` to start building. If the diagnosis reveals unknowns, run `/research` first. If startup patterns fired, address those before building.
+
+## If something breaks
+
+- No score cache: run `rhino score .` first — session-context.sh needs score data to diagnose
+- session-context.sh returns all zeros: the project may not be onboarded — run `/onboard`
+- startup-check.sh fails with "no rhino.yml": config is missing — run `/onboard` to generate it
+- maturity-tier.sh returns wrong tier: check that `.claude/cache/eval-cache.json` and `.claude/cache/score-cache.json` are fresh — run `rhino score .` and `/eval` to regenerate
+
 $ARGUMENTS

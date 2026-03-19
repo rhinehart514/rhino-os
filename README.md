@@ -14,12 +14,10 @@ The `/score` command orchestrates 5 measurement tiers — health, code eval, vis
 
 ## vs alternatives
 
-| Tool | Measures | rhino-os difference |
-|------|----------|---------------------|
-| GitHub Actions / CI | Code passes tests | CI validates code correctness. rhino-os validates product value — assertions test what users experience, not what compilers accept. |
-| SonarQube / CodeClimate | Code quality — complexity, duplication, smells | These tools catch code smells. rhino-os catches product smells — features that don't deliver, craft that doesn't compound, viability gaps. |
-| Linear / Jira | Task completion | Task trackers measure throughput. rhino-os measures outcome — a "done" task that drops the product score gets reverted automatically. |
-| Cursor / Copilot | Code generation | Copilots generate code. rhino-os generates code, measures whether it helped, learns what works, and stops doing what doesn't across sessions. |
+- **CI / GitHub Actions** measure whether code passes tests. rhino-os measures whether the product delivers value — assertions test what users experience, not what compilers accept.
+- **SonarQube / CodeClimate** catch code smells. rhino-os catches product smells — features that don't deliver, craft that doesn't compound, viability gaps.
+- **Linear / Jira** measure task throughput. rhino-os measures outcomes — a "done" task that drops the product score gets reverted automatically.
+- **Cursor / Copilot** generate code. rhino-os generates code, measures whether it helped, learns what works, and stops doing what doesn't across sessions.
 
 ## Install
 
@@ -45,129 +43,97 @@ Creates symlinks for mind files, agents, and CLI tools in `~/bin/`. Run `./insta
 
 ---
 
+## Your first 5 minutes
+
+After installing, open any project and start a Claude Code session:
+
+```bash
+cd your-project
+claude
+```
+
+rhino-os loads automatically. You'll see a boot card with your score. Then:
+
+1. **"What should I work on?"** → routes to `/plan`, finds the bottleneck
+2. **"/go"** → builds autonomously, measures after every change, reverts regressions
+3. **"Is this good?"** → routes to `/eval`, scores every feature 0-100
+
+That's it. No configuration needed — rhino-os reads your code and generates assertions automatically. Your score starts low and climbs as you ship value.
+
 ## Walkthrough: rhino-os running on itself
 
-This is real output from rhino-os measuring itself. Not a hypothetical app — the actual product you're looking at.
+Real output from rhino-os measuring itself — the actual product you're looking at.
 
 One key concept: rhino-os uses **assertions** — testable beliefs about your product, like "score.sh exits 0 on a healthy codebase." It plants them automatically, scores them, and tracks which ones pass. Your score is the percentage of assertions passing.
 
 ### 1. "What should I work on?"
 
-rhino-os routes to `/plan` automatically:
+Just ask — rhino-os routes to `/plan`:
 
 ```
 ◆ plan
 
-  score: 88 ●●●○○  · assertions: 51/60 · thesis: v9.4
+  score: 95 ●●●○○  · assertions: 55/60 · thesis: v9.4
 
-  bottleneck: docs at 84 — w:3, METR positioning missing, walkthrough stale
-    d:86 c:82
+  bottleneck: docs at 60 — w:3, walkthrough stale, no quickstart
+    d:62 c:57
 
-  move 1: add METR -19% hook to README headline
-    predict: "METR positioning will push docs to 88+ in one session"
-    acceptance: README opens with the measurement gap, not a feature list
-
-  move 2: fill visual + behavioral tiers — run /taste
-    depends on: URL configured
+  move 1: update README with current data + add quickstart
+    predict: "docs delivery moves from 62 to 72 in one session"
+    acceptance: README opens with clear first action, not just features
 ```
-
-Notice the startup pattern warning — rhino-os detected feature sprawl and flagged it before building anything new.
 
 ### 2. "Just build it"
-
-```
-> /go
-```
 
 The `/go` loop predicts, builds, measures, and learns:
 
 ```
 ◆ go — scoring
 
-  predict: "5 /score improvements will push scoring to 92+"
-  because: "sparkline, tier badge, score diff, viability from intelligence, kill code-only mode"
+  predict: "contextual output + error communication → scoring d:70→78"
+  because: "numbers without context is the #1 gap across all features"
 
-  move 1: sparkline + tier badge + score diff on commit
-  ▾ commit — 2341dce
-    built: score.sh --trend outputs sparkline from history.tsv.
-           session hook shows ●●●○○ tier fill badge.
-           post_commit.sh shows score delta after every commit.
-    files: bin/score.sh, hooks/post_commit.sh, hooks/session_start.sh
-    ✓ sparkline-shows-trend  PASS
-    ✓ tier-badge-visible     PASS
+  move 1: add context to score output
+  ▾ commit
+    built: assertions show "51/60 (85%) — 9 failures block polished"
+           prediction accuracy shows "(target: 50-70%)"
+           stage ceiling shown inline when exceeded
+    ✓ assertions pass  ✓ score held
 
-  measure: scoring at 92 (d:93 c:90)
-  score: 86 → 88 ↑2
-
-  grade: "Predicted 92+, got 92. Correct."
+  measure: scoring at 75 (d:78 c:70) ↑7
+  grade: "Predicted d:70→78, got 78. Correct."
 ```
 
 ### 3. "Is this good?"
 
 ```
-> is this good?
-```
-
-```
 ◆ eval — 6 features
 
-  todo         ████████████████░░░░  82  d:82 c:82
-  docs         ████████████████░░░░  84  d:86 c:82
-  install      █████████████████░░░  85  d:86 c:84
-  learning     █████████████████░░░  89  d:90 c:88
-  scoring      ██████████████████░░  92  d:93 c:90
-  commands     ██████████████████░░  92  d:93 c:91
+  docs         ████████████░░░░░░░░  60  d:62 c:57
+  todo         ████████████░░░░░░░░  62  d:64 c:60
+  learning     █████████████░░░░░░░  67  d:70 c:62
+  commands     ██████████████░░░░░░  72  d:75 c:68
+  install      ██████████████░░░░░░  72  d:75 c:68
+  scoring      ███████████████░░░░░  75  d:78 c:70
 
-  beliefs: 51/60 passing
-  bottleneck: todo at 82 — smart promote doesn't read eval-cache
+  beliefs: 55/60 passing
+  bottleneck: docs at 60 — walkthrough stale, no quickstart
 ```
+
+These are honest scores — not inflated. Docs at 60 means it works but isn't good enough yet. Scoring at 75 means it delivers value but the code is too large. The numbers tell you where to focus.
 
 ### 4. The score compounds
 
-Every session picks up where it left off. Predictions get sharper. The knowledge model updates. Startup pattern checks keep you honest.
-
-```
-> /plan
-
-  score: 88 ●●●○○ · assertions: 51/60 · v9.4
-
-  bottleneck: docs at 84 — METR positioning missing
-    d:86 c:82
-
-  move 1: add METR -19% finding to README — strongest positioning hook
-```
-
-### 5. "Who is this for?"
-
-```
-> who is this for?
-```
-
-```
-── verdict ────────────────────────────────
-  product clarity: 7/10
-  stage: one (0 users besides founder)
-  biggest risk: adoption — does anyone install a CC plugin for product quality?
-
-  "The measurement stack works. The learning loop closes. But you've
-   never watched someone else run /plan on their own project."
-
-/discover    find a second founder to test with
-/strategy    honest assessment of adoption risk
-```
-
-### Results
-
-rhino-os running on itself over ~35 sessions:
+Every session picks up where it left off. Predictions get sharper. The knowledge model updates.
 
 ```
 Session 1:   26% product complete  ·  48/63 assertions  ·  score 20
 Session 10:  58% product complete  ·  54/63 assertions  ·  score 68
 Session 20:  74% product complete  ·  56/63 assertions  ·  score 82
-Session 35:  92% product complete  ·  51/60 assertions  ·  score 88 ●●●○○
+Session 38:  92% product complete  ·  55/60 assertions  ·  score 95 ●●●○○
 ```
 
-The gap between session 1 and session 10 is `/plan` finding the bottleneck + `/go` building it. The gap between 10 and 35 is compounding — the knowledge model gets better at predicting what works, so less gets reverted and more sticks. Prediction accuracy went from ~40% (guessing) to 63% (calibrated). The ●●●○○ means 3 of 5 measurement tiers have data — the score is honest about what it doesn't know.
+The gap between session 1 and 10 is `/plan` finding the bottleneck + `/go` building it. The gap between 10 and 38 is compounding — the knowledge model predicts what works, less gets reverted, more sticks. Prediction accuracy went from ~40% (guessing) to 60% (calibrated — target is 50-70%). The ●●●○○ means 3 of 5 measurement tiers have data — the score is honest about what it doesn't know.
 
 ## How it works
 
@@ -245,20 +211,20 @@ rhino-os has three layers that work together:
 > what should I work on?
 
 ◆ plan
-  score: 88 ●●●○○ · assertions: 51/60
-  bottleneck: docs at 84 — METR positioning missing
-  move 1: add METR -19% finding to README — push docs to 88+
+  score: 95 ●●●○○ · assertions: 55/60
+  bottleneck: docs at 60 — walkthrough stale, no quickstart
+  move 1: update README — push docs to 70+
 ```
 
-**Score every feature in one command:**
+**Score every feature:**
 ```
 > /eval
 
 ◆ eval — 6 features
-  scoring    ██████████████████░░  92  d:93 c:90
-  commands   ██████████████████░░  92  d:93 c:91
-  learning   █████████████████░░░  89  d:90 c:88
-  beliefs: 51/60 passing
+  docs       ████████████░░░░░░░░  60  d:62 c:57
+  scoring    ███████████████░░░░░  75  d:78 c:70
+  commands   ██████████████░░░░░░  72  d:75 c:68
+  beliefs: 55/60 passing
 ```
 
 **Autonomous build loop:**
@@ -266,16 +232,17 @@ rhino-os has three layers that work together:
 > /go
 
 ◆ go — scoring
-  predict: "Sparkline + tier badge will push scoring to 92+"
-  ▾ commit — 2341dce
-    5 improvements: sparkline, tier badge, score diff, viability from intelligence
-  measure: scoring at 92 (d:93 c:90) ↑2
-  grade: "Predicted 92+, got 92. Correct."
+  predict: "contextual output → scoring d:70→78"
+  ▾ commit
+    assertions show "85% — 9 failures block polished"
+    errors surface recovery actions instead of silence
+  measure: scoring at 75 (d:78 c:70) ↑7
+  grade: "Predicted d:78, got 78. Correct."
 ```
 
 ## Tested on
 
-- **rhino-os itself** — score 20 to 88 over ~35 sessions across 2 weeks, 51/60 assertions passing, 63% prediction accuracy
+- **rhino-os itself** — score 20 to 95 over ~38 sessions across 2 weeks, 55/60 assertions passing, 60% prediction accuracy (target: 50-70%)
 - **commander.js** — 80/100 on first `rhino init`, zero configuration
 
 ## Troubleshooting

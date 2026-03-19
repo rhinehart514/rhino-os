@@ -1,0 +1,36 @@
+{
+  "feature": "scoring",
+  "last_score": 75,
+  "last_scored": "2026-03-18T23:30:00Z",
+  "delivery_criteria": [
+    "implements three-gate pipeline: build gate (health < 70 -> 0), health gate (min(structure, hygiene) < 20 -> 0), value scoring",
+    "value scoring uses assertion formula: (PASS*100 + WARN*50) / TOTAL",
+    "fallback chain: assertions mode if beliefs.yml exists, completion ratchet if rhino.yml has value_hypothesis, default 10 otherwise",
+    "every score change is explainable from git diff + assertions diff",
+    "score reflects whether founder improved the product per their own beliefs, not external quality metric",
+    "numbers include context — assertion count shows % and maturity impact (e.g. '9 failures block polished')",
+    "prediction accuracy shows calibration range (target: 50-70%)",
+    "stage ceiling shown inline when score exceeds stage threshold",
+    "synthesize.sh --text mode produces formatted summary with direction hints and bottleneck identification"
+  ],
+  "craft_criteria": [
+    "error paths explicit: missing rhino.yml -> default 10 with message, missing beliefs.yml -> completion ratchet, eval.sh timeout -> cached previous score with warning",
+    "malformed JSON from eval.sh -> fail fast with clear message naming the file",
+    "eval-cache.json pre-validated once before per-feature reads — corrupted cache prints one error, not N",
+    "critical 2>/dev/null sites replaced with actionable stderr: 'score: eval failed — <reason>. Run rhino eval . to debug'",
+    "missing code paths in features warn: 'eval: feature X lists code path Y that doesn't exist'",
+    "taste/flows/viability parse errors surface with recovery instructions",
+    "division-by-zero impossible (assertions > 0 enforced)",
+    "score jump >40 points triggers warning: 'confirm this is real improvement, not measurement error'",
+    "deterministic: running score.sh twice on identical code produces byte-identical output",
+    "cosmetic changes (comments, whitespace, variable renames) produce identical scores"
+  ],
+  "known_gaps": [
+    "score.sh at 1200+ lines — needs decomposition into lib/ functions",
+    "synthesize.sh --text has no color/bars — inconsistent with score.sh visual style",
+    "~20 remaining 2>/dev/null for legitimate ops (stat, find)",
+    "mktemp error capture pattern not DRY — 4 separate sites",
+    "no automated tests for error communication paths"
+  ],
+  "score_history": [54, 58, 68, 75]
+}

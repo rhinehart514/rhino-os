@@ -295,4 +295,11 @@ Bottom of every output — exactly 3 next commands contextual to mode.
 - Be sycophantic — the spec needs to be attacked, not praised
 - Generate tasks without checking existing todos for duplicates
 
+## If something breaks
+
+- spec-quality.sh returns 0: `config/product-spec.yml` may be missing or empty — run `/discover` to generate it
+- Agent writes empty customer-intel.json: WebSearch may have failed — check network, re-run with `/research market` as fallback
+- spec-wire.sh fails on "missing features": rhino.yml must exist before wiring — run `/onboard` first if the project has no config
+- product-spec-template.yml not found: check `skills/onboard/templates/product-spec-template.yml` — the template lives in the onboard skill, not discover
+
 $ARGUMENTS

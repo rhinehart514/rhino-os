@@ -158,4 +158,11 @@ Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kil
 - Ignore the backlog — existing todos are captured intent
 - Use one technique every time — rotate through `techniques/`
 
+## If something breaks
+
+- evidence-scan.sh returns empty: no eval-cache, predictions, or todos exist yet — run `/onboard` or `/eval` first to generate baseline data
+- idea-log.sh "permission denied": check that `${CLAUDE_PLUGIN_DATA}` directory exists and is writable
+- kill-audit.sh finds nothing to kill: this is rare but valid — check if the project is very new with <3 features
+- Technique file not found: run `bash scripts/list-techniques.sh` to see available techniques in `techniques/`
+
 $ARGUMENTS

@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "rhino-os",
-      "version": "9.4.01",
+      "version": "9.4.02",
       "source": "./",
       "description": "A cofounder in your terminal. 14 agents that measure your product, build autonomously, and think about customers, pricing, and distribution — not just code. Score 0-100 tells you if your product got better. Predictions learn what works. /plan finds the bottleneck. /go builds it. /money prices it. /copy writes the landing page.",
       "author": {

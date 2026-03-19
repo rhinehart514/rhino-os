@@ -42,6 +42,10 @@ Parse `$ARGUMENTS`:
 
 **Ambiguous input:** exact keyword match wins -> feature name match -> free-form topic. Never ask "did you mean?" — just act.
 
+## When to use
+
+Use `/research` when you need evidence before making a decision — filling knowledge gaps, investigating unknowns, or gathering competitive intel. Use `/ideate` instead when you already have enough evidence and need ideas for what to build. Use `/product` when the question is "should this exist?" rather than "how should it work?" Use `/strategy` when the question is about positioning, not information gathering.
+
 ## The protocol
 
 ### Step 0: Read gotchas + check history

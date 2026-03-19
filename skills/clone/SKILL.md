@@ -70,4 +70,11 @@ Read `.claude/cache/clone-history.json`. Display each entry: date, domain, compo
 - Skip reading design-system.md when it exists — tokens are non-negotiable
 - Skip clone history check — always check for previous clones of the same URL
 
+## If something breaks
+
+- Playwright screenshot times out: the target URL may block headless browsers — try adding a `browser_wait_for` with a longer timeout or check if the site requires authentication
+- "No design-system.md found": clone will use raw values — create `.claude/design-system.md` first via `/taste calibrate design-system` for token compliance
+- Generated components use hardcoded hex/px values: re-run with `verify` to scan token compliance, then replace hardcoded values with design tokens
+- clone-history.json corrupt: delete `.claude/cache/clone-history.json` and re-run — history is convenience, not critical
+
 $ARGUMENTS

@@ -133,4 +133,11 @@ After writing tasks, show: "Generated N assertion tasks across M features. Worst
 
 For output templates, see [reference.md](reference.md).
 
+## If something breaks
+
+- beliefs.yml parse error: check YAML indentation, run `python3 -c 'import yaml; yaml.safe_load(open("lens/product/eval/beliefs.yml"))'`
+- "Feature not found" on suggest/coverage: feature name must match a key in `config/rhino.yml` features section
+- Duplicate id collision on quick-add: check existing ids with `grep '^  id:' lens/product/eval/beliefs.yml`, append a number to disambiguate
+- assertion-stats.sh returns empty: beliefs.yml may be missing or empty, run `/assert health` to diagnose
+
 $ARGUMENTS

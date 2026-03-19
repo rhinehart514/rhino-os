@@ -148,4 +148,15 @@ After writing tasks, show: "Generated N tasks across M product gaps. Most critic
 - Skip the coherence check on existing products
 - Tell a founder their idea is good without naming the person
 
+## When to use
+
+Use `/product` when you need to pressure-test whether you're building the right thing — for new ideas ("should we build this?") or existing products ("is this actually working?"). Use `/ideate` instead when you already know the direction and need specific feature ideas. Use `/research` when you need evidence before making a product decision. Use `/strategy` when the question is about competitive positioning or stage, not product-market fit.
+
+## If something breaks
+
+- product-scan.sh returns empty: `config/rhino.yml` may not exist — run `/onboard` first
+- assumption-audit.sh finds zero assumptions: the value hypothesis in rhino.yml is too vague — flesh out the `value:` section with specific claims
+- coherence-check.sh reports false mismatches: README may describe aspirational features — update README to match current state or mark features as `planned`
+- founder-coach agent times out: the startup-patterns check is running against a large repo — this is informational only, skip and proceed with other lenses
+
 $ARGUMENTS

@@ -327,10 +327,34 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
     if [[ -n "$TIER_FILL" ]]; then
         TIER_BADGE="  ${C_DIM}${TIER_FILL}${C_NC}"
     fi
-    echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${SCORE_BAR}${TIER_BADGE}"
+    # Stage ceiling context
+    _stage_ctx=""
+    if [[ -f "$PROJECT_DIR/config/rhino.yml" ]]; then
+        _proj_stage=$(grep -m1 'stage:' "$PROJECT_DIR/config/rhino.yml" 2>/dev/null | awk '{print $2}' || true)
+        case "${_proj_stage:-mvp}" in
+            mvp)    _stage_ceil=65; _stage_label="mvp" ;;
+            early)  _stage_ceil=80; _stage_label="early" ;;
+            growth) _stage_ceil=90; _stage_label="growth" ;;
+            mature) _stage_ceil=95; _stage_label="mature" ;;
+            *)      _stage_ceil=""; _stage_label="" ;;
+        esac
+        if [[ -n "$_stage_ceil" && "$TOTAL" != "?" && "$TOTAL" -ge "$_stage_ceil" ]]; then
+            _stage_ctx="  ${C_YELLOW}(${_stage_label} ceiling: ${_stage_ceil})${C_NC}"
+        fi
+    fi
+    echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${SCORE_BAR}${TIER_BADGE}${_stage_ctx}"
     [[ -n "$TREND_DISPLAY" ]] && echo -e "            ${TREND_DISPLAY}"
     if [[ "$SCORING_MODE" == "assertions" ]]; then
-        echo -e "              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
+        _assert_pct=0
+        [[ "$ASSERTION_COUNT" -gt 0 ]] && _assert_pct=$((ASSERTION_PASS_COUNT * 100 / ASSERTION_COUNT))
+        _assert_hint=""
+        _fail_count=$((ASSERTION_COUNT - ASSERTION_PASS_COUNT))
+        if [[ "$_assert_pct" -lt 70 ]]; then
+            _assert_hint="  ${C_DIM}— ${_fail_count} failures block working${C_NC}"
+        elif [[ "$_assert_pct" -lt 90 ]]; then
+            _assert_hint="  ${C_DIM}— ${_fail_count} failures block polished${C_NC}"
+        fi
+        echo -e "              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT} (${_assert_pct}%)${_assert_hint}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
         # Show feature scores (worst to best, compact)
         if command -v jq &>/dev/null && [[ -f "$SCORE_CACHE" ]]; then
             FEAT_LIST=$(jq -r '.features // {} | to_entries | sort_by(if .value.type == "generative" then .value.score else (.value.pass / (.value.total + 0.001) * 100) end) | .[:3] | .[] | if .value.type == "generative" then "\(.key)|\(.value.score)" else "\(.key)|\(.value.pass * 100 / (.value.total + 1) | floor)" end' "$SCORE_CACHE" 2>/dev/null || true)
@@ -417,7 +441,16 @@ if [[ -f "$PRED_FILE" ]]; then
         elif [[ "$RECENT_EFF" -lt "$PREV_EFF" ]]; then
             TREND_ARROW="${C_RED}↓${C_NC} ${C_DIM}from ${PREV_EFF}%${C_NC}"
         fi
-        VELOCITY_LINE="  ${C_DIM}learning${C_NC}    ${RECENT_EFF}% accurate${TREND_ARROW:+ ${TREND_ARROW}}"
+        # Calibration context: 50-70% = well-calibrated
+        _cal_hint=""
+        if [[ "$RECENT_EFF" -ge 50 && "$RECENT_EFF" -le 70 ]]; then
+            _cal_hint="  ${C_DIM}(target: 50-70%)${C_NC}"
+        elif [[ "$RECENT_EFF" -gt 70 ]]; then
+            _cal_hint="  ${C_DIM}(>70% — predictions may be too safe)${C_NC}"
+        elif [[ "$RECENT_EFF" -lt 50 ]]; then
+            _cal_hint="  ${C_DIM}(<50% — model needs updating)${C_NC}"
+        fi
+        VELOCITY_LINE="  ${C_DIM}learning${C_NC}    ${RECENT_EFF}% accurate${_cal_hint}${TREND_ARROW:+ ${TREND_ARROW}}"
         [[ -n "$PATTERNS_LEARNED" ]] && VELOCITY_LINE="${VELOCITY_LINE}  ${C_DIM}·${C_NC}  ${PATTERNS_LEARNED}"
         echo -e "$VELOCITY_LINE"
     fi
