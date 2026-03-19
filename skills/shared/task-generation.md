@@ -2,6 +2,16 @@
 
 Shared reference for all skills that generate tasks. Skills reference this file instead of duplicating the protocol.
 
+## First-run mode
+
+Run `bash skills/shared/first-run-detect.sh [project-dir]` before generating tasks.
+If result is "first_run", simplify output:
+- Show only 3-5 highest-priority tasks (not the full list)
+- Skip maturity tier explanations
+- Focus on: "run /plan to find what to work on" or "run /score to see where you are"
+- Do not reference eval-cache internals, sub-scores, or feature weights
+- Use plain language: "Define your features" not "populate eval-cache.json"
+
 ## The rule
 
 **Every signal a skill surfaces becomes a task in /todo.** Observations without tasks are reports that sit on shelves. If a skill found something — a gap, a regression, a stale metric, an opportunity — someone needs to do something about it.

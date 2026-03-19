@@ -146,6 +146,23 @@ If project has web-facing features, suggest `/taste <url>` for visual quality.
 - Grade predictions or write to predictions.tsv — that is /retro
 - Edit code — eval is measurement only
 
+## First-run guidance
+
+Run `bash skills/shared/first-run-detect.sh [project-dir]` before scoring. If "first_run" and no features defined:
+- Instead of a terse error, show: "No features yet. Define what your product delivers:"
+- Show a quick example:
+  ```yaml
+  # config/rhino.yml → features section
+  features:
+    auth:
+      name: Authentication
+      status: active
+      weight: 3
+      code: [src/auth/]
+  ```
+- Suggest: `/feature new [name]` to add interactively, or `/onboard` to auto-detect features from the codebase
+- Do not show eval scores, maturity tiers, or rubric details — there's nothing to score yet
+
 ## If something breaks
 
 - No features in rhino.yml: "No features defined. `/feature new [name]`"

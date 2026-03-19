@@ -35,6 +35,15 @@ Parse `$ARGUMENTS`:
 
 ## The protocol
 
+### Step 0: First-run check
+
+Run `bash skills/shared/first-run-detect.sh [project-dir]`. If result is "first_run", show a welcome screen instead of the full dashboard:
+- "Welcome to rhino. Your project has no scores yet."
+- "Start with: `/plan` to find what to work on, or `/score` to see where you are"
+- Skip the full feature map, sub-score breakdown, history, coherence, and snapshot
+- If `config/rhino.yml` is missing, suggest `/onboard` instead
+- End here — do not continue to Step 1
+
 ### Step 1: Run system-pulse.sh (always first)
 
 ```bash

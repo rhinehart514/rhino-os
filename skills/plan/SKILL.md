@@ -48,6 +48,17 @@ Parse `$ARGUMENTS`:
 
 ## The protocol
 
+### Step 0: First-run check
+
+Run `bash skills/shared/first-run-detect.sh [project-dir]`. If result is "first_run":
+- Skip tier-aware routing (Step 2b) and opportunity scan
+- Show simplified output: "This is a new project. Here's what to do first:" followed by 3 clear steps:
+  1. Run `/score` to establish a baseline health score
+  2. Define your product's features in `config/rhino.yml` (or run `/feature new [name]`)
+  3. Run `/plan` again once features exist — it gets much smarter with data
+- Do NOT show maturity tiers, sub-score breakdowns, or startup pattern analysis
+- End with one next command, not a menu
+
 ### Step 1: Gather state (parallel)
 
 Run these via Bash (parallel where possible):
