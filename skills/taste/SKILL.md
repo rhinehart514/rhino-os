@@ -128,6 +128,18 @@ Read `references/dimensions.md` for anchors. Score 0-100 with evidence per dimen
 
 **Apply all scoring caps** (see Scoring Caps below).
 
+### Phase 4.5: Product Surface Intelligence
+
+Between scoring and prescribing — ask whether the surface serves the RIGHT user, not just whether it's well-designed.
+
+1. Read `config/rhino.yml` → `features:` → extract `delivers:` + `for:` fields
+2. Read `references/product-intelligence.md` — the 5 questions
+3. Ask all 5 questions against the screenshots + DOM from Phase 3
+4. Generate 2-5 surface opportunities, each with: type, element, finding, user_impact, opportunity, signal_strength
+5. **Skip condition:** no `features:` section or no `delivers:` fields → skip with note: "No user model defined — add `delivers:` and `for:` to features in rhino.yml to enable product intelligence."
+
+Output goes between dimensions and top 3 fixes in the report (see template).
+
 ### Phase 5: Prescribe
 
 For every dimension < 60: name the specific element, the exact CSS/structural change, and the expected point impact. Prescriptions must feel like a cofounder sketching on a whiteboard (see evaluation-voice.md).
@@ -147,18 +159,22 @@ Use template from `templates/taste-report.md`. Include slop verdict and gestalt 
 
 Taste prescriptions are ideation evidence. After presenting, connect to the ideation pipeline:
 
-1. **Log top prescriptions as ideas** — for each of the top 3 prescriptions, run:
+1. **Log strong product intelligence findings** — for each opportunity with signal_strength "strong", run:
+   `bash [ideate-scripts]/idea-log.sh add "[type]: [finding]" "taste:product_intelligence:[signal_strength]" "proposed"`
+   This ensures product-user mismatches persist and show up in `/ideate` evidence scans.
+
+2. **Log top prescriptions as ideas** — for each of the top 3 prescriptions, run:
    `bash [ideate-scripts]/idea-log.sh add "[prescription name]" "taste:[dimension]:[score]" "proposed"`
    This ensures taste findings persist across sessions and show up in `/ideate` evidence scans.
 
-2. **Suggest next command** based on what was found:
+3. **Suggest next command** based on what was found:
    - If slop verdict is "slop" or "mixed" → suggest `/calibrate anti-slop` (ground the evaluation)
    - If 3+ dimensions < 50 → suggest `/ideate [product]` (need ideas, not just fixes)
    - If 1-2 dimensions < 60 → suggest specific fixes (prescriptions are enough)
    - If calibration is missing/stale → suggest `/calibrate quick` or `/calibrate`
    - If overall > 70 and no flows report → suggest `/taste <url> flows` (verify it works before celebrating)
 
-3. **The prescription-to-idea bridge**: Prescriptions are immediate fixes ("change this padding"). Ideas are directional ("rethink the scroll experience"). When a dimension is stuck across 2+ evals (check taste-history.tsv), escalate from prescription to ideation: "padding fixes haven't moved scroll_experience — run `/ideate` to explore structural changes."
+4. **The prescription-to-idea bridge**: Prescriptions are immediate fixes ("change this padding"). Ideas are directional ("rethink the scroll experience"). When a dimension is stuck across 2+ evals (check taste-history.tsv), escalate from prescription to ideation: "padding fixes haven't moved scroll_experience — run `/ideate` to explore structural changes."
 
 ## Scoring Caps — Hard Rules
 

@@ -112,6 +112,22 @@ if [[ -n "$LATEST_TASTE" ]] && command -v jq &>/dev/null; then
     echo ""
 fi
 
+# --- Product intelligence from taste (product-user fit) ---
+if [[ -n "$LATEST_TASTE" ]] && command -v jq &>/dev/null; then
+    PI_COUNT=$(jq '[.product_intelligence.opportunities[]?] | length' "$LATEST_TASTE" 2>/dev/null || echo "0")
+    if [[ "$PI_COUNT" -gt 0 ]]; then
+        echo "=== PRODUCT INTELLIGENCE ==="
+        # Strong signals first
+        jq -r '.product_intelligence.opportunities[]? | select(.signal_strength == "strong") | "  [STRONG] \(.type): \(.element) — \(.finding)\n    → \(.opportunity)"' "$LATEST_TASTE" 2>/dev/null || true
+        # Then moderate
+        jq -r '.product_intelligence.opportunities[]? | select(.signal_strength == "moderate") | "  [moderate] \(.type): \(.element) — \(.finding)\n    → \(.opportunity)"' "$LATEST_TASTE" 2>/dev/null || true
+        # Verdict
+        PI_VERDICT=$(jq -r '.product_intelligence.verdict // empty' "$LATEST_TASTE" 2>/dev/null)
+        [[ -n "$PI_VERDICT" ]] && echo "  verdict: $PI_VERDICT"
+        echo ""
+    fi
+fi
+
 LATEST_FLOWS=$(ls -t "$TASTE_DIR"/flows-*.json 2>/dev/null | head -1)
 if [[ -n "$LATEST_FLOWS" ]] && command -v jq &>/dev/null; then
     echo "=== FLOWS AUDIT ==="

@@ -35,6 +35,18 @@ Use these templates for all taste output modes. Copy the structure exactly — t
     <dim>   <score>/100  [+/-delta]  <evidence>
                           rx: <prescription>
 
+  ▸ product intelligence (does the surface serve the user?)
+    context: delivers "<delivers>" for "<for>"
+    · [<signal_strength>] <type>: <element>
+      <finding>
+      → <opportunity>
+    · [<signal_strength>] <type>: <element>
+      <finding>
+      → <opportunity>
+    mental model: <assessment>
+    pi verdict: <one sentence — does the surface serve the right user?>
+    [skip: no user model — add delivers:/for: to rhino.yml features]
+
   ▸ top 3 fixes
     1. <element> → <change> → <dim> +<N>pts
     2. <element> → <change> → <dim> +<N>pts
@@ -79,6 +91,23 @@ Write to `.claude/evals/reports/taste-{YYYY-MM-DD}.json`:
   "gestalt": { "see": "", "feel": "", "wrong": "" },
   "caps_applied": ["<list of active scoring caps>"],
   "first_eval_penalty": false,
+  "product_intelligence": {
+    "feature_context": { "delivers": "", "for": "", "stage": "" },
+    "opportunities": [
+      {
+        "type": "surface_mismatch|missing_micro|cognitive_load|revelation_order|mental_model_gap",
+        "element": "<specific element>",
+        "finding": "<what was observed>",
+        "user_impact": "<how this affects the user>",
+        "opportunity": "<what to do about it>",
+        "signal_strength": "strong|moderate|weak",
+        "source": "phase_4.5"
+      }
+    ],
+    "mental_model_assessment": "",
+    "revelation_order": "",
+    "verdict": ""
+  },
   "strongest": "<dimension + why>",
   "weakest": "<dimension + why>",
   "would_return": "<yes/no + reason>",
