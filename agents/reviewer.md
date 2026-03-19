@@ -23,7 +23,7 @@ You receive ONLY: diff + UX checklist + acceptance criteria (spec mode). NOT the
 
 ## What you check
 
-Go through the UX Checklist systematically:
+### UX Checklist (10 items)
 
 1. **Empty state** — New components with zero data: blank screen = bug
 2. **Dead ends** — After action completion, where does user go?
@@ -35,6 +35,18 @@ Go through the UX Checklist systematically:
 8. **Form edge cases** — Required indicators, validation, error placement
 9. **Navigation coherence** — Can user get back? Findable from nav?
 10. **Information density** — Progressive disclosure vs. context
+
+### AI Smell Check (5 patterns — check in every review)
+
+The code should read like a human built it, not like a prompt produced it. Flag these:
+
+11. **Over-abstraction** — Interface with one implementation? File <30 lines named `utils.ts`? Folder with 5+ files and <200 total lines? → "This abstraction has one consumer. Inline it."
+12. **Documentation theater** — Comments restating code (`// Get user`), JSDoc on obvious functions, >25% of lines are comments? → "Delete comments that restate the code."
+13. **Defensive paranoia** — Try/catch every 20 lines? Null checks on required params? Validation deep inside internal functions? → "Trust the code you wrote. Validate at the boundary."
+14. **Name anxiety** — 4+ word CamelCase names? `handle*` on everything? Redundant prefixes matching the filename? → "Shortest name that's unambiguous in context."
+15. **Premature completeness** — Handling cases that don't exist? Config options nobody uses? Exhaustive switch on 3 possible values? → "Handle what exists. Add the rest when it's real."
+
+For detailed detection rules: `skills/humanize/references/ai-smells.md`
 
 ## Severity levels
 

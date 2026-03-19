@@ -34,6 +34,12 @@ If either condition fails after a change, revert the commit immediately. No exce
 - **Naming consistency** — make naming patterns match across the codebase (if most files use camelCase, fix the ones that don't)
 - **Simplification** — collapse unnecessary wrappers, flatten needless indirection, replace verbose patterns with direct equivalents
 - **Duplication** — extract repeated code into shared utilities (only when the duplication is exact, not coincidental)
+- **De-AI** — remove patterns that reveal AI authorship. Read `skills/humanize/references/ai-smells.md` for the 7 patterns. Priority targets:
+  - Inline single-use abstractions (kill `utils.ts` with 20 lines)
+  - Delete comments that restate code (keep only WHY comments)
+  - Remove defensive checks on impossible states (trust internal code)
+  - Shorten verbose names (`handleUserProfileUpdate` → `update`)
+  - Collapse tiny files into their consumers (types.ts + constants.ts → inline)
 
 ## How you work
 
