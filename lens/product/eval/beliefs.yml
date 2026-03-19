@@ -224,7 +224,7 @@ beliefs:
     belief: "Assertions are graduating (fail→pass) over sessions — the product is improving"
     type: assertion_trend
     window: 5
-    direction: graduating
+    direction: not_regressing
     feature: learning
     quality: completeness
     layer: logic
