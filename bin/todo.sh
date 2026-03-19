@@ -363,6 +363,7 @@ collect_items() {
 cmd_show() {
     if ! todo_exists; then
         echo -e "  ${DIM}No todos.yml — backlog is empty${NC}"
+        echo -e "  ${GREEN}▸${NC} ${DIM}rhino todo add \"title\" to capture ideas${NC}"
         return 0
     fi
 
@@ -374,6 +375,7 @@ cmd_show() {
 
     if [[ "$total" -eq 0 ]]; then
         echo -e "  ${DIM}Backlog empty${NC}"
+        echo -e "  ${GREEN}▸${NC} ${DIM}rhino todo add \"title\" to capture ideas${NC}"
         return 0
     fi
 

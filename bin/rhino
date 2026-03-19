@@ -154,6 +154,18 @@ cmd_status() {
         fi
     fi
 
+    # Next action suggestion
+    if [[ -f ".claude/cache/score-cache.json" ]] && command -v jq &>/dev/null; then
+        local _warnings
+        _warnings=$(jq -r '.integrity_warnings // [] | length' .claude/cache/score-cache.json 2>/dev/null)
+        if [[ "$_warnings" -gt 0 ]]; then
+            echo -e "  ${GREEN}▸${NC} ${DIM}/plan to address warnings${NC}"
+        else
+            echo -e "  ${GREEN}▸${NC} ${DIM}/eval for deeper feature analysis${NC}"
+        fi
+    else
+        echo -e "  ${GREEN}▸${NC} ${DIM}/plan to find the bottleneck${NC}"
+    fi
     echo ""
 }
 
@@ -241,7 +253,7 @@ cmd_plan() {
 }
 
 # ============================================================
-# TODO
+# Backlog
 # ============================================================
 cmd_todo() {
     bash "$RHINO_DIR/bin/todo.sh" "$@"

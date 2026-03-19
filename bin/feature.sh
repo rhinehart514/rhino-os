@@ -179,6 +179,32 @@ cmd_list() {
         done <<< "$features"
     fi
 
+    # Next action suggestion
+    local _lowest_score=999 _lowest_feat="" _has_eval=false
+    local _na_cache=".claude/cache/eval-cache.json"
+    if [[ "$HAS_FEATURES_YML" == true && -f "$_na_cache" ]] && command -v jq &>/dev/null; then
+        local _na_features
+        _na_features=$(get_features_yml)
+        while IFS= read -r _nf; do
+            [[ -z "$_nf" ]] && continue
+            local _ns
+            _ns=$(jq -r ".\"$_nf\".score // \"—\"" "$_na_cache" 2>/dev/null) || _ns="—"
+            if [[ "$_ns" =~ ^[0-9]+$ ]]; then
+                _has_eval=true
+                if [[ "$_ns" -lt "$_lowest_score" ]]; then
+                    _lowest_score="$_ns"
+                    _lowest_feat="$_nf"
+                fi
+            fi
+        done <<< "$_na_features"
+    fi
+
+    if $_has_eval && [[ -n "$_lowest_feat" ]]; then
+        echo -e "  ${GREEN}▸${NC} ${DIM}bottleneck: ${_lowest_feat} at ${_lowest_score} — /eval ${_lowest_feat} for gaps${NC}"
+    else
+        echo -e "  ${GREEN}▸${NC} ${DIM}/eval to score features${NC}"
+    fi
+
     echo ""
 }
 

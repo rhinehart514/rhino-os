@@ -151,11 +151,24 @@ else
 fi
 echo ""
 
-# Score trajectory
+# Score trajectory (cap to last 20 data points)
 if [[ -n "$SCORES" ]]; then
+    # Convert to array and truncate if needed
+    SCORE_ARR=($SCORES)
+    SCORE_COUNT=${#SCORE_ARR[@]}
+    MAX_POINTS=20
+    TRUNCATED=false
+    if [[ "$SCORE_COUNT" -gt "$MAX_POINTS" ]]; then
+        SCORE_ARR=("${SCORE_ARR[@]: -$MAX_POINTS}")
+        TRUNCATED=true
+    fi
+
     SCORE_LINE="  ${C_DIM}score${C_NC}     "
+    if $TRUNCATED; then
+        SCORE_LINE="${SCORE_LINE}${C_DIM}...${C_NC} "
+    fi
     FIRST=true
-    for s in $SCORES; do
+    for s in "${SCORE_ARR[@]}"; do
         if $FIRST; then
             SCORE_LINE="${SCORE_LINE}${s}"
             FIRST=false
@@ -256,3 +269,26 @@ if [[ -f "$PRED_FILE" ]]; then
         echo ""
     fi
 fi
+
+# --- Next action suggestion ---
+_trail_declining=false
+_trail_empty_model=false
+
+# Check if accuracy is declining (reuse LATE_EFF/EARLY_EFF if set)
+if [[ -n "${LATE_EFF:-}" && -n "${EARLY_EFF:-}" && "$LATE_EFF" -lt "$EARLY_EFF" ]]; then
+    _trail_declining=true
+fi
+
+# Check if knowledge model is empty
+if [[ "${KNOWN_CT:-0}" -eq 0 && "${UNCERTAIN_CT:-0}" -eq 0 ]]; then
+    _trail_empty_model=true
+fi
+
+if $_trail_declining; then
+    echo -e "  ${C_GREEN}▸${C_NC} ${C_DIM}/retro to review and recalibrate${C_NC}"
+elif $_trail_empty_model; then
+    echo -e "  ${C_GREEN}▸${C_NC} ${C_DIM}predictions need grading — run /retro${C_NC}"
+else
+    echo -e "  ${C_GREEN}▸${C_NC} ${C_DIM}/plan to pick the next move${C_NC}"
+fi
+echo ""
