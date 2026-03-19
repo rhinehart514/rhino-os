@@ -34,10 +34,15 @@ grade_customer_signal() {
                 break
             fi
         done
-        # Also match if prediction and theme share a 5+ char word
+        # Also match if prediction and theme share a 7+ char word (domain-specific)
+        # Excludes common words that would cause false matches
         if [[ "$match" == false ]]; then
             for word in $(echo "$pred_lower" | tr -cs '[:alpha:]' '\n' | sort -u); do
-                [[ ${#word} -lt 5 ]] && continue
+                [[ ${#word} -lt 7 ]] && continue
+                # Skip common English words that aren't domain-specific
+                case "$word" in
+                    because|between|through|without|another|already|however|something|anything|nothing|everything|everyone|someone|working|building|getting|running|looking|thinking|changes|current|different|actually|probably|should) continue ;;
+                esac
                 if [[ "$theme_lower" == *"$word"* ]]; then
                     match=true
                     break

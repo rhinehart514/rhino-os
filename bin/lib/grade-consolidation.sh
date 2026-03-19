@@ -18,8 +18,9 @@ consolidate_knowledge() {
         [[ -z "$model_update" ]] && continue
         [[ -z "$_correct" ]] && continue
 
-        # Deduplicate: skip if first 40 chars already present
-        local dedup_key="${model_update:0:40}"
+        # Deduplicate: skip if first 60 chars already present (normalized)
+        local dedup_key="${model_update:0:60}"
+        dedup_key=$(echo "$dedup_key" | tr -s ' ')  # normalize whitespace
         if grep -qF "$dedup_key" "$learnings_file" 2>/dev/null; then
             continue
         fi
@@ -168,5 +169,26 @@ detect_stale_entries() {
             echo -e "$stale_list" | head -5
             [[ "$stale_entries" -gt 5 ]] && echo "    ... and $((stale_entries - 5)) more. Run /retro to prune."
         fi
+
+        # Demote stale Known Patterns → Uncertain Patterns
+        # Only demote entries in Known Patterns section that are stale
+        local known_section=""
+        known_section=$(awk '/^## Known Patterns/,/^## [A-Z]/' "$learnings_file" 2>/dev/null)
+        local demoted=0
+        while IFS= read -r stale_line; do
+            stale_line="${stale_line#    }"  # strip leading spaces from stale_list
+            [[ -z "$stale_line" ]] && continue
+            # Check if this stale entry is in Known Patterns
+            local snippet="${stale_line:0:40}"
+            if echo "$known_section" | grep -qF "$snippet" 2>/dev/null; then
+                # Mark as stale in-place (non-destructive — /retro can fully prune)
+                if [[ "$stale_line" != *"(stale)"* ]]; then
+                    local escaped_snippet
+                    escaped_snippet=$(printf '%s\n' "$snippet" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                    sed -i '' "s|${escaped_snippet}|${snippet} (stale)|" "$learnings_file" 2>/dev/null && demoted=$((demoted + 1))
+                fi
+            fi
+        done <<< "$(echo -e "$stale_list")"
+        [[ "$demoted" -gt 0 ]] && $QUIET || true
     fi
 }

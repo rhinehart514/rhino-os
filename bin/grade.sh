@@ -151,7 +151,31 @@ while IFS= read -r line; do
     fi
 
     if [[ "$grade_verdict" == "SKIP" ]]; then
-        # Can't auto-grade — pass through unchanged
+        # Closure enforcement: expire predictions older than 14 days
+        local pred_age_days=0
+        local today_epoch pred_epoch
+        today_epoch=$(date '+%s' 2>/dev/null)
+        pred_epoch=$(date -j -f '%Y-%m-%d' "$date" '+%s' 2>/dev/null || date -d "$date" '+%s' 2>/dev/null || echo "")
+        if [[ -n "$pred_epoch" && -n "$today_epoch" ]]; then
+            pred_age_days=$(( (today_epoch - pred_epoch) / 86400 ))
+        fi
+
+        if [[ "$pred_age_days" -ge 14 ]]; then
+            # Expire old ungraded predictions — they'll never have data
+            if ! $DRY_RUN; then
+                printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                    "$date" "$agent" "$prediction" "$evidence" \
+                    "Expired: no gradable signal after ${pred_age_days}d" "expired" \
+                    "Ungradable prediction — make future predictions more specific (include numbers/targets)" >> "$TEMP_FILE"
+            else
+                echo "$line" >> "$TEMP_FILE"
+            fi
+            GRADED_COUNT=$((GRADED_COUNT + 1))
+            $QUIET || echo "  ⏰ \"${prediction:0:60}\" → expired (${pred_age_days}d, no signal)"
+            continue
+        fi
+
+        # Can't auto-grade yet — pass through unchanged
         echo "$line" >> "$TEMP_FILE"
         SKIP_COUNT=$((SKIP_COUNT + 1))
         [[ "$SKIP_COUNT" -le 3 ]] && SKIP_PREDICTIONS="${SKIP_PREDICTIONS}${prediction:0:70}; "
