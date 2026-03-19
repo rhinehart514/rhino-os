@@ -540,7 +540,34 @@ EOF
 EOF
 
     release_lock
-    echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority}${NC}"
+
+    # Auto-tag: detect feature from title by matching against rhino.yml feature names
+    local rhino_yml="$PROJECT_DIR/config/rhino.yml"
+    [[ ! -f "$rhino_yml" ]] && rhino_yml="$RHINO_DIR/config/rhino.yml"
+    if [[ -f "$rhino_yml" ]]; then
+        local title_lower
+        title_lower=$(echo "$title" | tr '[:upper:]' '[:lower:]')
+        local detected_feature=""
+        while IFS= read -r feat_name; do
+            [[ -z "$feat_name" ]] && continue
+            local feat_lower
+            feat_lower=$(echo "$feat_name" | tr '[:upper:]' '[:lower:]')
+            if [[ "$title_lower" == *"$feat_lower"* ]]; then
+                detected_feature="$feat_name"
+                break
+            fi
+        done < <(awk '/^  features:/,/^[^ ]/' "$rhino_yml" 2>/dev/null | grep -E '^\s+[a-z]' | sed 's/:.*//' | tr -d ' ')
+        if [[ -n "$detected_feature" ]]; then
+            acquire_lock || true
+            item_set_field "$id" "feature" "$detected_feature"
+            release_lock
+            echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority} → ${detected_feature}${NC}"
+        else
+            echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority}${NC}"
+        fi
+    else
+        echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority}${NC}"
+    fi
 }
 
 cmd_done() {
@@ -819,6 +846,63 @@ cmd_feature() {
                 print_item "$id"
             done <<< "$feature_items"
         fi
+        echo ""
+    fi
+}
+
+cmd_version() {
+    local version_tag="${1:-}"
+
+    if ! todo_exists; then
+        echo -e "  ${DIM}No todos.yml${NC}"
+        return 0
+    fi
+
+    if [[ -z "$version_tag" ]]; then
+        # List all version tags with counts
+        echo ""
+        echo -e "  ${CYAN}◆${NC} ${BOLD}Versions${NC}"
+        echo ""
+        local versions=()
+        while IFS= read -r id; do
+            [[ -z "$id" ]] && continue
+            local ver
+            ver=$(item_field "$id" "version")
+            [[ -z "$ver" ]] && continue
+            local found=false
+            for v in "${versions[@]+"${versions[@]}"}"; do
+                [[ "$v" == "$ver" ]] && found=true && break
+            done
+            if ! $found; then
+                versions+=("$ver")
+                local count=0
+                while IFS= read -r vid; do
+                    [[ -z "$vid" ]] && continue
+                    local vv
+                    vv=$(item_field "$vid" "version")
+                    [[ "$vv" == "$ver" ]] && count=$((count + 1))
+                done <<< "$(item_ids)"
+                echo -e "    ${BOLD}${ver}${NC}  ${DIM}(${count})${NC}"
+            fi
+        done <<< "$(item_ids)"
+        [[ ${#versions[@]} -eq 0 ]] && echo -e "  ${DIM}No version-tagged items. Tag with: rhino todo edit <id> version v9.4${NC}"
+        echo ""
+    else
+        # Show items for a specific version
+        echo ""
+        echo -e "  ${BOLD}${version_tag}${NC}"
+        echo ""
+        local found_any=false
+        while IFS= read -r id; do
+            [[ -z "$id" ]] && continue
+            local ver
+            ver=$(item_field "$id" "version")
+            if [[ "$ver" == "$version_tag" ]]; then
+                print_item "$id"
+                found_any=true
+            fi
+        done <<< "$(item_ids)"
+        $found_any || echo -e "  ${DIM}No items tagged '${version_tag}'${NC}"
         echo ""
     fi
 }
@@ -1175,23 +1259,25 @@ case "${1:-show}" in
     promote)      shift; cmd_promote "${1:-}" ;;
     active)       cmd_active ;;
     feature)      shift; cmd_feature "${1:-}" ;;
+    version)      shift; cmd_version "${1:-}" ;;
     all)          cmd_all ;;
     decay)        cmd_decay ;;
     health)       cmd_health ;;
     sources)      cmd_sources ;;
     import)       cmd_import ;;
     *)
-        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|all|decay|health|sources|import]"
+        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|version|all|decay|health|sources|import]"
         echo ""
         echo "  show              Show todos (default)"
-        echo "  add \"title\" [pri] Add a todo"
-        echo "  done <id>         Mark done"
+        echo "  add \"title\" [pri] Add a todo (auto-tags feature from title)"
+        echo "  done <id>         Mark done + graduation check"
         echo "  edit <id> <f> <v> Update a field"
         echo "  tag <id> <feat>   Tag with feature"
         echo "  promote           Smart promote — suggest from bottleneck feature"
         echo "  promote <id>      Set active, add to plan"
         echo "  active            Show active only"
         echo "  feature [name]    Filter by feature"
+        echo "  version [tag]     Filter by version tag"
         echo "  all               All sections"
         echo "  decay             Check stale items, auto-tag 30d+ as stale"
         echo "  health            Backlog health stats"
