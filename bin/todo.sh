@@ -80,14 +80,20 @@ item_field() {
     local id="$1"
     local field="$2"
     awk -v id="$id" -v field="$field" '
-        /^ *- id:/ { found = ($0 ~ "id: *" id "$") }
+        /^ *- id:/ {
+            # Exact string match on ID to prevent substring false-matches
+            line = $0
+            gsub(/^ *- id: */, "", line)
+            found = (line == id)
+            next
+        }
         found && $0 ~ "^ *" field ":" {
             sub(/^[^:]+: */, "")
             gsub(/^"/, ""); gsub(/"$/, "")
             print
             exit
         }
-        found && /^ *- id:/ && !($0 ~ "id: *" id "$") { exit }
+        found && /^ *- id:/ { exit }
     ' "$BACKLOG_FILE"
 }
 
@@ -557,6 +563,13 @@ cmd_done() {
     item_set_field "$target_id" "done_at" "$(date '+%Y-%m-%d')"
     release_lock
     echo -e "  ${GREEN}✓${NC} ${target_id} → done"
+
+    # Graduation check: should this recurring pattern become an assertion?
+    local promote_script="$SCRIPT_DIR/../skills/todo/scripts/todo-promote.sh"
+    [[ ! -f "$promote_script" ]] && promote_script="$(cd "$SCRIPT_DIR/.." && pwd)/skills/todo/scripts/todo-promote.sh"
+    if [[ -f "$promote_script" ]]; then
+        bash "$promote_script" "$PROJECT_DIR" graduate "$target_id" 2>/dev/null || true
+    fi
 }
 
 cmd_edit() {
