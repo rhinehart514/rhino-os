@@ -23,6 +23,15 @@ Built from real failure modes across sessions. Update this when /ideate fails in
 - **Technique as theater**: Running through SCAMPER mechanically produces mechanical ideas. The technique is a starting point, not a formula.
 - **Divergent without convergent**: 30 raw ideas are useless without the killer pass. Always pair divergent generation with `techniques/killer.md`.
 
+## Feature improvement failures
+- **Prescribing without seeing**: If you haven't read the code AND the scores, you're guessing. "Add a video board" is meaningless if the feature doesn't have video data. Look first.
+- **"Improve the UX"**: Too vague. Name the element ("the data table header"), the change ("add thumbnail previews in the first column"), and the impact ("hierarchy +10pts"). If you can't be this specific, you haven't looked closely enough.
+- **All polish, no delivery**: If the feature doesn't work end-to-end (delivery < craft), fix the core loop before suggesting animations or visual improvements.
+- **Ignoring existing prescriptions**: Check taste history and past improvements before generating new ones. Don't duplicate what's already been identified — build on it or escalate.
+- **Copying competitors blindly**: "Linear does it" isn't a reason. "Linear does it because users need to see project status at a glance, and our users have the same need because [evidence]" is a reason.
+- **Missing the simplification pass**: Feature improvement isn't just adding things. Every improvement session should remove or simplify at least one thing. Attention is finite, screen space is finite.
+- **Abstract options instead of concrete ones**: "Option 1: simple approach. Option 2: complex approach." is lazy. "Option 1: static thumbnail grid with lazy load (2hrs, hierarchy +10pts). Option 2: hover-to-preview with video playback (1 session, hierarchy +15pts, distinctiveness +12pts)." is useful.
+
 ## Materialization failures
 - **Idea without assertion**: If you can't write 2 mechanical assertions for an idea, it's not testable. Not testable = not buildable.
 - **Committing without killing**: Every commit should pair with a kill. Attention is finite. You can't add without removing.

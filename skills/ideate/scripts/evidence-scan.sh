@@ -4,6 +4,16 @@
 set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
+FEATURE_FLAG=""
+FEATURE_NAME=""
+# Parse --feature flag
+shift || true
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --feature) FEATURE_NAME="$2"; FEATURE_FLAG="1"; shift 2 ;;
+        *) shift ;;
+    esac
+done
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Resolve RHINO_DIR — works in both plugin cache and repo root
@@ -131,5 +141,65 @@ fi
 echo "=== RECENT WORK (last 20 commits) ==="
 git -C "$PROJECT_DIR" log --oneline -20 2>/dev/null || echo "(not a git repo)"
 echo ""
+
+# --- Feature-focused deep scan (when --feature is set) ---
+if [[ -n "$FEATURE_FLAG" && -n "$FEATURE_NAME" ]]; then
+    echo "=== FEATURE DEEP SCAN: $FEATURE_NAME ==="
+
+    # Per-feature eval sub-scores
+    if [[ -f "$EVAL_CACHE" ]] && command -v jq &>/dev/null; then
+        echo "  ▸ eval sub-scores"
+        jq -r --arg f "$FEATURE_NAME" '
+            to_entries[] | select(.key | ascii_downcase | contains($f | ascii_downcase)) |
+            "    \(.key): score=\(.value.score) delivery=\(.value.delivery_score) craft=\(.value.craft_score) delta=\(.value.delta // "none")"
+        ' "$EVAL_CACHE" 2>/dev/null || echo "    (no eval data for $FEATURE_NAME)"
+        # Gaps if available
+        jq -r --arg f "$FEATURE_NAME" '
+            to_entries[] | select(.key | ascii_downcase | contains($f | ascii_downcase)) |
+            .value.gaps[]? // empty | "    gap: \(.)"
+        ' "$EVAL_CACHE" 2>/dev/null || true
+    fi
+
+    # Per-feature taste prescriptions
+    if [[ -n "$LATEST_TASTE" ]] && command -v jq &>/dev/null; then
+        echo "  ▸ taste prescriptions"
+        jq -r '.dimensions | to_entries[] | select(.value.prescription != null) | "    \(.key) (\(.value.score)): rx: \(.value.prescription)"' "$LATEST_TASTE" 2>/dev/null || echo "    (no taste data)"
+        echo "  ▸ taste top fixes"
+        jq -r '.top_3_fixes[]? | "    \(.element) → \(.change) → \(.impact)"' "$LATEST_TASTE" 2>/dev/null || true
+    fi
+
+    # Per-feature flow issues
+    if [[ -n "$LATEST_FLOWS" ]] && command -v jq &>/dev/null; then
+        echo "  ▸ flow issues"
+        jq -r '.issues[]? | select(.fixed != true) | "    [\(.severity)] \(.issue)"' "$LATEST_FLOWS" 2>/dev/null | head -10
+        jq -r '.edge_cases | to_entries[] | select(.value.pass == false) | "    edge case: \(.key) — \(.value.detail)"' "$LATEST_FLOWS" 2>/dev/null || true
+    fi
+
+    # Per-feature backlog items
+    if [[ -f "$TODOS_FILE" ]]; then
+        echo "  ▸ backlog items"
+        grep -B2 -A5 -i "$FEATURE_NAME" "$TODOS_FILE" 2>/dev/null | head -30 || echo "    (no backlog items)"
+    fi
+
+    # Per-feature predictions
+    if [[ -f "$PRED_FILE" ]]; then
+        echo "  ▸ predictions"
+        grep -i "$FEATURE_NAME" "$PRED_FILE" 2>/dev/null | tail -5 || echo "    (no predictions)"
+    fi
+
+    # Per-feature git history
+    echo "  ▸ recent commits"
+    git -C "$PROJECT_DIR" log --oneline -10 --all --grep="$FEATURE_NAME" 2>/dev/null || echo "    (no commits)"
+
+    # Per-feature assertions
+    BELIEFS="$PROJECT_DIR/.claude/plans/beliefs.yml"
+    [[ ! -f "$BELIEFS" ]] && BELIEFS="$PROJECT_DIR/config/beliefs.yml"
+    if [[ -f "$BELIEFS" ]]; then
+        echo "  ▸ assertions"
+        grep -B1 -A3 -i "$FEATURE_NAME" "$BELIEFS" 2>/dev/null | head -20 || echo "    (no assertions)"
+    fi
+
+    echo ""
+fi
 
 echo "=== SCAN COMPLETE ==="

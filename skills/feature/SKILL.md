@@ -17,12 +17,14 @@ This skill is a **folder**, not just this file. Read on demand:
 
 - `scripts/feature-map.sh` — shows all features with scores, weights, dependencies, maturity (run first for list views)
 - `scripts/feature-health.sh [name]` — per-feature health: score trend, assertion pass rate, todo count, last touched
+- `scripts/feature-ideate.sh [project] [name]` — gathers ALL context for a feature's improvement: eval, taste, flows, market, customer, backlog, predictions, dead ends, code history
 - `scripts/dependency-graph.sh` — dependency chain visualization, blocked feature detection
 - `references/feature-lifecycle.md` — maturity stages and what moves each transition
 - `references/feature-design.md` — how to define a good feature, common mistakes
+- `references/improvement-protocol.md` — full method for feature improvement ideation (read for `[name] ideate`)
 - `templates/feature-template.yml` — copy-paste template for rhino.yml
 - `reference.md` — output formatting templates
-- `gotchas.md` — real failure modes. **Read before creating or killing features.**
+- `gotchas.md` — real failure modes. **Read before creating, killing, or improving features.**
 
 ## Routing
 
@@ -36,7 +38,7 @@ Parse `$ARGUMENTS`:
 | `new [name]` | AskUserQuestion for delivers/for/code/weight/depends_on → write to rhino.yml → baseline eval |
 | `detect` | Glob/Grep scan → cross-ref rhino.yml → AskUserQuestion to confirm → write |
 | `[name] status [value]` | Lifecycle transition: active/proven/killed/archived |
-| `[name] ideate` | Weakest sub-score → 3-4 improvement ideas via AskUserQuestion |
+| `[name] ideate` | Context-aware improvement engine — reads scores, taste, code, market, intel → specific prescriptions |
 | `[name] research` | WebSearch + codebase scan → findings + recommendations |
 
 **Ambiguity rule:** exact keyword > feature name match > free-form lookup. Never ask "did you mean?" — just act.
@@ -52,14 +54,32 @@ Parse `$ARGUMENTS`:
 5. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — relevant predictions
 6. `.claude/plans/roadmap.yml` — thesis evidence references
 
+## Ideate protocol — the feature improvement engine
+
+When `[name] ideate` is triggered, this is NOT a lightweight brainstorm. It's a context-aware improvement engine that reads everything the system knows about this feature and produces specific, buildable prescriptions.
+
+**Read `references/improvement-protocol.md` for the full method.** Summary:
+
+1. **Gather context** (parallel): Run `scripts/feature-ideate.sh [project] [feature]` → structured evidence. Also read the feature's actual code files (from rhino.yml `code:` field).
+2. **Check accumulated intelligence**: Run `skills/plan/scripts/intelligence-query.sh [project] [feature]` → past research, market context, customer intel, past ideas for this feature.
+3. **Diagnose the gap**: Name what's broken — delivery (doesn't work), craft (works but rough), or viability (works but who cares?). Cite sub-scores.
+4. **Generate 3-5 improvement prescriptions**: Each uses the improvement brief structure (see `references/improvement-protocol.md`). Specific element, specific change, 2+ options, predicted impact on sub-scores, reference to best-in-class products.
+5. **Kill list**: What should be removed or simplified in this feature? Complexity that serves no user.
+6. **Present + materialize**: AskUserQuestion → founder picks → write todos, log predictions.
+
+**Agent usage for ideate:**
+- **Agent (rhino-os:explorer)** — trace the feature's code path when the code list is large or complex
+- **Agent (rhino-os:market-analyst)** — spawn in background to research how best-in-class products handle this feature type. Write findings to `.claude/cache/feature-research-[name].json`.
+
 ## Tools
 
 - **Bash**: run scripts, `rhino feature`, `rhino eval . --feature [name]`
-- **Read**: rhino.yml, eval-cache, rubrics, predictions
-- **Grep/Glob**: codebase scanning for `detect` and `research`
+- **Read**: rhino.yml, eval-cache, rubrics, predictions, feature code, accumulated intelligence
+- **Grep/Glob**: codebase scanning for `detect`, `research`, and `ideate` code tracing
 - **Edit**: write feature entries to rhino.yml
 - **AskUserQuestion**: `new` interviews, `detect` confirmation, `ideate` selection
-- **WebSearch**: `research` route external context
+- **WebSearch**: `research` and `ideate` competitor context
+- **Agent**: `ideate` deep code tracing (explorer) and market research (market-analyst)
 
 ## Task generation — the path to feature completion
 

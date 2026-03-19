@@ -173,6 +173,12 @@
 
 - **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
 
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
+
+- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+
 ## Unknown Territory (0 experiments, highest information value)
 
 - Can a non-founder complete the init → plan → go → eval loop?

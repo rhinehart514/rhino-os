@@ -36,6 +36,20 @@ Real failure modes from past sessions. Read before creating, killing, or evaluat
 
 - **Building downstream first**: Working on a feature that depends on a broken upstream feature. Check the dependency graph before starting a /go session. Fix upstream first.
 
+## Ideation failures
+
+- **Prescribing without seeing**: Generating improvement ideas without reading the feature's actual code. The script gathers context but you must also read the code files to know what exists. "Add a progress bar" when there's already one is embarrassing.
+
+- **Ignoring accumulated intelligence**: Running `/feature [name] ideate` without checking past research, customer intel, or market context. The system remembers — use `intelligence-query.sh` before generating.
+
+- **Vague prescriptions**: "Improve the UX" or "make it better" are not prescriptions. Name the specific element, the specific change, and the predicted impact on a specific sub-score.
+
+- **All additions, no kills**: Improvement means adding AND removing. Every ideate session must include a kill list — what to simplify, remove, or stop.
+
+- **Duplicating past prescriptions**: Check taste prescriptions, past ideas (ideation-log), and existing backlog items before generating. Don't prescribe what's already been identified.
+
+- **Wrong sub-score focus**: Prescribing craft improvements when delivery is broken. Delivery gaps come first — always check which sub-score is lowest and fix that first.
+
 ## Scoring failures
 
 - **Ignoring sub-score breakdown**: Total score 55 could mean d:70 c:40 v:55 (craft is the problem) or d:45 c:65 v:55 (delivery is the problem). The fix is completely different. Always check sub-scores.

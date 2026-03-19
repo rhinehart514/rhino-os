@@ -77,46 +77,95 @@ Loaded on demand. Protocol and routing are in SKILL.md.
 Which ideas to commit? Which kills to confirm? (pick numbers or "all")
 ```
 
-## Feature-level ideation
+## Feature improvement mode (`/ideate [feature]`)
 
 ```
-◆ ideate — learning
+◆ ideate — dashboard
 
-  learning: 48/100 (d:55 c:40 v:48) — weakest: **craft_score 40**
-  eval: 48 → target: 60+ (needs >50% assertions + core flow)
-  rubric: integrity axis says "all file I/O paths handled" for 80
-  backlog: 3 todos tagged to learning
+  dashboard: 58/100 (d:62 c:50) — weakest: **craft 50**
+  taste: 48/100 — weak dims: hierarchy 42, breathing_room 38, distinctiveness 35
+  flows: 2 major issues (empty state blank, dead end after export)
+  backlog: 4 todos tagged to dashboard
+  reference products: Linear (project views), Notion (dashboards), Vercel (deploy overview)
 
-▾ ideas (targeting craft_score)
+▾ improvements (highest leverage first)
 
-  ▸ **Wrap prediction grading in error handling**
-    evidence: 4 unhandled paths in grade.sh (from rubric check)
-    what: try/catch around file reads, handle empty predictions.tsv,
-    handle malformed rows gracefully.
-    changes: craft_score 40→55
-    costs: half a session
-    kills it: error handling is already there and the rubric is wrong
+  ▸ **Add video/media preview grid above data table** — main dashboard view
+    see: The dashboard opens to a flat data table with 12 columns. No visual
+    hierarchy — every row looks identical. Users scan linearly instead of
+    finding what matters.
+    problem: hierarchy 42 (taste), distinctiveness 35 — "this could be any
+    admin panel." Users can't distinguish important items at a glance.
+    rx: Add a 3-column preview grid above the table showing the 3 most recent
+        items with thumbnail, title, and status badge.
+        Option 1: static thumbnails with lazy load — hierarchy +10pts, 2hrs
+        Option 2: hover-to-preview with video playback — hierarchy +15pts,
+        distinctiveness +12pts, 1 session
+    reference: Vercel shows deploy previews with screenshot thumbnails.
+    Loom shows video grid with hover-to-play. The visual preview pattern
+    turns a data table into a product surface.
+    impact: craft 50→62, hierarchy +10-15pts, distinctiveness +8-12pts
+    cost: Option 1: 2 hours (new PreviewGrid component). Option 2: 1 session
+    (video player + thumbnail generation).
+    builds on: todo [db-07] "dashboard feels generic"
 
-  ▸ **Extract grading into standalone module**
-    evidence: Known Pattern — "session_start hook is fragile." Moving
-    grading out of the hook and into a standalone script reduces blast radius.
-    what: bin/grade.sh becomes independently callable. Hook calls it but
-    failure doesn't break boot.
-    changes: craft_score 40→50, reduces fragility risk
-    costs: half a session, touches hook (known risky)
-    kills it: the hook isn't actually the problem — grading logic is
+  ▸ **Replace blank empty state with guided first-run** — /dashboard (0 items)
+    see: New user with zero data sees an empty table with column headers
+    and nothing else. No explanation of what goes here or what to do.
+    problem: flows audit: "MAJOR — empty state shows blank." delivery 62
+    but first-time experience is broken. User bounces before creating value.
+    rx: Replace blank state with a card containing:
+        1. One sentence explaining what the dashboard tracks
+        2. A screenshot/illustration of a populated dashboard
+        3. A primary CTA: "Create your first [item]"
+        Option 1: simple card component — delivery +5pts, 1hr
+        Option 2: interactive walkthrough that creates a sample item —
+        delivery +10pts, craft +5pts, half session
+    reference: Linear shows "No issues yet" with a friendly illustration
+    and "Create issue" button. Notion shows template gallery. The pattern
+    is: show what success looks like, then offer the action.
+    impact: delivery 62→70, fixes "empty state" flow issue
+    cost: Option 1: 1 hour. Option 2: half session.
+    builds on: flows audit 2026-03-18, UX checklist item #2 (empty states)
 
-▾ kill list
+  ▸ **Add contextual sidebar with activity feed** — dashboard navigation
+    see: After viewing an item, user clicks back and loses context. No
+    way to see recent activity, no breadcrumb trail, no sense of momentum.
+    problem: craft 50 — "functional and forgettable." breathing_room 38 —
+    the layout is a single column with no spatial organization. Dead end
+    after export action (flows issue).
+    rx: Add a collapsible right sidebar showing:
+        - Recent activity (last 5 actions)
+        - Quick stats (items this week, completion %)
+        - Contextual next action based on current state
+        Option 1: always-visible sidebar — breathing_room +8pts, wayfinding +6pts
+        Option 2: slide-in panel triggered by activity icon — breathing_room +5pts,
+        less layout disruption
+    reference: Linear's sidebar shows project activity + quick filters.
+    GitHub's sidebar shows repo stats + recent pushes. Activity feeds
+    create return triggers (UX checklist #10).
+    impact: craft 50→60, fixes dead-end flow issue, creates return trigger
+    cost: 1 session — new ActivitySidebar component + data aggregation
+    builds on: todo [db-12] "add activity tracking", taste rx from 03-15
 
-  ✗ **kill todo [km-04] "knowledge model pruning"**
-    reason: pruning doesn't help craft_score, which is the bottleneck.
-    Defer until learning reaches 60+.
+▾ simplify (what to remove or reduce)
 
-Which to commit?
+  ✗ **Remove 4 low-value table columns** (status, updated, category, source)
+    see: 12 columns in the data table. 4 of them have identical values across
+    >80% of rows. They add visual noise without information.
+    action: hide behind a "columns" dropdown — reduce default to 8 columns.
+    impact: breathing_room +5pts, information_density improves
 
-/feature learning    see current state
-/go learning         build the committed idea
-/eval deep learning  verify after
+  ✗ **Kill advanced filter panel**
+    see: 6-field filter panel that nobody uses (0 backlog items reference it,
+    no assertions test it). Simplify to a single search bar.
+    action: replace with command-palette search (faster, less UI surface)
+
+Which improvements to build? Which simplifications to confirm? (pick numbers or "all")
+
+/go dashboard         build the top improvement
+/taste <url>          re-evaluate after changes
+/eval dashboard       verify sub-score movement
 ```
 
 ## Wild mode

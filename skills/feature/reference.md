@@ -160,25 +160,70 @@ Add all 4 / Pick specific ones / Skip?
 ◆ feature ideate — scoring
 
   current: **58**/100 (d:62 c:50 v:60)
-  weakest dimension: **quality** at 50
+  gap: **craft** at 50 is dragging — delivery works but output quality is rough
+  context: 3 backlog items, 1 wrong prediction, last taste: 55/100
 
-  ▸ 1. error boundary hardening
-    add try/catch around all file I/O in score.sh
-    predicted impact: craft_score +15
+  ▸ 1. **score explanation mode** — score output
 
-  ▸ 2. guided first-run experience
-    detect first run, show setup wizard
-    predicted impact: viability_score +10, delivery_score +5
+    see: score.sh outputs a number and penalty list. User sees "-10 console.log"
+    but doesn't understand WHY that's penalized or how to fix it.
 
-  ▸ 3. trend visualization
-    add sparkline to score output showing last 10 runs
-    predicted impact: delivery_score +8
+    problem: craft_score 50 — output is functional but not helpful. No
+    guidance, no context. 2 backlog items reference this gap.
 
-  · 4. score explanation mode
-    --explain flag shows why each penalty was applied
-    predicted impact: viability_score +5
+    rx: Option 1: add `--explain` flag with inline guidance per penalty → craft +10
+        Option 2: always show one-line fix hint per penalty → craft +12, delivery +3
 
-Which direction? (1-4 or skip)
+    reference: ESLint shows rule name + docs link. Biome shows auto-fix suggestion.
+
+    impact: craft_score 50 → 62. Creates assertion: "score output includes fix hints"
+
+    cost: 1-2 hours — modify score.sh output formatting
+
+    builds on: todo [SC-04] "score output needs actionable guidance"
+
+  ▸ 2. **guided first-run experience** — score.sh first run
+
+    see: new project runs `rhino score .` and gets a wall of penalties with
+    no context about what to fix first or why these matter.
+
+    problem: viability_score 60 — first-time users don't know where to start.
+    5-second test fails: stranger can't understand priority order.
+
+    rx: Option 1: detect first run → show "start here" section → viability +8
+        Option 2: progressive output — show top 3 issues only, `--all` for rest → viability +10, craft +5
+
+    reference: Next.js CLI shows "1 issue to fix" with clear next step.
+
+    impact: viability 60 → 70. delivery 62 → 65.
+
+    cost: 2 hours — add first-run detection + progressive output
+
+    builds on: (new — no existing work)
+
+  · 3. **trend sparkline** — score output footer
+
+    see: score outputs current number. No history, no direction.
+
+    problem: delivery_score 62 — "did the product improve?" requires running
+    git log and comparing. Score should answer this directly.
+
+    rx: Option 1: last-5-runs sparkline in footer → delivery +5
+        Option 2: delta arrow + "↑4 from last run" one-liner → delivery +3
+
+    reference: GitHub Actions shows build time trends inline.
+
+    impact: delivery 62 → 67
+
+    cost: 1 hour — persist scores to cache, format in output
+
+    builds on: taste rx from 2026-03-15 "add trend context"
+
+▾ kill list
+  · `--verbose` flag in score.sh — unused, no one has ever run it. Delete.
+  · 3 penalty categories with <1% trigger rate — remove or merge.
+
+Which improvements? (1-3, kill, or skip)
 ```
 
 ### Feature status transition:
