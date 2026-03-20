@@ -5,9 +5,6 @@ argument-hint: "[dry|hotfix|release [tag]|pr [base]|changelog|verify <url>|rollb
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion, WebFetch, Agent
 ---
 
-!cat .claude/cache/deploy-history.json 2>/dev/null | jq '{total: (.deploys | length), last: .deploys[-1]}' 2>/dev/null || echo "no deploy history"
-!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score}) | from_entries' 2>/dev/null || echo "no eval cache"
-
 # /ship
 
 Ship measured work. Pre-flight checks, git, GitHub releases, PRs, deploy, verification, rollback, and deployment history.
@@ -16,9 +13,8 @@ Ship measured work. Pre-flight checks, git, GitHub releases, PRs, deploy, verifi
 
 This skill is a **folder**, not just this file. Read these on demand:
 
-- `scripts/pre-flight.sh` — runs pre-ship checks: score, assertions, secrets, eval freshness, changelog, deploy confidence
-- `scripts/ship-log.sh` — persistent shipping history in `${CLAUDE_PLUGIN_DATA}` (add, list, stats, last)
-- `scripts/release-notes.sh` — generates release notes from git log + roadmap.yml + eval-cache deltas
+- `scripts/pre-flight.sh` — runs pre-ship checks: score, assertions, secrets, eval freshness, deploy confidence. **Real gate — always run unless hotfix.**
+- `scripts/release-notes.sh` — generates release notes from git log + roadmap.yml + eval-cache deltas. **Real utility for release mode.**
 - `references/ship-checklist.md` — full pre-ship checklist with explanations (read before first ship)
 - `references/release-types.md` — commit vs PR vs release vs deploy: when to use each
 - `templates/release-notes.md` — release notes template for GitHub releases
@@ -30,76 +26,61 @@ This skill is a **folder**, not just this file. Read these on demand:
 
 Parse `$ARGUMENTS`:
 
-| Input | Action |
-|-------|--------|
-| (none) | Full flow: pre-flight → commit → push → deploy → verify → log |
-| `dry` or `check` | Pre-flight only — run `scripts/pre-flight.sh`, show results |
-| `hotfix` | Skip score check, fast-path commit → push → deploy → log |
-| `release [tag]` | Run `scripts/release-notes.sh` → create GitHub release |
-| `pr [base]` | Read `templates/pr-body.md` → open PR with roadmap-derived description |
-| `changelog` | Generate/update CHANGELOG.md from roadmap data |
-| `verify <url>` | Post-deploy verification against a live URL |
-| `rollback` | Revert last deploy, push, redeploy, create investigation todo |
-| `history` | Run `scripts/ship-log.sh list` — deployment log with trends |
+| Input | Mode | What happens |
+|-------|------|-------------|
+| (none) | Full flow | Pre-flight → commit → push → deploy → verify → log |
+| `dry` or `check` | Pre-flight only | Run `scripts/pre-flight.sh`, show results, generate tasks for blockers |
+| `hotfix` | Fast path | Skip score check, commit → push → deploy → log |
+| `release [tag]` | GitHub release | Run `scripts/release-notes.sh` → `gh release create` |
+| `pr [base]` | Pull request | Read `templates/pr-body.md` → `gh pr create` with roadmap-derived description |
+| `changelog` | Changelog | Generate/update CHANGELOG.md from roadmap data |
+| `verify <url>` | Post-deploy check | WebFetch URL → check status, content, response time |
+| `rollback` | Revert | `git revert` last deploy → push → redeploy → investigation todo |
+| `history` | Ship log | Read `${CLAUDE_PLUGIN_DATA}/ship-log.jsonl` directly, show recent entries + stats |
 
-## The protocol
+## State to read
 
-### Step 1: Read gotchas
+Read `gotchas.md` first. Then read these in parallel — you reason from state, not script output:
 
-Read `gotchas.md` before any ship action. Every gotcha is a failure mode from a real session.
+**Ship readiness** — compute from state files:
+- Read `.claude/cache/eval-cache.json` — per-feature scores, freshness (stale if >7d)
+- Read `.claude/cache/deploy-history.json` — last deploy commit, score at deploy time, score delta
+- Read `.claude/plans/roadmap.yml` — current version, thesis, evidence needed
+- Read `.claude/plans/todos.yml` — any blocking todos tagged `source: /ship`
+- Read `config/rhino.yml` — deploy target, features, mode
+- Read `config/product-spec.yml` if exists — does this ship advance the spec's thesis?
 
-### Step 2: Pre-flight (always, unless hotfix)
+**Ship history** — read directly instead of running ship-log.sh:
+- Read `${CLAUDE_PLUGIN_DATA}/ship-log.jsonl` (fall back to `~/.claude/cache/ship-log.jsonl`)
+- Parse JSONL: each line is `{timestamp, type, version, commit, score, features, target, pr, tag}`
+- Compute: total ships, ships by type, last ship, score trend from last 5 entries with scores
 
-Run `scripts/pre-flight.sh` via Bash. It checks score, assertions, secrets, eval freshness, deploy confidence. Output is structured — parse the verdict line (SHIP/BLOCK/WARN).
+**For release-type ships**, also check launch readiness (informational, non-blocking):
+- `.claude/cache/market-context.json` — GTM strategy exists?
+- `.claude/cache/customer-intel.json` — customer signal exists?
+- `.claude/plans/roadmap.yml` — narrative freshness
 
-Also read `config/product-spec.yml` if it exists — does this ship advance the spec's thesis? Pre-flight checks spec alignment.
+**Deploy target detection**: Vercel (vercel.json or .vercel/), Netlify (netlify.toml), or manual. No deploy target detected = git operations only (commit, push, release, PR).
 
-For `release` type ships, also check launch readiness: GTM strategy, customer signal, narrative freshness. These are informational only — they don't block.
+## How to ship
 
-### Step 3: Execute the route
+Read gotchas first. Then route based on mode:
 
-- **Full flow / hotfix**: stage → commit → push → deploy (detect Vercel/Netlify/manual) → verify → log
-- **Release**: run `scripts/release-notes.sh` → read `templates/release-notes.md` → `gh release create`
+**Pre-flight** (always, unless hotfix): Run `bash scripts/pre-flight.sh` — it checks score regression, assertions, secrets, eval freshness, deploy confidence. Parse the verdict line (SHIP/BLOCK/WARN). Every blocker and warning becomes a task.
+
+**Execute the route:**
+- **Full flow / hotfix**: stage → commit → push → deploy (auto-detect target) → verify → log
+- **Release**: run `bash scripts/release-notes.sh [tag]` → read `templates/release-notes.md` → `gh release create`
 - **PR**: read `templates/pr-body.md` → fill from git log + eval-cache + roadmap → `gh pr create`
 - **Verify**: WebFetch URL → check status, content, response time → compare to last verification
-- **Rollback**: read deploy history → `git revert` → push → redeploy → create investigation todo → log
+- **Rollback**: read deploy history → `git revert` → push → redeploy → create investigation todo
 
-### Step 4: Log the ship
+**Log the ship** — after every deploy, release, or PR, append a JSONL entry directly to `${CLAUDE_PLUGIN_DATA}/ship-log.jsonl`:
+```json
+{"timestamp":"2026-03-20T...Z","type":"deploy|release|pr|hotfix|rollback","version":"v9.x","commit":"abc1234","score":85,"features":"scoring,commands","target":"vercel","pr":"","tag":""}
+```
 
-Run `scripts/ship-log.sh add` after every deploy, release, or PR. This persists across sessions in `${CLAUDE_PLUGIN_DATA}`.
-
-## Self-evaluation
-
-/ship succeeded if:
-- Pre-flight ran and verdict was SHIP (or WARN with founder acknowledgment)
-- ship-log.sh was called to persist the deployment record
-- Every blocker found has a corresponding task in /todo
-- For deploys: verification ran against the live URL
-- For rollbacks: an investigation todo was created
-
-## Deploy targets
-
-Vercel is the primary deploy target (detected from vercel.json or .vercel/). Other targets (Netlify, manual, custom) are supported — /ship detects the deploy method from project config. If no deploy target is detected, /ship handles git operations (commit, push, release, PR) and skips the deploy step.
-
-## Connections
-
-- `/roadmap narrative` — changelog and release notes source
-- `/eval` — pre-flight assertion check
-- `/go` — built the work being shipped
-- `/retro` — grade predictions after rollback
-
-## Agent usage
-
-- **Agent (rhino-os:measurer)** — run score checks (cheapest model, haiku)
-
-## State artifacts
-
-| Artifact | Path | Purpose |
-|----------|------|---------|
-| deploy-history | `.claude/cache/deploy-history.json` | Local deployment log |
-| ship-log | `${CLAUDE_PLUGIN_DATA}/ship-log.jsonl` | Persistent cross-session shipping history |
-| eval-cache | `.claude/cache/eval-cache.json` | Pre-flight sub-scores |
-| roadmap | `.claude/plans/roadmap.yml` | Thesis, version for release context |
+Run `bash scripts/pre-flight.sh` as verification after logging — confirm the ship didn't regress anything.
 
 ## Task generation — the path to shipability
 
@@ -127,7 +108,6 @@ Vercel is the primary deploy target (detected from vercel.json or .vercel/). Oth
 
 ### Post-ship tasks (after successful ship)
 - Verification not run → task: "Verify deployment at [url] via /ship verify"
-- No deploy-confidence score → task: "Calculate deploy confidence for tracking"
 - Related predictions not graded → task: "Ship predictions need grading — run /retro"
 
 ### Rollback tasks (after rollback)
@@ -135,11 +115,27 @@ Vercel is the primary deploy target (detected from vercel.json or .vercel/). Oth
 - Related assertions that should have caught it → task: "Add assertion to prevent recurrence: [specific check]"
 - Prediction about the shipped change → task: "Grade prediction about [change] — it was wrong"
 
-**Write ALL tasks to /todo.** Tag with `source: /ship` and blocker type (pre-flight/release/post-ship/rollback). Priority: blockers first, then warnings.
+**Write ALL tasks to /todo.** Tag with `source: /ship` and blocker type. Priority: blockers first, then warnings. No cap on task count.
 
-**There is no cap on task count.** A pre-flight with 5 blockers and 3 warnings generates 8 tasks. Generate all of them.
+## System integration
 
-After writing tasks, show: "Generated N tasks. [M] blockers must be fixed before shipping."
+Reads: `.claude/cache/eval-cache.json`, `.claude/cache/deploy-history.json`, `.claude/plans/roadmap.yml`, `.claude/plans/todos.yml`, `config/rhino.yml`, `config/product-spec.yml`, `${CLAUDE_PLUGIN_DATA}/ship-log.jsonl`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`
+Writes: `${CLAUDE_PLUGIN_DATA}/ship-log.jsonl`, `.claude/cache/deploy-history.json`, `.claude/plans/todos.yml`
+Triggers: `/retro` (grade ship predictions), `/verify` (post-deploy check)
+Triggered by: `/go` (work complete), `/plan` (ship readiness check), founder ("ship it", "deploy", "push")
+
+## Agent usage
+
+- **Agent (rhino-os:measurer)** — run score checks (cheapest model, haiku)
+
+## Self-evaluation
+
+/ship succeeded if:
+- Pre-flight ran and verdict was SHIP (or WARN with founder acknowledgment)
+- Ship log entry was appended to ship-log.jsonl
+- Every blocker found has a corresponding task in /todo
+- For deploys: verification ran against the live URL
+- For rollbacks: an investigation todo was created
 
 ## What you never do
 
