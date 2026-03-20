@@ -99,47 +99,33 @@ If no URL configured: skip tier, redistribute weight to code eval delivery.
 
 Agents are the REFRESH mechanism, not the only path. `synthesize.sh` reads intelligence files directly for scoring. Only spawn agents when intelligence is stale (>7 days) or missing entirely.
 
-## The protocol
+## How scoring works
 
-### Full score (no arguments)
+Read `gotchas.md` before any scoring run.
 
-1. Read `gotchas.md` first
-2. Run `bash scripts/cache-summary.sh` — see what's cached, what's stale
-3. Read `config/rhino.yml` — get feature list, stage, URL
-4. **Health gate:** run `bash bin/score.sh . --json`. If health < 20, stop. Score = 0.
-5. **Code eval tier:** read `.claude/cache/eval-cache.json`. If stale (>24h), run fresh eval per feature.
-6. **Visual tier:** find latest `taste-*.json` in `.claude/evals/reports/`. If stale or missing, flag low confidence.
-7. **Behavioral tier:** find latest `flows-*.json` in `.claude/evals/reports/`. If stale or missing, flag low confidence.
-8. **Viability tier:** `synthesize.sh` handles viability automatically:
-   - Reads viability-cache.json first (agent-backed, authoritative)
-   - Falls back to scoring from market-context.json + customer-intel.json (capped at 60)
-   - No intelligence at all = capped at 30
-   - Only spawn agents if viability-cache.json is stale (>72h) AND intelligence files are stale (>7d):
-     - `Agent(subagent_type: "rhino-os:market-analyst", prompt: "Analyze market position for [product]. Write to .claude/cache/market-context.json", run_in_background: true)`
-     - `Agent(subagent_type: "rhino-os:customer", prompt: "Gather customer signal for [product]. Write to .claude/cache/customer-intel.json", run_in_background: true)`
-9. **Synthesize:** run `bash scripts/synthesize.sh` — handles all tier reading, weight redistribution, and confidence computation.
-   - Output includes `tiers` count (0-5) and `viability_source` (agents/intelligence/capped) per feature
-   - Product total: weighted average across features (by `weight:` field in rhino.yml)
-10. Write unified results to `.claude/cache/score-unified.json`
-11. Present using `templates/score-report.md` — always show tier fill badge (●●○○○)
+### Health gate
 
-### Quick mode
+`bash bin/score.sh . --json` is the crown jewel — an immutable, mechanical health check. Run it first, always. Health < 20 = total score 0, stop there. This script checks build state, structure lint, and hygiene. You don't replicate what it does — you run it and interpret the result.
 
-Read all caches. No fresh runs. No agent spawns. Flag stale data. Fastest possible answer.
+### Tier assembly
 
-### Deep mode
+Read all state files in parallel. For each tier, assess: is data present? Is it fresh? Assign confidence (high/medium/low) based on staleness thresholds. Then synthesize — weighted average across tiers, redistributing weight from missing tiers to present ones.
 
-Auto-fill all tiers sequentially. One command, all tiers, one number:
+**The synthesis is YOUR work.** Read the cached data, compute the weighted score, determine confidence. `scripts/synthesize.sh` exists as a cross-check — run it to verify your math, not as the primary path.
 
-1. **Health gate:** `bash bin/score.sh . --json`
-2. **Code eval:** if stale, spawn evaluator agents per feature
-3. **Visual:** if URL configured in rhino.yml, run `/taste <url>` (Playwright + Vision)
-4. **Behavioral:** if URL configured, run `/taste <url> flows` (Playwright flow audit)
-5. **Viability:** spawn market-analyst + customer agents regardless of cache age
+Product total = weighted average across features (by `weight:` field in rhino.yml). Per-feature score = weighted sum across tiers (delivery 40%, craft 25%, visual 15%, behavioral 10%, viability 10%), with weight redistributed when tiers are missing.
 
-Show progress as each tier completes. Most accurate, most expensive.
+### Mode-specific behavior
 
-**Cost note:** Deep mode spawns up to 5 agents (evaluators + market-analyst + customer) plus Playwright sessions. Expect ~$2-5 API cost and 10+ minutes wall time. Warn about cost before starting. Use `AskUserQuestion` to confirm if not explicitly requested.
+**Full (no arguments):** Read all caches, run health gate, synthesize. Spawn evaluator agents only if eval data is stale (>24h). Flag visual/behavioral gaps as low confidence — don't run expensive Playwright sessions unprompted.
+
+**Quick:** Caches only. No fresh runs. No agents. Flag staleness. Fastest answer.
+
+**Deep:** Fill ALL tiers. Health gate first. Then eval, visual, behavioral, viability — each only if stale or missing. Warn about cost (~$2-5, 10+ min) before starting. Use `AskUserQuestion` to confirm if not explicitly requested.
+
+**Viability:** Only tier 5. Read existing intelligence first (market-context.json, customer-intel.json). Spawn agents only if intelligence is stale (>7d) or missing.
+
+**Breakdown:** Per-tier raw data. No synthesis. Just the evidence.
 
 ### Viability mode
 
@@ -149,24 +135,20 @@ Only run tier 5. Spawn agents, gather evidence, score viability. Useful when you
 
 Show per-tier detail: each tier's raw scores, staleness, confidence level, evidence citations. No synthesis — just the data.
 
-## Viability scoring protocol
+## Viability scoring
 
-Read `references/viability-guide.md` for the full protocol. Summary:
+Read `references/viability-guide.md` for the full protocol. Four dimensions, 25 points each:
 
-1. Read existing intelligence: `market-context.json`, `customer-intel.json`, `strategy.yml`, `product-spec.yml`
-2. If data is stale (>72h) or missing, spawn market-analyst + customer agents in parallel
-3. Score viability per feature based on agent evidence:
-   - **UVP clarity** (0-25): Can you name what's unique in one sentence?
-   - **Competitive gap** (0-25): Does market-context.json show something no competitor has?
-   - **Demand signal** (0-25): Does customer-intel.json show people wanting this?
-   - **Positioning** (0-25): Does strategy.yml show a clear stage-appropriate position?
-4. Every viability claim must cite a source. No source = no points.
-5. Write per-feature viability scores to `.claude/cache/viability-cache.json`
+- **UVP clarity** — Can you name what's unique in one sentence?
+- **Competitive gap** — Does market-context.json show something no competitor has?
+- **Demand signal** — Does customer-intel.json show people wanting this?
+- **Positioning** — Does strategy.yml show a clear stage-appropriate position?
 
-**Hard rules:**
-- viability > 50 requires citing market-context.json OR customer-intel.json
-- viability > 75 requires BOTH market context AND customer signal
-- viability with zero external data = capped at 30 ("unknown territory")
+Every claim must cite a source. No source = no points.
+
+**Caps:** No external data = max 30. One intelligence file = max 45. Both = max 60. Agent-backed (viability-cache.json, fresh) = full 0-100. viability > 75 requires BOTH market context AND customer signal.
+
+Agents (market-analyst, customer) are the REFRESH mechanism. Read intelligence files first. Only spawn agents when intelligence is stale (>7d) or missing entirely.
 
 ## Confidence levels
 
@@ -178,20 +160,42 @@ Each tier gets a confidence tag based on data freshness and completeness:
 
 Product-level confidence = minimum confidence across all tiers. One `low` tier = `low` overall.
 
-## State to read (parallel)
+## State
 
-`config/rhino.yml`, `config/product-spec.yml`, `.claude/cache/eval-cache.json`, `.claude/cache/score-cache.json`, `.claude/cache/viability-cache.json`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/evals/reports/taste-*.json` (latest), `.claude/evals/reports/flows-*.json` (latest), `.claude/plans/strategy.yml`
+Read these directly — synthesize, don't delegate:
 
-## Cross-skill synthesis
+| File | What it tells you |
+|------|-------------------|
+| `config/rhino.yml` | Feature list, weights, stage, URL, code paths |
+| `config/product-spec.yml` | What the product claims to do — score against this |
+| `.claude/cache/eval-cache.json` | Per-feature delivery/craft/viability sub-scores, deltas, timestamps |
+| `.claude/cache/score-cache.json` | Last health score (5min TTL) |
+| `.claude/cache/viability-cache.json` | Agent-backed viability scores |
+| `.claude/cache/market-context.json` | Competitive landscape, market signals |
+| `.claude/cache/customer-intel.json` | Demand signals, user feedback |
+| `.claude/evals/reports/taste-*.json` | Visual quality scores (latest only) |
+| `.claude/evals/reports/flows-*.json` | Behavioral audit results (latest only) |
+| `.claude/plans/strategy.yml` | Current strategic focus |
+| `.claude/cache/outside-in.json` | Journey gaps, unmet needs (if present) |
 
-After scoring:
-- Read `.claude/cache/outside-in.json` if present. Surface journey gaps and unmet needs as opportunity context — not a penalty, but a "what's missing" signal. This is surface-agnostic: gaps could be filled by CLI, web, API, or distribution channels.
-- Lowest-scoring feature by unified score = the bottleneck. Suggest `/plan` to target it.
-- If visual confidence is low and product has a URL: suggest `/taste <url>`.
-- If behavioral confidence is low: suggest `/taste <url> flows`.
-- If viability is lowest dimension: suggest `/research` or `/strategy`.
-- If journey gaps > 0 or unmet needs > 0: suggest `/ideate` to generate ideas for the gaps.
-- If all tiers are high confidence and score > 80: suggest `/ship`.
+Scripts `cache-summary.sh` and `synthesize.sh` exist as verification — run them to cross-check your synthesis, not as the primary source.
+
+## After scoring — what to suggest
+
+One next command. Pick the one that fills the biggest gap:
+- Lowest-scoring feature → `/plan` to target the bottleneck
+- Visual confidence low + URL exists → `/taste <url>`
+- Behavioral confidence low → `/taste <url> flows`
+- Viability is the weakest dimension → `/research` or `/strategy`
+- Journey gaps or unmet needs in outside-in.json → `/ideate`
+- All tiers high confidence + score > 80 → `/ship`
+
+## System integration
+
+**Reads:** rhino.yml, product-spec.yml, eval-cache.json, score-cache.json, viability-cache.json, market-context.json, customer-intel.json, taste reports, flows reports, strategy.yml, outside-in.json
+**Writes:** `.claude/cache/score-unified.json`
+**Triggers:** /plan (bottleneck), /taste (visual/behavioral gaps), /research (viability gaps), /ideate (journey gaps), /ship (high confidence + high score)
+**Triggered by:** "is this good?", "product quality", "unified score", start of /go loop, post-build verification
 
 ## Agents
 
