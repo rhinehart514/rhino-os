@@ -158,7 +158,12 @@ fi
 echo ""
 echo -e "  ${BOLD}Skills${NC}"
 SKILL_COUNT=$(find "$RHINO_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
-echo -e "    ${DIM}${SKILL_COUNT} skills available via plugin system${NC}"
+if $PLUGIN_MODE; then
+    echo -e "    ${DIM}${SKILL_COUNT} skills loaded via plugin system${NC}"
+else
+    echo -e "    ${DIM}${SKILL_COUNT} skills found — install as plugin for slash commands${NC}"
+    echo -e "    ${DIM}Manual mode: use 'rhino' CLI. Plugin mode: /plan, /go, /eval, etc.${NC}"
+fi
 
 # --- 4. Symlink agents → ~/.claude/agents/ (skip in plugin mode) ---
 if ! $PLUGIN_MODE; then
