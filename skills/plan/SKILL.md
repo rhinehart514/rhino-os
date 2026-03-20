@@ -2,7 +2,7 @@
 name: plan
 description: "Use when starting a work session, finding the bottleneck, or capturing a task"
 argument-hint: "[feature...|brainstorm|critique|task text]"
-allowed-tools: Read, Bash, Grep, Glob, EnterPlanMode, ExitPlanMode, AskUserQuestion, TaskCreate, TaskList
+allowed-tools: Read, Bash, Grep, Glob, Agent, EnterPlanMode, ExitPlanMode, AskUserQuestion, TaskCreate, TaskList
 ---
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, d: .value.delivery_score, c: .value.craft_score, v: .value.viability_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"

@@ -54,19 +54,17 @@ cd your-project
 claude
 ```
 
-rhino-os loads automatically. You'll see a boot card with your score. Then:
+rhino-os loads automatically. You'll see a status card showing your score, plan, and what to work on next. Then:
 
 1. **"What should I work on?"** → routes to `/plan`, finds the bottleneck
 2. **"/go"** → builds autonomously, measures after every change, reverts regressions
 3. **"Is this good?"** → routes to `/eval`, scores every feature 0-100
 
-That's it. No configuration needed — rhino-os reads your code and generates assertions automatically. Your score starts low and climbs as you ship value.
+That's it. No configuration needed — rhino-os reads your code, generates **assertions** (testable beliefs about your product, like "the signup flow completes in under 30 seconds"), and scores them. Your score starts low and climbs as you ship value.
 
 ## Walkthrough: rhino-os running on itself
 
 Real output from rhino-os measuring itself — the actual product you're looking at.
-
-One key concept: rhino-os uses **assertions** — testable beliefs about your product, like "score.sh exits 0 on a healthy codebase." It plants them automatically, scores them, and tracks which ones pass. Your score is the percentage of assertions passing.
 
 ### 1. "What should I work on?"
 

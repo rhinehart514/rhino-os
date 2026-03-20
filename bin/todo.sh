@@ -524,6 +524,12 @@ cmd_add() {
     local id
     id=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 30)
 
+    # Check for duplicate ID
+    if todo_exists && grep -q "id: ${id}$" "$BACKLOG_FILE" 2>/dev/null; then
+        # Append timestamp suffix to make unique
+        id="${id}-$(date +%s | tail -c 5)"
+    fi
+
     local today
     today=$(date '+%Y-%m-%d')
 

@@ -1011,7 +1011,7 @@ EOF
         struct_trend=$(trend_for structure "$STRUCTURE" 3)
         hygiene_trend=$(trend_for hygiene "$HYGIENE" 4)
         if [[ "$HEALTH_MIN" -lt "$HEALTH_GATE_THRESHOLD" ]]; then
-            echo -e "  \033[0;31m✗ BUILD GATE: FAIL\033[0m (health=$HEALTH_MIN < threshold $HEALTH_GATE_THRESHOLD)"
+            echo -e "  \033[0;31m✗ HEALTH GATE: FAIL\033[0m (health=$HEALTH_MIN < threshold $HEALTH_GATE_THRESHOLD)"
             echo -e "    \033[2mstruct: $STRUCTURE  hygiene: $HYGIENE  — fix the lower one first\033[0m"
         elif [[ "$HEALTH_MIN" -lt "$HEALTH_WARN_THRESHOLD" ]]; then
             echo -e "  \033[1;33m⚠\033[0m health: $HEALTH_MIN \033[2m(struct:$STRUCTURE $struct_trend · hygiene:$HYGIENE $hygiene_trend — below warning threshold $HEALTH_WARN_THRESHOLD)\033[0m"

@@ -584,10 +584,27 @@ check_eval_cache() {
             local now
             now=$(date +%s)
             local age=$(( now - cache_mtime ))
-            # Cache valid for same session (1 hour)
+            # Cache valid for same session (1 hour) AND no code files changed
             if [[ "$age" -lt 3600 ]]; then
-                jq -c ".\"$feat_name\"" "$EVAL_CACHE_FILE" 2>/dev/null
-                return
+                # Check if any code file for this feature changed since cache
+                local code_changed=false
+                local code_paths
+                code_paths=$(grep -A20 "^  ${feat_name}:" "$PROJECT_DIR/config/rhino.yml" 2>/dev/null | \
+                    awk '/^  [a-z]/ && NR>1 {exit} /code:/{found=1;next} found && /^\s*-/{gsub(/^[[:space:]]*- *"?|"?$/,""); print}')
+                for _cp in $code_paths; do
+                    # Expand ~ and check if file/dir is newer than cache
+                    _cp="${_cp/#\~/$HOME}"
+                    if [[ -e "$PROJECT_DIR/$_cp" ]]; then
+                        if find "$PROJECT_DIR/$_cp" -type f -newer "$EVAL_CACHE_FILE" -print -quit 2>/dev/null | grep -q .; then
+                            code_changed=true
+                            break
+                        fi
+                    fi
+                done
+                if [[ "$code_changed" == false ]]; then
+                    jq -c ".\"$feat_name\"" "$EVAL_CACHE_FILE" 2>/dev/null
+                    return
+                fi
             fi
         fi
     fi

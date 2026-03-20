@@ -1,21 +1,18 @@
 {
   "scoring": {
-    "verdict": "PARTIAL",
-    "gaps": [
-      "Score oscillates \u00b11-2 points without code changes (100\u219298\u2192100 trend), making it hard for founders to detect real improvement above noise floor \u2014 root cause is generative eval variance (~15 points), but this breaks the claim of reliable measurement",
-      "Health gate failure (score=0) provides no actionable feedback on whether it's structure or hygiene \u2014 founder is left debugging blind (should show: 'structure: 15/20 (below gate of 20), hygiene: 45/100')",
-      "Onboarding ratchet caps at 50 but transition to full scoring is opaque \u2014 unclear what happens when founder adds first assertion (does score jump to 60? Stay at 50 until all categories filled?). Lines ~1150-1160 show cap but transition logic not visible",
-      "Reasons mechanism (lines 50-75) is fully implemented with add_reason() and temp files, but reasons are never displayed in output. Either delete dead code or integrate into output",
-      "Cache invalidation checks only src/app/bin/commands/config/mind/lens dirs \u2014 misses common directories like types/, utils/, lib/, server/, pages/ \u2014 can silently serve stale cache",
-      "Stage ceiling logic (lines ~1180-1190) is buried in small text at bottom \u2014 if score >= stage ceiling, that's a critical signal (time to level up), but it's underemphasized as a warning, not a celebration"
-    ],
-    "evidence": "Scoring delivers on its claim at the output level \u2014 a founder GETS a number and readiness signals. But the number oscillates for no visible change, making improvement detection unreliable. The code is well-made with excellent documentation and UI, but has incomplete features (reasons), opacity on transitions (onboarding\u2192assertions), and a measurement built on a noisy foundation. This is solid work that ships and works, but with rough edges that prevent it from being genuinely trustworthy for the stated purpose of detecting improvement.",
-    "score": 65,
-    "delivery_score": 65,
-    "craft_score": 65,
-    "delta": "same",
+    "score": 68,
+    "delivery_score": 70,
+    "craft_score": 67,
+    "delta": "better",
     "delta_vs": 65,
-    "cached_at": "2026-03-20T03:23:47Z"
+    "gaps": [
+      "score.sh:1014 health gate failure prints BUILD GATE FAIL (wrong label, should say HEALTH GATE)",
+      "eval.sh eval cache uses only age check (1h TTL) not file-mtime invalidation \u2014 stale eval scores survive code edits for up to 1 hour",
+      "score.sh:650-652 ASSERTION_COUNT estimated via regex on 2-space-indented YAML keys, can overcount"
+    ],
+    "evidence": "Cache invalidation now covers lib/utils/types/server/pages/skills/hooks. Health gate breakdown shows struct/hygiene sub-bullets. Stage ceiling shows actionable celebration. Gates are true gates with no override. Per-feature sort worst-first with delta arrows.",
+    "verdict": "PARTIAL",
+    "cached_at": "2026-03-20T05:18:48Z"
   },
   "learning": {
     "verdict": "PARTIAL",
@@ -33,82 +30,69 @@
     "cached_at": "2026-03-20T04:53:04Z"
   },
   "commands": {
-    "verdict": "PARTIAL",
+    "score": 61,
+    "delivery_score": 63,
+    "craft_score": 57,
+    "delta": "better",
+    "delta_vs": 53,
     "gaps": [
-      "External file dependencies not validated \u2014 scripts, templates, references are referenced as existing but can't be verified. If skills/shared/first-run-detect.sh or any of 8+ referenced scripts is missing, /plan fails with unclear errors. No fallback if scripts don't exist or return malformed output.",
-      "/plan references Agent spawning (grader in Step 5) but Agent is not in allowed-tools. Skill says it will execute something it's not permitted to do.",
-      "Task generation mechanism promised in every skill ('for every X, generate task') but who actually calls TaskCreate? Is it the skill itself? An agent? A post-processing step? Not specified. Tasks appear nowhere in the output spec.",
-      "Output templates referenced constantly ('see reference.md') but reference.md isn't in allowed-tools. Claude can't read the template during execution. Creates documentation/implementation mismatch.",
-      "Script failure handling missing \u2014 '/plan Step 1: Run scripts/session-context.sh via Bash' with no error recovery if the script fails, returns invalid JSON, or is missing entirely. Skill continues as if data is valid.",
-      "State coordination is brittle \u2014 five skills read eval-cache, predictions, strategy.yml, roadmap.yml, todos.yml without locking. What if /eval is writing to eval-cache while /plan is reading it? No atomic operations or refresh mechanism.",
-      "Maturity-tier routing (Step 2b in /plan, Step 1b in /go) depends on bash ../../bin/maturity-tier.sh existing and being correct. If that script fails or returns wrong tier, skill behavior is completely wrong with no detection. No fallback tier assumed.",
-      "EnterPlanMode/ExitPlanMode listed as 'allowed tools' but these are gate mechanisms not actual tools. How does /plan trigger them? Mechanism not explained.",
-      "Circular skill dependencies without clear entry points \u2014 /plan says 'suggest /research if bottleneck is unknown territory' (references /research), /research says 'run /plan logic inline' (references /plan), /go says both are options. A founder running /plan \u2192 /research \u2192 /go could end up in unclear state.",
-      "Complex branching logic (5 routing modes + first-run check + tier-aware + opportunity scan + startup checks) but no default fallback \u2014 if founder's situation doesn't match the spec, skill just halts. No 'when in doubt' path."
+      "/plan Agent tool gap: documents grader+explorer spawning but Agent not in allowed-tools",
+      "Script failure handling absent across all 8 skills",
+      "Maturity-tier.sh dependency with no fallback tier",
+      "Task generation delegation unclear \u2014 TaskCreate not in /eval /taste /rhino allowed-tools",
+      "Circular routing without entry-point clarity"
     ],
-    "evidence": "These are exceptionally well-DESIGNED skill specifications but fragile in EXECUTION. The routing logic is genuinely smart (intent \u2192 mode \u2192 protocol). The protocols are detailed and step-by-step enough that Claude should be able to follow them. But the skills assume external files exist (scripts, templates, references), have no error recovery if those files don't, don't show the actual agent coordination code, and reference tools they're not permitted to use. It's like a brilliant architectural plan where the contractor forgot to build the foundation. A founder using /plan \u2192 /eval \u2192 /go on a working repo with all scripts installed will likely get good value. A founder with missing scripts, or whose project state diverges from assumptions, will hit silent failures. The 55/50 reflects: intent routing works (positive), but execution is unknowable (negative on delivery) and brittle (negative on craft).",
-    "score": 53,
-    "delivery_score": 55,
-    "craft_score": 50,
-    "delta": "worse",
-    "delta_vs": 62,
-    "cached_at": "2026-03-20T03:31:15Z"
+    "evidence": "All scripts verified to exist. Routing tables are smart. Protocols detailed enough for working install. Gotchas have real project-specific failure modes. Held back by /plan Agent gap and script failure handling.",
+    "verdict": "PARTIAL",
+    "cached_at": "2026-03-20T05:18:48Z"
   },
   "install": {
-    "verdict": "PARTIAL",
+    "score": 71,
+    "delivery_score": 74,
+    "craft_score": 68,
+    "delta": "better",
+    "delta_vs": 52,
     "gaps": [
-      "Manual mode (git clone) doesn't register skills \u2014 lines 160-164 only count skills with no registration mechanism. User will clone, run install.sh, then get 'skill not found' errors when trying /plan, /go, /score, /eval, /taste. The feature claim 'clone, run install.sh, everything works' is false for manual mode.",
-      "README documentation contradicts implementation \u2014 says 'rhino doctor' to verify (README ~line 40) but install.sh implements --test flag and never mentions it. Documentation should either add `rhino doctor` subcommand or update README to say './install.sh --test'.",
-      "HOOKS_JSON constructed via string concatenation (lines ~246-270) instead of proper JSON building. If any hook file path contains quotes, backslashes, or special chars, the generated JSON will be malformed. Validation failure is silent (caught with || true), leaving user with broken settings.json that fails at runtime when Claude Code tries to load hooks.",
-      "No next-step guidance after successful installation. Script ends with test summary but doesn't tell user what to do next (should be 'Run claude /rhino to see your dashboard'). User is left stranded.",
-      "Skills availability is misrepresented in manual mode. Line 164 says 'X skills available via plugin system' but in manual mode (git clone), the plugin system hasn't loaded them. Output is confusing and doesn't explain that skills only work in true plugin mode."
+      "install.sh:94-112 GNU stat/date detection warns but has no behavioral effect in install.sh",
+      "Plugin mode install is two commands not one",
+      "README:57 boot card implies unconditional but needs /onboard first"
     ],
-    "evidence": "The install mechanism is well-built for half the problem. Plugin mode delivery is solid \u2014 clean symlinks, good error messages, comprehensive verification. But manual mode has a critical gap: skills (the core of rhino-os) aren't discoverable or usable after git clone + install.sh. The README explicitly promises both paths work ('clone and run install.sh, everything works'), making this a fundamental delivery failure. The code quality is decent \u2014 idempotent, checked, visualized \u2014 but JSON construction via string concatenation and silent validation failures are craft issues. This feels like something that works for the plugin path and partially works for manual, but the 'everything' promise is broken.",
-    "score": 52,
-    "delivery_score": 48,
-    "craft_score": 62,
-    "delta": "worse",
-    "delta_vs": 64,
-    "cached_at": "2026-03-20T03:33:56Z"
+    "evidence": "Next-step guidance at lines 388-421 comprehensive. Post-install verification runs 4 checks. Self-test adds 5+ checks. rhino doctor invoked at line 314. Previous d:48 was truncation false negative.",
+    "verdict": "ALIGNED",
+    "cached_at": "2026-03-20T05:18:48Z"
   },
   "todo": {
-    "verdict": "PARTIAL",
+    "score": 66,
+    "delivery_score": 68,
+    "craft_score": 62,
+    "delta": "better",
+    "delta_vs": 58,
     "gaps": [
-      "Graduation to assertions promised in SKILL.md but unimplemented\u2014cmd_done has '# TODO: check graduation' comment (line ~340)",
-      "Meta-task generation claimed in SKILL.md ('After showing the backlog, show: Backlog health: N meta-tasks generated') but not implemented in any cmd_* function",
-      "Promote doesn't integrate with plan.yml\u2014sets status:active but SKILL.md says 'Set active, add to plan' (cmd_promote line ~420)",
-      "YAML parsing fragile: item_field uses sub(/^[^:]+: */,'') which breaks on values containing colons like 'title: \"goal: save money\"' (line ~77)",
-      "No file locking for concurrent edits\u2014simultaneous 'todo add' calls can corrupt todos.yml without atomic coordination (missing flock/mkdir lock pattern)",
-      "Smart promote silently skips if eval-cache missing, no error feedback to user (line ~425: redirects to /dev/null without explaining why it failed)",
-      "item_set_field 'add field' branch (line ~149-165) is confusing: in_item flag reset in same awk block, relies on order-of-operations that works but is fragile to modification"
+      "No prioritize subcommand \u2014 requires edit command",
+      "ID collision on add: title-derived ID not checked for dupes",
+      "Graduation delegated to external todo-promote.sh",
+      "Version tagging UX inconsistency between SKILL.md and cmd_tag",
+      "No keyword search subcommand"
     ],
-    "evidence": "Core claim 'persistent backlog across sessions' delivers\u2014todos are captured to .yml and survive restarts. But 'promote' is incomplete (doesn't add to plan), graduation is a TODO comment, and meta-tasks are mentioned in the skill but not generated by any code. The YAML parser is fragile (breaks on colons in values) and concurrent writes have no locking. This is 60-70% of a working feature: capture and show work, promote and graduation are half-built.",
-    "score": 58,
-    "delivery_score": 62,
-    "craft_score": 54,
-    "delta": "same",
-    "delta_vs": 59,
-    "cached_at": "2026-03-20T03:36:38Z"
+    "evidence": "All four claim verbs implemented. Atomic .tmp+mv writes. mkdir locking bash 3.2 safe. Source breakdown in cmd_show is standout. SCRIPT_DIR fix makes graduation reachable.",
+    "verdict": "PARTIAL",
+    "cached_at": "2026-03-20T05:18:48Z"
   },
   "docs": {
-    "verdict": "PARTIAL",
+    "score": 64,
+    "delivery_score": 67,
+    "craft_score": 62,
+    "delta": "better",
+    "delta_vs": 59,
     "gaps": [
-      "Assertions are the core concept but never clearly defined. Lines 69-71 say 'plants testable beliefs' but the README never explains what an assertion IS, where to find them, or how to write one. Line 141 shows '51/60 (85%)' assertions passing without context.",
-      "Score interpretation completely missing. The README explains scores exist (line 8) but never defines what 90/100 vs 70/100 vs 50/100 means for a founder. This is critical information for someone deciding if it's worth using.",
-      "5-tier measurement stack buried in 'How the pieces fit' (line 166-170), not in the main flow. Lines 63-65 mention tiers exist but don't explain what each one measures or when to care about it.",
-      "Jargon unexplained: 'early ceiling' (line 135), 'weight:3' (line 123), 'multi-sample median' (line 196). A newcomer hits these terms and has no context.",
-      "Commands section (lines 153-178) lists 22 commands after 'Your first 5 minutes' told them to use 3. Creates confusion about what's actually required vs nice-to-have.",
-      "Installation tradeoff not explained. 'Plugin mode (recommended)' vs 'Manual mode' (line 56) but no explanation of why plugin is recommended or what the UX difference is.",
-      "Concepts and mental model introduced late. The Observe\u2192Model\u2192Predict\u2192Act\u2192Measure\u2192Update flowchart (line 167) isn't connected to the three commands newcomers actually use (/plan, /go, /eval). Should explain: /plan is Observe, /go is Predict\u2192Act\u2192Measure, /eval is part of Measure.",
-      "Windows exclusion (line 199) mentioned as simple limitation but represents ~50% of developers worldwide. Should be higher-friction positioning.",
-      "Walkthrough output lacks annotation. Lines 130-145 show actual command output but don't explain what the numbers mean or why they matter. Someone reading this won't understand if '62' delivery score is good or bad."
+      "boot card (line 57) undefined jargon",
+      "assertions used line 63 before defined line 69",
+      "19 commands listed after saying you dont need to memorize them",
+      "walkthrough predict field ambiguous",
+      "score explained late relative to commands section"
     ],
-    "evidence": "The README successfully conveys that rhino-os measures product quality for solo founders and includes a legitimate quickstart, but fails to explain three core concepts that a newcomer needs: what assertions are, how to interpret scores, and how the 5 measurement tiers work together. The walkthrough output is excellent but unannotated, and the jargon (weight, early ceiling, median) appears without definition. A technical founder could figure it out through trial-and-error; a true newcomer would get frustrated.",
-    "score": 59,
-    "delivery_score": 62,
-    "craft_score": 57,
-    "delta": "worse",
-    "delta_vs": 64,
-    "cached_at": "2026-03-20T03:39:33Z"
+    "evidence": "Score interpretation guide closes what-do-numbers-mean gap. METR citation real and specific. Install asymmetric (plugin recommended). Your first 5 minutes is 3 numbered steps. Voice consistent throughout.",
+    "verdict": "PARTIAL",
+    "cached_at": "2026-03-20T05:18:48Z"
   }
 }
