@@ -15,29 +15,62 @@ The home screen. Everything the founder needs, nothing they don't.
 
 This skill is a **folder**, not just this file. Read on demand:
 
-- `scripts/system-pulse.sh` — runs first, outputs full system status as structured text (score, assertions, predictions, plan, strategy, thesis, todos). Zero context cost.
-- `scripts/skill-catalog.sh` — lists all installed skills with file counts and descriptions. Powers `/rhino help`.
-- `templates/dashboard.md` — canonical rendering format for the default dashboard view: zone structure, bar math, conditional rules, anti-rationalization warnings.
-- `references/dashboard-guide.md` — what each dashboard section means, how to read it, conditional rendering rules, snapshot protocol, opinion decision tree, pattern detection, anti-rationalization checks.
-- `references/reading-guide.md` — what each number on the dashboard means and how to interpret the signals. For founders who ask "what does this mean?"
+- `templates/dashboard.md` — canonical rendering format: zone structure, bar math, conditional rules
+- `references/dashboard-guide.md` — section meanings, conditional rendering, snapshot protocol, opinion decision tree, pattern detection
+- `references/reading-guide.md` — what each number means. For founders who ask "what does this mean?"
 - `gotchas.md` — real failure modes. **Read before rendering any view.**
+
+Scripts (`system-pulse.sh`, `skill-catalog.sh`) exist as verification — run to cross-check your synthesis, not as the primary path.
+
+## State
+
+Read these directly — you are the synthesizer, not scripts:
+
+| File | What it tells you |
+|------|-------------------|
+| `.claude/cache/score-cache.json` | Health score, structure, hygiene. The cached `rhino score .` result |
+| `.claude/cache/eval-cache.json` | Per-feature scores: delivery/craft/viability sub-scores, deltas, timestamps, weights |
+| `config/rhino.yml` | Feature definitions, value hypothesis, user, mode, weights, dependencies |
+| `config/product-spec.yml` | What the product claims to do — show spec completion alongside score |
+| `.claude/plans/roadmap.yml` | Current version thesis, evidence items (proven/partial/todo/disproven) |
+| `.claude/plans/strategy.yml` | Strategic diagnosis, bottleneck. Check freshness (>7d = stale) |
+| `.claude/plans/plan.yml` | Active plan: tasks, bottleneck_feature. Check freshness (>24h = defer to own heuristic) |
+| `.claude/knowledge/predictions.tsv` | Prediction log: accuracy, graded/ungraded counts (fall back to `~/.claude/knowledge/`) |
+| `.claude/plans/todos.yml` | Backlog: active/backlog/stale/done counts |
+| `lens/product/eval/beliefs.yml` | Assertions: total count, pass rates |
+| `.claude/cache/rhino-snapshots.json` | Dashboard history — last 20 snapshots for compare/pattern detection (R+W) |
+
+**Bottleneck**: compute from eval-cache + rhino.yml weights. Lowest `score * weight` among active features. If `plan.yml` exists and is <24h old, use its `bottleneck_feature` instead.
+
+**Product completion**: `sum(eval_score * weight) / sum(weight * 100)` across active features.
+
+**Version completion**: `proven / total` from roadmap.yml evidence items.
 
 ## Routing
 
 Parse `$ARGUMENTS`:
 
-| Argument | What happens |
-|----------|-------------|
-| (none) | Run `system-pulse.sh` → render dashboard → save snapshot → opinion |
-| `help` | Run `skill-catalog.sh` → render "Start here" flows first, then skill catalog grouped by phase |
+| Argument | Action |
+|----------|--------|
+| (none) | Read all state → render dashboard (see `templates/dashboard.md`) → save snapshot → state one opinion |
+| `help` | Show "Start Here" flow first, then skill catalog grouped by phase. Run `skill-catalog.sh` for raw list |
 | `system` | Internals: version, hooks, agents, crown jewels, calibration |
-| `compare` | Load last snapshot from `.claude/cache/rhino-snapshots.json` → diff against current |
+| `compare` | Load last snapshot from `.claude/cache/rhino-snapshots.json` → diff against current state |
 | `health` | System health audit: hooks, agents, skills coverage, learning loop → letter grade |
 | `progress` | The arc: score trajectory, feature maturity, prediction accuracy, assertions, velocity |
 
-## Start Here (canonical flow)
+## First-run gate
 
-When rendering `help`, show this FIRST before the skill catalog:
+If `config/rhino.yml` is missing or `.claude/cache/eval-cache.json` doesn't exist:
+- Show: "Welcome to rhino. Your project has no scores yet."
+- Suggest `/onboard` (no rhino.yml) or `/score` (no cache yet)
+- Skip the full dashboard — stop here
+
+## Rendering
+
+Read `gotchas.md` before rendering any view. Read `references/dashboard-guide.md` for the full rendering spec — templates, conditional rules, opinion decision tree, pattern detection, anti-rationalization checks.
+
+**Help view** — show this FIRST before the skill catalog:
 
 ```
 Start Here
@@ -48,62 +81,7 @@ Start Here
   The flow: /score → /plan → /go → /score (repeat)
 ```
 
-This breaks the circular routing problem. /score is the entry point (assess), /plan is the decision (what), /go is the action (build).
-
-## The protocol
-
-### Step 0: First-run check
-
-Run `bash skills/shared/first-run-detect.sh [project-dir]`. If result is "first_run", show a welcome screen instead of the full dashboard:
-- "Welcome to rhino. Your project has no scores yet."
-- "Start with: `/plan` to find what to work on, or `/score` to see where you are"
-- Skip the full feature map, sub-score breakdown, history, coherence, and snapshot
-- If `config/rhino.yml` is missing, suggest `/onboard` instead
-- End here — do not continue to Step 1
-
-### Step 1: Run system-pulse.sh (always first)
-
-```bash
-bash skills/rhino/scripts/system-pulse.sh
-```
-
-This scans score-cache, eval-cache, predictions, plan, strategy, roadmap, todos, beliefs, git log. Outputs structured key-value pairs.
-
-Also read `config/product-spec.yml` if it exists — show spec completion alongside score. How much of what we said we'd build actually works?
-
-### Step 2: Read gotchas.md
-
-Read `gotchas.md` before rendering. Every gotcha is from a real session.
-
-### Step 3: Read dashboard-guide.md
-
-Read `references/dashboard-guide.md` for the full rendering spec — templates, conditional rules, snapshot protocol, opinion tree, pattern detection.
-
-### Step 4: Render the view
-
-Follow the templates and rules from the dashboard guide. For `/rhino help`, also run:
-
-```bash
-bash skills/rhino/scripts/skill-catalog.sh
-```
-
-### Step 5: Save snapshot (default view only)
-
-After rendering `/rhino` (no arguments), save current state to `.claude/cache/rhino-snapshots.json`. Keep last 20 snapshots.
-
-## State artifacts
-
-| Artifact | Path | R/W |
-|----------|------|-----|
-| rhino-snapshots | `.claude/cache/rhino-snapshots.json` | R+W |
-| eval-cache | `.claude/cache/eval-cache.json` | R |
-| score-cache | `.claude/cache/score-cache.json` | R |
-| rhino.yml | `config/rhino.yml` | R |
-| product-spec | `config/product-spec.yml` | R |
-| roadmap.yml | `.claude/plans/roadmap.yml` | R |
-| predictions.tsv | `.claude/knowledge/predictions.tsv` | R |
-| todos.yml | `.claude/plans/todos.yml` | R |
-| beliefs.yml | `lens/product/eval/beliefs.yml` | R |
+**Default view** — after rendering, save current state to `.claude/cache/rhino-snapshots.json`. Keep last 20 snapshots, trim oldest on append.
 
 ## Task generation — dashboard alerts become tasks
 
@@ -140,9 +118,9 @@ See `../shared/task-generation.md` for the task generation protocol. /rhino gene
 
 Tag with `source: /rhino` and alert type (stale/score/prediction/backlog/system). Priority: score regressions first, then staleness.
 
-## System coherence (rendered from COHERENCE section of system-pulse.sh)
+## System coherence
 
-If `system-pulse.sh` outputs any `mismatch:` lines in the COHERENCE section, render them as warnings between signals and opinion:
+Cross-check alignment between strategy, eval, and plan yourself. Render warnings between signals and opinion when mismatched:
 
 ```
   coherence   ⚠ strategy says [X] but eval says [Y] is the bottleneck
@@ -151,6 +129,21 @@ If `system-pulse.sh` outputs any `mismatch:` lines in the COHERENCE section, ren
 ```
 
 If coherence is aligned, skip the section (no data = no zone). Mismatches mean the skills are pointing in different directions — the opinion should name this: "Skills are misaligned. Run /plan to re-diagnose."
+
+## System integration
+
+/rhino is the home screen — the hub that routes to everything else.
+
+- **/score** wrote `score-cache.json` and `eval-cache.json` — /rhino reads both
+- **/plan** wrote `plan.yml` with `bottleneck_feature` — /rhino defers to it when fresh (<24h)
+- **/strategy** wrote `strategy.yml` — /rhino checks freshness and coherence against eval
+- **/roadmap** wrote `roadmap.yml` — /rhino renders thesis + evidence completion
+- **/todo** wrote `todos.yml` — /rhino counts active/backlog/stale
+- **/retro** graded `predictions.tsv` — /rhino reports accuracy and ungraded count
+- **/eval** wrote `eval-cache.json` feature scores — /rhino computes product completion and bottleneck from these
+- **/rhino** writes `rhino-snapshots.json` — consumed by `/rhino compare` and pattern detection
+
+The opinion defers to /plan for bottleneck diagnosis when plan.yml is fresh. Otherwise, /rhino computes its own from eval data and flags the opinion as heuristic-based.
 
 ## Self-evaluation
 
