@@ -1,0 +1,31 @@
+{
+  "feature": "learning",
+  "last_score": 54,
+  "last_scored": "2026-03-20T03:30:00Z",
+  "delivery_criteria": [
+    "predictions.tsv populated with all 7 columns: date, agent, prediction, evidence, result, correct, model_update",
+    "predictions are graded (correct column shows yes/no/partial, not empty) — grading completeness >80%",
+    "experiment-learnings.md contains structured sections: Known Patterns, Uncertain Patterns, Unknown Territory, Dead Ends — each with evidence citations",
+    "session_start.sh displays prediction accuracy with trend (last 5 vs previous 5) and calibration context",
+    "graded predictions produce mechanism-based model_updates, not tautologies ('Score reached' = rejected)",
+    "wrong predictions surface in session boot card and /plan session context with area keywords",
+    "dead ends from experiment-learnings.md block re-proposing failed approaches in /plan",
+    "predictions traceable: prediction → action → grade → model_update → experiment-learnings → next prediction cites learning"
+  ],
+  "craft_criteria": [
+    "missing predictions.tsv doesn't crash session_start (fallback: predictions unknown)",
+    "ungraded predictions excluded from accuracy calculation, never counted as failures",
+    "TSV parsing handles edge cases: empty fields, shifted columns, malformed dates",
+    "division-by-zero protection when no predictions graded",
+    "atomic writes (mktemp + mv) prevent corruption on interrupt",
+    "accuracy formula: (correct*1 + partial*0.5) / graded_count",
+    "vague predictions without measurable targets produce quality gate warning",
+    "knowledge model deduplication prevents duplicate entries across grade runs",
+    "stale knowledge entries detected and flagged (>30 days, not referenced by recent predictions)"
+  ],
+  "known_gaps": [
+    "no mechanical enforcement that predictions cite experiment-learnings — happens by convention",
+    "consolidator agent exists but is only wired to /retro, not triggered after grade.sh"
+  ],
+  "score_history": [42, 54]
+}
