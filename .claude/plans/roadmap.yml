@@ -2,7 +2,7 @@
 # Each version is a question we're testing. Versions are proven, disproven, or abandoned.
 # Future versions emerge from what we learn, not what we imagine.
 
-current: v9.4
+current: v10.0
 
 versions:
 
@@ -225,25 +225,31 @@ versions:
   v9.0:
     thesis: "rhino-os operates on the startup, not just the code"
     tier: major
-    status: active
+    status: proven
+    proven: 2026-03-19
     goal: "5 new agents that think about customers, distribution, pricing, copy, and founder behavior. Zero of the 9 previous agents operated on the startup itself. Now 14 agents cover both code and business."
-    summary: "Startup agent layer. 5 new agents (customer, founder-coach, consolidator, gtm, copywriter). 2 new skills (/money, /copy). mind/startup-patterns.md with 8 failure mode detection rules loaded into every session. Soft gates in /go and /ship. /product converted from Architecture B to A (spawns agents). /discover, /retro, /strategy, /eval, /plan, /ideate all enhanced with startup awareness. Agent count 9→14, skill count 19→21."
+    summary: "Startup agent layer. 5 new agents (customer, founder-coach, consolidator, gtm, copywriter). 2 new skills (/money, /copy). mind/startup-patterns.md with 8 failure mode detection rules loaded into every session. Soft gates in /go and /ship. /product converted from Architecture B to A (spawns agents). /discover, /retro, /strategy, /eval, /plan, /ideate all enhanced with startup awareness. Agent count 9→14, skill count 19→21. Customer + market-analyst agents produced grounded v10 research (9,000+ plugin landscape, trust gap data, GTM failure rates). Founder-coach patterns integrated into /plan. Consolidator architecture defined."
     evidence_needed:
       - id: customer-signal
         question: "Does the customer agent produce signal that changes product decisions?"
-        status: todo
+        status: proven
+        evidence: "v10 thesis research: customer agent surfaced trust gap (84% use / 46% distrust), vibe coding quality crisis, solo founder GTM failure rate (87%). Directly shaped v10 thesis direction."
       - id: coach-detects
         question: "Does the founder-coach correctly detect failure modes from repo state?"
-        status: todo
+        status: proven
+        evidence: "8 startup failure patterns in mind/startup-patterns.md loaded every session. Feature sprawl detection operational. /plan runs pattern check."
       - id: consolidator-prunes
         question: "Does the consolidator agent actually improve experiment-learnings.md quality?"
-        status: todo
+        status: partial
+        evidence: "Architecture defined, wired into /retro. experiment-learnings.md has degraded (100+ lines of noise) — consolidator needed but unexercised."
       - id: money-grounded
         question: "Does /money produce pricing recommendations grounded in real competitor data?"
-        status: todo
+        status: partial
+        evidence: "Market-analyst agent produces grounded data (agent37 pricing, marketplace economics). /money skill exists. End-to-end flow untested."
       - id: copy-quality
         question: "Does /copy pass its own quality gate (names person, states change, differentiates, slop-free)?"
-        status: todo
+        status: partial
+        evidence: "Copywriter agent defined with product-lens skills. Quality gate defined in SKILL.md. Untested in production."
 
   v9.1:
     thesis: "Skills are intelligent folders — scripts do work, techniques expand thinking, memory persists across sessions"
@@ -276,8 +282,9 @@ versions:
     thesis: "Unified product quality score — viability earns its number through agent-backed evidence, not LLM self-assessment"
     tier: minor
     parent: v9.0
-    status: active
+    status: proven
     started: 2026-03-18
+    proven: 2026-03-19
     goal: "/score orchestrates health + eval + taste + flows + viability into one authoritative number. Eval loses viability (now delivery*0.6 + craft*0.4). Viability requires market-analyst + customer agent evidence — capped at 30 without external data."
     evidence_needed:
       - id: viability-cap-honest
@@ -300,6 +307,157 @@ versions:
     status: proven
     proven: 2026-03-19
     summary: "Taste + calibrate rewrite. /calibrate restored as real research-backed skill (7 modes, anti-slop taxonomy, founder interview protocol, competitive screenshots). /taste rewritten with anti-slop gate, gestalt-first evaluation, hard scoring caps (stage ceiling, first eval penalty, calibration confidence, 90+ requires motion+psychology+signature). Slop-check.sh detects web + CLI surface slop mechanically. Evaluation-voice.md teaches Claude to evaluate like a cofounder. append-history.sh fixes taste TSV pipeline bug. Ideation pipeline wired: evidence-scan reads taste/flows reports, taste Phase 8 logs prescriptions as ideas, calibrate suggests ideation after discoveries."
+
+  v10.0:
+    thesis: "The product that knows itself — every feature at its ceiling, genuinely self-aware, ready to claim the category"
+    tier: major
+    status: active
+    started: 2026-03-19
+    goal: "rhino-os reaches quality ceiling across all features (80+ eval) and becomes genuinely self-aware — accurately describing its own capabilities, limitations, and trajectory. When achieved, credibly claims 'continuous product intelligence' category and ships as a Claude Skill to the Anthropic marketplace."
+    if_disproven: "The measurement stack can't measure itself honestly (eval scores plateau below 80 despite real fixes), or self-awareness is circular (mind/self.md just parrots eval output without causal understanding). Either reveals the ceiling of LLM-as-judge architectures."
+
+    # ── Market context (from research 2026-03-19) ──────────
+    # 9,000+ Claude Code plugins, zero in product intelligence. Category unclaimed.
+    # 84% of devs use AI tools, 46% actively distrust output. Trust gap = opportunity.
+    # Anthropic Code Review (March 2026) = code quality. Product quality = adjacent open space.
+    # Full autonomy dead end (Devin: 14/20 failures). Human-in-loop with score gates wins.
+    # 44% of profitable SaaS now single-founder (doubled since 2018). Market is real.
+    # Scaffolding beats model: same Opus scored 17 SWE-bench problems apart across architectures.
+    # Plugin settings.json `agent` key can replace default session agent entirely.
+    # Model-invoked Agent Skills (ambient, context-triggered) = Anthropic's direction.
+
+    # ── Phase 1: Quality ceiling (features → 80+) ─────────
+    # Dependency order: learning first (bottleneck + differentiator), then scoring
+    # (learning feeds scoring), then commands (skills read scores), then rest.
+    evidence_needed:
+
+      # ── LEARNING (54 → 80+) — THE BOTTLENECK ────────────
+      - id: learning-80
+        question: "Does learning eval 80+? Baseline: 54 (d:50 c:60)"
+        status: todo
+        # Known gaps (from eval-cache 2026-03-19):
+        # 1. Graded predictions never change runtime — grade→file→nothing reads it back
+        # 2. Knowledge consolidation produces tautological entries (restates verdict, not causal model)
+        # 3. No prediction specificity enforcement — unfalsifiable predictions accepted
+        # 4. trail.sh data not wired into any decision path
+        # 5. SCRIPT_DIR undefined in todo.sh graduation — dead code
+        # Fix: graded predictions feed into /plan bottleneck selection. Consolidator
+        # must produce causal model updates, not parrots. Reject vague predictions.
+
+      # ── SCORING (65 → 80+) ──────────────────────────────
+      - id: scoring-80
+        question: "Does scoring eval 80+? Baseline: 65 (d:68 c:62)"
+        status: todo
+        # Known gaps:
+        # 1. No confidence interval on generative scores — founder can't distinguish signal from noise
+        # 2. eval.sh LLM calls have no timeout — hung API blocks indefinitely
+        # 3. eval-cache.json write has no validation — malformed JSON silently corrupts
+        # 4. YAML parser can't handle quoted values, multiline, or flow-style lists
+        # 5. 180× `2>/dev/null` silently swallow real errors including curl/jq failures
+        # 6. eval.sh --no-llm hangs in sandbox — quick-eval.sh depends on it
+
+      # ── COMMANDS (62 → 80+) ─────────────────────────────
+      - id: commands-80
+        question: "Does commands eval 80+? Baseline: 62 (d:65 c:58)"
+        status: todo
+        # Known gaps:
+        # 1. Routing is LLM-interpreted, not programmatic — correctness depends on model quality
+        # 2. Brainstorm vs default mode same scripts, differentiation is LLM judgment
+        # 3. Quick-capture 'must/should/always/never' heuristic is fragile
+        # 4. /go multi-feature sequencing has no priority logic
+        # 5. Speculative branching convergence has no threshold for noise vs signal
+        # 6. No agent error handling — no recovery when agents timeout or produce bad output
+
+      # ── INSTALL (64 → 80+) ─────────────────────────────
+      - id: install-80
+        question: "Does install eval 80+? Baseline: 64 (d:62 c:68)"
+        status: todo
+        # Known gaps:
+        # 1. Mind file symlink loop hardcodes 3 of 7 files — missing startup-patterns.md
+        # 2. Hooks NOT configured — install.sh validates hooks.json but never integrates into settings.json
+        # 3. Duplicate skill count check (lines 258, 296)
+        # 4. No end-to-end test that a skill actually routes through plugin system
+
+      # ── TODO (59 → 80+) ────────────────────────────────
+      - id: todo-80
+        question: "Does todo eval 80+? Baseline: 59 (d:62 c:55)"
+        status: todo
+        # Known gaps:
+        # 1. SCRIPT_DIR undefined — cmd_done graduation is dead code
+        # 2. todo-decay.sh looks for 'created_at:' but cmd_add writes 'created:' — decay misses items
+        # 3. No feature tag validation against rhino.yml
+        # 4. Awk regex ID matching — special chars silently corrupt file
+
+      # ── DOCS (64 → 80+) ────────────────────────────────
+      - id: docs-80
+        question: "Does docs eval 80+? Baseline: 64 (d:66 c:62)"
+        status: todo
+        # Known gaps:
+        # 1. Auto-revert claimed 3x but never demonstrated — killer feature with zero proof
+        # 2. Score formula hand-waved — no explanation of weights, confidence tiers
+        # 3. Assertions used before defined (line 61 before line 67)
+        # 4. 'How it works' and 'How the pieces fit' are redundant sections
+        # 5. ~15 uses of 'value' — repetitive without adding information
+
+      # ── Phase 2: Self-awareness ─────────────────────────
+      - id: self-awareness
+        question: "Does mind/self.md match measured reality within ±5 points on every feature, with no stale entries >7 days? Mechanically: diff self.md claims vs eval-cache.json — zero contradictions."
+        status: todo
+        # Self-awareness means: self.md accurately reports feature scores, known weaknesses,
+        # uncertain weaknesses, and unknown territory — all derived from eval-cache, predictions,
+        # and experiment-learnings, not manually written. A stranger reading self.md gets
+        # the same picture as running /eval themselves.
+
+      - id: knowledge-clean
+        question: "Is experiment-learnings.md <100 lines with zero tautological entries? Current: 199 lines, 35 noise lines ('Score reached target was 0+'), ~40 tautological auto-grades."
+        status: todo
+        # Mechanical test: grep for 'Score reached.*target was 0' returns 0.
+        # Every entry in Known Patterns cites ≥3 experiments with specific outcomes.
+        # Every entry in Uncertain Patterns has a 'Needs:' line with a specific next experiment.
+        # Unknown Territory has ≥5 entries reflecting actual unknowns from research.
+
+      - id: prediction-accuracy
+        question: "Is prediction accuracy ≥65% across ≥20 graded predictions with ≥3 falsified? Current: ~60% on ~16 graded, many unfalsifiable."
+        status: todo
+        # Mechanical test: predictions.tsv has ≥20 rows with non-empty 'correct' column.
+        # Count(correct=yes + correct=partial*0.5) / Count(graded) ≥ 0.65.
+        # Count(correct=no) ≥ 3 (system is exploring, not playing safe).
+        # No prediction accepted without a falsifiable 'I'd be wrong if' condition.
+
+      # ── Phase 3: External validation ────────────────────
+      - id: marketplace-submission
+        question: "Is rhino-os submitted to the Anthropic Claude Skills marketplace with 'continuous product intelligence' positioning?"
+        status: todo
+        # Submission requires: quality bar (DeepSeek precedent), positioning copy,
+        # demo evidence (self-improvement data as proof). Research confirmed
+        # submission form exists at claude.ai/settings/plugins/submit.
+
+      - id: trust-signal-visible
+        question: "Does the session boot card or /rhino dashboard show prediction accuracy as a visible metric? Founder sees 'model accuracy: 67% (20 graded)' without asking."
+        status: todo
+        # Mechanical test: session_start.sh output includes prediction accuracy line.
+        # /rhino skill output includes accuracy in the dashboard section.
+
+      - id: external-project-delta
+        question: "Does a project using rhino-os score ≥15 points higher after 3 sessions than its initial score? Measured on ≥2 external repos."
+        status: todo
+        # This is the scaffolding-beats-model evidence. Commander.js went 80→95.
+        # Need a second project. The delta must be from rhino-os intervention,
+        # not just time passing.
+
+      - id: category-resonance
+        question: "Does the README/landing copy use 'continuous product intelligence' and does the marketplace listing get ≥10 installs in first 30 days?"
+        status: todo
+        # Falsifiable: 30 days post-submission, check install count.
+        # If <10 installs, positioning doesn't resonate — test alternate framing.
+
+  # ── v10 unlocks (post-ceiling) ───────────────────────────
+  # Gated: only pursue when all Phase 1-2 evidence is proven.
+  # - Ambient intelligence: model-invoked Agent Skills triggered from context (Anthropic's direction)
+  # - Cross-project knowledge: patterns proven on 3+ projects promote to global intelligence
+  # - Distribution measurement: GTM scoring (87% of solo founders fail at distribution)
+  # - 1M context /go: autonomous sessions redesigned for Opus 4.6 14.5-hour capability
+  # - Plugin `agent` key: replace Claude Code default session agent — every conversation is measurement-aware
 
   # Version tiers: major (new thesis), minor (improvement within thesis), patch (bug fix/polish)
   # Future theses emerge from evidence. /roadmap ideate when ready.
