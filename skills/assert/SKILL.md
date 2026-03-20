@@ -13,27 +13,28 @@ Manage assertions in `lens/product/eval/beliefs.yml`. Add, remove, audit, sugges
 
 This skill is a **folder**, not just this file. Read on demand:
 
-- `scripts/assertion-stats.sh` — counts by type, pass rate, coverage gaps (zero context cost)
-- `scripts/belief-lint.sh` — validates beliefs.yml syntax, finds duplicates, checks mechanical-vs-llm ratio
-- `scripts/assertion-diff.sh` — what changed since last eval: new, newly passing, newly failing
 - `references/assertion-types.md` — all types with examples and when-to-use guidance
 - `references/writing-guide.md` — how to write good assertions (mechanical > llm_judge, specific > vague)
 - `templates/assertion-template.yml` — copy-paste template for each assertion type
 - `reference.md` — output formatting templates
 - `gotchas.md` — real failure modes. **Read before health/coverage/suggest modes.**
 
-## State artifacts
+Scripts (`assertion-stats.sh`, `belief-lint.sh`, `assertion-diff.sh`) exist as verification — run to cross-check your analysis, not as the primary path.
 
-Read in parallel at start (skip when missing):
+## State
 
-| Artifact | Path | Purpose |
-|----------|------|---------|
-| beliefs | `lens/product/eval/beliefs.yml` | All assertions |
-| rhino config | `config/rhino.yml` | Features, weights, code paths |
-| product spec | `config/product-spec.yml` | Assertions should test spec claims. Core loop works? First experience exists? Return trigger fires? |
-| eval cache | `.claude/cache/eval-cache.json` | Sub-scores for coverage mapping |
-| todos | `.claude/plans/todos.yml` | Graduation candidates |
-| assertion history | `.claude/evals/assertion-history.tsv` | Pass/fail trends |
+Read these directly — synthesize, don't delegate:
+
+| File | What it tells you |
+|------|-------------------|
+| `lens/product/eval/beliefs.yml` | All assertions: id, feature, type, severity, expected, path/command |
+| `config/rhino.yml` | Features, weights, code paths — for coverage mapping |
+| `config/product-spec.yml` | What the product claims — assertions should test these claims |
+| `.claude/cache/eval-cache.json` | Sub-scores — which features need more assertions |
+| `.claude/plans/todos.yml` | Graduation candidates (recurring todos → assertions) |
+| `.claude/evals/assertion-history.tsv` | Pass/fail trends — spot flapping, regressions |
+
+**You can read beliefs.yml directly.** Count assertions by feature and type. Check for duplicates by scanning ids. Compute mechanical-vs-llm ratio. Identify coverage gaps by cross-referencing features in rhino.yml. This is YOUR analysis work — scripts verify it.
 
 ## Routing
 
@@ -42,15 +43,15 @@ Parse `$ARGUMENTS`:
 | Pattern | Mode | Action |
 |---------|------|--------|
 | Contains `:` | quick-add | Parse `feature: belief text`, auto-detect type, append to beliefs.yml |
-| `list [feature]` | list | Run `scripts/assertion-stats.sh`, show grouped by feature with pass/fail |
+| `list [feature]` | list | Read beliefs.yml, group by feature, show type + pass/fail from eval-cache |
 | `check [id]` | check | Run single assertion via `rhino eval . --no-generative` |
 | `remove [id]` | remove | Anti-rationalization gate if failing, then remove |
 | `graduate [todo-id]` | graduate | Convert todo to assertion, show proposed, confirm |
-| `health` | health | Run `scripts/belief-lint.sh` + `scripts/assertion-stats.sh`, full diagnostic |
+| `health` | health | Read beliefs.yml — lint for duplicates, type distribution, mechanical-vs-llm ratio, coverage gaps per feature. Verify with `belief-lint.sh`. |
 | `coverage [feature]` | coverage | Dimension matrix: value/behavior/structure/regression/edge |
 | `suggest [feature]` | suggest | Read code + claims, generate 2-3 assertions for gaps |
-| `flapping` | flapping | Oscillating assertions from assertion-history.tsv |
-| `diff` | diff | Run `scripts/assertion-diff.sh`, show what changed |
+| `flapping` | flapping | Read assertion-history.tsv, find oscillating pass/fail patterns |
+| `diff` | diff | Read assertion-history.tsv, compare against beliefs.yml — what's new, newly passing, newly failing. Verify with `assertion-diff.sh`. |
 
 ### Quick-add details
 
@@ -134,6 +135,13 @@ When auto-detecting type, `llm_judge` is the fallback for beliefs that can't be 
 - Modify eval.sh or score.sh (immutable eval harness)
 - Graduate a todo without showing proposed assertion first
 - Suggest assertions for features not in rhino.yml
+
+## System integration
+
+**Reads:** beliefs.yml, rhino.yml, product-spec.yml, eval-cache.json, todos.yml, assertion-history.tsv
+**Writes:** `lens/product/eval/beliefs.yml` (add/remove/graduate)
+**Triggers:** /eval (after adding assertions), /todo (graduation candidates), /go (coverage tasks)
+**Triggered by:** "add a test", "assert", /plan coverage gaps, /eval weak features, /feature coverage analysis
 
 ## Error handling
 
