@@ -173,6 +173,11 @@ while IFS= read -r line; do
             GRADED_COUNT=$((GRADED_COUNT + 1))
             $QUIET || echo "  ⏰ \"${prediction:0:60}\" → expired (${pred_age_days}d, no signal)"
             continue
+        elif [[ "$pred_age_days" -ge 10 ]]; then
+            # Pre-expiration warning: prediction will expire in 4 days
+            $QUIET || echo "  ⚠ \"${prediction:0:60}\" → expiring in $((14 - pred_age_days))d — run /retro to grade manually"
+            echo "$line" >> "$TEMP_FILE"
+            continue
         fi
 
         # Can't auto-grade yet — pass through unchanged
