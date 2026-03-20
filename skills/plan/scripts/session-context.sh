@@ -205,7 +205,7 @@ echo "▸ git (last 10)"
 git -C "$PROJECT_DIR" log --oneline -10 2>/dev/null || echo "  (not a git repo)"
 echo ""
 
-# --- Knowledge model freshness ---
+# --- Knowledge model (actionable patterns for /plan) ---
 LEARNINGS="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
 [[ ! -f "$LEARNINGS" ]] && LEARNINGS="$HOME/.claude/knowledge/experiment-learnings.md"
 if [[ -f "$LEARNINGS" ]]; then
@@ -220,6 +220,7 @@ if [[ -f "$LEARNINGS" ]]; then
         fi
         echo "  age: ${AGE} days"
     fi
+
     echo ""
 else
     echo "▸ knowledge model"
