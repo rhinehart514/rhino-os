@@ -208,17 +208,27 @@ while IFS= read -r line; do
         *)       echo "$line" >> "$TEMP_FILE"; continue ;;
     esac
 
-    # Build model_update for ALL graded predictions (not just failures)
+    # Build model_update with MECHANISM, not tautology
+    # The model_update should explain WHY the prediction was right/wrong
     local_model_update=""
     case "$correct_val" in
         no)
-            local_model_update="Prediction missed target. Actual outcome: ${grade_detail}"
+            # Extract what was predicted vs what happened — the mechanism gap
+            local_model_update="Wrong: predicted '${prediction:0:50}' but ${grade_detail}. Model gap: prediction assumed wrong mechanism."
             ;;
         yes)
-            local_model_update="Confirmed: ${grade_detail}"
+            # Only write an update if the detail contains useful signal (not just "Score reached")
+            if [[ "$grade_detail" == *"Score reached"* && "$grade_detail" == *"target was 0+"* ]]; then
+                # Tautological — trivial target, no learning value
+                local_model_update=""
+            elif [[ "$grade_detail" == *"target was 0"* ]]; then
+                local_model_update=""
+            else
+                local_model_update="Confirmed: ${grade_detail} — mechanism held."
+            fi
             ;;
         partial)
-            local_model_update="Partially confirmed: ${grade_detail}"
+            local_model_update="Partial: ${grade_detail}. Mechanism was directionally correct but magnitude/timing was off."
             ;;
     esac
 
@@ -294,6 +304,29 @@ if [[ "$QUIET" == false ]]; then
     fi
 fi
 
-$DRY_RUN || consolidate_knowledge
+# --- Prediction quality gate: warn on vague predictions ---
+if [[ "$QUIET" == false && -f "$PRED_FILE" ]]; then
+    VAGUE_COUNT=0
+    while IFS=$'\t' read -r _date _agent _pred _evidence _result _correct _update; do
+        [[ -z "$_pred" ]] && continue
+        [[ -n "$_correct" ]] && continue  # already graded, skip
+        # Check for measurable target: numbers, percentages, or comparison operators
+        if ! echo "$_pred" | grep -qE '[0-9]+|→|raise|drop|increase|decrease|improve|decline|from .* to'; then
+            VAGUE_COUNT=$((VAGUE_COUNT + 1))
+            if [[ "$VAGUE_COUNT" -le 2 ]]; then
+                echo -e "  ⚠ Vague prediction: \"${_pred:0:60}\""
+                echo "    → Rewrite as: 'X will change from N to M because Y'"
+            fi
+        fi
+    done < <(tail -n +2 "$PRED_FILE")
+    if [[ "$VAGUE_COUNT" -gt 2 ]]; then
+        echo "  ⚠ ${VAGUE_COUNT} predictions lack measurable targets. Future predictions need numbers."
+    fi
+fi
+
+# Only consolidate when we actually graded something new this run
+if ! $DRY_RUN && [[ "$GRADED_COUNT" -gt 0 ]]; then
+    consolidate_knowledge
+fi
 
 detect_stale_entries

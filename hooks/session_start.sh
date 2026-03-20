@@ -456,6 +456,41 @@ if [[ -f "$PRED_FILE" ]]; then
     fi
 fi
 
+# --- Learning signals: surface wrong predictions as actionable intelligence ---
+if [[ -f "$PRED_FILE" ]]; then
+    WEEK_AGO_LS=$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d 2>/dev/null || echo "0000-00-00")
+
+    # Wrong predictions in last 7 days — suggest /plan target the weak area
+    WRONG_7D=$(tail -n +2 "$PRED_FILE" | awk -F'\t' -v d="$WEEK_AGO_LS" '$1 >= d && $6 == "no"' 2>/dev/null)
+    WRONG_7D_COUNT=$(echo "$WRONG_7D" | grep -c '.' 2>/dev/null || echo "0")
+    if [[ "$WRONG_7D_COUNT" -gt 0 ]]; then
+        # Extract areas from wrong predictions (first 4+ char keyword)
+        WRONG_AREAS=$(echo "$WRONG_7D" | awk -F'\t' '{print $3}' | grep -oE '[a-zA-Z_-]{4,}' | \
+            grep -viE '^(will|from|that|this|with|have|been|into|than|they|them|were|more|each|also|does|make|raise|drop|should|would|could|because|about|after|before|between|improve|increase|decrease|change|predict|prediction|target|score|eval|expect)$' | \
+            sort | uniq -c | sort -rn | head -3 | awk '{print $2}' | tr '\n' ', ' | sed 's/,$//')
+        if [[ -n "$WRONG_AREAS" ]]; then
+            echo -e "  ${C_RED}●${C_NC} ${WRONG_7D_COUNT} wrong prediction(s) this week in: ${WRONG_AREAS}"
+            echo -e "    ${C_DIM}→ /plan should target these areas — the model is wrong here${C_NC}"
+            HAS_ALERTS=true
+        fi
+    fi
+
+    # Dead ends relevant to current bottleneck — warn before rebuilding
+    LEARNINGS_LS="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$LEARNINGS_LS" ]] && LEARNINGS_LS="$HOME/.claude/knowledge/experiment-learnings.md"
+    if [[ -f "$LEARNINGS_LS" && -n "${NEXT_TASK:-}" ]]; then
+        # Extract first keyword from next task
+        TASK_KW=$(echo "$NEXT_TASK" | grep -oE '[a-zA-Z_-]{4,}' | head -1)
+        if [[ -n "$TASK_KW" ]]; then
+            DEAD_MATCH=$(awk '/^## Dead Ends/,0' "$LEARNINGS_LS" 2>/dev/null | grep -i "$TASK_KW" | head -1)
+            if [[ -n "$DEAD_MATCH" ]]; then
+                echo -e "  ${C_YELLOW}⚠${C_NC} Dead end near next task: ${DEAD_MATCH:0:70}"
+                HAS_ALERTS=true
+            fi
+        fi
+    fi
+fi
+
 # Experiment results stats
 RESULTS_TSV="$PROJECT_DIR/.claude/experiments/results.tsv"
 if [[ -f "$RESULTS_TSV" ]]; then

@@ -18,14 +18,23 @@ consolidate_knowledge() {
         [[ -z "$model_update" ]] && continue
         [[ -z "$_correct" ]] && continue
 
-        # Deduplicate: skip if first 60 chars already present (normalized)
-        local dedup_key="${model_update:0:60}"
+        # Deduplicate: skip if date + first 40 chars of update already present
+        local dedup_key="${_date}) ${model_update:0:40}"
         dedup_key=$(echo "$dedup_key" | tr -s ' ')  # normalize whitespace
         if grep -qF "$dedup_key" "$learnings_file" 2>/dev/null; then
             continue
         fi
+        # Also check without date prefix (catches reformatted entries)
+        local dedup_content="${model_update:0:50}"
+        dedup_content=$(echo "$dedup_content" | tr -s ' ')
+        if grep -qF "$dedup_content" "$learnings_file" 2>/dev/null; then
+            continue
+        fi
 
-        local entry="- **Auto-graded** (${_date}): ${model_update}"
+        # Skip empty model_updates (tautological predictions filtered upstream)
+        [[ -z "$model_update" || "$model_update" == "Confirmed: " ]] && continue
+
+        local entry="- (${_date}) ${model_update}"
 
         # Route to correct zone based on grading result
         case "$_correct" in

@@ -12,7 +12,7 @@
   - Boundary: Files >500 lines still truncated. score.sh is 979 lines.
 
 - **Score = min(dimensions) is non-obvious.** Three predictions assumed score was an average. It's min(structure, hygiene, product). One weak dimension floors everything.
-  - Evidence: 3 wrong predictions citing "average" formula.
+  - Evidence: 3 wrong predictions citing "average" formula. Confirmed again: taste at 40 floors everything.
 
 - **Bash 3 on macOS breaks associative arrays.** macOS ships bash 3.2. `declare -A` fails silently. All bash scripts must use indexed arrays or parallel arrays.
   - Evidence: init.sh crashed on HIVE until fixed (2026-03-14).
@@ -20,172 +20,46 @@
 - **Commands are the product, CLI is plumbing.** The slash commands (.claude/commands/*.md) are what users interact with. bin/ scripts serve them, not the other way around.
   - Evidence: Founder feedback (2026-03-14). All command upgrades focused on output templates.
 
+- **Tests pay for themselves.** Found 3 real bugs through testing (grep-c || echo pattern, pipefail + grep). These are recurring bash antipatterns in this codebase.
+  - Evidence: 2026-03-13 testing session.
+
+- **Universal structure checks break plateaus.** Density-based scoring works but must be project-type-aware. First iteration over-penalized CLI. Always test on multiple project types.
+  - Evidence: Structure score plateau broken 2026-03-13. CLI false positive caught same day.
+
 ## Uncertain Patterns (1-2 experiments, test again)
 
-- **Generative eval variance ~15 points.** Same feature scores differently on repeated runs. No temperature control, no rubric anchoring. Research confirmed 5 fixes exist (2026-03-14 research).
-  - Evidence: install.sh got real improvements (mind files + commands globally) but score dropped 62→58 in same session. Other features jumped +8-10 with no code changes.
-  - Needs: Implement temperature=0 + rubric-anchored prompt and measure variance reduction.
-  - Boundary: Single-run feature scores are NOT reliable for keep/revert decisions. Only overall score (which blends many signals) is stable enough.
+- **Generative eval variance ~15 points.** Same feature scores differently on repeated runs. Fixable: temperature=0 + structured output + rubric anchoring. Cost concern: API calls are paid vs claude -p being free.
+  - Evidence: install.sh dropped 62→58 despite real improvements. Other features jumped +8-10 with no code changes.
+  - Boundary: Single-run feature scores are NOT reliable for keep/revert decisions.
 
-- **Project-local vs global knowledge.** Just switched predictions.tsv and experiment-learnings.md from global to project-local. Unknown whether this improves or hurts cross-project learning.
+- **Project-local vs global knowledge.** Switched predictions.tsv and experiment-learnings.md from global to project-local. Unknown impact on cross-project learning.
   - Needs: Run 3+ sessions with project-local knowledge and compare prediction quality.
 
-- **Todo parsing is O(n²) with awk.** Each field read spawns a new awk process. Works for <10 items, slow for 30+.
-  - Needs: Pre-parse all items in one awk pass if performance becomes a problem.
+- **Named agent references are wasted — skills bypass them.** memory:user only on 1/6 agents. Agent teams completely unused despite native support.
+  - Needs: Audit which skills actually use named agent refs vs spawning generic agents.
 
+- **Code eval cannot measure visual-layer changes.** Need taste re-eval to verify visual predictions. Playwright MCP screenshot timeout is a blocker.
+  - Needs: Fix Playwright timeout or find alternative screenshot approach.
 
-- **Auto-graded** (2026-03-11): System built predictions without running experiments. The loop generates hypotheses but has no mechanism to force testing them. Prediction without experiment is journaling, not learning.
-- **Auto-graded** (2026-03-12): Research produced a hypothesis but no validation artifact. Competitive analysis ≠ user validation. The model was too confident in desk research.
-- **Auto-graded** (2026-03-13): Tiered penalty uses -gt (strictly greater), so 1:-3 means count must be ≥2. For single-instance detection need 0:-N tier. Current fix catches the worst cases but misses singletons. Density-based scoring would be better than absolute thresholds for varying codebase sizes.
-- **Auto-graded** (2026-03-13): Universal structure checks are high-value — they broke a real plateau. Density-based scoring works but must be project-type-aware: CLI console output ≠ web console.log pollution. First iteration over-penalized CLI; scoping density to web-only fixed it. The test project caught the bug before it shipped — always test on multiple project types.
-- **Auto-graded** (2026-03-13): Score calculation is not a simple average of dimensions. Structure is the bottleneck dimension and its weight in the final score is higher than expected. Need to understand the actual score formula.
-- **Auto-graded** (2026-03-13): Score = min(dimensions) confirmed. Predicted ~98 because I still didn't internalize that score = min, not avg. Hygiene 95 is now the floor. Also found and fixed a secondary bug: grep -c || echo 0 produces multiline values inside $().
-- **Auto-graded** (2026-03-13): Found 3 real bugs through testing. Tests pay for themselves by exposing issues in the tools being tested. The grep-c || echo pattern and pipefail + grep are recurring bash antipatterns in this codebase.
-- **Auto-graded** (2026-03-13): Score = min(all dimensions) confirmed again. Taste at 40 is the floor — no other dimension matters until taste moves. Structure 75 is legitimate codebase-scale debt, not dead ends. The 'dead ends, empty states' label in score output is misleading for large codebases.
-- **Auto-graded** (2026-03-14): Value measurement doesn't require users. It requires test fixtures (known-state repos) + trend tracking (score deltas across sessions) + time measurement (wall-clock to first improvement). The gap isn't "no users" — it's "no value assertions." New assertion types needed: score_trend, assertion_trend, session_continuity, value_velocity. These read history.tsv and predictions.tsv, not files.
-- **Auto-graded** (2026-03-14): Member return is a motivation problem, not a delivery problem. Notifications without drives are noise. Next experiment: wire one Octalysis drive (social influence) for members and measure return pull delta.
-- **Auto-graded** (2026-03-14): Context bar "always empty" was correct behavior (no data), not broken wiring. The exploration agent misdiagnosed the root cause (said elementType missing, it wasn't). Always verify subagent claims before acting.
-- **Auto-graded** (2026-03-14): Underestimated the impact. trend_for + per-feature change tracking addressed more complaints than expected. Score drop was caused by eval.sh changes (head-500 + JSON parsing) allowing generative results to cache and blend — a side effect, not a regression. The eval is now a real signal.
-- **Auto-graded** (2026-03-14): head-500 eliminated truncation false negatives for files under 500 lines. Remaining eval inaccuracy comes from: (1) JSON parsing failures in judge_feature, (2) genuine gaps the eval correctly identifies. The eval is now a useful signal, not noise.
-- **Auto-graded** (2026-03-14): The variance is entirely fixable with mechanical changes. Switch from claude -p to direct API with temperature=0 + structured output schema + rubric-anchored prompt. JSON parsing code becomes unnecessary. Cost concern: API calls are paid vs claude -p being free.
-- **Auto-graded** (2026-03-14): Lens system closer to skills registry than predicted. Hardcoded paths in score.sh and eval.sh are ONLY blockers to multi-lens. Multi-lens composition (two lenses scoring?) is the real design question. Distribution could be git repos.2026-03-14	cofounder	Marking test-external-project done + creating project-local knowledge will raise learning from 48 to 55+	Learning eval judges prediction/knowledge model presence. No local files exist.	untested
-- **Auto-graded** (2026-03-15): External project scoring validated. Init→score path works for strangers. LLM eval variance remains the dominant noise source — mechanical assertions are 28/28.
+- **Prediction without experiment is journaling, not learning.** System built predictions without running experiments. The loop generates hypotheses but has no mechanism to force testing them.
+  - Evidence: 2026-03-11 session. Research also produced hypotheses with no validation artifact (2026-03-12).
 
+- **Lens system closer to skills registry than predicted.** Hardcoded paths in score.sh and eval.sh are ONLY blockers to multi-lens. Distribution could be git repos.
+  - Needs: Design multi-lens composition (two lenses scoring same project?).
 
-- **Auto-graded** (2026-03-13): Score prediction wrong (100 vs 95). YAML parser is different-fragile, not simpler — sed/grep single-line extraction breaks on multi-line scalars and complex quoting. The determinism claim was aspirational, not tested.
-- **Auto-graded** (2026-03-14): Prediction was about an action that was never taken. The learning eval gap (infrastructure assertions, no value assertions) remains. Project-local knowledge is still a valid idea but was deprioritized.
-
-
-- **Auto-graded** (2026-03-17): Named agent references are wasted — skills bypass them. memory:user only on 1/6 agents. Agent teams completely unused despite native support.
-
-
-- **Auto-graded** (2026-03-17): Code eval cannot measure visual-layer changes. Need taste re-eval to verify prediction. Playwright MCP screenshot timeout is a blocker for taste measurement.
-
-
-- **Auto-graded** (2026-03-16): Confirmed: Committed: d0c3d02 feat: statusline shows '62% product complete' — ships with plugin, auto-configures
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-- **Auto-graded** (2026-03-17): Confirmed: Eval score 93 (target was 55)
-- **Auto-graded** (2026-03-17): Confirmed: Reached 93 (target was 10)
-
-
-- **Auto-graded** (2026-03-16): Partially confirmed: Took 3 sessions (predicted 2)
-- **Auto-graded** (2026-03-17): Confirmed: Completed in 1 days (predicted 45)
-
-
-- **Auto-graded** (2026-03-19): Partially confirmed: Strategy signal: Matches resolved strategy unknown:     result: "commander.js: init→score validated 2026-03-15. 80/100 on first init (6 features, 8/10 a
-
-
-- **Auto-graded** (2026-03-18): Confirmed: Score reached 88 (target was 78+)
-
-
-- **Auto-graded** (2026-03-18): Confirmed: Score 86 (target was 86, within 5pt margin)
-
-
-- **Auto-graded** (2026-03-18): Prediction missed target. Actual outcome: No improvement signal: Feature docs eval: score=67, delivery=71, trend=same
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
-
-
-- **Auto-graded** (2026-03-17): Confirmed: Score reached  (target was 0+)
+- **External project init→score works for strangers.** commander.js: 80/100 on first init, 6 features, 8/10 assertions.
+  - Evidence: 2026-03-15 validation. LLM eval variance remains dominant noise source — mechanical assertions 28/28.
 
 ## Unknown Territory (0 experiments, highest information value)
 
-- Can a non-founder complete the init → plan → go → eval loop?
+- Can a non-founder complete the init → plan → go → eval loop without getting stuck?
+- Does prediction accuracy actually correlate with product improvement over time?
+- Does cross-project knowledge transfer work? (e.g., patterns learned on HIVE help rhino-os)
+- Does "continuous product intelligence" resonate as category positioning?
+- What's the right balance between generative and belief assertions for honest scoring?
 - Do the output templates produce consistent output across different Claude sessions?
-- Does prediction accuracy correlate with product improvement?
-- What's the right balance between generative and belief assertions?
-- Does the pre_compact hook actually help context recovery?
+- Does the pre_compact hook actually help context recovery, or is compacted context sufficient?
+- Does the feedback loop (graded predictions → knowledge model → /plan recommendations) change what gets built?
 
 ## Dead Ends (confirmed failures)
 

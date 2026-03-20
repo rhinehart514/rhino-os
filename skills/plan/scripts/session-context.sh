@@ -6,7 +6,7 @@ set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RHINO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+RHINO_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Check dependencies
 source "$RHINO_DIR/bin/lib/check-deps.sh"
@@ -101,6 +101,35 @@ if [[ -f "$PRED_FILE" ]]; then
             echo "    $date: $pred"
             [[ -n "$update" ]] && echo "      update: $update"
         done
+    fi
+
+    # --- Prediction intelligence: model weakness detection ---
+    TWO_WEEKS_AGO=$(date -v-14d +%Y-%m-%d 2>/dev/null || date -d '14 days ago' +%Y-%m-%d 2>/dev/null || echo "0000-00-00")
+    WRONG_14D=$(tail -n +2 "$PRED_FILE" | awk -F'\t' -v d="$TWO_WEEKS_AGO" '$1 >= d && $6 == "no"' 2>/dev/null)
+    WRONG_14D_COUNT=$(echo "$WRONG_14D" | grep -c '.' 2>/dev/null || echo "0")
+    if [[ "$WRONG_14D_COUNT" -ge 2 ]]; then
+        # Group wrong predictions by area (extract keywords)
+        echo "  model_weaknesses:"
+        echo "$WRONG_14D" | awk -F'\t' '{print $3}' | grep -oE '[a-zA-Z_-]{4,}' | \
+            grep -viE '^(will|from|that|this|with|have|been|into|than|they|them|were|more|each|also|does|make|raise|drop|should|would|could|because|about|after|before|between|improve|increase|decrease|change|predict|prediction|target|score|eval|expect)$' | \
+            sort | uniq -c | sort -rn | head -5 | while read -r cnt kw; do
+            if [[ "$cnt" -ge 2 ]]; then
+                echo "    ⚠ model wrong about '$kw' ($cnt times in 14d) — DO NOT trust assumptions about $kw"
+            fi
+        done
+    fi
+
+    # --- Dead ends check: block re-proposing failed approaches ---
+    LEARNINGS_SC="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$LEARNINGS_SC" ]] && LEARNINGS_SC="$HOME/.claude/knowledge/experiment-learnings.md"
+    if [[ -f "$LEARNINGS_SC" ]]; then
+        DEAD_ENDS=$(awk '/^## Dead Ends/,0' "$LEARNINGS_SC" 2>/dev/null | grep '^\s*- \*\*' | head -5)
+        if [[ -n "$DEAD_ENDS" ]]; then
+            echo "  dead_ends (do NOT re-propose):"
+            echo "$DEAD_ENDS" | while IFS= read -r de; do
+                echo "    $de"
+            done
+        fi
     fi
     echo ""
 else
