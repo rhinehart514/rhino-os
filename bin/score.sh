@@ -169,7 +169,7 @@ if [[ "$FORCE" != true && -f "$CACHE_FILE" ]]; then
     # Invalidate cache if any project file changed since the cache was written.
     # Uses find to check for files newer than the cache in likely source dirs.
     cache_stale=false
-    for _dir in bin src app commands config mind lens; do
+    for _dir in bin src app commands config mind lens lib utils types server pages skills hooks; do
         if [[ -d "$_dir" ]]; then
             if find "$_dir" -type f -newer "$CACHE_FILE" -print -quit 2>/dev/null | grep -q .; then
                 cache_stale=true
@@ -1209,7 +1209,8 @@ EOF
         if [[ -n "$_ceiling" ]]; then
             echo ""
             if [[ "$local_min" -ge "$_ceiling" ]]; then
-                echo -e "  \033[1;33m⚠\033[0m Score at/above ${local_stage} stage ceiling (${_ceiling}). Verify or advance stage in rhino.yml."
+                echo -e "  \033[0;32m▲\033[0m \033[1mScore ${local_min} exceeds ${local_stage} ceiling (${_ceiling})\033[0m — ready to advance stage?"
+                echo -e "    \033[2mUpdate project.stage in config/rhino.yml if product has genuinely leveled up.\033[0m"
             else
                 echo -e "  \033[2mstage: ${local_stage} · ceiling: ${_ceiling}\033[0m"
             fi
