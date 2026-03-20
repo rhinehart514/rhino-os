@@ -16,12 +16,13 @@ Most dev tools measure bottom-up: health → craft → maybe value. rhino-os mea
 
 This applies to any product surface — web UI, CLI output, API responses, docs. The evidence changes. The question doesn't.
 
-**How they map to tools:**
-- `rhino score .` → Health (structural lint: build, structure, hygiene)
-- `/taste flows` → Delivery (does the product work end-to-end? behavioral audit — web, CLI, or API)
-- `/taste` → Craft (product surface intelligence — visual for web, output quality for CLI, response design for API)
-- `rhino eval .` → Value (delivery + craft per feature from code analysis — includes user understanding, not just code completeness)
+**How they map to skills:**
 - `/score` → **Unified** (orchestrates all tiers + agent-backed viability into one number)
+- `/eval` → Value (delivery + craft per feature from code analysis — includes user understanding, not just code completeness)
+- `/taste` → Craft (product surface intelligence — visual for web, output quality for CLI, response design for API)
+- `/taste flows` → Delivery (does the product work end-to-end? behavioral audit — web, CLI, or API)
+
+Skills call internal CLI tools (`rhino score .`, `rhino eval .`) as plumbing — those are not the product surface.
 
 `/score` is the authoritative product quality number. It composes health + eval + taste + flows + viability (via market-analyst and customer agents). Each tier runs independently; /score synthesizes.
 

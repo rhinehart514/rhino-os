@@ -4,13 +4,16 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 
 ## Capabilities
 
-### Measurement Stack
+### Measurement Stack (Skills)
 - `/score` — **unified product quality score**. Orchestrates all tiers: health + code eval + visual taste + behavioral flows + agent-backed viability. The authoritative "is this good?" number. Status: operational (v9.3).
-- `rhino score .` — health tier (structural lint, build gate). Fast, free, every change. Used internally by /score.
-- `rhino eval .` — code eval tier (delivery + craft per feature). LLM judges claim vs code. Viability removed — now scored by /score via agents. Status: operational.
+- `/eval` — code eval tier (delivery + craft per feature). LLM judges claim vs code. Viability removed — now scored by /score via agents. Status: operational.
 - `/taste <url>` — visual tier. Product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Status: operational.
 - `/taste <url> flows` — behavioral tier. Frontend delivery audit via Playwright MCP. 6-layer checklist. Status: operational.
-- `rhino tier` — maturity tier router. Determines project tier (fix/deepen/strengthen/expand/mature) from score + eval data. Consumed by /plan, /go, session hook. Status: operational.
+
+### Internal Tooling (CLI — used by skills and scripts)
+- `rhino score .` — health tier (structural lint, build gate). Fast, free, every change. Called internally by /score.
+- `rhino eval .` — assertion runner. Called internally by /eval.
+- `rhino tier` — maturity tier router. Determines project tier from score + eval data. Consumed by /plan, /go, session hook. Status: operational.
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
 ### Skills (the product surface)
@@ -95,7 +98,7 @@ Bump auto-detection: thesis changed → major, new features/evidence → minor, 
 ## What I Would Change About Myself
 - The learning feature should be the smartest part of the system. It's the worst.
 - Skills should read state uniformly — right now /plan reads 9 sources, /eval reads 2.
-- The CLI (bin/) should serve the skills, not the other way around. Skills are the product.
+- The CLI (bin/) is internal plumbing — skills are the product surface. This inversion is now documented but not fully enforced in code.
 - Mind files are loaded but never validated — no mechanism to check if they actually influenced behavior.
 
 ## Available MCP Tools

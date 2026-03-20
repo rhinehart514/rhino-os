@@ -1,6 +1,6 @@
 ---
 name: money
-description: "Use when you need financial modeling, pricing strategy, unit economics, or runway analysis. The business model in your terminal."
+description: "Use when the user needs pricing strategy, unit economics, runway analysis, or channel evaluation — evidence-grounded financial modeling"
 argument-hint: "[price|runway|unit-economics|channels|model]"
 allowed-tools: Read, Bash, Grep, Glob, WebSearch, WebFetch, Agent, AskUserQuestion
 ---
@@ -125,6 +125,25 @@ See `reference.md` for mode-specific templates. Every output ends with:
 **There is no cap on task count.** A project with no pricing at all might need 10+ tasks. Generate all of them.
 
 After analysis, show: "Generated N tasks across M financial gaps. Most critical: [gap]."
+
+## Self-evaluation
+
+The skill worked if:
+- Every number has a cited source or is explicitly marked "estimate"
+- Pricing recommendations are stage-appropriate (no unit economics at stage one)
+- Decisions were written to rhino.yml pricing section
+- Tasks were generated for every financial gap found
+
+## Agent cost note
+
+Full model, channels, and pricing modes spawn both **gtm** (opus, background) and **market-analyst** (opus, background) -- two opus agents running in parallel. Runway and unit-economics modes spawn only gtm. If market-context.json is fresh (<7d), consider skipping market-analyst to save tokens.
+
+## Gotchas
+
+- Financial projections are estimates, not forecasts. Every number the agents produce is bounded by the quality of inputs (which are often zero at stage one).
+- GTM agent tends toward optimistic TAM -- cross-check with stage-appropriate expectations from `references/pricing-guide.md`.
+- If no features score 50+, financial modeling is premature. The skill should flag this and redirect to building.
+- `money-history.json` grows without pruning. Old pricing strategies may confuse the narrative if the product pivoted.
 
 ## What you never do
 

@@ -1,6 +1,6 @@
 ---
 name: assert
-description: "Use when adding, checking, or removing assertions — chat-native beliefs.yml editing"
+description: "Use when the user wants to add, check, remove, or audit assertions — chat-native beliefs.yml management including coverage analysis and graduation from todos"
 argument-hint: "[feature: belief text] or [list|check|remove|graduate|health|coverage|suggest|flapping] [id|feature]"
 allowed-tools: Read, Write, Bash, Edit, Grep
 ---
@@ -113,6 +113,18 @@ Flag during any mode:
 **There is no cap on task count.** A project with 7 features and thin coverage might need 25 assertion tasks. Generate all of them.
 
 After writing tasks, show: "Generated N assertion tasks across M features. Worst coverage: [feature] with [N] assertions needs [X] more."
+
+## Self-evaluation
+
+The skill worked if:
+- **Quick-add**: assertion was appended to beliefs.yml with no duplicate ids and correct type detection
+- **Suggest**: generated assertions that fill actual coverage gaps (not duplicates of existing assertions)
+- **Health/coverage**: dimension matrix was rendered AND tasks were generated for every gap
+- **All modes**: anti-rationalization checks fired when applicable (failing removal, weak coverage)
+
+## llm_judge confidence
+
+When auto-detecting type, `llm_judge` is the fallback for beliefs that can't be mechanically verified. It has lower confidence than mechanical types: LLM judges produce ~15-point variance across runs. Prefer `file_check`, `content_check`, `command_check`, or `score_trend` whenever possible. If a quick-add defaults to `llm_judge`, flag it: "This belief will be LLM-judged (variable confidence). Can it be rewritten as a mechanical check?"
 
 ## What you never do
 

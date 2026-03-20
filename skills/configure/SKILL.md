@@ -1,6 +1,6 @@
 ---
 name: configure
-description: "Tune rhino-os behavior — agent models, output verbosity, /go gates. One place to change everything."
+description: "Use when the user wants to tune rhino-os behavior — agent models, output verbosity, /go gates, or view current configuration"
 argument-hint: "[show|agents|output|go|reset]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion
 context: fork
@@ -40,7 +40,10 @@ Display all current settings with behavioral explanations. Show which values com
 ## Route: agents
 
 Interview via AskUserQuestion. Two questions:
-1. **Cost tier** — economy/balanced/premium. See `references/config-reference.md` for the agent model mapping.
+1. **Cost tier** — economy/balanced/premium. Model mapping:
+   - **economy**: haiku/sonnet for all agents (cheapest)
+   - **balanced** (default): opus for builder/evaluator/market-analyst, sonnet for explorer/grader/debugger/refactorer, haiku for measurer/reviewer
+   - **premium**: opus/sonnet for all agents (most capable)
 2. **Autonomy** — supervised/autonomous/full-auto.
 
 Write to `~/.claude/preferences.yml`. Merge, don't overwrite. Show resolved agent models.
@@ -60,6 +63,20 @@ Write to preferences.yml.
 ## Route: reset
 
 Confirm via AskUserQuestion. Delete preferences.yml. Show defaults.
+
+## Self-evaluation
+
+The skill worked if:
+- **Show**: all settings displayed with source (preferences vs rhino.yml default) and behavioral explanation
+- **Agents/output/go**: preference was written to `~/.claude/preferences.yml` via merge (not overwrite)
+- **Reset**: confirmation was obtained AND preferences.yml was deleted
+- **All modes**: resolved values match what the config-reference.md documents for that tier
+
+## Gotchas
+
+- **preferences.yml merge, not overwrite**: writing a single key must preserve all other keys. Read the file first, merge, then write.
+- **Config not taking effect**: preferences.yml keys must match the exact nesting documented in `references/config-reference.md`. A typo silently falls back to defaults.
+- **Fork constraint**: this skill uses `context: fork` so it runs as a subagent. It cannot spawn additional agents. All work must be done inline.
 
 ## What you never do
 

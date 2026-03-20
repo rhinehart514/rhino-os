@@ -1,6 +1,6 @@
 ---
 name: todo
-description: "Use when managing backlog items — capture, tag, prioritize, promote, decay"
+description: "Use when the user wants to manage backlog items — capture, tag, prioritize, promote, decay, or review backlog health"
 argument-hint: "[add \"title\"|done <id>|promote <id>|active|health|decay]"
 allowed-tools: Read, Bash, Edit, Grep, Glob, AskUserQuestion
 ---
@@ -105,6 +105,14 @@ For output templates: `reference.md`
 **There is no cap.** A backlog with 30 items might need 10 meta-tasks. Generate them.
 
 After showing the backlog, show: "Backlog health: N meta-tasks generated. [summary of worst issue]."
+
+## Self-evaluation
+
+The skill worked if:
+- **Add**: item was written to todos.yml with auto-tags and no duplicate ids
+- **Done**: graduation check ran and meta-tasks were generated if patterns detected
+- **Show/health**: decay check ran, stale items were surfaced, smart promote fired when 0 active items
+- **All modes**: meta-tasks were generated for every backlog health issue found
 
 ## What you never do
 

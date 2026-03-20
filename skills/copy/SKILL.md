@@ -1,6 +1,6 @@
 ---
 name: copy
-description: "Use when you need product copy — landing pages, pitch, onboarding text, release notes. Positioning-aware, customer-grounded, design-system-aligned."
+description: "Use when the user needs product copy — landing pages, pitch, onboarding text, release notes, or empty-state guidance. Positioning-aware and customer-grounded."
 argument-hint: "[landing|pitch|outreach|release|onboard|empty-states|\"write copy for...\"]"
 allowed-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, Agent, AskUserQuestion
 ---
@@ -124,6 +124,23 @@ See `reference.md` for mode-specific templates. Every output ends with:
 **There is no cap on task count.** A product with no copy strategy might need 20+ tasks. Generate all of them.
 
 After copy generation, show: "Generated N copy tasks. [M] slop issues, [X] positioning gaps, [Y] coverage gaps."
+
+## Self-evaluation
+
+The skill worked if:
+- Copy names a specific person (not "developers" or "teams")
+- Copy states a tangible outcome (not "improve your workflow")
+- Copy differentiates from a named alternative
+- `slop-check.sh` returned 0 slop words
+- Tasks were generated for every copy gap found
+
+## Agent cost note
+
+`/copy` spawns a **copywriter** agent (opus). For `landing` and `pitch` modes, it also spawns **market-analyst** (opus, background) for competitive messaging. Two opus agents = significant token cost. For quick internal copy (empty-states, onboard), consider skipping the market-analyst.
+
+## Quality gate latency
+
+The mandatory quality gate (Step 4) pipes generated copy through `slop-check.sh` and rewrites on failure. This adds a round-trip per copy block. For batch modes (empty-states), expect multiple rewrites. The gate is non-negotiable -- slop copy is worse than slow copy.
 
 ## What you never do
 

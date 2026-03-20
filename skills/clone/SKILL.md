@@ -1,6 +1,6 @@
 ---
 name: clone
-description: "Use when reproducing a design from a URL using your framework and design tokens"
+description: "Use when the user wants to reproduce a design from a URL — screenshot, decompose into components, generate using project framework and design tokens"
 argument-hint: "<url> [verify|mobile|section <name>|history]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, WebFetch, AskUserQuestion, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_resize, mcp__playwright__browser_navigate, mcp__playwright__browser_wait_for, mcp__playwright__browser_snapshot
 ---
@@ -59,7 +59,23 @@ Clone one section from the page. Parse `<url> section <name>`. Capture full page
 
 ## Route: history
 
-Read `.claude/cache/clone-history.json`. Display each entry: date, domain, components, compliance %, verification status.
+Read `.claude/cache/clone-history.json`. Each entry contains: `date`, `url`, `domain`, `components` (array of generated component names), `compliance_pct` (token compliance 0-100), `verified` (boolean), `viewports` (array of screenshot sizes). Display as: date, domain, component count, compliance %, verification status. See `reference.md` for the history output template.
+
+## Self-evaluation
+
+The skill worked if:
+- Generated components use design tokens (not hardcoded hex/px)
+- Token compliance >= 80% (auto-fix fires below this)
+- Components are decomposed (not a single monolithic file)
+- clone-history.json was updated with the operation
+- For verify: side-by-side comparison was rendered at both viewports
+
+## Gotchas
+
+- **SPAs with client-side rendering**: `browser_snapshot` may capture a loading state. Add `browser_wait_for` targeting a visible content element before screenshotting.
+- **Auth-gated pages**: Playwright runs headless with no session. Clone only works on public URLs unless you manually handle auth via `browser_fill_form`.
+- **Design-system drift**: if the project's design tokens changed since the last clone, previously "compliant" components may now have stale tokens. Re-run with `verify` after design system updates.
+- **Large pages**: decomposition of 10+ sections produces many components. Use `section` mode to clone incrementally.
 
 ## What you never do
 

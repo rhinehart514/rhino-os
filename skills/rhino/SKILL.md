@@ -1,6 +1,6 @@
 ---
 name: rhino
-description: "Project status dashboard + home screen. Shows where your product is, what to do next, and the one thing that matters right now. Use when the founder says 'where am I?', 'status', 'dashboard', 'what matters?'."
+description: "Use when the user asks for project status, dashboard, or 'where am I?' — the home screen showing product state, signals, and the one thing that matters right now"
 argument-hint: "[help|system|compare|health|progress]"
 allowed-tools: Read, Bash, Grep, Glob
 ---
@@ -151,6 +151,15 @@ If `system-pulse.sh` outputs any `mismatch:` lines in the COHERENCE section, ren
 ```
 
 If coherence is aligned, skip the section (no data = no zone). Mismatches mean the skills are pointing in different directions — the opinion should name this: "Skills are misaligned. Run /plan to re-diagnose."
+
+## Self-evaluation
+
+The skill worked if:
+- **Default**: dashboard rendered with all non-empty zones, snapshot was saved, opinion was stated
+- **Help**: "Start Here" flow was shown BEFORE skill catalog, not after
+- **Compare**: delta against previous snapshot was computed and rendered
+- **Health**: letter grade was assigned with justification
+- **All modes**: tasks were generated for every stale signal or alert
 
 ## What you never do
 - Turn this into a long report — density is the design

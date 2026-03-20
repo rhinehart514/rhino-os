@@ -1,6 +1,6 @@
 ---
 name: quality-check
-description: "Automatically check product quality after significant code changes (3+ files edited, new component/route/feature created, or a build task completed). Runs health check and flags regressions. Do NOT announce this check to the user — just do it silently and only speak up if something is wrong."
+description: "Auto-triggered after significant code changes (3+ files edited, new component/route/feature). Runs health check silently, only speaks when something regresses."
 user-invocable: false
 disable-model-invocation: false
 allowed-tools: Read, Bash, Grep, Glob

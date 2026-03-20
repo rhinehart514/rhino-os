@@ -1,6 +1,6 @@
 ---
 name: feature
-description: "Use when defining, viewing, or detecting features and their maturity"
+description: "Use when the user wants to define, view, detect, or improve features — including maturity tracking, sub-scores, and feature-specific ideation"
 argument-hint: "[name|new|detect] [name]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion, WebSearch, Agent
 ---
@@ -60,7 +60,7 @@ When `[name] ideate` is triggered, this is NOT a lightweight brainstorm. It's a 
 
 **Read `references/improvement-protocol.md` for the full method.** Summary:
 
-1. **Gather context** (parallel): Run `scripts/feature-ideate.sh [project] [feature]` → structured evidence. Also read the feature's actual code files (from rhino.yml `code:` field).
+1. **Gather context** (parallel): Run `scripts/feature-ideate.sh [project] [feature]` (dedicated ideation script -- not evidence-scan.sh) → structured evidence. Also read the feature's actual code files (from rhino.yml `code:` field).
 2. **Check accumulated intelligence**: Run `skills/plan/scripts/intelligence-query.sh [project] [feature]` → past research, market context, customer intel, past ideas for this feature.
 3. **Diagnose the gap**: Name what's broken — delivery (doesn't work), craft (works but rough), or viability (works but who cares?). Cite sub-scores.
 4. **Generate 3-5 improvement prescriptions**: Each uses the improvement brief structure (see `references/improvement-protocol.md`). Specific element, specific change, 2+ options, predicted impact on sub-scores, reference to best-in-class products.
@@ -114,6 +114,19 @@ See `../shared/task-generation.md` for the task generation protocol. /feature ge
 - Features that should be killed (no progress, low weight, no thesis connection) → task: "Consider killing feature [X] — run /ideate kill"
 
 Tag with `source: /feature`, feature name, and gap type (blocked/maturity/coverage/weight/lifecycle). Priority: highest-weight features with lowest scores first.
+
+## Self-evaluation
+
+The skill worked if:
+- **List view**: every active feature shows sub-scores and a maturity label consistent with eval-cache
+- **Detail view**: the feature's delivery/craft/viability breakdown is shown with actionable verdict
+- **Ideate**: produced 3-5 buildable prescriptions (not generic advice) with predicted score impact
+- **New/detect**: feature was written to rhino.yml AND baseline eval was triggered
+- **All modes**: tasks were generated for every gap found and written to /todo
+
+## Agent cost note
+
+`/feature [name] ideate` may spawn two agents: **explorer** (sonnet, traces code paths) and **market-analyst** (opus, background, researches competitors). The market-analyst is the expensive one -- skip it if the feature is internal-only or the market context is already fresh (<7d).
 
 ## What you never do
 

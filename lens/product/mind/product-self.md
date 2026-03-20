@@ -3,8 +3,13 @@
 Product-specific measurement details and unknowns.
 
 ## Product Measurement Stack
-- `rhino score .` — structural lint for web products. Checks dead ends (pages with no outbound links), empty states without CTAs, IA audit, `:any` types, console.log in TSX, unused imports, lint overrides. Status: operational.
-- `/taste <url>` — visual product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Market-calibrated, persistent memory, auto-creates todos, self-improving. Status: operational. Legacy CLI: `rhino taste` (1-5 scale, backward compat).
+
+Skills are the product surface. CLI tools (`rhino score .`, `rhino eval .`) are internal plumbing that skills invoke.
+
+- `/score` — unified product quality orchestrator. Synthesizes all tiers into one authoritative number per feature. The skill founders interact with.
+- `/taste <url>` — visual product intelligence via Playwright MCP + Claude Vision. 11 dimensions, 0-100 scale. Market-calibrated, persistent memory, auto-creates todos, self-improving. Status: operational.
+- `/eval` — code eval skill. Delivery + craft per feature (Claude judges claim vs code). Spawns evaluator agents per feature.
+- `rhino score .` — structural lint (internal). Checks dead ends, empty states without CTAs, IA audit, `:any` types, console.log in TSX, unused imports, lint overrides. Called by `/score`.
 - DOM eval (`dom-eval.mjs`) — mechanical DOM checks: contrast ratio, click target size, heading hierarchy, visual distinctiveness. Requires dev server.
 - Copy eval (`copy-eval.mjs`) — headline clarity, value prop specificity, positioning. Requires dev server.
 - Blind eval (`blind-eval.mjs`) — Playwright task completion tests. Requires dev server.

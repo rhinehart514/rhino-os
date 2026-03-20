@@ -1,6 +1,6 @@
 ---
 name: skill
-description: "Use when creating new skills, managing existing ones, auditing skill quality, or checking overlap. The skill lifecycle manager."
+description: "Use when the user wants to create, inspect, audit, or remove skills — the skill lifecycle manager including quality tiers and overlap detection"
 argument-hint: "[list|create <name>|install <url>|remove <name>|info <name>|health|audit|overlap <name>]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
 ---
@@ -91,6 +91,14 @@ Use templates from `reference.md`. Every output ends with 3 next commands.
 **There is no cap on task count.** An audit of 21 skills might generate 50+ tasks. Generate all of them.
 
 After writing tasks, show: "Generated N tasks across M skills. [X] stubs, [Y] thin, [Z] thick. Worst: [skill] needs [N] tasks."
+
+## Self-evaluation
+
+The skill worked if:
+- **Create**: skill folder was created with SKILL.md + reference.md + gotchas.md, wired into rhino.yml, and baseline assertions were seeded
+- **Audit**: every skill got a quality grade AND tasks were generated for every gap
+- **Health**: tier classification (thick/thin/stub/dead) was computed for all skills
+- **All modes**: tasks were written to /todo for every quality gap found
 
 ## What you never do
 

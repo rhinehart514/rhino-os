@@ -1,6 +1,6 @@
 ---
 name: calibrate
-description: "Ground taste evals in reality — founder preferences, design system extraction, anti-slop profiling, competitive visual landscape, current design trends. The subjective lens that makes taste honest."
+description: "Use when the user wants to ground taste evals in reality — founder preferences, design system extraction, anti-slop profiling, or competitive visual landscape research"
 argument-hint: "[profile|design-system|anti-slop|market|refresh|verify|drift]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebSearch, WebFetch, Agent, mcp__playwright__browser_navigate, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_snapshot, mcp__playwright__browser_wait_for, mcp__playwright__browser_click, mcp__playwright__browser_hover, mcp__playwright__browser_resize, mcp__playwright__browser_evaluate, mcp__playwright__browser_install
 ---
@@ -106,7 +106,9 @@ Read `references/slop-taxonomy.md` first. Then:
 
 ### Quick mode (2 minutes, no interview)
 
-The fast path for first-time users who want to run `/taste` without a full calibration session. Gets partial calibration (cap 80 instead of 70) with zero founder input.
+The fast path for first-time users who want to run `/taste` without a full calibration session. Gets partial calibration (cap 80) with zero founder input.
+
+**Why cap 80:** The `/taste` skill enforces calibration-based score caps: 0 artifacts = cap 70, 1-2 artifacts (partial) = cap 80, 3+ artifacts (full) = no cap. Quick mode produces exactly 2 artifacts (design-system + anti-slop), so it reaches the partial tier. The cap prevents inflated scores from evals that lack founder preference data and competitive context.
 
 1. Run `bash scripts/extract-design-system.sh` — mechanical token extraction
 2. Read `references/slop-taxonomy.md` — use universal taxonomy (no WebSearch needed)
@@ -178,6 +180,23 @@ Calibration discovers gaps. Those gaps are ideation fuel.
 
 **After full calibration:**
 - Always suggest: "Run `/taste <url>` to see how the product scores with calibrated eyes. Then `/ideate` to act on what you find."
+
+## Self-evaluation
+
+The skill worked if:
+- **Profile**: `founder-taste.md` contains specific product references (not generic preferences)
+- **Design-system**: `.claude/design-system.md` contains actual hex values and spacing scales from the codebase
+- **Anti-slop**: `.claude/cache/anti-slop.md` has category-specific detection rules (not just the universal list)
+- **Market**: `taste-market.json` has 3+ competitors with specific strengths/weaknesses
+- **Quick**: exactly 2 artifacts produced, taste cap reported as 80
+- **All modes**: `calibration-history.json` was appended to
+
+## Gotchas
+
+- **Design system extraction from CSS-in-JS**: `extract-design-system.sh` works best with tailwind.config or CSS variables. Styled-components or emotion tokens require manual code inspection in step 2.
+- **Market mode without Playwright**: falls back to WebSearch-only, which produces text descriptions instead of visual comparisons. The competitive landscape analysis is weaker without screenshots.
+- **Stale calibration is worse than no calibration**: a 60-day-old market snapshot actively misleads taste scores. Refresh mode exists for this reason -- use it.
+- **Profile mode interview quality**: vague founder answers ("I like clean design") produce useless calibration. The interview protocol pushes for specifics, but the output quality is bounded by input specificity.
 
 ## What you never do
 

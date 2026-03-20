@@ -2,7 +2,7 @@
 
 Research findings from deep dive into Claude Code's extension system. This is the map of what's possible — not what rhino-os currently uses, but what it COULD use.
 
-Last updated: 2026-03-15
+Last updated: 2026-03-20
 
 ---
 
@@ -78,12 +78,9 @@ hooks: {}                                 # lifecycle hooks
 
 ### Key Features We're NOT Using
 
-- **`memory: user`** — persistent cross-session learning for agents. An agent that LEARNS your codebase patterns over time. Native to Claude Code — no manual experiment-learnings.md needed per agent.
-- **`skills` preloading** — agents can have skills pre-loaded. A builder agent with design-system + error-handling skills auto-loaded.
-- **`isolation: worktree`** — agents work in isolated git worktrees. Safe parallel work. Code generation doesn't touch your working tree until you merge.
-- **`maxTurns`** — prevent runaway agents. Set a ceiling on how long an agent can work.
 - **`permissionMode: bypassPermissions`** — fully autonomous agents that don't ask for permission. Dangerous but powerful for trusted loops.
-- **`background: true`** — agents run concurrently while you keep working.
+
+**Now in use:** `memory: user` (all 14 agents), `skills` preloading (builder, explorer, evaluator, reviewer, refactorer, grader), `isolation: worktree` (builder, refactorer), `maxTurns` (all agents), `background: true` (explorer, market-analyst, customer, gtm).
 
 ### Agent Locations (priority)
 
@@ -122,27 +119,27 @@ Shell commands, HTTP endpoints, LLM prompts, or agents that execute at lifecycle
 |-------|-----------|------|----------------|
 | `SessionStart` | No | Session begins/resumes | YES |
 | `InstructionsLoaded` | No | CLAUDE.md or rules loaded | no |
-| `UserPromptSubmit` | Yes | User submits prompt | no |
-| `PreToolUse` | Yes | Before tool execution | no |
+| `UserPromptSubmit` | Yes | User submits prompt | YES |
+| `PreToolUse` | Yes | Before tool execution | YES |
 | `PermissionRequest` | Yes | Permission dialog appears | no |
-| `PostToolUse` | No | After tool succeeds | no |
+| `PostToolUse` | No | After tool succeeds | YES |
 | `PostToolUseFailure` | No | After tool fails | no |
 | `Notification` | No | Notification sent | no |
-| `SubagentStart` | No | Subagent spawned | no |
+| `SubagentStart` | No | Subagent spawned | YES |
 | `SubagentStop` | Yes | Subagent finishes | YES |
 | `Stop` | Yes | Claude finishes responding | YES |
 | `TeammateIdle` | Yes | Agent team teammate about to idle | no |
-| `TaskCompleted` | Yes | Task marked complete | no |
+| `TaskCompleted` | Yes | Task marked complete | YES |
 | `ConfigChange` | Yes | Config file changes | no |
 | `WorktreeCreate` | Yes | Worktree created | no |
 | `WorktreeRemove` | No | Worktree removed | no |
 | `PreCompact` | No | Before context compaction | YES |
-| `PostCompact` | No | After compaction | no |
+| `PostCompact` | No | After compaction | YES |
 | `Elicitation` | Yes | MCP server requests user input | no |
 | `ElicitationResult` | Yes | User responds to MCP elicitation | no |
-| `SessionEnd` | No | Session terminates | no |
+| `SessionEnd` | No | Session terminates | YES |
 
-**We use 8 of 22 events.** 14 untapped.
+**We use 11 of 22 events.** 11 untapped.
 
 ### Four Hook Handler Types
 
@@ -153,13 +150,9 @@ Shell commands, HTTP endpoints, LLM prompts, or agents that execute at lifecycle
 
 ### Powerful Patterns We're NOT Using
 
-- **`PreToolUse`** — can MODIFY tool inputs via `updatedInput` in response. Could auto-fix common mistakes before they happen.
-- **`PostToolUse`** — can MODIFY MCP tool output via `updatedMCPToolOutput`. Could filter, enhance, or transform tool results.
-- **`UserPromptSubmit`** — can block or transform user prompts. Could auto-route intent to skills before Claude even processes the message.
-- **`TaskCompleted`** — quality gate. Block task completion if quality criteria aren't met. Perfect for autonomous loops.
 - **`TeammateIdle`** — in agent teams, can redirect idle agents to new work or send feedback.
-- **`PostCompact`** — rebuild context after compaction. We use PreCompact but not PostCompact.
-- **`SessionEnd`** — cleanup, stats, session summary logging.
+
+**Now in use:** `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `TaskCompleted`, `PostCompact`, `SessionEnd`.
 
 ### Environment Variables
 
@@ -237,8 +230,8 @@ This is the pattern — not sequential command chaining, but **parallel agent or
 ### Critical Constraint: `context: fork` and Agent Spawning Are Mutually Exclusive
 
 A forked skill runs AS a subagent. Subagents CANNOT spawn sub-subagents. This means:
-- **Architecture A (Inline Orchestrator)**: No fork, CAN spawn agents. Use for skills that coordinate agents: /go, /eval, /research, /strategy, /discover, /ideate
-- **Architecture B (Forked Task)**: Fork, CANNOT spawn agents. Use for expensive isolated work: /product, /calibrate, /taste (when not orchestrating)
+- **Architecture A (Inline Orchestrator)**: No fork, CAN spawn agents. Use for skills that coordinate agents: /go, /eval, /research, /strategy, /discover, /ideate, /product, /taste, /retro, /roadmap, /ship, /copy, /money
+- **Architecture B (Forked Task)**: Fork, CANNOT spawn agents. Use for isolated work: /configure
 
 Skills MUST choose one architecture. Having both `context: fork` AND `Agent` in allowed-tools is a bug.
 
@@ -246,13 +239,13 @@ Skills MUST choose one architecture. Having both `context: fork` AND `Agent` in 
 
 - ~~`context: fork` on expensive skills~~ — /product uses fork. /research, /strategy removed fork (need agents).
 - ~~`model: haiku` on cheap skills~~ — measurer→haiku, reviewer→haiku.
-- ~~`memory: user` on agents~~ — all 9 agents have `memory: user`.
+- ~~`memory: user` on agents~~ — all 14 agents have `memory: user`.
 - ~~`background: true` on agents~~ — explorer and market-analyst always run in background.
 - ~~`/batch` pattern for /go~~ — builder + refactorer agents use worktree isolation.
 - ~~Parallel evaluator spawning~~ — /eval spawns evaluator per feature in parallel.
 - ~~Named agent references~~ — all skills use `rhino-os:<agent>`, never `"general-purpose"`.
 - ~~`skills` preloading on agents~~ — builder, explorer, evaluator, reviewer, refactorer, grader have skills injected.
-- ~~`maxTurns` on agents~~ — all 9 agents have safety valves (10-30 turns).
+- ~~`maxTurns` on agents~~ — all 14 agents have safety valves (10-30 turns).
 - ~~/calibrate merged into /taste~~ — taste owns visual intelligence + calibration.
 
 ### Done (v9.0 — Startup Agent Layer)
@@ -269,7 +262,7 @@ Skills MUST choose one architecture. Having both `context: fork` AND `Agent` in 
 - ~~`/plan` startup pattern check~~ — runs failure mode detection before bottleneck diagnosis.
 - ~~`/ideate` customer signal~~ — spawns customer agent for signal-weighted ideation.
 - ~~2 new skills~~ — `/money` (pricing, runway, unit economics, channels) and `/copy` (landing pages, pitch, outreach, release notes). Both are rich folder skills with references + templates.
-- Agent count: 9 → 14. Skill count: 19 → 21.
+- Agent count: 9 → 14. Skill count: 19 → 29 (including utility skills like rhino-mind, product-lens, quality-check, session-summary).
 
 ### Priority 1: Highest Leverage (would change behavior)
 
@@ -277,18 +270,18 @@ Skills MUST choose one architecture. Having both `context: fork` AND `Agent` in 
 
 2. **Agent SDK for eval (rewrite bin/eval.sh).** The 15pt variance in LLM-judged feature scores is the #1 measurement problem. Fix: rewrite the judge as Python/TypeScript using the Anthropic API with temperature=0, structured output schema, rubric-anchored prompts. Directly eliminates JSON parsing bugs and non-determinism. Cost: ~$0.03/eval run on Haiku.
 
-3. **`UserPromptSubmit` hook for intent routing.** The intent routing table in CLAUDE.md is instructions Claude reads and follows. A hook makes it deterministic — "is this good?" mechanically routes to /eval before Claude processes the message. No reliance on Claude reading the table correctly.
+3. ~~**`UserPromptSubmit` hook for intent routing.**~~ Done — hook registered.
 
-4. **`TaskCompleted` hook as quality gate.** Blocks /go loop tasks from completing if assertions regressed. Currently /go has instructional checks; a hook makes it a mechanical gate that can't be bypassed. The difference between "the skill says check assertions" and "the system won't let you continue."
+4. ~~**`TaskCompleted` hook as quality gate.**~~ Done — hook registered.
 
-5. **`SessionEnd` hook for auto session logging.** Write session summary, capture ungraded predictions, log to `.claude/sessions/`. Currently manual — the grader agent helps but the session capture itself is still opt-in.
+5. ~~**`SessionEnd` hook for auto session logging.**~~ Done — hook registered.
 
-6. **`prompt` hook handler on `SubagentStop`.** rhino-os only uses `command` hooks (shell scripts). A `prompt` hook is a lightweight LLM evaluation — "did this agent follow rhino-os standards?" Free quality enforcement on every agent completion. Zero shell scripts needed.
+6. **`prompt` hook handler on `SubagentStop`.** rhino-os uses `command` hooks (shell scripts). A `prompt` hook is a lightweight LLM evaluation — "did this agent follow rhino-os standards?" Free quality enforcement on every agent completion. Zero shell scripts needed.
 
 ### Priority 2: Medium-Term (extend what works)
 
 7. **LSP tool on evaluator agent.** 50ms go-to-definition vs 30-60s grep. Add LSP to evaluator's allowed-tools for dramatically better code navigation during /eval. Supports 11+ languages.
-8. **`PostCompact` hook for context rebuild.** We save context pre-compaction but don't rebuild post-compaction. PostCompact should re-inject the state bar + recent eval results.
+8. ~~**`PostCompact` hook for context rebuild.**~~ Done — hook registered.
 9. **`InstructionsLoaded` hook.** Validate mind files actually loaded (currently no way to know if identity.md/thinking.md failed to inject).
 10. **CronCreate for periodic monitoring.** /go could schedule periodic score checks during build loops instead of manual check-ins. Session-scoped, up to 50 tasks.
 11. **Auto-memory unification.** Claude Code has native `~/.claude/memory/`. All 9 agents have `memory: user`. Does this overlap with experiment-learnings.md? If agent memory captures the same patterns, the manual knowledge model becomes redundant.
