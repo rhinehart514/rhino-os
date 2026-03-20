@@ -18,19 +18,15 @@ You are a top 0.01% product engineer. You read the code to judge both VALUE DELI
 This skill is a **folder**, not just this file. Read on demand:
 
 - `scripts/quick-eval.sh [feature]` — mechanical assertion score, no LLM (zero context cost)
-- `scripts/variance-check.sh <feature> <proposed_score>` — catch dangerous score drift vs rubric
+- `scripts/variance-check.sh <feature> <proposed_score>` — catch dangerous score drift vs rubric. Run before publishing any score.
 - `scripts/rubric-status.sh` — which features have rubrics, last scores, known gaps
-- `scripts/eval-history.sh [feature]` — score trends over time from eval-cache.json
+- `scripts/eval-history.sh [feature]` — score trends over time
+- `scripts/outside-in.sh [project-dir]` — reads intelligence caches to surface what the product is MISSING
 - `references/scoring-guide.md` — dimensions, scale, honesty rules, anti-inflation checks
-- `scripts/outside-in.sh [project-dir]` — reads intelligence caches to surface what the product is MISSING (journey gaps, unmet needs, market opportunities)
 - `references/rubric-guide.md` — how rubrics work, how to write good ones
 - `templates/rubric-template.json` — structure for feature rubrics
 - `templates/eval-report.md` — output formatting templates for all eval modes
 - `gotchas.md` — real failure modes. **Read before scoring.**
-
-## Before scoring
-
-Read in parallel: `.claude/cache/rubrics/<feature>.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/cache/eval-cache.json`, `~/.claude/preferences.yml` (cost tier: economy=sonnet, balanced/premium=opus for evaluator).
 
 ## Routing
 
@@ -47,102 +43,106 @@ Parse `$ARGUMENTS`. Exact keyword wins, then feature name, then free-form.
 | `execute` | Run commands, check runtime behavior, then score with evidence |
 | `taste` / `vs <url>` | Redirect to `/taste` |
 
-## The protocol
+## The eval model
+
+**Formula:** `delivery * 0.60 + craft * 0.40`
+
+### Delivery (60%)
+
+Does this feature deliver real value to its target user? Read the `delivers:` field (the promise) and `for:` field (who it promises to) from rhino.yml. Then read ALL the code. Judge: is this complete, useful, worth someone's time?
+
+**Delivery includes user understanding.** Code that works but confuses the user caps at 69. Evaluate the product surface:
+- **5-second test**: Would someone encountering this cold understand it? If not, cap at 69.
+- **Value moment**: Steps from first encounter to value. One step = potential 90+. Five steps = cap at 70.
+- **Next action clarity**: After the feature runs, does the user know what to do next? No next action = cap at 75.
+- **Error communication**: Generic errors or silent failures = delivery penalty.
+
+**Hard rule:** Delivery > 80 requires evidence the product surface communicates clearly. Cite the specific output/UI/response.
+
+### Craft (40%)
+
+Is this well-made — both the code AND the experience? Code craft (error handling, architecture) + product surface craft (output formatting, consistency).
+
+**Hard rules:**
+- craft > 70 requires zero critical unhandled error paths
+- craft > 80 requires evidence of intentional product surface design
+
+### Viability — NOT scored by /eval
+
+Viability is scored by `/score` using agent-backed research. This prevents LLM self-assessment bias.
+
+### Journey-aware weighting
+
+Features at entry positions (from topology.json) get a 1.2x delivery multiplier. Core = 1.1x. Leaf = 1.0x. This makes delivery count MORE for features that gate user value.
+
+## How to evaluate
+
+### Read state (parallel)
+
+- `config/rhino.yml` — features, claims, code paths
+- `config/product-spec.yml` — grounds scoring in what the product claims to deliver
+- `.claude/cache/eval-cache.json` — previous scores for delta comparison
+- `.claude/cache/rubrics/<feature>.json` — anchoring rubrics per feature
+- `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`)
+- `.claude/plans/strategy.yml`, `roadmap.yml`, `plan.yml`, `todos.yml`
+- `.claude/cache/customer-intel.json`, `market-context.json`, `product-value.json`, `topology.json` (if they exist)
+
+Read `gotchas.md` — calibrate before scoring.
 
 ### Full eval (no arguments)
 
-1. Read state files in parallel (see "State to read" below)
-2. Read `gotchas.md` — calibrate before scoring
-3. For each active feature in `config/rhino.yml`:
-   a. Read ALL files in `code:` paths — no skimming
-   b. Check anchoring rubric (`.claude/cache/rubrics/<feature>.json`)
-   c. Run `bash scripts/journey-weight.sh <feature>` to get journey position + delivery multiplier
-   d. Score: delivery, craft with file:line evidence (viability scored by /score via agents)
-   e. Apply delivery multiplier from journey-weight (entry: 1.2x, core: 1.1x, leaf: 1.0x) — this adjusts the WEIGHT of delivery in the formula, not the raw score
-   f. Run `bash scripts/variance-check.sh <feature> <score>` before publishing
-4. Run `bash scripts/quick-eval.sh` for mechanical belief results
-4b. Run `bash skills/shared/claim-verify.sh [project-dir] [feature]` for each feature — mechanical check that the feature's commands produce output matching its `delivers:` claim. Low claim_in_output match = delivery gap (the code works but doesn't communicate the value). Incorporate pass_rate into delivery scoring.
-5. Write results to `.claude/cache/eval-cache.json` (merge, preserve unscored features). Include `journey_position` field from journey-weight.sh output for each feature.
-6. Write/update rubrics per feature — see `references/rubric-guide.md`
-7. Present results using format from `templates/eval-report.md`
-7b. Run `bash scripts/outside-in.sh [project-dir]` — reads product intelligence caches to surface what the product is MISSING. Present as "▾ outside-in" section in the eval report. This is NOT a score — it's a lens that shows opportunity cost. The outside-in pass is surface-agnostic: when it finds "acquire: 0 surfaces" it should NOT assume the fix is a CLI command — it could be a landing page, web dashboard, API, or distribution channel.
-8. Cross-skill synthesis, next commands
+For each active feature in rhino.yml:
 
-**Parallel evaluator spawning (full eval only):** Spawns one evaluator agent per feature. Cost scales linearly — 5 features = 5 parallel agents. Expect ~30-60s wall time for the batch. Economy cost tier uses sonnet evaluators; balanced/premium uses opus.
+1. **Read ALL files** in `code:` paths — no skimming, no shortcuts
+2. **Check rubric** — `.claude/cache/rubrics/<feature>.json`. If it exists, anchor to it. Same code should get same score.
+3. **Judge delivery** — read the `delivers:` claim. Does the code actually deliver it? Where are the gaps? What would a user experience? Cite file:line evidence.
+4. **Judge craft** — error handling, architecture, product surface quality. Zero critical unhandled paths for >70. Cite file:line evidence.
+5. **Apply journey weighting** — check topology.json for position. Entry features: `delivery * 0.72 + craft * 0.28`. Core: `delivery * 0.66 + craft * 0.34`. Leaf: standard `0.60/0.40`.
+6. **Verify score** — run `bash scripts/variance-check.sh <feature> <score>` before publishing. If drift >15 from rubric, re-examine.
+7. **Check claim-in-output** — run `bash skills/shared/claim-verify.sh [project-dir] [feature]` to mechanically verify the feature's commands produce output matching its `delivers:` claim. Low match = delivery gap.
+
+Run `bash scripts/quick-eval.sh` for mechanical belief results alongside.
+
+**Parallel evaluator spawning (full eval only):** For 3+ features, spawn one evaluator per feature:
 ```
 For each feature with status: active:
-  Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft 0-100 with file:line evidence. Check rubric. Do NOT score viability — that's handled by /score via market-analyst + customer agents.", run_in_background: true)
+  Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft 0-100 with file:line evidence. Check rubric. Do NOT score viability.", run_in_background: true)
 ```
 
-### Scoped eval (`<feature>`)
+### Write results
 
-Same depth, one feature. Full code read, full rubric check, full evidence. No agent spawn needed.
+- Merge into `.claude/cache/eval-cache.json` — preserve unscored features, don't overwrite
+- Include `journey_position` field per feature
+- Write/update rubrics per feature — see `references/rubric-guide.md`
 
-### Blind — cold-read code vs claims, score alignment 0-100. Categories: ALIGNED, INFLATED, DEFLATED, DISCONNECTED.
+### Outside-in pass
 
-### Coverage — count assertions per feature, type distribution, flag shallow coverage. Ideal: 30% mechanical, 50% content/command, 20% llm_judge.
+Run `bash scripts/outside-in.sh [project-dir]` to surface what the product is MISSING from intelligence caches. Present as "outside-in" section. This is a lens showing opportunity cost, not a score. Surface-agnostic — "acquire: 0 surfaces" could mean landing page, dashboard, API, or distribution channel.
 
-### Trend — run `bash scripts/quick-eval.sh`, read `.claude/evals/assertion-history.tsv`. Classify: stable pass/fail, flapping, recently changed.
+### Cross-skill synthesis
 
-### Slop — scan for comments restating code, over-engineered abstractions, generic names, empty catch blocks. Cite file:line. Report human-quality %.
+After scoring: Does eval bottleneck match strategy bottleneck? Are plan tasks targeting weak features? Do results advance/block roadmap evidence?
 
-## Scoring — read `references/scoring-guide.md` for full details
+Suggest `/score` for the unified product quality number. If web-facing features exist, suggest `/taste <url>`.
 
-- **delivery** (60%) — Does the user get real value? Not "does code exist" but "would a human understand this, use it, and care if it disappeared?" Includes user understanding — code that works but confuses the user caps at 69.
-- **craft** (40%) — Is this well-made as code AND as experience? Code craft (error handling, architecture) + product surface craft (output formatting, interaction feedback, consistency across touchpoints).
-- **Overall** = d*0.6 + c*0.4, rounded to integer
-- Score >80 on any dimension requires specific evidence (not vibes)
-- **Delivery >80 requires evidence the product surface communicates clearly** — cite the output, UI, or response that proves understanding
-- **Craft >80 requires intentional product surface design** — not just working code that happens to output something
-- Stage ceiling: MVP at 75+ needs justification
+### Other modes
 
-**Viability is NOT scored by /eval.** Viability (market fit, competitive position) is scored by `/score` using agent-backed research (market-analyst + customer agents). This prevents LLM self-assessment bias. Run `/score` for the unified product quality number.
-
-## State to read (parallel)
-
-`config/rhino.yml`, `config/product-spec.yml` (grounds scoring in what the product claims to deliver — delivery score checks spec claims, not just code quality), `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists), `.claude/cache/market-context.json` (if exists — competitive landscape, demand signals), `.claude/cache/product-value.json` (if exists — value loop, auth gates, surface categories. Use to weight scoring: core value loop surfaces matter more than infrastructure), `.claude/cache/topology.json` (if exists — journey positions, data flows, orphans).
+- **Scoped eval (`<feature>`)**: Same depth, one feature. Full code read, full rubric check. No agent spawn needed.
+- **Blind**: Cold-read code vs claims, score alignment 0-100. Categories: ALIGNED, INFLATED, DEFLATED, DISCONNECTED.
+- **Coverage**: Count assertions per feature, type distribution. Ideal: 30% mechanical, 50% content/command, 20% llm_judge.
+- **Trend**: Run `bash scripts/quick-eval.sh`, read `.claude/evals/assertion-history.tsv`. Classify: stable, flapping, recently changed.
+- **Slop**: Scan for comments restating code, over-engineered abstractions, generic names, empty catch blocks. Cite file:line. Report human-quality %.
 
 ## Task generation — the path to completion
 
-See `../shared/task-generation.md` for the task generation protocol. /eval generates tasks for:
+See `../shared/task-generation.md` for the protocol. For EVERY feature scored, generate the complete task list:
 
-**For EVERY feature scored, generate the complete task list to reach the next maturity level:**
+- **Delivery tasks**: gaps between claim and code, stubs, dead-ending flows, missing error handling
+- **Craft tasks**: rubric criteria not met, unhandled edge cases, fragile patterns (grep/sed parsing, hardcoded paths)
+- **Coverage tasks**: features with <3 assertions, existence-only assertions that need strengthening
+- **Regression tasks**: score drops vs previous eval, assertions that were passing and now fail
 
-### Delivery tasks (what's missing to deliver the claim)
-- Each gap between what the feature CLAIMS to deliver and what the code ACTUALLY does → task with file:line
-- Each code path that's stubbed, incomplete, or returns placeholder data
-- Each user-facing flow that dead-ends or errors without recovery
-- Each dependency that's broken or missing
-- Missing error handling on critical paths
-- Missing input validation on user-facing interfaces
-
-### Craft tasks (what's missing to be well-built)
-- Each rubric criterion not met → task with specific fix
-- Each unhandled edge case identified during code read
-- Each inconsistency between similar code patterns
-- Missing tests or assertions for critical behavior
-- Code that works but is fragile (grep/sed parsing, hardcoded paths, silent failures)
-- Scripts that aren't executable or have syntax issues
-
-### Coverage tasks (assertion gaps)
-- Each feature with <3 assertions → tasks to add assertions by type
-- Each feature with only file_check assertions → tasks to upgrade to content_check or command_check
-- Each passing assertion that tests existence not behavior → task to strengthen
-- Missing assertion types: if no command_check exists, create one. If no content_check, create one.
-
-### Regression tasks
-- Each score that dropped vs previous eval → investigate task
-- Each assertion that was passing and now fails → fix task
-- Each feature where delta is "worse" → diagnosis task
-
-Tag with `source: /eval`, feature name, and dimension (delivery/craft). Priority: tasks on highest-weight features first. Viability tasks are generated by `/score`.
-
-## Cross-skill synthesis
-
-After scoring: Does eval bottleneck match strategy bottleneck? Are plan tasks targeting weak features? Do results advance/block roadmap evidence? Maturity: 0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven.
-
-Suggest `/score` for the unified product quality number (includes viability, visual, behavioral tiers).
-If project has web-facing features, suggest `/taste <url>` for visual quality.
+Tag with `source: /eval`, feature name, and dimension. Priority: highest-weight features first.
 
 ## Self-evaluation
 
@@ -160,20 +160,17 @@ This skill worked if: (1) eval-cache.json was updated with scores for all active
 
 ## First-run guidance
 
-Run `bash skills/shared/first-run-detect.sh [project-dir]` before scoring. If "first_run" and no features defined:
-- Instead of a terse error, show: "No features yet. Define what your product delivers:"
-- Show a quick example:
-  ```yaml
-  # config/rhino.yml → features section
-  features:
-    auth:
-      name: Authentication
-      status: active
-      weight: 3
-      code: [src/auth/]
-  ```
-- Suggest: `/feature new [name]` to add interactively, or `/onboard` to auto-detect features from the codebase
-- Do not show eval scores, maturity tiers, or rubric details — there's nothing to score yet
+If no features defined in rhino.yml:
+- Show: "No features yet. Define what your product delivers:"
+- Show a quick rhino.yml example with one feature
+- Suggest: `/feature new [name]` or `/onboard` to auto-detect
+
+## System integration
+
+Reads: rhino.yml, product-spec.yml, eval-cache.json, rubrics/*.json, experiment-learnings.md, strategy.yml, roadmap.yml, plan.yml, todos.yml, customer-intel.json, market-context.json, product-value.json, topology.json
+Writes: eval-cache.json, rubrics/<feature>.json, tasks (via TaskCreate)
+Triggers: /score (unified quality), /taste (visual quality for web), /go (build from gaps)
+Triggered by: /go (measurement), /plan (stale data), /score (code tier)
 
 ## If something breaks
 

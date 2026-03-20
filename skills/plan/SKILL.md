@@ -18,9 +18,9 @@ A cofounder planning the next move. Not a task manager — a strategist with opi
 
 This skill is a **folder**, not just this file. Read on demand:
 
-- `scripts/session-context.sh` — runs first, scans ALL state (scores, eval, predictions, todos, strategy, roadmap, git). Zero context cost.
-- `scripts/opportunity-scan.sh` — surfaces opportunities the founder isn't seeing: unknowns, wrong predictions, market signals, customer demand, unused capabilities, stale strategy. Run AFTER session-context.
-- `scripts/bottleneck-report.sh` — eval-grounded bottleneck with sub-score breakdown and completion metrics
+- `scripts/session-context.sh` — quick state scan. Use to VERIFY your diagnosis, not replace it.
+- `scripts/opportunity-scan.sh` — surfaces opportunities the founder isn't seeing. Run AFTER reading state.
+- `scripts/bottleneck-report.sh` — mechanical bottleneck computation. Use to VERIFY your reasoning.
 - `scripts/plan-progress.sh` — reads plan.yml, shows task completion status
 - `scripts/startup-check.sh` — runs the 8 startup failure mode checks mechanically
 - `references/prioritization-guide.md` — how to rank moves (bottleneck-first, information value, stage-appropriate)
@@ -48,95 +48,83 @@ Parse `$ARGUMENTS`:
 - Otherwise -> TaskCreate tagged to a feature if mentioned
 - Output: `Captured: [text]` — done. No full planning flow.
 
-## The protocol
+## How planning works
 
-### Step 0: First-run check
+### Read state directly
 
-Run `bash skills/shared/first-run-detect.sh [project-dir]`. If result is "first_run":
-- Skip tier-aware routing (Step 2b) and opportunity scan
+Read these in parallel — form your own picture before running any scripts:
+
+**Core state (always read):**
+- `config/rhino.yml` — features, weights, depends_on, mode, stage
+- `.claude/cache/eval-cache.json` — per-feature scores with sub-dimensions (delivery, craft, viability), deltas
+- `.claude/plans/roadmap.yml` — current thesis, evidence items, version
+- `.claude/plans/strategy.yml` — stage, bottleneck, loop health
+- `~/.claude/knowledge/predictions.tsv` — recent predictions, accuracy
+- `.claude/plans/plan.yml` — previous plan tasks and completion
+- `.claude/plans/todos.yml` — backlog items
+
+**Context state (read when relevant):**
+- `~/.claude/knowledge/experiment-learnings.md` — known/uncertain/unknown patterns
+- `.claude/cache/topology.json` — journey positions, data flows, orphan surfaces
+- `.claude/cache/product-value.json` — value loop, surface categories
+- `.claude/cache/customer-intel.json` — customer signals (if exists)
+- `.claude/cache/market-context.json` — competitive landscape (if exists)
+- `config/product-spec.yml` — prioritize tasks that advance the spec's signals
+- `git log --oneline -10` — recent work direction
+
+**Also read** `gotchas.md` before generating moves.
+
+Call EnterPlanMode. All reads, no writes until plan is approved.
+
+### First-run check
+
+If no features defined in rhino.yml or no eval-cache exists:
+- Skip tier-aware routing and opportunity scan
 - Show simplified output: "This is a new project. Here's what to do first:" followed by 3 clear steps:
   1. Run `/score` to establish a baseline health score
   2. Define your product's features in `config/rhino.yml` (or run `/feature new [name]`)
   3. Run `/plan` again once features exist — it gets much smarter with data
-- Do NOT show maturity tiers, sub-score breakdowns, or startup pattern analysis
 - End with one next command, not a menu
 
-### Step 1: Gather state (parallel)
+### Diagnose the bottleneck
 
-Run these via Bash (parallel where possible):
-1. `scripts/session-context.sh` — where are we?
-2. `scripts/opportunity-scan.sh` — what are we not seeing?
-3. `scripts/plan-progress.sh` — what did we plan last time?
-4. `scripts/startup-check.sh` — any failure modes triggered?
-5. `bash ../../bin/maturity-tier.sh` — what tier are we in? **This changes everything below.**
+This is YOUR reasoning, not a script's output. Think through:
 
-Also read `config/product-spec.yml` if it exists — prioritize tasks that advance the spec's signals. Core loop tasks > polish tasks.
+1. **Which feature matters most right now?** Highest weight with lowest score, adjusted by thesis relevance. A feature the thesis needs proven outranks a higher-weight feature that's stable.
 
-The opportunity scan is critical — it surfaces unknowns, wrong predictions, market signals, customer demand, dead ends worth retrying, stale strategy, and unused capabilities. Present the top 2-3 opportunities alongside the bottleneck.
+2. **Which sub-score is weakest?** The bottleneck is the lowest sub-score (delivery/craft) on the highest-priority feature. Not the average — the weakest dimension specifically.
 
-Call EnterPlanMode. All reads, no writes until plan is approved.
+3. **What's the journey position?** An entry feature below 60 delivery blocks ALL users. A core feature below 60 gates dependents. A leaf feature below 60 only affects itself. Entry > core > leaf at equal scores.
 
-### Step 2: Read gotchas
+4. **Did the last plan work?** Compare previous plan.yml `state.score` against current. Tasks completed but score flat = wrong diagnosis. Same approach stalling = change the angle.
 
-Read `gotchas.md` before generating moves.
+5. **What patterns apply?** Check experiment-learnings.md for known/uncertain patterns relevant to this feature. Check unknown territory for high-information experiments.
 
-### Step 2b: Tier-aware routing
+6. **Any startup failure modes?** Run `bash scripts/startup-check.sh` to verify mechanically. Include triggered warnings in your diagnosis.
 
-The maturity tier from `maturity-tier.sh` changes what /plan recommends. **This overrides default bottleneck-only thinking.**
+**Verify your diagnosis** by running `bash scripts/bottleneck-report.sh` — if it disagrees with your reasoning, reconcile the difference explicitly.
 
-| Tier | /plan behavior |
-|------|---------------|
-| **fix** (<50) | Only propose fix tasks. No ideation, no research, no strategy. "Fix X, then Y." |
-| **deepen** (50-70) | Run /eval inline if no recent eval data. Propose tasks from eval gaps. |
+### Tier-aware routing
+
+Determine the maturity tier from eval-cache scores (or run `bash ../../bin/maturity-tier.sh` to verify):
+
+| Tier | Score range | /plan behavior |
+|------|-------------|---------------|
+| **fix** (<50) | Only propose fix tasks. No ideation, no research, no strategy. |
+| **deepen** (50-70) | Propose tasks from eval gaps. Run /eval inline if stale. |
 | **strengthen** (70-85) | Target weakest sub-scores on highest-weight features. Suggest /research for unknowns. |
-| **expand** (85+ score, <70 eval avg) | Structure is solid but features are shallow. Deep eval → targeted tasks. Only suggest /ideate if the bottleneck feature can't improve without new capabilities. |
-| **mature** (85+ score, 70+ eval avg) | **Shift from "fix" to "what's next."** Propose /ideate, /research unknowns, /strategy check, /taste for visual quality, /product for coherence audit. Building new code is secondary to expanding the product's reach and quality. |
+| **expand** (85+ score, <70 eval avg) | Structure solid, features shallow. Deep eval tasks. Only /ideate if bottleneck needs new capabilities. |
+| **mature** (85+ score, 70+ eval avg) | Shift from "fix" to "what's next." Suggest /ideate, /research, /strategy, /taste, /product. Building new code is secondary. |
 
-**At `expand` or `mature` tier, the diagnosis changes:**
-- Instead of "bottleneck is X, fix it" → "existing features are strong, here's what the product is missing"
-- Surface unknown territory from experiment-learnings.md as primary opportunities
-- Check if /ideate, /research, /strategy have been run recently — if not, recommend them
-- Check if any working features (50+) have never been tested by real users — flag as untested value
+At `expand`/`mature`: surface unknown territory as primary opportunities. Check if /ideate, /research, /strategy have been run recently — recommend them if not.
 
-**At `mature` tier specifically:**
-- Auto-suggest `/ideate` if no ideation in 7+ days
-- Auto-suggest `/strategy honest` if strategy is stale
-- Auto-suggest `/taste` if web-facing and no recent taste eval
-- Auto-suggest `/product` for coherence audit if 3+ features at 70+
-- Frame moves as "expand" not "fix" — the language matters for founder mindset
+### Surface opportunities
 
-### Step 3: Diagnose
+Run `bash scripts/opportunity-scan.sh` to surface what you might be missing: unknowns, wrong predictions, market signals, customer demand, stale strategy, unused capabilities. Present top 2-3 alongside your bottleneck diagnosis.
 
-Read `references/prioritization-guide.md` for ranking logic.
+### Generate moves (1-2, not 3-5)
 
-**Plan effectiveness check (before diagnosing):**
-
-If plan-progress.sh shows the previous plan had tasks completed, compare the bottleneck score in `plan.yml` → `state.score` against the current score from session-context.sh. Three outcomes:
-
-1. Tasks completed AND score improved → "Last plan worked. [feature] moved from [X] to [Y]." Reinforce the approach.
-2. Tasks completed BUT score didn't improve → "Last plan's tasks completed but score didn't move ([X] → [X]). The diagnosis may have been wrong — reconsider whether [bottleneck] is actually the bottleneck." Weight this session's diagnosis toward a DIFFERENT dimension or feature.
-3. Tasks NOT completed → "Last plan incomplete ([N]/[M] done). Check if tasks were too ambitious or the wrong granularity."
-
-This makes /plan learn from its own recommendations. A plan that doesn't move the score is a wrong diagnosis.
-
-The bottleneck is NOT "the lowest scoring feature" — it's the lowest sub-score of the highest-weight feature blocking the current thesis. Read `scripts/bottleneck-report.sh` output for this.
-
-**Topology-aware prioritization:** If `topology.json` exists (generated by `skills/shared/product-topology.sh`), use journey positions to override pure score-based bottleneck:
-- An **entry** feature below 60 delivery is always the hard bottleneck — it blocks ALL users from reaching anything else. Flag it regardless of other scores.
-- A **core** feature below 60 delivery gates multiple downstream features — high priority.
-- A **leaf** feature below 60 is important but doesn't block others — lower priority than entry/core at the same score.
-- If topology shows orphan surfaces (skills nothing leads to), flag as coherence issue.
-
-**Data flow awareness:** If `topology.json` includes `critical_data`, check for cascade risks:
-- A file with many consumers and 0 producers means the write path is invisible (maybe an agent or LLM writes it). If the file is stale or missing, all consumers are reading bad data.
-- A file with 1 producer and 5+ consumers is a single point of failure. If that producer's feature is the bottleneck, fixing it unblocks everything downstream.
-- Use `data_flows` to explain WHY a bottleneck matters: "scoring produces eval-cache.json which 19 other surfaces consume."
-
-If startup-check flagged anything, include it in the diagnosis.
-
-### Step 4: Generate moves (1-2, not 3-5)
-
-Each move uses the structure from `templates/move-brief.md`. Moves must:
+Each move uses `templates/move-brief.md` structure. Moves must:
 - Target the weakest sub-score dimension specifically
 - Connect to a roadmap evidence item (or declare maintenance)
 - Include a falsifiable prediction with numbers
@@ -144,56 +132,34 @@ Each move uses the structure from `templates/move-brief.md`. Moves must:
 
 Read `references/prioritization-guide.md` for tiebreaking rules.
 
-### Step 5: Align (AskUserQuestion)
+### Align
 
-Present diagnosis + moves with options. Include "Looks right — proceed" as first option.
+Present diagnosis + moves with options via AskUserQuestion. Include "Looks right — proceed" as first option.
 
-### Step 6: Write
+### Write
 
 - TaskCreate for each move (source of truth)
 - Write `.claude/plans/plan.yml` as snapshot (use `templates/plan-template.yml` structure)
 - Promote matching todos (`rhino todo promote <id>`) instead of duplicating
 - ExitPlanMode with summary
 
+## Task generation — opportunities become tasks
+
+See `../shared/task-generation.md` for the task generation protocol. Generate tasks for every opportunity surfaced:
+
+- **Unknown territory**: each relevant unknown -> task to research or eval
+- **Wrong predictions**: ungraded -> grade via /retro; wrong with model fix needed -> update task
+- **Market signals**: stale market-context.json -> /strategy market; no customer-intel -> /discover
+- **Stale state**: strategy >14d -> /strategy honest; no predictions in 7d -> enforce predictions
+- **Capability gaps**: unused capabilities that could help; dead ends worth retrying
+- **Startup patterns**: each triggered failure mode -> task with intervention
+
+Tag with `source: /plan` and opportunity type. Priority: bottleneck-related first, then highest information value.
+
 ## Output format
 
 See `reference.md` for templates. Dense, scannable, opinionated.
 Also see `../OUTPUT_FORMAT.md` and `../STATE_MANIFEST.md`.
-
-## Task generation — opportunities become tasks
-
-See `../shared/task-generation.md` for the task generation protocol. /plan generates tasks for:
-
-**For EVERY opportunity surfaced by opportunity-scan.sh, generate a task:**
-
-### Unknown territory tasks
-- Each unknown in experiment-learnings.md that's relevant to the bottleneck → task: "Unknown: [X] — run /research [topic] to build model"
-- Each feature with no eval data → task: "Feature [X] never evaluated — run /eval [feature]"
-- Each dimension with no predictions → task: "No predictions about [dimension] — blind spot to address"
-
-### Wrong prediction tasks
-- Each ungraded prediction → task: "Grade prediction: '[X]' — run /retro"
-- Each wrong prediction that implies a model fix → task: "Model wrong about [X] — update experiment-learnings.md"
-
-### Market signal tasks
-- Market-context.json >14d stale → task: "Market data stale — run /strategy market"
-- No customer-intel.json → task: "No customer signal — run /discover or /product user"
-- Competitor moved → task: "Competitor [X] changed — evaluate via /strategy compete"
-
-### Stale state tasks
-- Strategy >14d old → task: "Strategy stale — run /strategy honest"
-- No predictions in 7d → task: "Learning loop starving — enforce predictions"
-- Plan tasks all complete but score didn't improve → task: "Completed tasks didn't move score — diagnose via /retro"
-
-### Capability gap tasks
-- Unused capabilities that could help → task: "Capability [X] available but unused — evaluate adoption"
-- Dead ends worth retrying → task: "Dead end [X] may be worth retrying — conditions changed since [date]"
-
-### Startup pattern tasks
-- Each triggered failure mode from startup-check.sh → task with intervention from startup-patterns.md
-- Each warning-to-critical escalation → urgent task
-
-Tag with `source: /plan` and opportunity type. Priority: bottleneck-related opportunities first, then highest information value.
 
 ## Self-evaluation
 
@@ -211,6 +177,14 @@ This skill worked if: (1) plan.yml was written with 1-2 moves targeting the bott
 - Skip the prediction — every move needs "I predict X because Y"
 - Generate 3-5 tasks when 1-2 moves would cover it
 - Ignore startup pattern warnings without naming the tradeoff
+- Delegate your diagnosis to a script — scripts verify, you reason
+
+## System integration
+
+Reads: config/rhino.yml, eval-cache.json, roadmap.yml, strategy.yml, predictions.tsv, plan.yml, todos.yml, experiment-learnings.md, topology.json, product-value.json, customer-intel.json, market-context.json, product-spec.yml
+Writes: plan.yml, tasks (via TaskCreate)
+Triggers: /go (build), /research (unknowns), /eval (stale scores)
+Triggered by: session start, /rhino (dashboard), founder asking "what should I work on?"
 
 ## Next commands
 
@@ -218,9 +192,9 @@ After planning, run `/go` to start building. If the diagnosis reveals unknowns, 
 
 ## If something breaks
 
-- No score cache: run `rhino score .` first — session-context.sh needs score data to diagnose
-- session-context.sh returns all zeros: the project may not be onboarded — run `/onboard`
+- No score cache: run `rhino score .` first — need score data to diagnose
+- All zeros: the project may not be onboarded — run `/onboard`
 - startup-check.sh fails with "no rhino.yml": config is missing — run `/onboard` to generate it
-- maturity-tier.sh returns wrong tier: check that `.claude/cache/eval-cache.json` and `.claude/cache/score-cache.json` are fresh — run `rhino score .` and `/eval` to regenerate
+- maturity-tier.sh returns wrong tier: check that eval-cache.json and score-cache.json are fresh
 
 $ARGUMENTS

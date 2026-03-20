@@ -17,9 +17,9 @@ Autonomous creation loop. Plan, predict, build, measure, learn — no human in t
 
 This skill is a **folder**. Read these on demand:
 
-- `scripts/pre-build-scan.sh` — runs FIRST. Scans project state: score, failing assertions, plan tasks, recent predictions. One script, full context.
+- `scripts/pre-build-scan.sh` — quick state snapshot. Use to VERIFY your state reading.
 - `scripts/assertion-gate.sh` — checks assertions pass/fail with specifics. Run after every build.
-- `scripts/plateau-check.sh` — detects N consecutive flat moves mechanically.
+- `scripts/plateau-check.sh` — detects N consecutive flat moves. Use to VERIFY your plateau judgment.
 - `scripts/build-log.sh` — persistent session log across conversations. Uses `${CLAUDE_PLUGIN_DATA}`.
 - `references/keep-revert-matrix.md` — when to keep vs revert. Read before first keep/revert decision.
 - `references/build-patterns.md` — patterns that work and anti-patterns. Read before building.
@@ -39,109 +39,95 @@ This skill is a **folder**. Read these on demand:
 
 Feature scoping: `$ARGUMENTS` can name features. Single = scope everything. Multiple = work sequentially. None = target the bottleneck.
 
-## The protocol
+## The build loop
 
-### Step 1: Scan state
+### Understand the situation
 
-Run `bash scripts/pre-build-scan.sh` — this reads all 8 sources in one shot. Also run `bash scripts/build-log.sh list 3` to see recent session history.
+Read state directly — form your own picture:
 
-Run `bash ../../bin/maturity-tier.sh` — the tier changes /go's behavior (see Step 1b).
+**Read in parallel:**
+- `.claude/cache/eval-cache.json` — per-feature scores, sub-dimensions, deltas
+- `config/rhino.yml` — features, weights, mode (build/ship), stage
+- `.claude/plans/plan.yml` — planned tasks, previous session state
+- `~/.claude/knowledge/predictions.tsv` — recent predictions
+- `.claude/plans/todos.yml` — backlog items
+- `config/product-spec.yml` (if exists) — build toward the spec's core loop
+- `~/.claude/preferences.yml` — cost tier (economy/balanced/premium), autonomy setting
 
-Read `config/product-spec.yml` if it exists — build toward the spec's core loop and first experience, not random improvements.
+**Also read:** `gotchas.md` and `references/build-patterns.md` before entering the loop.
 
-Read `gotchas.md` and `references/build-patterns.md` before entering the loop.
+**Verify** with `bash scripts/pre-build-scan.sh` and `bash scripts/build-log.sh list 3` — reconcile any differences with your reading.
 
-Check `~/.claude/preferences.yml` for `agents.cost` tier (economy/balanced/premium) and `agents.autonomy` setting.
+**Capture baseline:** Note current assertion count and scores. You'll compare at session end.
 
-**Auto-scoring (experimental):** Set up periodic quality monitoring for the session. CronCreate is a beta CC feature — skip if it errors or is unavailable:
-```
-CronCreate(schedule: "*/10 * * * *", prompt: "Run bash ${CLAUDE_PLUGIN_ROOT}/bin/score.sh . --json --quiet and compare against .claude/cache/score-cache.json. If score dropped more than 5 points, warn immediately. Otherwise stay silent.", recur: true)
-```
-This checks quality every 10 minutes during the build session without manual intervention. If CronCreate fails, fall back to manual score checks after every 3 commits.
+### Tier-aware behavior
 
-### Step 1b: Tier-aware build behavior
-
-The maturity tier changes what /go does autonomously:
+Determine the tier from eval-cache scores (verify with `bash ../../bin/maturity-tier.sh` if uncertain):
 
 | Tier | /go behavior |
 |------|-------------|
-| **fix** | Pure build. Fix assertions, improve health. No eval between cycles (too expensive for broken code). |
-| **deepen** | Build + eval after every 3 commits. Tasks come from eval gaps. |
-| **strengthen** | Build + eval after every commit. Research inline if hitting unknown territory. |
-| **expand** | Before building: run quick /eval to check if the bottleneck is "missing capability" vs "incomplete implementation." If missing capability → suggest /ideate or /research instead of building more code on existing features. |
-| **mature** | **Auto-include higher-order actions in the loop.** After every 2 build cycles: check if /eval, /ideate, /research, or /strategy would be higher leverage than another build cycle. If eval avg > 70 and all tasks are done, stop building and recommend expansion skills. Don't grind on features that are already good. |
+| **fix** (<50) | Pure build. Fix assertions, improve health. No eval between cycles. |
+| **deepen** (50-70) | Build + eval after every 3 commits. Tasks from eval gaps. |
+| **strengthen** (70-85) | Build + eval after every commit. Research inline for unknowns. |
+| **expand** (85+ score, <70 eval avg) | Check if bottleneck is "missing capability" vs "incomplete implementation." Missing capability -> suggest /ideate or /research. |
+| **mature** (85+ score, 70+ eval avg) | Shorter sessions. After every 2 cycles: is another build cycle higher leverage than /ideate, /research, or /strategy? Stop when features are good — don't grind. |
 
-At `mature` tier, the build loop should feel different:
-- Shorter build sessions (features are already good — diminishing returns)
-- Auto-suggest skill switches: "Feature X is at 82 after this build. Continuing to polish has diminishing returns. Consider /ideate for new capabilities or /strategy to check market position."
-- Grade predictions more aggressively — at this tier, learning matters more than building
-
-### Step 2: Soft discovery gate
+### Soft discovery gate
 
 If target feature has no eval data AND no customer-intel.json AND no last-discovery.yml mention:
 - Present via AskUserQuestion: "Building [feature] with no customer signal. This is fine for exploration, but viability score may suffer."
 - Options: "Build it" / "/discover first" / "/strategy user"
-- If `agents.autonomy` is `autonomous` or `full-auto`, skip gate (still log prediction).
+- Skip if `agents.autonomy` is `autonomous` or `full-auto` (still log prediction).
 
-### Step 3: Pick the move — completeness-driven
+### Pick the move — completeness-driven
 
-**The goal is not "do one thing." The goal is "finish the feature."**
+**The goal is "finish the feature," not "do one thing."**
 
-A. Run `bash scripts/assertion-gate.sh [feature]` — see what's failing.
-B. Check TaskList for ALL tasks tagged to this feature (from /eval, /taste, /todo, /ideate).
-C. Check eval-cache for sub-scores — which dimension is weakest?
-D. Check beliefs.yml for assertion coverage — what's not tested?
+Read the situation and determine what to work on:
 
-**Move selection priority:**
-1. **Failing assertions** — fix these first. A regression blocks everything.
-2. **Tasks from /eval** — these are the specific gaps identified by evaluation. Work through them.
+1. **Failing assertions** — read `config/beliefs.yml` and check which assertions fail for the target feature. Fix regressions first. Verify with `bash scripts/assertion-gate.sh [feature]`.
+2. **Tasks from /eval** — check TaskList for tasks tagged to this feature. These are specific gaps.
 3. **Tasks from /taste** — visual issues identified by taste eval.
 4. **Missing assertion coverage** — if a feature has <5 assertions, add more before building more code.
-5. **Weakest sub-score dimension** — delivery, craft, or viability. Target the lowest.
-6. **Promoted todos** — founder's captured intent.
-7. **New work** — only when all of the above are clear.
+5. **Weakest sub-score dimension** — from eval-cache, which of delivery/craft is lowest? Target that.
+6. **Promoted todos** — founder's captured intent from todos.yml.
+7. **New work** — only when all above are clear.
 
-**Don't pick one move and stop.** Work through the task list systematically:
-- After each build+measure cycle, check: are there more tasks for this feature?
-- If yes: pick the next task, predict, build, measure, grade. Keep going.
-- If no: run a quick inline eval to see if NEW gaps appeared. If they did, generate tasks for those too.
-- Stop when: plateau (3 flat moves), all tasks done, or all assertions passing and sub-scores above target.
+**Cleanup routing**: If the task is cleanup/refactor, spawn `rhino-os:refactorer` in worktree instead of builder. Hard constraint: no behavior changes, assertions must hold.
 
-**After completing all tasks for a feature**, run a fresh eval to generate any NEW tasks that emerged. The loop is: build → measure → generate new tasks → build more → measure → until done.
+### Predict
 
-**Cleanup routing**: If the task is cleanup/refactor (source contains 'evaluator' or 'slop', tagged cleanup/refactor), spawn `rhino-os:refactorer` in worktree instead of builder. Hard constraint: no behavior changes, assertions must hold identically.
+Before every build, log to `~/.claude/knowledge/predictions.tsv`:
+- **I predict**: specific outcome with numbers ("raise craft_score from 50 to 65")
+- **Because**: cite evidence from experiment-learnings or declare exploration
+- **I'd be wrong if**: falsification condition
 
-### Step 4: Predict
+Use the structure in `templates/prediction.md`.
 
-Log to `.claude/knowledge/predictions.tsv` using the structure in `templates/prediction.md`.
+### Approval gate
 
-### Step 5: Approval gate
+| Mode | Behavior |
+|------|----------|
+| **Soft-gate** (default, `mode: build`) | Present move plan inline, then proceed. Founder can interrupt. |
+| **Hard-gate** (`mode: ship` or `autonomy: supervised`) | Do NOT write code until founder acknowledges via AskUserQuestion. |
+| **No gate** (`autonomy: autonomous`/`full-auto`) | Skip entirely. |
 
-The gate mode depends on project configuration:
+### Build
 
-**SOFT-GATE (default in build mode):**
-Present the move plan inline — the move, prediction, approach, files to touch — then proceed to build. The founder can interrupt at any time. This is the default when `config/rhino.yml` has `mode: build`.
+**Safe mode**: Build directly. Atomic commits. One intent per commit.
 
-**HARD-GATE (ship mode or explicit supervision):**
-Do NOT write code until the founder acknowledges. Present via AskUserQuestion with options: "Build it" / "Adjust" / "Skip to next move". Active when `mode: ship` in rhino.yml OR `agents.autonomy` is explicitly `supervised`.
-
-**No gate:** Skip entirely if `agents.autonomy` is `autonomous`/`full-auto`.
-
-### Step 6: Build
-
-**Safe mode**: Build directly. Atomic commits. Run `bash scripts/assertion-gate.sh [feature]` after each.
-
-**Beta mode**: Speculative branching when uncertain. Spawn `rhino-os:builder` per approach in worktrees. Compare scores, keep winner. Fall back to safe on worktree failure.
+**Beta mode**: When uncertain between approaches, spawn `rhino-os:builder` per approach in worktrees. Compare scores, keep winner. Fall back to safe on worktree failure.
 
 When to speculate: unfamiliar territory, multiple plausible approaches, Unknown Territory. Never: config changes, renames, assertion additions.
 
-### Step 7: Measure
+### Measure
 
-Run `rhino eval . --feature [name] --fresh` after each commit. Read sub-scores, not just total.
+After each commit:
+- Run `bash scripts/assertion-gate.sh [feature]` — quick pass/fail
+- Run `rhino eval . --feature [name] --fresh` — read sub-scores, not just total
+- Check: did the TARGETED sub-score improve, or did something else move?
 
-Run `bash scripts/assertion-gate.sh [feature]` for quick pass/fail. Run `bash scripts/plateau-check.sh` every 3 moves.
-
-### Step 8: Keep/revert
+### Keep/revert
 
 Read `references/keep-revert-matrix.md` for the full decision matrix. Core rules:
 - Assertion regressed -> revert (always, no exceptions)
@@ -150,49 +136,48 @@ Read `references/keep-revert-matrix.md` for the full decision matrix. Core rules
 
 On regression: spawn `rhino-os:debugger` in background before reverting.
 
-**Beta mode**: Two-stage review (spec compliance, then code quality) via `rhino-os:reviewer`. See `references/keep-revert-matrix.md` for details.
+**Beta mode**: Two-stage review (spec compliance, then code quality) via `rhino-os:reviewer`.
 
-### Step 9: Grade prediction
+### Grade prediction
 
 **Mandatory before next move.** Spawn `rhino-os:grader` to fill result/correct/model_update in predictions.tsv. If wrong, grader updates experiment-learnings.md.
 
-### Step 9b: Consolidate knowledge
+After grading, spawn `rhino-os:consolidator` in background to merge/dedup/prune experiment-learnings.md.
 
-After grading, spawn `rhino-os:consolidator` in background to merge/dedup/prune experiment-learnings.md. Same pattern as /retro:
-- Promotes uncertain → known when 3+ experiments confirm
-- Detects stale patterns (>14d without new evidence)
-- Deduplicates entries added from different sessions
+### Plateau detection
 
-### Step 10: Next move or stop
+After every 3 moves, assess: have scores moved? Look at the targeted sub-score across the last 3 commits. If flat (delta < 2 per move), the approach is exhausted.
 
-Run `bash scripts/plateau-check.sh`. If plateau: stop, research inline, report. Otherwise: pick next move, loop back to Step 3.
+Verify with `bash scripts/plateau-check.sh`. If plateau: stop building, research inline or report.
 
-### Step 11: Session end — completeness report
+**Don't trust your judgment on plateaus** — the temptation is always "one more try." If 3 commits didn't move the score, commit #4 won't either.
 
-Log session with `bash scripts/build-log.sh add [session-data]`. Write `.claude/sessions/YYYY-MM-DD-HH.yml`.
+### Loop or stop
 
-**Post-build verification (mandatory before completeness report):**
+After each move: grade prediction, check for plateau, check remaining tasks. If tasks remain and no plateau, loop back to "Pick the move." Work through the task list systematically.
 
-Run `bash scripts/assertion-gate.sh --diff` one final time and compare to the start-of-session snapshot (captured in Step 1 via pre-build-scan.sh). Output the verification line:
+After completing all tasks for a feature, run a fresh eval to find NEW gaps. The loop is: build -> measure -> find new gaps -> build more -> until done or plateau.
+
+### Session end — completeness report
+
+Run `bash scripts/assertion-gate.sh --diff` and compare to baseline captured at start.
 
 ```
 Session started with X/Y assertions passing, ended with A/B. Net: +N assertions.
 ```
 
-If net is 0 or negative after 2+ moves: "Build session produced no measurable improvement. The approach may need rethinking — consider /strategy honest or /research before the next /go."
+If net is 0 or negative after 2+ moves: "Build session produced no measurable improvement. Consider /strategy honest or /research before next /go."
 
-This is the closed loop — did the build actually improve anything measurable?
+Log session with `bash scripts/build-log.sh add [session-data]`. Write `.claude/sessions/YYYY-MM-DD-HH.yml`.
 
-**Completeness report (mandatory at session end):**
+**Completeness report:**
 - Tasks completed this session: N
 - Tasks remaining for this feature: M
 - Assertions: X passing / Y total (was A/B at session start)
-- Net assertion delta: +N (or -N if regressed)
-- Sub-scores: delivery [d], craft [c], viability [v] (was [d0], [c0], [v0])
+- Net assertion delta: +N
+- Sub-scores: delivery [d], craft [c] (was [d0], [c0])
 - New tasks generated during session: K
-- Estimated sessions to feature completion: [based on velocity this session]
-
-If tasks remain: "Feature [name] is [%] complete. [M] tasks remain. Next session: start with task [first remaining]."
+- Estimated sessions to feature completion
 
 Format output per `reference.md`.
 
@@ -201,8 +186,6 @@ Format output per `reference.md`.
 This skill worked if: (1) the completeness report shows net positive assertion delta, (2) every build had a prediction graded before the next move, (3) no regressions were left unreverted, and (4) session log was written to `.claude/sessions/`.
 
 ## Agent routing
-
-**Cost note:** Beta mode spawns builder + measurer + reviewer + grader per cycle. A full speculative build cycle spawns 2 builders + reviewer + grader. Expect ~30-60s latency per cycle. Safe mode uses direct build (no agent cost except grader).
 
 | Step | Agent | Why |
 |------|-------|-----|
@@ -223,6 +206,13 @@ This skill worked if: (1) the completeness report shows net positive assertion d
 - Speculate on trivial moves
 - Let the reviewer block a keep when assertions improved
 - Skip presenting the move plan (soft-gate still shows the plan, just doesn't block)
+
+## System integration
+
+Reads: eval-cache.json, rhino.yml, plan.yml, predictions.tsv, todos.yml, beliefs.yml, product-spec.yml, preferences.yml, experiment-learnings.md
+Writes: code (commits), predictions.tsv, experiment-learnings.md, session YAML, build-log
+Triggers: /eval (measurement), /research (plateau), /retro (prediction grading)
+Triggered by: /plan (after diagnosis), founder saying "go" / "build it" / "fix everything"
 
 ## If something breaks
 
