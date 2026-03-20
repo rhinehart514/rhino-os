@@ -16,16 +16,28 @@ Storage: `.claude/plans/todos.yml`
 
 ## Skill folder structure
 
-This skill is a **folder**, not just this file. Read these on demand:
+This skill is a **folder**, not just this file. Read on demand:
 
-- `scripts/todo-stats.sh` — backlog health: counts, age distribution, feature clusters, stale items
-- `scripts/todo-decay.sh` — finds items >7d, >14d, >30d — flags for review or auto-kill suggestions
-- `scripts/todo-promote.sh` — finds todos that should graduate to assertions or activate based on eval-cache bottleneck
 - `references/todo-lifecycle.md` — captured→tagged→prioritized→promoted/killed, decay rules, graduation criteria
 - `references/todo-sources.md` — where todos come from: /ideate, /eval, /go, manual, agents
 - `templates/todo-template.yml` — valid fields for a todo item
 - `reference.md` — output formatting templates
 - `gotchas.md` — real failure modes. **Read before any batch operation.**
+
+Scripts (`todo-stats.sh`, `todo-decay.sh`, `todo-promote.sh`) exist as verification — run to cross-check your analysis, not as the primary path.
+
+## State
+
+Read these directly — synthesize, don't delegate:
+
+| File | What it tells you |
+|------|-------------------|
+| `.claude/plans/todos.yml` | The backlog: id, title, status, feature, source, created_at, done_count |
+| `config/rhino.yml` | Feature names for validation + auto-tagging |
+| `.claude/cache/eval-cache.json` | Sub-scores — identifies bottleneck feature for smart promote |
+| `lens/product/eval/beliefs.yml` | Existing assertions — for graduation dedup |
+
+**You can read todos.yml directly.** Count items by status. Compute ages from created_at timestamps. Find clusters by feature. Identify stale items (>7d, >14d, >30d). Check for orphans (no feature tag). This is YOUR analysis work — scripts verify it.
 
 ## Routing
 
@@ -33,41 +45,34 @@ Parse `$ARGUMENTS`:
 
 | Input | Action |
 |-------|--------|
-| (no args) or `show` | Run `todo-stats.sh` → list items → decay check → smart promote |
-| `add "title"` | Capture to backlog. Auto-tag if feature/version detected. |
-| `done <id>` | Mark complete. Check graduation via `todo-promote.sh`. |
+| (no args) or `show` | Read todos.yml → list items by status → check for stale items → smart promote if 0 active |
+| `add "title"` | Capture to backlog. Auto-tag if feature/version detected in title. |
+| `done <id>` | Mark complete. Check if recurring (done 3+ times) → suggest graduation to assertion. |
 | `promote <id>` | Activate for session |
 | `active` | Show active only |
 | `tag <id> <feature>` | Tag to feature (validated against rhino.yml) |
 | `tag <id> v8.0` | Tag to version |
 | `feature [name]` | Filter by feature |
 | `version [tag]` | Filter by version |
-| `health` | Run `todo-stats.sh` — full backlog health report |
-| `decay` | Run `todo-decay.sh` — force stale item decisions |
+| `health` | Full backlog diagnostic: counts, ages, clusters, orphans, type distribution. Verify with `todo-stats.sh`. |
+| `decay` | Surface all items >7d. Force decisions: promote, kill, or refresh. Verify with `todo-decay.sh`. |
 | `all` | Show all including done |
 | (plain text) | Quick capture: treat as `add "$ARGUMENTS"` |
 
 ## Core behaviors
 
-**Decay**: Run `todo-decay.sh` on every show. Surfaces stale items, forces decisions. Never auto-deletes.
+**Decay**: On every show, check item ages. Surface stale items (>7d warning, >14d urgent, >30d critical). Never auto-delete.
 
-**Graduation**: On `done`, run `todo-promote.sh` to check if recurring pattern should become an assertion. Needs founder confirmation via AskUserQuestion.
+**Graduation**: On `done`, check if this todo has recurred 3+ times (done_count field). If so, suggest converting to assertion in beliefs.yml. Needs founder confirmation via AskUserQuestion.
 
-**Smart promote**: When 0 active items, `todo-promote.sh` suggests highest-leverage item based on eval-cache bottleneck.
+**Smart promote**: When 0 active items, read eval-cache to find the bottleneck feature, then suggest the highest-leverage todo for that feature.
 
-**Auto-tag**: On `add`, scan title for feature names from `config/rhino.yml`, version refs, file paths. Confirm with founder.
+**Auto-tag**: On `add`, scan title for feature names from rhino.yml, version refs, file paths. Confirm with founder.
 
 **Cross-skill capture**: Skills and agents write todos via `todo:` prefixed SendMessage. See `references/todo-sources.md`.
 
 For lifecycle details: `references/todo-lifecycle.md`
 For output templates: `reference.md`
-
-## State to read
-
-- `.claude/plans/todos.yml` — the backlog
-- `config/rhino.yml` — feature names for validation + auto-tagging
-- `.claude/cache/eval-cache.json` — sub-scores for smart promote
-- `lens/product/eval/beliefs.yml` — existing assertions (for graduation dedup)
 
 ## Task generation — meta-tasks for backlog health
 
@@ -113,6 +118,13 @@ The skill worked if:
 - **Done**: graduation check ran and meta-tasks were generated if patterns detected
 - **Show/health**: decay check ran, stale items were surfaced, smart promote fired when 0 active items
 - **All modes**: meta-tasks were generated for every backlog health issue found
+
+## System integration
+
+**Reads:** todos.yml, rhino.yml, eval-cache.json, beliefs.yml
+**Writes:** `.claude/plans/todos.yml` (add/done/promote/tag/decay)
+**Triggers:** /assert graduate (recurring patterns), /plan (0 active items), /go (active work items), /feature (cluster → new feature)
+**Triggered by:** "backlog", "todo", "capture this", /ideate outputs, /eval gap tasks, /go builder reports, /assert coverage tasks, agent `todo:` messages
 
 ## What you never do
 
