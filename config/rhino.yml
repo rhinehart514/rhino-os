@@ -189,6 +189,7 @@ features:
 evals:
   generative: true               # use features: section for generative eval (Claude judges)
   beliefs_fallback: true          # also run beliefs.yml if it exists (supplementary)
+  execution_eval: true            # run commands and check runtime behavior (--execute flag)
   tier1_on_every_build: true
   tier2_on_demand: true          # behavioral eval — requires dev server
   block_on_failure: true         # hard fail on "block" severity beliefs
