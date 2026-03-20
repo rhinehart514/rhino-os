@@ -32,42 +32,78 @@ LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 
 SUGGESTION=""
 case "$LOWER" in
-    *"is this good"*|*"evaluate"*|*"how's the product"*|*"how is the product"*|*"run assertions"*|*"check quality"*)
+    # Score / quality
+    *"is this good"*|*"how's the product"*|*"how is the product"*|*"product quality"*|*"unified score"*|*"score everything"*)
+        SUGGESTION="/score" ;;
+    # Eval / assertions
+    *"evaluate"*|*"run assertions"*|*"check quality"*|*"check code"*|*"delivery"*|*"craft"*)
         SUGGESTION="/eval" ;;
-    *"what does it look like"*|*"visual eval"*|*"design quality"*|*"how's the ui"*|*"how is the ui"*)
+    # Taste / visual
+    *"what does it look like"*|*"visual eval"*|*"design quality"*|*"how's the ui"*|*"how is the ui"*|*"taste"*)
         SUGGESTION="/taste" ;;
-    *"what should i work on"*|*"what should we work on"*|*"start a session"*|*"what's the bottleneck"*|*"what is the bottleneck"*)
+    # Flows / QA
+    *"does it work"*|*"test the frontend"*|*"check the flows"*|*"is it broken"*|*"qa"*|*"flawless"*)
+        SUGGESTION="/taste flows" ;;
+    # Plan / bottleneck
+    *"what should i work on"*|*"what should we work on"*|*"start a session"*|*"what's the bottleneck"*|*"what is the bottleneck"*|*"what matters"*|*"what's important"*)
         SUGGESTION="/plan" ;;
-    *"just build it"*|*"autonomous"*)
+    # Go / build
+    *"just build it"*|*"just go"*|*"start building"*|*"autonomous"*|*"fix everything"*)
         SUGGESTION="/go" ;;
-    *"set this up"*|*"bootstrap"*|*"initialize"*|*"onboard"*|*"new here"*|*"what is this project"*)
+    # Onboard / setup
+    *"set this up"*|*"bootstrap"*|*"initialize"*|*"onboard"*|*"new here"*|*"what is this project"*|*"first time"*)
         SUGGESTION="/onboard" ;;
-    *"what features"*|*"list features"*|*"how's auth"*|*"how is auth"*)
+    # Features
+    *"what features"*|*"list features"*|*"how's auth"*|*"how is auth"*|*"feature status"*)
         SUGGESTION="/feature" ;;
-    *"brainstorm"*|*"feature ideas"*)
+    # Ideate
+    *"brainstorm"*|*"feature ideas"*|*"what could we build"*|*"ideas"*)
         SUGGESTION="/ideate" ;;
-    *"what don't we know"*|*"what do we not know"*|*"explore"*|*"gather data"*)
+    # Ideate (feature improvement)
+    *"how to improve"*|*"make"*"better"*|*"needs work"*|*"thoughts on"*)
+        SUGGESTION="/ideate" ;;
+    # Research
+    *"what don't we know"*|*"what do we not know"*|*"explore"*|*"gather data"*|*"research"*)
         SUGGESTION="/research" ;;
-    *"where are we"*|*"dashboard"*)
+    # Dashboard / status
+    *"where are we"*|*"dashboard"*|*"status"*|*"where am i"*)
         SUGGESTION="/rhino" ;;
-    *"what's the roadmap"*|*"what is the roadmap"*|*"versions"*|*"what's next for the project"*)
+    # Roadmap
+    *"what's the roadmap"*|*"what is the roadmap"*|*"versions"*|*"what's next for the project"*|*"thesis"*)
         SUGGESTION="/roadmap" ;;
-    *"deploy"*|*"ship it"*|*"push"*)
+    # Ship / deploy
+    *"deploy"*|*"ship it"*|*"push"*|*"release"*)
         SUGGESTION="/ship" ;;
-    *"what did we learn"*|*"retro"*|*"grade predictions"*)
+    # Retro / learning
+    *"what did we learn"*|*"retro"*|*"grade predictions"*|*"review"*)
         SUGGESTION="/retro" ;;
-    *"add a test"*|*"assert"*|*"this should be true"*)
+    # Assert
+    *"add a test"*|*"assert"*|*"this should be true"*|*"add assertion"*)
         SUGGESTION="/assert" ;;
-    *"what's the strategy"*|*"what is the strategy"*|*"what stage"*)
+    # Strategy
+    *"what's the strategy"*|*"what is the strategy"*|*"what stage"*|*"bottleneck"*|*"honest diagnosis"*)
         SUGGESTION="/strategy" ;;
+    # Todo / backlog
     *"backlog"*|*"todo"*|*"capture this"*|*"add to backlog"*)
         SUGGESTION="/todo" ;;
+    # Clone
     *"clone this"*|*"screenshot"*|*"make it look like"*)
         SUGGESTION="/clone" ;;
-    *"create a skill"*|*"new lens"*|*"manage lenses"*)
+    # Skill management
+    *"create a skill"*|*"new lens"*|*"manage lenses"*|*"manage skills"*)
         SUGGESTION="/skill" ;;
-    *"is this the right thing"*|*"product thinking"*|*"who cares"*|*"assumptions"*|*"should we build this"*)
+    # Product thinking
+    *"is this the right thing"*|*"product thinking"*|*"who cares"*|*"assumptions"*|*"should we build this"*|*"pressure test"*)
         SUGGESTION="/product" ;;
+    # Money / pricing
+    *"pricing"*|*"unit economics"*|*"revenue"*|*"what should we charge"*|*"business model"*|*"runway"*)
+        SUGGESTION="/money" ;;
+    # Copy
+    *"landing page"*|*"pitch"*|*"write copy"*|*"release notes"*|*"onboarding text"*)
+        SUGGESTION="/copy" ;;
+    # Help
+    *"what can you do"*|*"help me"*|*"how does this work"*|*"what commands"*)
+        SUGGESTION="/rhino help" ;;
 esac
 
 if [[ -n "$SUGGESTION" ]]; then

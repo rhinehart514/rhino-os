@@ -75,8 +75,22 @@ get_eval_scores() {
     fi
 }
 
-# --- Read latest taste report (tier 3: visual) ---
+# --- Read latest taste report (tier 3: visual OR CLI) ---
 get_visual_score() {
+    # Check for CLI taste first (for CLI products), then web taste
+    local cli_latest
+    cli_latest=$(ls -t "$TASTE_DIR"/cli-taste-*.json 2>/dev/null | head -1)
+    if [[ -n "$cli_latest" ]]; then
+        local _cli_err _cli_result
+        _cli_err=$(mktemp /tmp/rhino-cli-taste-err.XXXXXX)
+        _cli_result=$(jq -r '.overall // -1' "$cli_latest" 2>"$_cli_err")
+        rm -f "$_cli_err"
+        if [[ "$_cli_result" != "-1" && "$_cli_result" != "null" ]]; then
+            echo "$_cli_result"
+            return
+        fi
+    fi
+
     local latest
     latest=$(ls -t "$TASTE_DIR"/taste-*.json 2>/dev/null | head -1)
     if [[ -z "$latest" ]]; then
@@ -311,6 +325,17 @@ product_confidence="high"
 [[ $min_tiers -lt 5 ]] && product_confidence="medium"
 [[ $min_tiers -lt 4 ]] && product_confidence="low"
 
+# --- Read outside-in opportunity context ---
+OUTSIDE_IN="$PROJECT_DIR/.claude/cache/outside-in.json"
+_opp_journey_gaps=0
+_opp_unmet_needs=0
+_opp_top_signal=""
+if [[ -f "$OUTSIDE_IN" ]] && command -v jq &>/dev/null; then
+    _opp_journey_gaps=$(jq -r '.journey_gaps | length // 0' "$OUTSIDE_IN" 2>/dev/null || echo "0")
+    _opp_unmet_needs=$(jq -r '.unmet_needs | length // 0' "$OUTSIDE_IN" 2>/dev/null || echo "0")
+    _opp_top_signal=$(jq -r '(.market_opportunities // [])[0].signal // empty' "$OUTSIDE_IN" 2>/dev/null || true)
+fi
+
 if [[ "$OUTPUT_MODE" == "text" ]]; then
     # --- Formatted text output ---
     _conf_label=""
@@ -320,6 +345,18 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
         low)    _conf_label="low confidence (${min_tiers}/5 tiers — run /taste and /eval to fill)" ;;
     esac
     echo "Unified Score: ${product_score}/100  (${_conf_label})"
+
+    # Opportunity context line
+    if [[ "$_opp_journey_gaps" -gt 0 || "$_opp_unmet_needs" -gt 0 ]]; then
+        _opp_parts=""
+        [[ "$_opp_journey_gaps" -gt 0 ]] && _opp_parts="${_opp_journey_gaps} journey gaps"
+        if [[ "$_opp_unmet_needs" -gt 0 ]]; then
+            [[ -n "$_opp_parts" ]] && _opp_parts="$_opp_parts · "
+            _opp_parts="${_opp_parts}${_opp_unmet_needs} unmet needs"
+        fi
+        [[ -n "$_opp_top_signal" ]] && _opp_parts="$_opp_parts · ${_opp_top_signal}"
+        echo "opportunity: ${_opp_parts}"
+    fi
     echo ""
 
     # Per-feature breakdown
@@ -377,6 +414,18 @@ else
     echo "  \"product_score\": $product_score,"
     echo "  \"confidence\": \"$product_confidence\","
     echo "  \"tiers_filled\": $min_tiers,"
-    echo "  \"total_weight\": $product_total_weight"
+    echo "  \"total_weight\": $product_total_weight,"
+
+    # Opportunity context from outside-in analysis
+    if [[ -f "$OUTSIDE_IN" ]] && command -v jq &>/dev/null; then
+        _opp_json=$(jq -c '{journey_gaps: (.journey_gaps | length), unmet_needs: (.unmet_needs | length), market_opportunities: (.market_opportunities | length)}' "$OUTSIDE_IN" 2>/dev/null)
+        if [[ -n "$_opp_json" && "$_opp_json" != "null" ]]; then
+            echo "  \"opportunity_context\": $_opp_json"
+        else
+            echo "  \"opportunity_context\": null"
+        fi
+    else
+        echo "  \"opportunity_context\": null"
+    fi
     echo "}"
 fi

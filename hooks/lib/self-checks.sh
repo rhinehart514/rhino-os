@@ -25,7 +25,7 @@ else
     done
 fi
 if [[ "$HOOKS_BROKEN_COUNT" -gt 0 ]]; then
-    SELF_REC="[self] $HOOKS_BROKEN_COUNT broken hook(s) — run \`rhino self\`"
+    SELF_REC="[self] $HOOKS_BROKEN_COUNT broken hook(s) — check hooks.json"
 fi
 
 # 2. Mind files missing?
@@ -45,7 +45,7 @@ if [[ -z "$SELF_REC" ]]; then
         done
     fi
     if [[ "$MIND_MISSING_COUNT" -gt 0 ]]; then
-        SELF_REC="[self] $MIND_MISSING_COUNT mind file(s) not loaded — run \`rhino self\`"
+        SELF_REC="[self] $MIND_MISSING_COUNT mind file(s) not loaded — check plugin installation"
     fi
 fi
 

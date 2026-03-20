@@ -57,10 +57,13 @@ This skill is a **folder**. Read on demand — don't front-load everything.
 | `<url> mobile` | Visual eval at 390x844 | same as visual |
 | `<url> deep` | Visual + click through interactions | same as visual |
 | `vs <url1> <url2>` | Side-by-side comparison | `references/dimensions.md` |
+| `cli` or `cli <feature>` | **CLI taste** — terminal output quality | `references/cli-dimensions.md` + `gotchas.md` |
 | `trend` | Score trajectory over time | run `scripts/taste-history.sh` |
 | (none) | Show available modes | — |
 
 **The right order: flows first, then visual.** Fix broken functionality before polishing pixels.
+
+**CLI detection:** If argument is not a URL (no `http`/`localhost`) and `.claude/cache/topology.json` shows `product_type` starts with "cli", suggest CLI taste mode.
 
 **Calibration:** `/calibrate` is now its own skill. Run `/calibrate` to build the subjective lens. Taste reads calibrate's artifacts automatically.
 
@@ -79,6 +82,44 @@ Read `references/flows-protocol.md` for the full protocol. Summary:
 **Optional fast path:** `node lens/product/eval/dom-eval.mjs --url <url> --json` for comprehensive mechanical checks.
 
 Output is an **issue list**, not scores. See `templates/taste-report.md` for the flows template.
+
+## CLI taste mode
+
+For CLI products. Evaluates terminal output quality — what users actually SEE.
+
+Read `references/cli-dimensions.md` for the 5 dimensions and scoring anchors.
+
+### Protocol
+
+1. **Identify commands** — If `cli <feature>` specified, read `config/rhino.yml` → `features.<feature>.commands`. If just `cli`, evaluate all active features' commands.
+2. **Capture output** — For each command, run `bash scripts/cli-taste.sh "<command>" [project-dir]`. This captures stdout, stderr, timing, and metadata.
+3. **Evaluate** — Read the captured output. Judge against the 5 CLI dimensions from `references/cli-dimensions.md`:
+   - Scanability (0-100)
+   - Output hierarchy (0-100)
+   - Voice compliance (0-100)
+   - Actionable output (0-100)
+   - Graceful degradation (0-100)
+4. **Score** — Overall = average of 5 dimensions. Cite specific output lines as evidence.
+5. **Report** — Write to `.claude/evals/reports/cli-taste-{YYYY-MM-DD}.json`:
+   ```json
+   {
+     "date": "YYYY-MM-DD",
+     "product_type": "cli",
+     "commands": {
+       "<command>": {
+         "scanability": N, "hierarchy": N, "voice": N,
+         "actionable": N, "degradation": N, "overall": N,
+         "evidence": "...", "issues": ["..."]
+       }
+     },
+     "overall": N,
+     "worst_dimension": "...",
+     "top_issues": ["..."]
+   }
+   ```
+6. **Surface improvements** — Generate tasks for each issue found. Tag `source: /taste cli`.
+
+**voice.md is the design system for CLI products.** Read `mind/voice.md` before judging voice compliance.
 
 ## Visual eval mode — the protocol
 

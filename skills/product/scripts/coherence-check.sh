@@ -138,6 +138,75 @@ if [[ -f "$RHINO_YML" ]]; then
 fi
 echo ""
 
+# --- 6. Claim verification (do features deliver what they claim?) ---
+echo "▾ CLAIM vs REALITY"
+CHECKS=$((CHECKS + 1))
+CLAIM_CACHE="$PROJECT_DIR/.claude/cache/claim-verify.json"
+CLAIM_SCRIPT="$(cd "$(dirname "$0")/../../shared" 2>/dev/null && pwd)/claim-verify.sh"
+# Read from cache if <1 hour old, otherwise re-run
+CLAIM_RESULT=""
+if [[ -f "$CLAIM_CACHE" ]]; then
+    CACHE_AGE=$(( $(date +%s) - $(stat -f%m "$CLAIM_CACHE" 2>/dev/null || stat -c%Y "$CLAIM_CACHE" 2>/dev/null || echo "0") ))
+    if [[ "$CACHE_AGE" -lt 3600 ]]; then
+        CLAIM_RESULT=$(cat "$CLAIM_CACHE" 2>/dev/null)
+    fi
+fi
+if [[ -z "$CLAIM_RESULT" && -f "$CLAIM_SCRIPT" ]]; then
+    CLAIM_RESULT=$(bash "$CLAIM_SCRIPT" "$PROJECT_DIR" 2>/dev/null)
+fi
+if [[ -n "$CLAIM_RESULT" ]] && command -v jq &>/dev/null; then
+    OVERALL_PCT=$(echo "$CLAIM_RESULT" | jq -r '.overall_pass_rate // 0')
+    echo "  overall claim delivery: ${OVERALL_PCT}%"
+
+    # Show features with gaps
+    GAPS=$(echo "$CLAIM_RESULT" | jq -r '.features | to_entries[] | select(.value.verdict == "gap" or .value.verdict == "broken") | "  \(.value.verdict | ascii_upcase): \(.key) — \(.value.claim)"' 2>/dev/null)
+    if [[ -n "$GAPS" ]]; then
+        echo "$GAPS"
+        echo "  DISCONNECT: features exist that don't deliver their claims"
+        DISCONNECTS=$((DISCONNECTS + 1))
+    else
+        echo "  OK: all features delivering on claims (${OVERALL_PCT}%+)"
+    fi
+else
+    echo "  SKIP: no claim data (run claim-verify.sh to populate)"
+fi
+echo ""
+
+# --- 7. Topology coherence (features ↔ surfaces) ---
+echo "▾ TOPOLOGY COHERENCE"
+CHECKS=$((CHECKS + 1))
+TOPO_CACHE="$PROJECT_DIR/.claude/cache/topology.json"
+if [[ -f "$TOPO_CACHE" ]] && command -v jq &>/dev/null; then
+    ORPHAN_COUNT=$(jq -r '.stats.orphan_count // 0' "$TOPO_CACHE" 2>/dev/null)
+    DEAD_END_COUNT=$(jq -r '.stats.dead_end_count // 0' "$TOPO_CACHE" 2>/dev/null)
+
+    # Features with no surfaces (not reachable)
+    NO_SURFACE=$(jq -r '.journey_positions | to_entries[] | select(.value.surfaces == 0) | .key' "$TOPO_CACHE" 2>/dev/null)
+    if [[ -n "$NO_SURFACE" ]]; then
+        echo "  FEATURES WITH NO SURFACES:"
+        echo "$NO_SURFACE" | while IFS= read -r f; do
+            echo "    $f — defined in rhino.yml but not bound to any skill or CLI command"
+        done
+        DISCONNECTS=$((DISCONNECTS + 1))
+    fi
+
+    # Orphan skills (no skill leads to them)
+    ORPHAN_SKILLS=$(jq -r '[.orphans[] | select(startswith("skill/"))] | join(", ")' "$TOPO_CACHE" 2>/dev/null)
+    if [[ -n "$ORPHAN_SKILLS" && "$ORPHAN_SKILLS" != "" ]]; then
+        echo "  ORPHAN SKILLS (nothing leads to them): $ORPHAN_SKILLS"
+    fi
+
+    if [[ "$ORPHAN_COUNT" -gt 5 ]]; then
+        echo "  DISCONNECT: $ORPHAN_COUNT orphan surfaces — product has navigation gaps"
+        DISCONNECTS=$((DISCONNECTS + 1))
+    else
+        echo "  OK: topology shows $ORPHAN_COUNT orphans, $DEAD_END_COUNT dead ends"
+    fi
+else
+    echo "  SKIP: no topology.json — run: bash skills/shared/product-topology.sh ."
+fi
+echo ""
+
 # --- Summary ---
 echo "=== COHERENCE SUMMARY ==="
 echo "  checks: $CHECKS"

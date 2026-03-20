@@ -46,7 +46,7 @@ if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
 
     echo -e "  ${C_DIM}score${C_NC}       ${C_BOLD}${TOTAL}${C_NC}${C_DIM}/100${C_NC}  ${C_DIM}·${C_NC}  assertions ${ASSERTION_PASS}/${ASSERTION_COUNT}  ${C_DIM}·${C_NC}  health ${HEALTH_MIN}"
 else
-    echo -e "  ${C_DIM}score${C_NC}       ${C_DIM}no cache — run${C_NC} rhino score ."
+    echo -e "  ${C_DIM}score${C_NC}       ${C_DIM}no cache yet — quality check runs after next code change${C_NC}"
 fi
 
 # --- 2. Active plan + next 2-3 tasks ---

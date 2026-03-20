@@ -6,6 +6,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebS
 ---
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
+!cat .claude/cache/product-value.json 2>/dev/null | jq '{loop: .value_loop[:5], type: .product_type}' 2>/dev/null || true
 !tail -3 ~/.claude/knowledge/predictions.tsv 2>/dev/null || echo "no predictions"
 
 # /go
@@ -51,6 +52,12 @@ Read `config/product-spec.yml` if it exists — build toward the spec's core loo
 Read `gotchas.md` and `references/build-patterns.md` before entering the loop.
 
 Check `~/.claude/preferences.yml` for `agents.cost` tier (economy/balanced/premium) and `agents.autonomy` setting.
+
+**Auto-scoring:** After scanning, set up periodic quality monitoring for the session:
+```
+CronCreate(schedule: "*/10 * * * *", prompt: "Run bash ${CLAUDE_PLUGIN_ROOT}/bin/score.sh . --json --quiet and compare against .claude/cache/score-cache.json. If score dropped more than 5 points, warn immediately. Otherwise stay silent.", recur: true)
+```
+This checks quality every 10 minutes during the build session without manual intervention.
 
 ### Step 1b: Tier-aware build behavior
 

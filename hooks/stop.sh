@@ -99,7 +99,7 @@ if [[ -f "$CACHE_FILE" ]]; then
     total_uncommitted=$((changed_files + staged_files))
 
     if [[ $cache_age -gt $stale_seconds && $total_uncommitted -gt 0 ]]; then
-        echo -e "${YELLOW}⚠${NC} score cache ${BOLD}$((cache_age / 60))m${NC} stale with $total_uncommitted uncommitted changes — run ${DIM}rhino score .${NC}"
+        echo -e "${YELLOW}⚠${NC} score cache ${BOLD}$((cache_age / 60))m${NC} stale with $total_uncommitted uncommitted changes — quality check will run on next edit"
     fi
 
     if [[ $total_uncommitted -gt 5 ]]; then

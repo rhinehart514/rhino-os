@@ -36,6 +36,19 @@ if [[ -f "$RHINO_YML" ]]; then
     [[ -n "$_bn_for" ]] && echo "  for: $_bn_for"
 fi
 echo "  score: $SCORE/100  weight: $WEIGHT  weakest: $DIM"
+# Journey position from topology
+TOPO_CACHE="$PROJECT_DIR/.claude/cache/topology.json"
+if [[ -f "$TOPO_CACHE" ]] && command -v jq &>/dev/null; then
+    JPOS=$(jq -r --arg f "$NAME" '.journey_positions[$f].position // "unknown"' "$TOPO_CACHE" 2>/dev/null)
+    if [[ "$JPOS" != "unknown" ]]; then
+        echo "  journey: $JPOS"
+        if [[ "$JPOS" == "entry" ]]; then
+            echo "  *** ENTRY FEATURE — blocks ALL downstream value. Fix delivery first. ***"
+        elif [[ "$JPOS" == "core" ]]; then
+            echo "  *** CORE FEATURE — other features depend on this. Reliability matters. ***"
+        fi
+    fi
+fi
 echo ""
 
 # --- Sub-score detail for bottleneck ---
@@ -70,10 +83,16 @@ echo "$RESULT" | while IFS=$'\t' read -r fname fscore fweight fweighted fdim; do
     if [[ -f "$RHINO_YML" ]]; then
         _f_claim=$(awk "/^  ${fname}:/{found=1;next} found && /delivers:/{gsub(/.*delivers: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
     fi
+    _f_jpos=""
+    if [[ -f "$TOPO_CACHE" ]] && command -v jq &>/dev/null; then
+        _f_jpos=$(jq -r --arg f "$fname" '.journey_positions[$f].position // ""' "$TOPO_CACHE" 2>/dev/null)
+    fi
+    _jlabel=""
+    [[ -n "$_f_jpos" ]] && _jlabel=" [$_f_jpos]"
     if [[ -n "$_f_claim" ]]; then
-        echo "  $fname: $fscore (w:$fweight) — ${_f_claim:0:60}"
+        echo "  $fname: $fscore (w:$fweight)$_jlabel — ${_f_claim:0:60}"
     else
-        echo "  $fname: $fscore (w:$fweight, weakest:$fdim)"
+        echo "  $fname: $fscore (w:$fweight, weakest:$fdim)$_jlabel"
     fi
 done
 echo ""

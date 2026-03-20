@@ -6,6 +6,7 @@ allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent, 
 ---
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no cache"
+!cat .claude/cache/product-value.json 2>/dev/null | jq '{model: .product_model, loop: .value_loop[:5]}' 2>/dev/null || true
 !cat ~/.claude/knowledge/experiment-learnings.md 2>/dev/null | head -60 || echo "no knowledge model"
 
 # /eval
@@ -21,6 +22,7 @@ This skill is a **folder**, not just this file. Read on demand:
 - `scripts/rubric-status.sh` — which features have rubrics, last scores, known gaps
 - `scripts/eval-history.sh [feature]` — score trends over time from eval-cache.json
 - `references/scoring-guide.md` — dimensions, scale, honesty rules, anti-inflation checks
+- `scripts/outside-in.sh [project-dir]` — reads intelligence caches to surface what the product is MISSING (journey gaps, unmet needs, market opportunities)
 - `references/rubric-guide.md` — how rubrics work, how to write good ones
 - `templates/rubric-template.json` — structure for feature rubrics
 - `templates/eval-report.md` — output formatting templates for all eval modes
@@ -54,12 +56,16 @@ Parse `$ARGUMENTS`. Exact keyword wins, then feature name, then free-form.
 3. For each active feature in `config/rhino.yml`:
    a. Read ALL files in `code:` paths — no skimming
    b. Check anchoring rubric (`.claude/cache/rubrics/<feature>.json`)
-   c. Score: delivery, craft with file:line evidence (viability scored by /score via agents)
-   d. Run `bash scripts/variance-check.sh <feature> <score>` before publishing
+   c. Run `bash scripts/journey-weight.sh <feature>` to get journey position + delivery multiplier
+   d. Score: delivery, craft with file:line evidence (viability scored by /score via agents)
+   e. Apply delivery multiplier from journey-weight (entry: 1.2x, core: 1.1x, leaf: 1.0x) — this adjusts the WEIGHT of delivery in the formula, not the raw score
+   f. Run `bash scripts/variance-check.sh <feature> <score>` before publishing
 4. Run `bash scripts/quick-eval.sh` for mechanical belief results
-5. Write results to `.claude/cache/eval-cache.json` (merge, preserve unscored features)
+4b. Run `bash ../../shared/claim-verify.sh [project-dir] [feature]` for each feature — mechanical check that the feature's commands produce output matching its `delivers:` claim. Low claim_in_output match = delivery gap (the code works but doesn't communicate the value). Incorporate pass_rate into delivery scoring.
+5. Write results to `.claude/cache/eval-cache.json` (merge, preserve unscored features). Include `journey_position` field from journey-weight.sh output for each feature.
 6. Write/update rubrics per feature — see `references/rubric-guide.md`
 7. Present results using format from `templates/eval-report.md`
+7b. Run `bash scripts/outside-in.sh [project-dir]` — reads product intelligence caches to surface what the product is MISSING. Present as "▾ outside-in" section in the eval report. This is NOT a score — it's a lens that shows opportunity cost. The outside-in pass is surface-agnostic: when it finds "acquire: 0 surfaces" it should NOT assume the fix is a CLI command — it could be a landing page, web dashboard, API, or distribution channel.
 8. Cross-skill synthesis, next commands
 
 **Parallel evaluator spawning (full eval only):** Spawn one evaluator agent per feature:
@@ -94,7 +100,7 @@ Same depth, one feature. Full code read, full rubric check, full evidence. No ag
 
 ## State to read (parallel)
 
-`config/rhino.yml`, `config/product-spec.yml` (grounds scoring in what the product claims to deliver — delivery score checks spec claims, not just code quality), `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists).
+`config/rhino.yml`, `config/product-spec.yml` (grounds scoring in what the product claims to deliver — delivery score checks spec claims, not just code quality), `.claude/cache/eval-cache.json`, `.claude/cache/rubrics/*.json`, `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/experiment-learnings.md`), `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `.claude/cache/customer-intel.json` (if exists), `.claude/cache/market-context.json` (if exists — competitive landscape, demand signals), `.claude/cache/product-value.json` (if exists — value loop, auth gates, surface categories. Use to weight scoring: core value loop surfaces matter more than infrastructure), `.claude/cache/topology.json` (if exists — journey positions, data flows, orphans).
 
 ## Task generation — the path to completion
 

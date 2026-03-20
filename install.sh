@@ -386,18 +386,16 @@ else
 
     if $PLUGIN_MODE; then
         echo -e "  ${BOLD}What was set up:${NC}"
-        echo -e "    · ${local_skill_count:-0} skills loaded via plugin system"
-        echo -e "    · agents loaded via plugin system"
-        echo -e "    · mind files delivered via rhino-mind skill"
+        echo -e "    · ${local_skill_count:-0} skills, agents, and hooks loaded via plugin system"
+        echo -e "    · quality checks run automatically after every code change"
+        echo -e "    · product measurement happens in the background"
         echo ""
-        echo -e "  ${BOLD}Next steps:${NC}"
-        echo -e "    ${BOLD}1.${NC} Open Claude Code in any project"
-        echo -e "    ${BOLD}2.${NC} Type ${BOLD}/plan${NC} to find the bottleneck and start building"
-        echo -e "    ${BOLD}3.${NC} Or type ${BOLD}/rhino help${NC} to see all commands"
+        echo -e "  ${BOLD}Next:${NC}"
+        echo -e "    Open Claude Code in any project and start coding."
+        echo -e "    rhino-os measures quality automatically. No commands to learn."
         echo ""
-        echo -e "  ${DIM}Run /discover to define your product — agents research demand, competitors,${NC}"
-        echo -e "  ${DIM}and market, then auto-wire features + assertions. Install is the start of${NC}"
-        echo -e "  ${DIM}product discovery, not just setup.${NC}"
+        echo -e "  ${DIM}Want more control? Just ask — \"is this good?\", \"what should I work on?\"${NC}"
+        echo -e "  ${DIM}rhino-os routes your intent to the right action.${NC}"
     else
         # Count what was installed
         mind_count=0; agent_count_final=0

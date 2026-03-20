@@ -394,7 +394,7 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
         fi
     fi
 else
-    echo -e "  ${C_DIM}score${C_NC}       ${C_DIM}none yet — run${C_NC} rhino score ."
+    echo -e "  ${C_DIM}score${C_NC}       ${C_DIM}none yet — quality check runs after your first code change${C_NC}"
 fi
 
 # Plan + next task (compact)
@@ -583,6 +583,17 @@ else
 fi
 
 [[ -n "$SELF_REC" ]] && echo -e "  ${C_DIM}⚙${C_NC} ${SELF_REC#\[self\] }"
+
+# --- Product intelligence (extracted to hooks/lib/product-nudge.sh) ---
+if [[ -f "$_SELF_CHECKS_DIR/lib/product-nudge.sh" ]]; then
+    source "$_SELF_CHECKS_DIR/lib/product-nudge.sh"
+elif [[ -f "$RHINO_DIR/hooks/lib/product-nudge.sh" ]]; then
+    source "$RHINO_DIR/hooks/lib/product-nudge.sh"
+fi
+
+if [[ -n "${PRODUCT_LINES:-}" ]]; then
+    echo -e "  ${PRODUCT_LINES}"
+fi
 
 echo -e "${SEP}"
 echo ""

@@ -5,6 +5,8 @@ argument-hint: "[help|system|compare|health|progress]"
 allowed-tools: Read, Bash, Grep, Glob
 ---
 
+!cat .claude/cache/product-value.json 2>/dev/null | jq '.product_model' 2>/dev/null || true
+
 # /rhino
 
 The home screen. Everything the founder needs, nothing they don't.

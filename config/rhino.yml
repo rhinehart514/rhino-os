@@ -95,7 +95,7 @@ features:
   scoring:
     delivers: "honest number that tells a founder if their product improved"
     for: "solo founder who just made changes"
-    code: ["bin/score.sh", "bin/eval.sh", "bin/lib/config.sh"]
+    code: ["bin/score.sh", "bin/eval.sh", "bin/lib/config.sh", "skills/shared/product-topology.sh", "skills/shared/claim-verify.sh", "skills/score/scripts/synthesize.sh"]
     commands: ["rhino score .", "rhino eval ."]
     status: active
     weight: 5
@@ -120,7 +120,7 @@ features:
   commands:
     delivers: "skills that route founder intent to the right action"
     for: "solo founder working in Claude Code"
-    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md"]
+    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md", "skills/product/scripts/coherence-check.sh", "skills/eval/scripts/journey-weight.sh", "skills/taste/scripts/cli-taste.sh"]
     commands: ["rhino help"]
     status: active
     weight: 5

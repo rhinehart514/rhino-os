@@ -249,4 +249,48 @@ if [[ -f "$RHINO_DIR/bin/maturity-tier.sh" ]]; then
     echo ""
 fi
 
+# --- Topology ---
+# --- Product value ---
+VALUE_SCRIPT="$RHINO_DIR/skills/shared/product-value.sh"
+VALUE_CACHE="$PROJECT_DIR/.claude/cache/product-value.json"
+if [[ -f "$VALUE_SCRIPT" ]] && [[ ! -f "$VALUE_CACHE" ]]; then
+    bash "$VALUE_SCRIPT" "$PROJECT_DIR" > /dev/null 2>&1
+fi
+if [[ -f "$VALUE_CACHE" ]] && command -v jq &>/dev/null; then
+    echo "▸ product value"
+    CORE_COUNT=$(jq -r '.stats.core_count // 0' "$VALUE_CACHE" 2>/dev/null)
+    AUTH_COUNT=$(jq -r '.stats.auth_gated_count // 0' "$VALUE_CACHE" 2>/dev/null)
+    INFRA_COUNT=$(jq -r '.stats.infrastructure_count // 0' "$VALUE_CACHE" 2>/dev/null)
+    AVG_CORE=$(jq -r '.stats.avg_core_value // 0' "$VALUE_CACHE" 2>/dev/null)
+    echo "  core: $CORE_COUNT  auth-gated: $AUTH_COUNT  infrastructure: $INFRA_COUNT  avg_core_value: $AVG_CORE"
+    echo "  value loop:"
+    jq -r '.value_loop[:5][] | "    \(.)"' "$VALUE_CACHE" 2>/dev/null
+    echo ""
+fi
+
+# --- Topology ---
+TOPO_SCRIPT="$RHINO_DIR/skills/shared/product-topology.sh"
+if [[ -f "$TOPO_SCRIPT" ]]; then
+    echo "▸ topology"
+    TOPO=$(bash "$TOPO_SCRIPT" "$PROJECT_DIR" 2>/dev/null)
+    if [[ -n "$TOPO" ]] && command -v jq &>/dev/null; then
+        PTYPE=$(echo "$TOPO" | jq -r '.product_type // "unknown"')
+        SCOUNT=$(echo "$TOPO" | jq -r '.stats.surface_count // 0')
+        OCOUNT=$(echo "$TOPO" | jq -r '.stats.orphan_count // 0')
+        DCOUNT=$(echo "$TOPO" | jq -r '.stats.dead_end_count // 0')
+        CRIT_DATA=$(echo "$TOPO" | jq -r '.stats.critical_data_count // 0')
+        echo "  product_type: $PTYPE  surfaces: $SCOUNT  orphans: $OCOUNT  dead_ends: $DCOUNT"
+        # Journey positions for active features
+        echo "$TOPO" | jq -r '.journey_positions | to_entries[] | "  \(.key): \(.value.position) (w:\(.value.weight))"' 2>/dev/null
+        # Critical data flows (high-risk: many readers, few writers)
+        if [[ "$CRIT_DATA" -gt 0 ]]; then
+            echo "  critical_data ($CRIT_DATA files with many consumers):"
+            echo "$TOPO" | jq -r '.critical_data | to_entries[] | select(.value.risk == "high") | "    \(.key): \(.value.consumers) consumers, \(.value.producers) producers"' 2>/dev/null | head -5
+        fi
+    else
+        echo "  (topology generation failed)"
+    fi
+    echo ""
+fi
+
 echo "=== CONTEXT COMPLETE ==="

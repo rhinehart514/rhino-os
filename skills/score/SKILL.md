@@ -184,10 +184,12 @@ Product-level confidence = minimum confidence across all tiers. One `low` tier =
 ## Cross-skill synthesis
 
 After scoring:
+- Read `.claude/cache/outside-in.json` if present. Surface journey gaps and unmet needs as opportunity context — not a penalty, but a "what's missing" signal. This is surface-agnostic: gaps could be filled by CLI, web, API, or distribution channels.
 - Lowest-scoring feature by unified score = the bottleneck. Suggest `/plan` to target it.
 - If visual confidence is low and product has a URL: suggest `/taste <url>`.
 - If behavioral confidence is low: suggest `/taste <url> flows`.
 - If viability is lowest dimension: suggest `/research` or `/strategy`.
+- If journey gaps > 0 or unmet needs > 0: suggest `/ideate` to generate ideas for the gaps.
 - If all tiers are high confidence and score > 80: suggest `/ship`.
 
 ## Agents

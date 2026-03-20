@@ -13,6 +13,12 @@
 
   beliefs: 61/76 passing
 
+▾ outside-in
+  journey: [stage] has [N] surfaces — [implication]
+  unmet: [need] — no feature addresses this
+  market: [signal] — opportunity not captured
+  risk: [concentration warning if applicable]
+
 ▾ system check
   bottleneck: **feature** at N — why
   strategy: confirms/contradicts — one sentence
@@ -30,6 +36,7 @@
 - Gap line indented below — the specific problem, not a verdict label
 - No DELIVERS/PARTIAL/MISSING labels — the score IS the verdict
 - Beliefs are one summary line — pass count only
+- Outside-in section shows opportunity cost: journey gaps, unmet needs, market signals. NOT a score — a lens. Surface-agnostic (don't assume CLI is the fix).
 - System check section cross-references strategy, plan, roadmap, todos
 - Bold the bottleneck feature name
 - Bottom: 2-3 next commands routed to specific actions
