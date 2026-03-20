@@ -12,6 +12,8 @@ Most dev tools measure code quality — linting, test coverage, type safety. rhi
 
 The `/score` command orchestrates 5 measurement tiers — health, code eval, visual quality, behavioral testing, and agent-backed market viability — into one honest number. The confidence badge (●●●○○ = 3 of 5 tiers have data) tells you how much of that number to trust.
 
+**Reading the scores:** 90+ = genuinely excellent, you'd show it as an example. 70-89 = solid, ships and works. 50-69 = works but has gaps. 30-49 = half-built. Below 30 = broken. Scores are honest — early-stage products scoring 75+ are flagged as suspicious. The target is improvement over sessions, not a high number on day one.
+
 ## vs alternatives
 
 - **CI / GitHub Actions** measure whether code passes tests. rhino-os measures whether the product delivers value — assertions test what users experience, not what compilers accept.
