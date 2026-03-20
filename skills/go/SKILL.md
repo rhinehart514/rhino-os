@@ -149,6 +149,13 @@ On regression: spawn `rhino-os:debugger` in background before reverting.
 
 **Mandatory before next move.** Spawn `rhino-os:grader` to fill result/correct/model_update in predictions.tsv. If wrong, grader updates experiment-learnings.md.
 
+### Step 9b: Consolidate knowledge
+
+After grading, spawn `rhino-os:consolidator` in background to merge/dedup/prune experiment-learnings.md. Same pattern as /retro:
+- Promotes uncertain → known when 3+ experiments confirm
+- Detects stale patterns (>14d without new evidence)
+- Deduplicates entries added from different sessions
+
 ### Step 10: Next move or stop
 
 Run `bash scripts/plateau-check.sh`. If plateau: stop, research inline, report. Otherwise: pick next move, loop back to Step 3.

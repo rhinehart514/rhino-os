@@ -6,6 +6,7 @@ allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent, 
 ---
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no cache"
+!cat ~/.claude/knowledge/experiment-learnings.md 2>/dev/null | head -60 || echo "no knowledge model"
 
 # /eval
 
@@ -41,6 +42,7 @@ Parse `$ARGUMENTS`. Exact keyword wins, then feature name, then free-form.
 | `coverage` | Assertion type distribution, signal quality |
 | `trend` | Classify assertions: stable, flapping, changed |
 | `slop` | Scan for LLM-generated code patterns |
+| `execute` | Run commands, check runtime behavior, then score with evidence |
 | `taste` / `vs <url>` | Redirect to `/taste` |
 
 ## The protocol

@@ -648,8 +648,8 @@ fi
 
 # Generative features count as assertions for scoring mode detection
 if [[ "$local_has_features" == true && "$ASSERTION_COUNT" -eq 0 ]]; then
-    # Count features in rhino.yml
-    ASSERTION_COUNT=$(grep -cE '^  [a-z][a-z0-9_-]*:$' "config/rhino.yml" 2>/dev/null || true)
+    # Count features under the features: section only
+    ASSERTION_COUNT=$(awk '/^features:/{found=1; next} found && /^[a-z]/{exit} found && /^  [a-z][a-z0-9_-]*:/{c++} END{print c+0}' "config/rhino.yml" 2>/dev/null || echo "0")
 fi
 
 if [[ "$ASSERTION_COUNT" -gt 0 ]]; then
@@ -658,7 +658,14 @@ if [[ "$ASSERTION_COUNT" -gt 0 ]]; then
     _eval_err=$(mktemp /tmp/rhino-eval-err.XXXXXX)
     eval_json=$("$SCRIPT_DIR/eval.sh" . --score --json --no-generative 2>"$_eval_err") || eval_json=""
     if [[ -z "$eval_json" && -s "$_eval_err" ]]; then
-        echo "score: eval failed — $(head -1 "$_eval_err"). Run 'rhino eval .' to debug." >&2
+        _err_lines=$(tail -3 "$_eval_err" | tr '\n' ' ')
+        if grep -q "jq" "$_eval_err" 2>/dev/null; then
+            echo "score: eval failed — jq not found. Install: brew install jq" >&2
+        elif grep -q "permission" "$_eval_err" 2>/dev/null; then
+            echo "score: eval failed — permission error. Run: chmod +x bin/eval.sh" >&2
+        else
+            echo "score: eval failed — ${_err_lines}Run 'rhino eval .' for full output." >&2
+        fi
     fi
     rm -f "$_eval_err"
     if [[ -n "$eval_json" ]] && command -v jq &>/dev/null; then

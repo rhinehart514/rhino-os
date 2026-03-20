@@ -20,6 +20,7 @@ JSON_OUTPUT=false
 FRESH_MODE=false
 NO_GENERATIVE=false
 NO_LLM=false
+EXECUTE_MODE=false
 EVAL_SAMPLES=3
 FEATURE_FILTER=""
 POSITIONAL=""
@@ -31,6 +32,7 @@ for arg in "$@"; do
         --fresh) FRESH_MODE=true ;;
         --no-generative) NO_GENERATIVE=true ;;
         --no-llm) NO_LLM=true; NO_GENERATIVE=true ;;
+        --execute) EXECUTE_MODE=true ;;
         --samples=*) EVAL_SAMPLES="${arg#--samples=}" ;;
         --samples) ;; # next arg is the count, handled below
         --feature=*) FEATURE_FILTER="${arg#--feature=}" ;;
@@ -233,6 +235,8 @@ else
     done
     RHINO_DIR="$(cd "$(dirname "$_EVAL_SOURCE")/.." && pwd)"
 fi
+
+source "$RHINO_DIR/bin/lib/config.sh"
 
 # === Infrastructure checks (rhino-os only) ===
 # These check host state (symlinks, hooks, knowledge model) which only
@@ -565,6 +569,11 @@ parse_features() {
 #           _validate_and_emit(), _apply_logic_antisycophancy()
 source "$RHINO_DIR/bin/lib/generative-eval.sh"
 
+# === Execution eval engine (runtime checks) ===
+# Provides: run_execution_eval(), format_execution_context()
+PROJECT_DIR="${PROJECT_DIR:-$(pwd)}"
+source "$RHINO_DIR/bin/lib/execution-eval.sh"
+
 # Check eval cache for a feature
 # Returns cached verdict if fresh, empty string if stale/missing
 check_eval_cache() {
@@ -584,8 +593,10 @@ check_eval_cache() {
             local now
             now=$(date +%s)
             local age=$(( now - cache_mtime ))
-            # Cache valid for same session (1 hour) AND no code files changed
-            if [[ "$age" -lt 3600 ]]; then
+            # Cache valid for configured TTL (default 1 hour) AND no code files changed
+            local cache_ttl
+            cache_ttl=$(cfg scoring.cache_ttl 3600)
+            if [[ "$age" -lt "$cache_ttl" ]]; then
                 # Check if any code file for this feature changed since cache
                 local code_changed=false
                 local code_paths
@@ -650,6 +661,16 @@ run_generative_eval() {
             # Gather code and call Claude
             local code_context
             code_context=$(gather_code_context "$code_paths" "$feat_name")
+
+            # Append execution eval results when --execute is active
+            if [[ "$EXECUTE_MODE" == true ]]; then
+                local exec_results
+                exec_results=$(run_execution_eval "$feat_name" 2>/dev/null) || exec_results=""
+                if [[ -n "$exec_results" ]]; then
+                    code_context+="
+$(format_execution_context "$exec_results")"
+                fi
+            fi
 
             if [[ -n "$code_context" ]]; then
                 # Generate per-feature rubric (async, cached 24h) — runs in background for next eval

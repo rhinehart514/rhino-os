@@ -7,6 +7,7 @@ allowed-tools: Read, Bash, Grep, Glob, Agent, EnterPlanMode, ExitPlanMode, AskUs
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, d: .value.delivery_score, c: .value.craft_score, v: .value.viability_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
 !cat .claude/plans/plan.yml 2>/dev/null | head -20 || echo "no plan"
+!cat ~/.claude/knowledge/experiment-learnings.md 2>/dev/null | head -60 || echo "no knowledge model"
 
 # /plan
 

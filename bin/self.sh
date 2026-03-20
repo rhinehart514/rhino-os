@@ -589,6 +589,66 @@ else
     fi
 fi
 
+# prediction-trend (3 pts): is accuracy improving over time?
+if [[ -f "$PRED_FILE" ]]; then
+    TOTAL_GRADED_T=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++ } END { print c+0 }')
+    if [[ "$TOTAL_GRADED_T" -ge 8 ]]; then
+        # Compare first half vs second half accuracy
+        HALF=$((TOTAL_GRADED_T / 2))
+        FIRST_HALF_ACC=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" { c++; if($6=="yes") y++; if($6=="partial") p++ } c<='"$HALF"' { } END { printf "%.2f", (y + p*0.5) / (c>0?c:1) }')
+        SECOND_HALF_ACC=$(tail -n +2 "$PRED_FILE" | awk -F'\t' 'BEGIN{c=0;y=0;p=0;skip='"$HALF"'} $6 != "" { total++; if(total>skip) { c++; if($6=="yes") y++; if($6=="partial") p++ } } END { printf "%.2f", (y + p*0.5) / (c>0?c:1) }')
+        if awk "BEGIN { exit !($SECOND_HALF_ACC >= $FIRST_HALF_ACC) }"; then
+            check_pass "prediction-trend" "accuracy improving: ${FIRST_HALF_ACC} → ${SECOND_HALF_ACC}" 3
+        else
+            check_warn "prediction-trend" "accuracy declining: ${FIRST_HALF_ACC} → ${SECOND_HALF_ACC}" 1 3
+        fi
+    else
+        check_warn "prediction-trend" "need 8+ graded predictions for trend (have ${TOTAL_GRADED_T})" 1 3
+    fi
+else
+    check_warn "prediction-trend" "no predictions.tsv" 0 3
+fi
+
+# knowledge-velocity (3 pts): new entries being added recently?
+if [[ -f "$LEARNINGS" ]]; then
+    RECENT_CUTOFF=$(date -v-14d '+%Y-%m-%d' 2>/dev/null || date -d "14 days ago" '+%Y-%m-%d' 2>/dev/null || echo "")
+    if [[ -n "$RECENT_CUTOFF" ]]; then
+        RECENT_ENTRIES=$(grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$LEARNINGS" 2>/dev/null | \
+            awk -v cutoff="$RECENT_CUTOFF" '$0 >= cutoff { c++ } END { print c+0 }')
+        if [[ "$RECENT_ENTRIES" -ge 3 ]]; then
+            check_pass "knowledge-velocity" "${RECENT_ENTRIES} knowledge entries from last 14d" 3
+        elif [[ "$RECENT_ENTRIES" -ge 1 ]]; then
+            check_warn "knowledge-velocity" "only ${RECENT_ENTRIES} entries from last 14d — model growth stalling" 1 3
+        else
+            check_fail "knowledge-velocity" "0 entries from last 14d — model is stagnant" 3
+        fi
+    else
+        check_warn "knowledge-velocity" "could not compute date cutoff" 0 3
+    fi
+else
+    check_fail "knowledge-velocity" "no experiment-learnings.md" 3
+fi
+
+# citation-rate (3 pts): do predictions cite evidence?
+if [[ -f "$PRED_FILE" ]]; then
+    TOTAL_PREDS=$(tail -n +2 "$PRED_FILE" | wc -l | tr -d ' ')
+    CITED_PREDS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$3 != "" && $3 != " " { c++ } END { print c+0 }')
+    if [[ "$TOTAL_PREDS" -eq 0 ]]; then
+        check_warn "citation-rate" "no predictions yet" 0 3
+    else
+        CITE_RATE=$((CITED_PREDS * 100 / TOTAL_PREDS))
+        if [[ "$CITE_RATE" -ge 70 ]]; then
+            check_pass "citation-rate" "${CITED_PREDS}/${TOTAL_PREDS} predictions cite evidence (${CITE_RATE}%)" 3
+        elif [[ "$CITE_RATE" -ge 40 ]]; then
+            check_warn "citation-rate" "${CITED_PREDS}/${TOTAL_PREDS} cite evidence (${CITE_RATE}%) — too many guesses" 1 3
+        else
+            check_fail "citation-rate" "${CITED_PREDS}/${TOTAL_PREDS} cite evidence (${CITE_RATE}%) — model not grounded" 3
+        fi
+    fi
+else
+    check_warn "citation-rate" "no predictions.tsv" 0 3
+fi
+
 # learning-loop-closure (4 pts): full loop — predictions exist → graded → knowledge updated
 # This is the core logic check: does the learning loop actually close?
 LOOP_STAGES=0
