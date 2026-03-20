@@ -300,15 +300,16 @@ For auto-graded predictions, research findings, and other uncertain assessments:
 
 ## Tool-Driven Interactivity
 
-Skills should use Claude Code tools to make output dynamic, not just templated:
+Skills use Claude Code tools to fill templates with live data, not static text:
 
-- **Bash** (`rhino eval .`, `rhino score .`, `git log`) — pull live data into output
+- **Bash** (`rhino eval .`, `rhino score .`, `git log`) — live project data
+- **Read** (state files: score-cache.json, eval-cache.json, roadmap.yml) — direct state reads, no script intermediary needed
 - **Playwright** (`browser_take_screenshot`, `browser_resize`) — visual captures for /clone, /taste, /calibrate
 - **WebFetch** — verify deployed URLs, measure response times
 - **AskUserQuestion** — interactive flows (component selection, interview questions, confirmation gates)
 - **Vercel MCP** — real deploy status, build logs, runtime logs for /ship
 
-The output template is the SHAPE. The tools fill it with REAL DATA.
+The output template is the SHAPE. The tools fill it with REAL DATA. Skills should read state files directly when the data is JSON/YAML — scripts are for computation, not for reading caches.
 
 ---
 

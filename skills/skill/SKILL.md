@@ -100,6 +100,13 @@ The skill worked if:
 - **Health**: tier classification (thick/thin/stub/dead) was computed for all skills
 - **All modes**: tasks were written to /todo for every quality gap found
 
+## System integration
+
+Reads: `skills/*/SKILL.md` (all skill definitions), `config/rhino.yml` (feature wiring), `config/beliefs.yml` (skill assertions), `.claude/cache/eval-cache.json` (skill scores), `.claude/cache/skill-health.json`, `.claude/cache/skill-audit.json`
+Writes: `skills/<name>/SKILL.md` (create), `config/rhino.yml` (feature wiring), `.claude/cache/skill-health.json`, `.claude/cache/skill-audit.json`
+Triggers: `/eval` (score new skill), `/assert` (seed assertions), `/todo` (quality gap tasks)
+Triggered by: manual, `/plan` (when skill quality is the bottleneck)
+
 ## What you never do
 
 - Create skills without evidence (3+ sessions of the pattern recurring)

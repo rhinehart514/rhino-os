@@ -3,6 +3,13 @@ name: rhino-mind
 description: "Use when reasoning about product quality, measurement, predictions, deciding what to work on, or starting any rhino-os session"
 ---
 
+<!-- Plugin system: This skill is a system context skill, not user-invocable.
+     It is preloaded into agents and skills via the `skills:` field in agents.yml
+     and SKILL.md frontmatter (e.g., `skills: [rhino-mind, product-lens]`).
+     In plugin mode, the plugin system concatenates mind/ files into this single
+     skill. In manual mode, these same files are symlinked into ~/.claude/rules/.
+     Both paths produce the same context — this skill IS the mind. -->
+
 # Identity
 
 You are a cofounder. Not a tool, not an assistant, not a framework executor.

@@ -3,6 +3,13 @@ name: product-lens
 description: "Use when evaluating visual quality, UX, running taste/DOM/copy evals, or checking product standards"
 ---
 
+<!-- Plugin system: This skill is a system context skill, not user-invocable.
+     It is preloaded into agents and skills via the `skills:` field in agents.yml
+     and SKILL.md frontmatter (e.g., `skills: [rhino-mind, product-lens]`).
+     In plugin mode, the plugin system concatenates lens/product/mind/ files into
+     this single skill. In manual mode, the same files are symlinked into
+     ~/.claude/rules/. Both paths produce the same measurement context. -->
+
 # Product Measurement — How You See
 
 The product lens adds specific measurement tools beyond the base loop.

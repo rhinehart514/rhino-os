@@ -198,6 +198,13 @@ The skill worked if:
 - **Stale calibration is worse than no calibration**: a 60-day-old market snapshot actively misleads taste scores. Refresh mode exists for this reason -- use it.
 - **Profile mode interview quality**: vague founder answers ("I like clean design") produce useless calibration. The interview protocol pushes for specifics, but the output quality is bounded by input specificity.
 
+## System integration
+
+Reads: `config/rhino.yml` (product category, competitors), `~/.claude/knowledge/founder-taste.md`, `.claude/design-system.md`, `.claude/cache/anti-slop.md`, `.claude/cache/taste-market.json`, `.claude/cache/calibration-history.json`, `.claude/evals/taste-history.tsv`
+Writes: `~/.claude/knowledge/founder-taste.md`, `.claude/design-system.md`, `.claude/cache/anti-slop.md`, `.claude/cache/taste-market.json`, `.claude/cache/market-snapshot.md`, `.claude/cache/calibration-history.json`
+Triggers: `/taste <url>` (score with calibrated eyes), `/ideate` (act on gaps found), `/ideate market` (from competitive data)
+Triggered by: `/taste` (when calibration artifacts missing/stale), first-time setup, manual
+
 ## What you never do
 
 - Calibrate to inflate scores — calibration makes taste honest, not generous

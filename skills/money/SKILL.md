@@ -41,39 +41,29 @@ After every `/money` run, append to `${CLAUDE_PLUGIN_DATA}/money-history.json`. 
 | `unit-economics` | CAC / LTV / payback calculation |
 | `channels` | Channel evaluation and ranking |
 
-## The protocol
+## How it works
 
-### Step 1: Mechanical scan (always first)
+**Mechanical scan first:** Run `bash ${CLAUDE_SKILL_DIR}/scripts/revenue-scan.sh` for current financial state. For pricing modes, also run `bash ${CLAUDE_SKILL_DIR}/scripts/pricing-compare.sh`. Read `config/product-spec.yml` if it exists — pricing should serve the spec's person.
 
-Run `bash ${CLAUDE_SKILL_DIR}/scripts/revenue-scan.sh` for current financial state. For pricing modes, also run `bash ${CLAUDE_SKILL_DIR}/scripts/pricing-compare.sh`.
+**Read gotchas + mode-specific reference:** `gotchas.md`, then price→`references/pricing-guide.md`, runway/unit-economics→`references/unit-economics.md`, channels→`references/channel-selection.md`, model→all references.
 
-Also read `config/product-spec.yml` if it exists — pricing should serve the spec's person at the spec's why_now price point.
-
-### Step 2: Read gotchas + relevant references
-
-Read `gotchas.md`. Then read the mode-specific reference:
-- price: `references/pricing-guide.md`
-- runway/unit-economics: `references/unit-economics.md`
-- channels: `references/channel-selection.md`
-- model: all references
-
-### Step 3: Agent spawning
-
-**Full model / channels / pricing:**
+**Agent spawning:** Full model / channels / pricing spawn both agents:
 ```
 Agent(subagent_type: "rhino-os:gtm", prompt: "[mode-specific brief]", run_in_background: true)
 Agent(subagent_type: "rhino-os:market-analyst", prompt: "Research pricing and distribution for [category].", run_in_background: true)
 ```
+Runway / unit-economics: GTM agent only.
 
-**Runway / unit-economics:** GTM agent only.
+**Synthesize** — collect agent results, use `templates/pricing-model.md` for structure, present via AskUserQuestion with 2-3 options when decisions are needed.
 
-### Step 4: Synthesize and present
+**Persist** — write decisions to `config/rhino.yml` under `pricing:`. Append to money-history.json.
 
-Collect agent results. Use `templates/pricing-model.md` for pricing output structure. Present via AskUserQuestion with 2-3 options when pricing decisions are needed.
+## System integration
 
-### Step 5: Persist
-
-Write decisions to `config/rhino.yml` under `pricing:`. Append to money-history.json.
+Reads: `config/rhino.yml` (features, stage, pricing), `config/product-spec.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/eval-cache.json` (feature maturity gate)
+Writes: `config/rhino.yml` (pricing section), `${CLAUDE_PLUGIN_DATA}/money-history.json`
+Triggers: `/strategy honest` (business viability), `/ship release` (if ready to charge), `/todo` (financial gap tasks)
+Triggered by: `/strategy` (revenue avoidance detection), `/plan` (stage-appropriate nudge), manual
 
 ## Output format
 

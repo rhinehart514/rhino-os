@@ -24,6 +24,13 @@ You are running an automatic quality check. Be invisible when things are fine. O
    - Score dropped 5+ points → warn: "Quality dropped [old]→[new]. [specific reason]. Fix before continuing."
    - Assertions regressed (was passing, now failing) → block: "Assertion regression: [which ones]. Fix these before other work."
 
+## System integration
+
+Reads: `.claude/cache/score-cache.json` (previous score + freshness check)
+Writes: nothing (score.sh updates the cache)
+Triggers: nothing (reports only — the builder/skill decides what to do with regressions)
+Triggered by: post_edit hook (auto, after 3+ files changed), post_commit hook
+
 ## Rules
 
 - **Never announce yourself.** Don't say "I'm running a quality check" or "Let me check the score."

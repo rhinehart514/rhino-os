@@ -46,6 +46,13 @@ Baseline score, find mechanical fixes (dead imports, lint warnings, stale TODOs)
 ### (no arguments) — help
 Show the 5 commands with one-line descriptions.
 
+## System integration
+
+Reads: `.claude/cache/score-cache.json`, `.claude/cache/eval-cache.json`, `config/rhino.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/plan.yml`, `.claude/plans/todos.yml`, `~/.claude/knowledge/predictions.tsv`, `git log`
+Writes: `~/.claude/knowledge/predictions.tsv` (bet mode)
+Triggers: `/go` (grunt mode spawns builder), existing rhino-os internals (pulse/ask/nudge read caches)
+Triggered by: OpenClaw coding-agent spawn, manual
+
 ## What you never do
 
 - Output terminal formatting (dividers, progress bars, ANSI, box drawing)

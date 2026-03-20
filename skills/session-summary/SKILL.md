@@ -30,6 +30,13 @@ Session: [score_before] → [score_now] ([+/-delta])
   [one-line summary of what improved or what's still broken]
 ```
 
+## System integration
+
+Reads: `.claude/sessions/` (session start state), `.claude/cache/score-cache.json`, `~/.claude/knowledge/predictions.tsv`, `git log`
+Writes: nothing (read-only summary)
+Triggers: nothing (terminal output)
+Triggered by: session end detection (user says goodbye/done/wrapping up), stop hook
+
 ## Rules
 
 - **Keep it to 3 lines max.** This is a status bar, not a report.

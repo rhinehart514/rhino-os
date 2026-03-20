@@ -41,37 +41,31 @@ This skill is a **folder**. Read these on demand:
 | `empty-states` | Copy for every empty state in the product |
 | `[any text]` | Custom copy brief |
 
-## The protocol
+## How it works
 
-### Step 1: Read state (parallel)
+**Read state first** (parallel): `config/rhino.yml` (user, features), `config/product-spec.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`. Then read `gotchas.md`, `references/voice-guide.md`, `references/slop-words.md`. For landing/pitch: also `references/positioning-frameworks.md`.
 
-Read: `config/rhino.yml` (user, features), `config/product-spec.yml` (write in the spec's language, for the spec's person, about the spec's change), `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`.
-
-### Step 2: Read gotchas + references
-
-Read `gotchas.md`. Then read `references/voice-guide.md` and `references/slop-words.md`. For landing/pitch: also read `references/positioning-frameworks.md`.
-
-### Step 3: Spawn copywriter agent
-
+**Spawn copywriter agent:**
 ```
 Agent(subagent_type: "rhino-os:copywriter", prompt: "[copy brief with all context from state reads]")
 ```
-
 For `landing` and `pitch`, also spawn market-analyst in background for competitive messaging.
 
-### Step 4: Quality gate (mandatory)
-
-Before presenting ANY copy, check:
+**Quality gate (mandatory)** — before presenting ANY copy:
 1. Names a person? (not "developers" — a specific situation)
 2. States what changes? (not "improve your workflow" — tangible outcome)
 3. Differentiates? (names a specific alternative)
 4. Slop-free? Run `echo "[copy]" | bash ${CLAUDE_SKILL_DIR}/scripts/slop-check.sh`
-
 Any failure = rewrite before presenting.
 
-### Step 5: Present and log
+**Present and log** — via AskUserQuestion. Log via `bash ${CLAUDE_SKILL_DIR}/scripts/copy-log.sh add "[type]" "[headline]" "[preview]"`.
 
-Present via AskUserQuestion. Log via `bash ${CLAUDE_SKILL_DIR}/scripts/copy-log.sh add "[type]" "[headline]" "[preview]"`.
+## System integration
+
+Reads: `config/rhino.yml`, `config/product-spec.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`
+Writes: `${CLAUDE_PLUGIN_DATA}/copy-log.json`, copy files in project
+Triggers: `/taste` (check copy visually), `/ship release` (use copy in release notes), `/todo` (copy gap tasks)
+Triggered by: `/onboard` (empty-states), `/ship` (release notes), `/ideate` (positioning), manual
 
 ## Output format
 

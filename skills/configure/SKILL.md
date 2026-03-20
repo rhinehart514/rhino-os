@@ -78,6 +78,13 @@ The skill worked if:
 - **Config not taking effect**: preferences.yml keys must match the exact nesting documented in `references/config-reference.md`. A typo silently falls back to defaults.
 - **Fork constraint**: this skill uses `context: fork` so it runs as a subagent. It cannot spawn additional agents. All work must be done inline.
 
+## System integration
+
+Reads: `config/rhino.yml` (project defaults), `~/.claude/preferences.yml` (user overrides), `references/config-reference.md`
+Writes: `~/.claude/preferences.yml`
+Triggers: none (configuration is terminal)
+Triggered by: manual, `/onboard` (initial setup suggestion)
+
 ## What you never do
 
 - Modify rhino.yml — it's the project-level source of truth

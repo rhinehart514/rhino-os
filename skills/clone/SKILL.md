@@ -77,6 +77,13 @@ The skill worked if:
 - **Design-system drift**: if the project's design tokens changed since the last clone, previously "compliant" components may now have stale tokens. Re-run with `verify` after design system updates.
 - **Large pages**: decomposition of 10+ sections produces many components. Use `section` mode to clone incrementally.
 
+## System integration
+
+Reads: `.claude/design-system.md` (token compliance), `.claude/cache/clone-history.json`, tailwind config, existing components
+Writes: `.claude/cache/clone-history.json`, generated component files
+Triggers: `/taste <url>` (verify clone quality), `/calibrate design-system` (if no design-system.md)
+Triggered by: manual ("clone this", "screenshot", "make it look like")
+
 ## What you never do
 
 - Copy brand-specific text verbatim — always placeholder content

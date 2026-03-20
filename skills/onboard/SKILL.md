@@ -110,6 +110,13 @@ Use output template from `references/onboarding-flow.md`. Show what was set up, 
 
 After onboarding, show: "Generated N tasks to get started. First priority: [task]. Run /plan to pick your first move."
 
+## System integration
+
+Reads: README.md, package.json / pyproject.toml / go.mod / Cargo.toml, route structure, source files, test/CI config
+Writes: `config/rhino.yml` (features, value hypothesis), `config/beliefs.yml` (assertions), `.claude/plans/roadmap.yml`, `.claude/plans/strategy.yml`, `.claude/cache/eval-cache.json`, `~/.claude/knowledge/predictions.tsv` (header), `~/.claude/knowledge/experiment-learnings.md` (template)
+Triggers: `/eval` (establish baseline), `/plan` (pick first move), `/strategy honest` (initial diagnosis), `/todo` (generated task backlog)
+Triggered by: first use of any rhino-os command on uninitialized repo, manual ("set this up", "bootstrap", "new here")
+
 ## Self-evaluation
 
 /onboard succeeded if:
