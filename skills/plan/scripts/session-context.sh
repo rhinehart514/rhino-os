@@ -33,14 +33,28 @@ else
     echo ""
 fi
 
-# --- Eval cache (per-feature sub-scores) ---
+# --- Eval cache (per-feature — with claims from rhino.yml) ---
 EVAL_CACHE="$PROJECT_DIR/.claude/cache/eval-cache.json"
+RHINO_YML="$PROJECT_DIR/config/rhino.yml"
 if [[ -f "$EVAL_CACHE" ]] && command -v jq &>/dev/null; then
-    echo "▸ eval (per-feature)"
-    jq -r 'to_entries[] | select(.value.score != null) | "  \(.key): \(.value.score) (d:\(.value.delivery_score // "?") c:\(.value.craft_score // "?") v:\(.value.viability_score // "?")) delta:\(.value.delta // "none")"' "$EVAL_CACHE" 2>/dev/null || echo "  (parse error)"
+    echo "▸ features"
+    # Show each feature with its claim + score + top gap
+    jq -r 'to_entries[] | select(.value.score != null) | "\(.key)\t\(.value.score)\t\(.value.delivery_score // "?")\t\(.value.craft_score // "?")\t\(.value.delta // "none")\t\(.value.gaps[0] // "")"' "$EVAL_CACHE" 2>/dev/null | while IFS=$'\t' read -r fname fscore fd fc fdelta fgap; do
+        [[ -z "$fname" ]] && continue
+        # Get delivers: claim from rhino.yml
+        _claim=""
+        _weight=""
+        if [[ -f "$RHINO_YML" ]]; then
+            _claim=$(awk "/^  ${fname}:/{found=1;next} found && /delivers:/{gsub(/.*delivers: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
+            _weight=$(awk "/^  ${fname}:/{found=1;next} found && /weight:/{gsub(/.*weight: */,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
+        fi
+        echo "  ${fname}: ${fscore} (d:${fd} c:${fc}) w:${_weight:-1} delta:${fdelta}"
+        [[ -n "$_claim" ]] && echo "    delivers: ${_claim:0:80}"
+        [[ -n "$fgap" ]] && echo "    top gap: ${fgap:0:100}"
+    done
     echo ""
 else
-    echo "▸ eval (per-feature)"
+    echo "▸ features"
     echo "  (no eval cache — run: /eval)"
     echo ""
 fi

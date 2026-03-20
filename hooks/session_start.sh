@@ -355,25 +355,28 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
             _assert_hint="  ${C_DIM}— ${_fail_count} failures block polished${C_NC}"
         fi
         echo -e "              ${C_DIM}assertions${C_NC} ${ASSERTION_PASS_COUNT}/${ASSERTION_COUNT} (${_assert_pct}%)${_assert_hint}  ${C_DIM}·${C_NC}  ${C_DIM}health${C_NC} $(color_score "$HEALTH_MIN")"
-        # Show feature scores (worst to best, compact)
+        # Show features with claims (what they deliver), not just scores
+        RHINO_YML="$PROJECT_DIR/config/rhino.yml"
         if command -v jq &>/dev/null && [[ -f "$SCORE_CACHE" ]]; then
-            FEAT_LIST=$(jq -r '.features // {} | to_entries | sort_by(if .value.type == "generative" then .value.score else (.value.pass / (.value.total + 0.001) * 100) end) | .[:3] | .[] | if .value.type == "generative" then "\(.key)|\(.value.score)" else "\(.key)|\(.value.pass * 100 / (.value.total + 1) | floor)" end' "$SCORE_CACHE" 2>/dev/null || true)
+            FEAT_LIST=$(jq -r '.features // {} | to_entries | sort_by(if .value.type == "generative" then .value.score else (.value.pass / (.value.total + 0.001) * 100) end) | .[:4] | .[] | if .value.type == "generative" then "\(.key)|\(.value.score)" else "\(.key)|\(.value.pass * 100 / (.value.total + 1) | floor)" end' "$SCORE_CACHE" 2>/dev/null || true)
             if [[ -n "$FEAT_LIST" ]]; then
-                FEAT_DISPLAY=""
-                FIRST=true
+                echo -e "              ${C_DIM}features${C_NC}"
                 while IFS='|' read -r fname fscore; do
                     [[ -z "$fname" ]] && continue
-                    $FIRST || FEAT_DISPLAY="${FEAT_DISPLAY}  "
-                    if [[ "$fscore" -ge 70 ]]; then
-                        FEAT_DISPLAY="${FEAT_DISPLAY}${C_DIM}${fname}${C_NC} ${C_GREEN}${fscore}${C_NC}"
-                    elif [[ "$fscore" -ge 50 ]]; then
-                        FEAT_DISPLAY="${FEAT_DISPLAY}${C_DIM}${fname}${C_NC} ${C_YELLOW}${fscore}${C_NC}"
-                    else
-                        FEAT_DISPLAY="${FEAT_DISPLAY}${C_RED}▸${C_NC} ${fname} ${C_RED}${fscore}${C_NC}"
+                    # Get the delivers: claim from rhino.yml
+                    _claim=""
+                    if [[ -f "$RHINO_YML" ]]; then
+                        _claim=$(awk "/^  ${fname}:/{found=1;next} found && /delivers:/{gsub(/.*delivers: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
                     fi
-                    FIRST=false
+                    _claim="${_claim:0:50}"
+                    if [[ "$fscore" -ge 70 ]]; then
+                        echo -e "              ${C_GREEN}✓${C_NC} ${fname} ${C_GREEN}${fscore}${C_NC}  ${C_DIM}${_claim}${C_NC}"
+                    elif [[ "$fscore" -ge 50 ]]; then
+                        echo -e "              ${C_YELLOW}·${C_NC} ${fname} ${C_YELLOW}${fscore}${C_NC}  ${C_DIM}${_claim}${C_NC}"
+                    else
+                        echo -e "              ${C_RED}▸${C_NC} ${fname} ${C_RED}${fscore}${C_NC}  ${C_DIM}${_claim}${C_NC}"
+                    fi
                 done <<< "$FEAT_LIST"
-                echo -e "              ${FEAT_DISPLAY}"
             fi
         fi
     elif [[ "$SCORING_MODE" == "onboarding" ]]; then

@@ -27,6 +27,14 @@ WEIGHT=$(echo "$BOTTLENECK" | cut -f3)
 DIM=$(echo "$BOTTLENECK" | cut -f5)
 
 echo "▸ bottleneck: $NAME"
+# Show what this feature delivers (from rhino.yml)
+RHINO_YML="$PROJECT_DIR/config/rhino.yml"
+if [[ -f "$RHINO_YML" ]]; then
+    _bn_claim=$(awk "/^  ${NAME}:/{found=1;next} found && /delivers:/{gsub(/.*delivers: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
+    _bn_for=$(awk "/^  ${NAME}:/{found=1;next} found && /for:/{gsub(/.*for: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
+    [[ -n "$_bn_claim" ]] && echo "  delivers: $_bn_claim"
+    [[ -n "$_bn_for" ]] && echo "  for: $_bn_for"
+fi
 echo "  score: $SCORE/100  weight: $WEIGHT  weakest: $DIM"
 echo ""
 
@@ -55,10 +63,18 @@ if [[ -f "$EVAL_CACHE" ]] && command -v jq &>/dev/null; then
     echo ""
 fi
 
-# --- All features ranked ---
+# --- All features ranked (with claims) ---
 echo "▸ all features (worst first)"
 echo "$RESULT" | while IFS=$'\t' read -r fname fscore fweight fweighted fdim; do
-    echo "  $fname: $fscore (w:$fweight, weakest:$fdim)"
+    _f_claim=""
+    if [[ -f "$RHINO_YML" ]]; then
+        _f_claim=$(awk "/^  ${fname}:/{found=1;next} found && /delivers:/{gsub(/.*delivers: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
+    fi
+    if [[ -n "$_f_claim" ]]; then
+        echo "  $fname: $fscore (w:$fweight) — ${_f_claim:0:60}"
+    else
+        echo "  $fname: $fscore (w:$fweight, weakest:$fdim)"
+    fi
 done
 echo ""
 
