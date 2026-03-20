@@ -1,6 +1,6 @@
 ---
 name: go
-description: "Use when you want autonomous building with measurement and prediction grading. Builds, measures, learns in a loop. '/go auth' scopes to a feature, '/go --safe' disables beta features."
+description: "Use when the user says 'just build it', 'go', 'fix everything', or wants autonomous building. Builds, measures, learns in a loop. '/go auth' scopes to a feature, '/go --safe' disables beta features."
 argument-hint: "[feature...] [--safe] [--speculate N]"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch, TaskCreate, TaskGet, TaskList, TaskUpdate
 ---
@@ -53,11 +53,11 @@ Read `gotchas.md` and `references/build-patterns.md` before entering the loop.
 
 Check `~/.claude/preferences.yml` for `agents.cost` tier (economy/balanced/premium) and `agents.autonomy` setting.
 
-**Auto-scoring:** After scanning, set up periodic quality monitoring for the session:
+**Auto-scoring (experimental):** Set up periodic quality monitoring for the session. CronCreate is a beta CC feature — skip if it errors or is unavailable:
 ```
 CronCreate(schedule: "*/10 * * * *", prompt: "Run bash ${CLAUDE_PLUGIN_ROOT}/bin/score.sh . --json --quiet and compare against .claude/cache/score-cache.json. If score dropped more than 5 points, warn immediately. Otherwise stay silent.", recur: true)
 ```
-This checks quality every 10 minutes during the build session without manual intervention.
+This checks quality every 10 minutes during the build session without manual intervention. If CronCreate fails, fall back to manual score checks after every 3 commits.
 
 ### Step 1b: Tier-aware build behavior
 
@@ -196,7 +196,13 @@ If tasks remain: "Feature [name] is [%] complete. [M] tasks remain. Next session
 
 Format output per `reference.md`.
 
+## Self-evaluation
+
+This skill worked if: (1) the completeness report shows net positive assertion delta, (2) every build had a prediction graded before the next move, (3) no regressions were left unreverted, and (4) session log was written to `.claude/sessions/`.
+
 ## Agent routing
+
+**Cost note:** Beta mode spawns builder + measurer + reviewer + grader per cycle. A full speculative build cycle spawns 2 builders + reviewer + grader. Expect ~30-60s latency per cycle. Safe mode uses direct build (no agent cost except grader).
 
 | Step | Agent | Why |
 |------|-------|-----|

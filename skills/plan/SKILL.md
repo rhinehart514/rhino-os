@@ -195,10 +195,14 @@ See `../shared/task-generation.md` for the task generation protocol. /plan gener
 
 Tag with `source: /plan` and opportunity type. Priority: bottleneck-related opportunities first, then highest information value.
 
+## Self-evaluation
+
+This skill worked if: (1) plan.yml was written with 1-2 moves targeting the bottleneck, (2) each move has a falsifiable prediction, (3) the diagnosis cites eval data (not vibes), and (4) startup pattern warnings were addressed or explicitly deferred.
+
 ## Agent usage
 
-- **Agent (rhino-os:grader)** — grade ungraded predictions before planning
-- **Agent (rhino-os:explorer)** — if bottleneck is in Unknown Territory
+- **Agent (rhino-os:grader)** — grade ungraded predictions before planning. Expect ~10s latency.
+- **Agent (rhino-os:explorer)** — if bottleneck is in Unknown Territory. Expect ~30s latency, runs in background.
 
 ## What you never do
 

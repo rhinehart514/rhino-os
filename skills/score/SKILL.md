@@ -1,6 +1,6 @@
 ---
 name: score
-description: "Unified product quality score. Orchestrates health + code eval + visual taste + behavioral flows + agent-backed viability into one authoritative number. The real answer to 'is this product good?'"
+description: "Use when the user asks 'is this good?', 'product quality', 'unified score', or 'score everything'. Orchestrates health + code eval + visual taste + behavioral flows + agent-backed viability into one authoritative number."
 argument-hint: "[feature|quick|deep|viability|breakdown]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, WebSearch, Agent
 ---
@@ -137,8 +137,9 @@ Auto-fill all tiers sequentially. One command, all tiers, one number:
 4. **Behavioral:** if URL configured, run `/taste <url> flows` (Playwright flow audit)
 5. **Viability:** spawn market-analyst + customer agents regardless of cache age
 
-Show progress as each tier completes. Most accurate, most expensive (~$2-5 API, 10+ minutes).
-Warn about cost before starting. Use `AskUserQuestion` to confirm if not explicitly requested.
+Show progress as each tier completes. Most accurate, most expensive.
+
+**Cost note:** Deep mode spawns up to 5 agents (evaluators + market-analyst + customer) plus Playwright sessions. Expect ~$2-5 API cost and 10+ minutes wall time. Warn about cost before starting. Use `AskUserQuestion` to confirm if not explicitly requested.
 
 ### Viability mode
 
@@ -197,6 +198,10 @@ After scoring:
 - **rhino-os:evaluator** — per feature, for fresh code eval (when eval cache stale)
 - **rhino-os:market-analyst** — viability tier, competitive landscape (background)
 - **rhino-os:customer** — viability tier, demand signals (background)
+
+## Self-evaluation
+
+This skill worked if: (1) score-unified.json was written with all active features, (2) every tier has an explicit confidence level, (3) the tier fill badge reflects actual data (not assumptions), and (4) the next command suggestion matches the weakest tier.
 
 ## What you never do
 

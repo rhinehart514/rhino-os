@@ -1,6 +1,6 @@
 ---
 name: taste
-description: "Product intelligence — visual quality (11 dimensions, 0-100) AND frontend delivery (flow audit, issue list). 'flows' mode tests if it works. Standard mode tests if it's well-designed. Anti-slop-first, genuinely hard to score high."
+description: "Use when the user asks 'what does it look like?', 'visual eval', 'taste', 'design quality', 'how's the UI?', or 'is it broken?' (flows mode). Visual quality scores 0-100 across 11 dimensions. 'flows' mode tests if the frontend works."
 argument-hint: "<url> [flows|mobile|vs <url>|deep|trend]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebSearch, WebFetch, Agent, mcp__playwright__browser_navigate, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_snapshot, mcp__playwright__browser_wait_for, mcp__playwright__browser_click, mcp__playwright__browser_hover, mcp__playwright__browser_resize, mcp__playwright__browser_evaluate, mcp__playwright__browser_network_requests, mcp__playwright__browser_console_messages, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_navigate_back, mcp__playwright__browser_install
 ---
@@ -221,52 +221,55 @@ Taste prescriptions are ideation evidence. After presenting, connect to the idea
 
 These are non-negotiable. Apply in order. Each cap applies to the FINAL score after all others.
 
-### Gate caps
+### Gate caps (structural minimums)
+
 - layout_coherence < 30 OR information_architecture < 30 → cap overall at 30
 
-### Slop caps
+### Slop caps (anti-AI-generated detection)
+
 - Slop verdict = "slop" → cap overall at 40, cap every dimension at 50
 - Slop verdict = "mixed" with 2+ slop patterns → distinctiveness cap 40
 - Any AI-generated look (gradient hero + generic copy + 3-col features) → distinctiveness cap 30
+- Overall > 70 requires slop verdict "crafted" or "mixed with 0-1 patterns"
+- Overall > 60 requires slop verdict is not "slop"
 
-### Static caps
+### Static caps (framework defaults)
+
 - No motion library in codebase → polish cap 75, scroll_experience cap 75
 - Tailwind/shadcn defaults with zero custom CSS → cap layout_coherence, polish, distinctiveness at 79
 
-### Psychology check
-- 80+ on hierarchy or information_density requires naming which cognitive principle is applied (Fitts's, Gestalt, Hick's, Miller's). No name = cap at 79.
+### Psychology and craft bar (the 80+ gauntlet)
 
-### The 80+ bar (genuinely hard)
+- 80+ on hierarchy or information_density requires naming which cognitive principle is applied (Fitts's, Gestalt, Hick's, Miller's). No name = cap at 79.
 - **90+ requires ALL of:** custom motion/animation library in active use, at least one psychological principle cited by name with evidence, a distinctive visual signature (something only THIS product has), AND slop verdict = "crafted"
 - **80+ requires ALL of:** at least one intentional design choice beyond framework defaults (custom color system, unique layout, bespoke component), a named cognitive principle applied somewhere, NOT achievable with just "clean defaults"
 - **70+ requires:** consistent design system (real tokens, not defaults), slop verdict "crafted" or "mixed", clear visual hierarchy on every page evaluated
+- No single dimension can exceed overall by more than 25 points. If hierarchy = 90 but overall = 55, cap hierarchy at 80.
 
-### Stage ceiling
+### Stage and calibration caps (context-aware ceilings)
+
 - Read `config/rhino.yml` for product stage. If not set, assume early.
 - Early stage (0-10 users) → overall cap 80
 - Growth stage (10-100 users) → overall cap 90
 - Only mature products (100+ users, proven retention) can hit 95+
+- No calibration artifacts (no founder-taste.md, no design-system.md, no anti-slop.md) → cap overall at 70. Uncalibrated evals can't be trusted above this.
+- Partial calibration (1-2 artifacts) → cap overall at 80
+- Full calibration (3+ artifacts) → no calibration cap
 
-### Anti-inflation gates
+### Anti-inflation gates (bias correction)
+
 - Average across all dimensions > 65 on a non-mature product → flag **GENEROUS**, re-examine every dimension against anchors in dimensions.md. Actively look for what you're being too kind about.
 - First eval (no prior taste-history.tsv data for this URL) → subtract 3 from every dimension score BEFORE applying other caps. This counters the proven generosity bias on first evals. Note the penalty in the report.
 
-### Single dimension cap
-- No single dimension can exceed overall by more than 25 points. If hierarchy = 90 but overall = 55, cap hierarchy at 80.
+### Cross-mode penalty (behavioral overrides visual)
 
-### Crafted requirement
-- Overall > 70 requires slop verdict "crafted" or "mixed with 0-1 patterns"
-- Overall > 60 requires slop verdict is not "slop"
-
-### Cross-mode penalty
 - If a flows report exists with unfixed blockers → cap polish at 50, wayfinding at 50
 - If a flows report exists with unfixed major dead-end issues → wayfinding cap 60
 - Behavioral problems override visual impressions. A beautiful product that doesn't work is not well-designed.
 
-### Calibration confidence
-- No calibration artifacts (no founder-taste.md, no design-system.md, no anti-slop.md) → cap overall at 70. Uncalibrated evals can't be trusted above this.
-- Partial calibration (1-2 artifacts) → cap overall at 80
-- Full calibration (3+ artifacts) → no calibration cap
+## Self-evaluation
+
+This skill worked if: (1) report JSON was written to `.claude/evals/reports/`, (2) gestalt impression was written before dimensional scores, (3) all applicable scoring caps were checked and applied, (4) prescriptions include specific CSS/structural fixes (not vague advice), and (5) next command suggestion matches findings.
 
 ## Boundaries
 

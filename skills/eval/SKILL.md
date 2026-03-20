@@ -1,6 +1,6 @@
 ---
 name: eval
-description: "Is my product good? Read the code, judge the system design, score 0-100. Gets smarter with rubrics and accumulated knowledge."
+description: "Use when the user asks 'evaluate code', 'run assertions', 'how's the code?', or wants delivery + craft scores per feature. Reads code, judges system design, scores 0-100. Gets smarter with rubrics and accumulated knowledge."
 argument-hint: "[feature|blind|coverage|trend|slop]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent, TaskCreate
 ---
@@ -61,14 +61,14 @@ Parse `$ARGUMENTS`. Exact keyword wins, then feature name, then free-form.
    e. Apply delivery multiplier from journey-weight (entry: 1.2x, core: 1.1x, leaf: 1.0x) — this adjusts the WEIGHT of delivery in the formula, not the raw score
    f. Run `bash scripts/variance-check.sh <feature> <score>` before publishing
 4. Run `bash scripts/quick-eval.sh` for mechanical belief results
-4b. Run `bash ../../shared/claim-verify.sh [project-dir] [feature]` for each feature — mechanical check that the feature's commands produce output matching its `delivers:` claim. Low claim_in_output match = delivery gap (the code works but doesn't communicate the value). Incorporate pass_rate into delivery scoring.
+4b. Run `bash skills/shared/claim-verify.sh [project-dir] [feature]` for each feature — mechanical check that the feature's commands produce output matching its `delivers:` claim. Low claim_in_output match = delivery gap (the code works but doesn't communicate the value). Incorporate pass_rate into delivery scoring.
 5. Write results to `.claude/cache/eval-cache.json` (merge, preserve unscored features). Include `journey_position` field from journey-weight.sh output for each feature.
 6. Write/update rubrics per feature — see `references/rubric-guide.md`
 7. Present results using format from `templates/eval-report.md`
 7b. Run `bash scripts/outside-in.sh [project-dir]` — reads product intelligence caches to surface what the product is MISSING. Present as "▾ outside-in" section in the eval report. This is NOT a score — it's a lens that shows opportunity cost. The outside-in pass is surface-agnostic: when it finds "acquire: 0 surfaces" it should NOT assume the fix is a CLI command — it could be a landing page, web dashboard, API, or distribution channel.
 8. Cross-skill synthesis, next commands
 
-**Parallel evaluator spawning (full eval only):** Spawn one evaluator agent per feature:
+**Parallel evaluator spawning (full eval only):** Spawns one evaluator agent per feature. Cost scales linearly — 5 features = 5 parallel agents. Expect ~30-60s wall time for the batch. Economy cost tier uses sonnet evaluators; balanced/premium uses opus.
 ```
 For each feature with status: active:
   Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft 0-100 with file:line evidence. Check rubric. Do NOT score viability — that's handled by /score via market-analyst + customer agents.", run_in_background: true)
@@ -143,6 +143,10 @@ After scoring: Does eval bottleneck match strategy bottleneck? Are plan tasks ta
 
 Suggest `/score` for the unified product quality number (includes viability, visual, behavioral tiers).
 If project has web-facing features, suggest `/taste <url>` for visual quality.
+
+## Self-evaluation
+
+This skill worked if: (1) eval-cache.json was updated with scores for all active features, (2) every score has file:line evidence, (3) variance-check.sh passed for each score, and (4) tasks were generated for every gap found.
 
 ## Agents: **rhino-os:evaluator** (parallel per feature), **rhino-os:measurer** (cheap mechanical)
 
