@@ -2,7 +2,7 @@
 name: assert
 description: "Use when adding, checking, or removing assertions — chat-native beliefs.yml editing"
 argument-hint: "[feature: belief text] or [list|check|remove|graduate|health|coverage|suggest|flapping] [id|feature]"
-allowed-tools: Read, Bash, Edit, Grep
+allowed-tools: Read, Write, Bash, Edit, Grep
 ---
 
 # /assert

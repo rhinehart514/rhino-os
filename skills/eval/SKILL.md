@@ -2,7 +2,7 @@
 name: eval
 description: "Is my product good? Read the code, judge the system design, score 0-100. Gets smarter with rubrics and accumulated knowledge."
 argument-hint: "[feature|blind|coverage|trend|slop]"
-allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent
+allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent, TaskCreate
 ---
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no cache"

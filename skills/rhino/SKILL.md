@@ -33,6 +33,21 @@ Parse `$ARGUMENTS`:
 | `health` | System health audit: hooks, agents, skills coverage, learning loop → letter grade |
 | `progress` | The arc: score trajectory, feature maturity, prediction accuracy, assertions, velocity |
 
+## Start Here (canonical flow)
+
+When rendering `help`, show this FIRST before the skill catalog:
+
+```
+Start Here
+  "is this good?"          → /score   (the oracle — unified quality number)
+  "what should I work on?" → /plan    (the strategist — finds the bottleneck)
+  "just build it"          → /go      (the builder — autonomous loop)
+
+  The flow: /score → /plan → /go → /score (repeat)
+```
+
+This breaks the circular routing problem. /score is the entry point (assess), /plan is the decision (what), /go is the action (build).
+
 ## The protocol
 
 ### Step 0: First-run check

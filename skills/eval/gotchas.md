@@ -33,3 +33,11 @@ Built from real failure modes across sessions. Update this when /eval fails in a
 - **Blind spot in blind eval:** /eval blind compares cold-read against claims. But the cold-read itself has LLM biases — it sees patterns it expects, misses patterns it doesn't. Cross-reference with mechanical checks when possible.
 - **Rubric reinvention:** Clearing all criteria and starting fresh each eval. The rubric is a living document — add/remove criteria based on code changes, don't reinvent the frame. History IS calibration.
 - **Forgetting the merge:** eval-cache.json must be MERGED with existing data, not overwritten. If you evaluated 3 of 8 features, the other 5 must keep their cached scores.
+
+## Scripts may fail
+
+Scripts in the `scripts/` folder depend on `jq`, `awk`, `grep`. If a script fails:
+1. Check the error — is it a missing dependency (`jq: command not found`)?
+2. If dependency missing: tell the user (`brew install jq`) and continue with manual inspection
+3. If script error: read the script source to understand what it checks, do the check manually
+4. Never skip the step — the script output informs the next decision

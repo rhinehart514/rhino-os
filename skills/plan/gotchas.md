@@ -59,3 +59,11 @@ Unknown territory in experiment-learnings relates to the bottleneck, but /plan p
 
 ### Stale research override
 Research from 3 days ago shouldn't silently drive today's plan. If last-research.yml is >24h old, flag it as stale. Let the founder decide whether to re-research or accept the findings.
+
+## Scripts may fail
+
+Scripts in the `scripts/` folder depend on `jq`, `awk`, `grep`. If a script fails:
+1. Check the error — is it a missing dependency (`jq: command not found`)?
+2. If dependency missing: tell the user (`brew install jq`) and continue with manual inspection
+3. If script error: read the script source to understand what it checks, do the check manually
+4. Never skip the step — the script output informs the next decision

@@ -6,6 +6,19 @@ set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
 
+# --- Check dependencies ---
+if ! command -v jq &>/dev/null; then
+    # Fallback: output "fix" tier with warning when jq unavailable
+    if [[ "${2:-}" == "--json" ]]; then
+        echo '{"tier":"fix","score":0,"health":0,"eval_avg":0,"eval_count":0,"eval_min":0,"eval_min_feature":"","features_above_70":0,"features_below_50":0,"assertion_pass":0,"assertion_total":0,"focus":"Install jq to unlock tier detection","actions":"brew install jq","skills":"/go","avoid":""}'
+    else
+        echo "=== MATURITY TIER ==="
+        echo "tier: fix (jq unavailable — install with: brew install jq)"
+        echo "=== END TIER ==="
+    fi
+    exit 0
+fi
+
 # --- Read score ---
 SCORE_CACHE="$PROJECT_DIR/.claude/cache/score-cache.json"
 SCORE=0

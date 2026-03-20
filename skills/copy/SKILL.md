@@ -2,7 +2,7 @@
 name: copy
 description: "Use when you need product copy — landing pages, pitch, onboarding text, release notes. Positioning-aware, customer-grounded, design-system-aligned."
 argument-hint: "[landing|pitch|outreach|release|onboard|empty-states|\"write copy for...\"]"
-allowed-tools: Read, Bash, Grep, Glob, WebSearch, WebFetch, Agent, AskUserQuestion
+allowed-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, Agent, AskUserQuestion
 ---
 
 # /copy

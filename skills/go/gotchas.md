@@ -49,3 +49,11 @@ Read this before entering the loop. Every entry is from a real session or confir
 **Ignoring sub-score direction.** Total score went up but your targeted dimension went down. You accidentally improved something else. The targeted dimension still needs work and you have a false sense of progress. Always check the specific sub-score you were targeting.
 
 **Eval variance.** LLM judge scores vary ~15 points across runs. One eval showing +3 might be noise. If the delta is <5, run `--fresh --samples 2` for a more reliable signal. Don't celebrate or revert on noise.
+
+## Scripts may fail
+
+Scripts in the `scripts/` folder depend on `jq`, `awk`, `grep`. If a script fails:
+1. Check the error — is it a missing dependency (`jq: command not found`)?
+2. If dependency missing: tell the user (`brew install jq`) and continue with manual inspection
+3. If script error: read the script source to understand what it checks, do the check manually
+4. Never skip the step — the script output informs the next decision

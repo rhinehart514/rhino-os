@@ -2,7 +2,7 @@
 name: clone
 description: "Use when reproducing a design from a URL using your framework and design tokens"
 argument-hint: "<url> [verify|mobile|section <name>|history]"
-allowed-tools: Read, Bash, Grep, Glob, Edit, Write, WebFetch, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_resize, mcp__playwright__browser_navigate, mcp__playwright__browser_wait_for, mcp__playwright__browser_snapshot
+allowed-tools: Read, Bash, Grep, Glob, Edit, Write, WebFetch, AskUserQuestion, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_resize, mcp__playwright__browser_navigate, mcp__playwright__browser_wait_for, mcp__playwright__browser_snapshot
 ---
 
 # /clone
