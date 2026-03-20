@@ -1,6 +1,6 @@
 ---
 name: ideate
-description: "Brainstorm WHAT to build AND how to make existing features better. Evidence-weighted ideas with creative techniques, persistent idea logging, and mandatory kill lists. Feature improvement mode reads scores, taste, code, and context to produce specific product prescriptions. Use when the founder says 'what should we build?', 'brainstorm', 'ideas', 'how to improve [feature]', 'make [feature] better', or 'feature ideas'."
+description: "Use when the founder says 'what should we build?', 'brainstorm', 'ideas', 'how to improve [feature]', 'make [feature] better', or 'feature ideas'. Evidence-weighted ideation with mandatory kill lists. Also handles feature improvement prescriptions."
 argument-hint: "[feature|wild|kill|deep|technique-name|\"constraint\"]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion, WebSearch, Agent
 ---
@@ -177,6 +177,22 @@ See `../shared/task-generation.md` for the task generation protocol. /ideate gen
 - Each stuck feature → task: "Feature [X] stuck at [score] for [N]d — kill, pivot, or double down"
 
 Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kill cleanup first (reduce noise), then new feature onramp.
+
+## Self-evaluation
+
+/ideate succeeded if:
+- Every proposed idea has an evidence source (not "wouldn't it be cool if")
+- The kill list is non-empty — something was argued for removal
+- Committed ideas are materialized (feature in rhino.yml, assertions in beliefs.yml, prediction logged)
+- idea-log.sh was called for every proposed, committed, and killed idea
+
+## Cost note
+
+Agent spawning is mode-dependent:
+- Default mode: `explorer` (sonnet) for codebase analysis if evidence-scan isn't enough
+- Feature improvement mode: `explorer` (sonnet) + `market-analyst` (opus, background) for best-in-class research
+- `customer` (sonnet, background) for customer signal in any mode
+- Most runs use 0-1 agents. Deep/feature modes use 2-3.
 
 ## What you never do
 - Generate filler ideas to hit a number

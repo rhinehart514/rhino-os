@@ -1,6 +1,6 @@
 ---
 name: retro
-description: "What did we learn? Grade predictions, update the knowledge model, detect staleness, surface wrong predictions as todos. The command that closes the learning loop."
+description: "Use when the user wants to review what was learned, grade predictions, audit the knowledge model, or check learning health. Triggers on 'retro', 'what did we learn?', 'review', 'grade predictions', 'learning health'."
 argument-hint: "[accuracy|stale|session|health|dimensions|auto]"
 allowed-tools: Read, Bash, Grep, Edit, Agent
 ---
@@ -124,6 +124,22 @@ Log session via `scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. 
 8. `config/product-spec.yml` — grade predictions against spec goals. Wrong predictions about spec claims are highest priority.
 9. `.claude/plans/todos.yml` — todo state
 10. `~/.claude/preferences.yml` — agent cost tier (economy/balanced/premium)
+
+## Self-evaluation
+
+/retro succeeded if:
+- All previously ungraded predictions now have a grade (yes/no/partial)
+- Every wrong prediction has a model_update entry explaining WHY it was wrong
+- experiment-learnings.md was updated (not just read)
+- retro-log.sh was called to persist the session
+- Every learning gap found has a corresponding task
+
+## Cost note
+
+Spawns up to 2 agents:
+- `grader` (sonnet) — batch grades ungraded predictions
+- `consolidator` (sonnet) — merges duplicates, promotes patterns, flags stale entries in experiment-learnings.md
+- Both agents run sequentially (consolidator needs grading results). Cost tier from `~/.claude/preferences.yml`.
 
 ## What you never do
 

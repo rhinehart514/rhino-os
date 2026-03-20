@@ -1,6 +1,6 @@
 ---
 name: strategy
-description: "Use when you need market intelligence, honest diagnosis, bet scoring, or competitive response. The product strategist in your terminal."
+description: "Use when the user needs market intelligence, honest diagnosis, bet scoring, competitive response, or strategic positioning. Triggers on 'strategy', 'what's the strategy?', 'bottleneck', 'compete', 'market landscape', 'pricing intel'."
 argument-hint: "[bet <idea>|market <domain>|position|price|gtm|compete <name>|honest|coherence|user|research <topic>|docs <lib>|site <url>]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch, WebFetch, Agent
 ---
@@ -143,6 +143,21 @@ Spawn named agents, not generic:
 **There is no cap on task count.** A project with 5 strategic gaps might need 15 tasks. Generate all of them. /plan picks what to work on — /strategy's job is to make sure every gap is captured.
 
 After writing tasks, show: "Generated N tasks across M strategic gaps. Most urgent: [gap] needs [action]."
+
+## Self-evaluation
+
+/strategy succeeded if:
+- Every recommendation is logged as a prediction in predictions.tsv
+- strategy.yml was updated with the diagnosis
+- At least one task was generated per strategic gap found
+- The founder knows the ONE thing to work on next, not a menu
+
+## Cost note
+
+This skill spawns up to 3 agents depending on mode:
+- `explorer` (sonnet) + `market-analyst` (opus) for market/compete/position modes — run in parallel
+- `gtm` (opus) for price/gtm modes
+- Cost tier from `~/.claude/preferences.yml` controls model selection. Economy mode saves ~60%.
 
 ## What you never do
 

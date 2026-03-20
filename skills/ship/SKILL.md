@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Use when work is measured and ready to ship — commits, releases, PRs, deploys, verification, rollback"
+description: "Use when work is measured and ready to ship — commits, releases, PRs, deploys, verification, rollback. Also triggers on 'deploy', 'push', 'ship it', 'create a PR', 'release'."
 argument-hint: "[dry|hotfix|release [tag]|pr [base]|changelog|verify <url>|rollback|history]"
 allowed-tools: Read, Write, Edit, Bash, AskUserQuestion, WebFetch, Agent
 ---
@@ -68,6 +68,19 @@ For `release` type ships, also check launch readiness: GTM strategy, customer si
 
 Run `scripts/ship-log.sh add` after every deploy, release, or PR. This persists across sessions in `${CLAUDE_PLUGIN_DATA}`.
 
+## Self-evaluation
+
+/ship succeeded if:
+- Pre-flight ran and verdict was SHIP (or WARN with founder acknowledgment)
+- ship-log.sh was called to persist the deployment record
+- Every blocker found has a corresponding task in /todo
+- For deploys: verification ran against the live URL
+- For rollbacks: an investigation todo was created
+
+## Deploy targets
+
+Vercel is the primary deploy target (detected from vercel.json or .vercel/). Other targets (Netlify, manual, custom) are supported — /ship detects the deploy method from project config. If no deploy target is detected, /ship handles git operations (commit, push, release, PR) and skips the deploy step.
+
 ## Connections
 
 - `/roadmap narrative` — changelog and release notes source
@@ -77,7 +90,7 @@ Run `scripts/ship-log.sh add` after every deploy, release, or PR. This persists 
 
 ## Agent usage
 
-- **Agent (rhino-os:measurer)** — run score checks (cheapest model)
+- **Agent (rhino-os:measurer)** — run score checks (cheapest model, haiku)
 
 ## State artifacts
 

@@ -1,6 +1,6 @@
 ---
 name: product
-description: "Product thinking — pressure-test whether you're building something that matters. Works on new ideas AND existing products. The command that prevents building something nobody wants."
+description: "Use when the user wants to pressure-test whether they're building the right thing — new ideas ('should we build this?'), existing products ('is this actually working?'), assumptions, user journey, pitch clarity, or product-market fit."
 argument-hint: "[user|assumptions|why|pitch|focus|signals|delight|market|coherence|\"I want to build...\"]"
 allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebSearch, Agent
 ---
@@ -147,6 +147,21 @@ After writing tasks, show: "Generated N tasks across M product gaps. Most critic
 - Produce generic insights — "improve UX" is garbage
 - Skip the coherence check on existing products
 - Tell a founder their idea is good without naming the person
+
+## Self-evaluation
+
+/product succeeded if:
+- Every untested assumption is surfaced with a task to test it
+- Coherence check ran and every disconnect has a task
+- The founder knows the biggest gap between "what we claim" and "what's true"
+- At least one pressure test question made the founder uncomfortable
+
+## Cost note
+
+This skill spawns 2 agents:
+- `customer` (sonnet, background) — customer signal research
+- `founder-coach` (opus) — failure mode detection against startup-patterns.md
+- Agents only spawn in existing product mode (not new idea mode). Cost tier from `~/.claude/preferences.yml`.
 
 ## When to use
 

@@ -1,6 +1,6 @@
 ---
 name: roadmap
-description: "Use when tracking version theses, checking progress, generating release narrative, or reviewing project history"
+description: "Use when the user asks about versions, theses, progress, release narrative, changelogs, or project history. Also triggers on 'what's next', 'roadmap', 'bump version', 'what did we prove'."
 argument-hint: "[next|bump|ideate|narrative|changelog|positioning|add|done|new|v<X.Y>]"
 allowed-tools: Read, Bash, Grep, Edit, AskUserQuestion, WebSearch, Agent
 ---
@@ -72,7 +72,7 @@ Run `scripts/version-progress.sh` and `scripts/version-history.sh`. Write reflec
 Run `scripts/evidence-tracker.sh`. For each evidence item, map to features, score provability (`ready`/`close`/`blocked`/`unknown`). Recommend the first experiment.
 
 ### `ideate` → brainstorm future theses
-Check 4 sources: proven evidence patterns, dead ends, unknown territory, gap between proven and aspirational. Generate 3-4 candidate theses with question, why now, evidence items, and disproven value. Present with AskUserQuestion.
+Check 4 sources: proven evidence patterns, dead ends, unknown territory, gap between proven and aspirational. Generate 3-4 candidate theses with question, why now, evidence items, and disproven value. Present with AskUserQuestion. **Note:** This is thesis-level brainstorming (where the project goes next). For deep feature-level ideation, use `/ideate` or `/ideate [feature]` instead.
 
 ### `narrative` → generate the external story
 Derive from proven evidence. Generate: one-liner, paragraph, positioning statement. Every claim traces to evidence. Present via AskUserQuestion. Write to `.claude/cache/narrative.yml`.
@@ -143,6 +143,14 @@ When showing full roadmap, detect: recurring hard evidence, acceleration/deceler
 After writing tasks, show: "Generated N tasks for version [X]. [M] evidence items need attention. Thesis completion: [%]."
 
 ## Agent usage — `rhino-os:explorer` for thesis research when evidence sources are insufficient.
+
+## Self-evaluation
+
+/roadmap succeeded if:
+- roadmap.yml was read and updated (or created if missing)
+- The reflection cites specific data (git log, evidence status, prediction accuracy), not vibes
+- Every evidence gap found has a corresponding task in /todo
+- The founder has a clear answer to "what should we prove next?"
 
 ## What you never do
 - Auto-bump without asking — graduating a thesis is a founder decision

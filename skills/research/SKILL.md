@@ -1,6 +1,6 @@
 ---
 name: research
-description: "Gather evidence (HOW to decide). /research picks the top unknown. /research auth digs into a feature. /research docs <lib> pulls real-time docs. /research site <url> analyzes a live site. Produces findings, not ideas — use /ideate for brainstorming."
+description: "Use when the user needs evidence before making a decision — filling knowledge gaps, investigating unknowns, library docs, live site analysis, or competitive intel. Triggers on 'research', 'what do we know about', 'explore', 'docs for [lib]', 'analyze [url]'."
 argument-hint: "[feature|docs <lib>|site <url>|competitor <name>|market|history|gaps|\"topic\"]"
 allowed-tools: Read, Bash, Grep, Glob, Agent, WebSearch, WebFetch
 ---
@@ -131,6 +131,29 @@ Tag with `source: /research`, topic, and confidence level. Priority: high-confid
 - Dense, no preamble, no trailing summaries
 
 For full output templates, see `reference.md`.
+
+## Self-evaluation
+
+/research succeeded if:
+- A prediction was logged before investigating
+- Findings are synthesized (patterns named, not raw dumps)
+- experiment-learnings.md was updated with at least one new or modified entry
+- research-log.sh was called to persist the session
+- Every finding that implies action has a corresponding task
+
+## Gotchas
+
+- **context7 for `/research docs`**: The primary path is context7 MCP (resolve-library-id then query-docs). If context7 is unavailable or returns empty, fall back to WebSearch + WebFetch for the library's official docs site. Do not guess at APIs — either cite docs or declare unknown territory.
+- **Repeat research**: Always run `research-log.sh topic "[topic]"` first. If the same topic was researched in the last 7 days, state what changed since then or skip.
+- **Market research depth trap**: WebSearch returns surface-level results. For competitive intel, spawn the market-analyst agent rather than doing 10+ WebSearch queries inline.
+- **Source quality matters**: Run `scripts/source-quality.sh` to rate sources. T4-T5 sources (blog posts, forum comments) need corroboration from T1-T2 sources (official docs, primary research).
+
+## Cost note
+
+Spawns up to 2 agents depending on mode:
+- `explorer` (sonnet) — codebase analysis for feature deep-dives
+- `market-analyst` (opus, background) — market and competitor routes
+- `docs` and `site` modes are agent-free (use context7 and Playwright directly).
 
 ## What you never do
 - Research without a prediction

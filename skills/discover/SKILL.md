@@ -1,6 +1,6 @@
 ---
 name: discover
-description: "Product discovery pipeline. Takes 'I want to build X' to a complete product-spec.yml with auto-wired features, assertions, roadmap, and strategy. Also refines, pivots, and pressure-tests existing specs. The skill that figures out WHAT to build and WHY."
+description: "Use when the user has a new idea to define, an existing product spec to refine or pivot, or wants to compare against competitors. Triggers on 'I want to build...', 'discover', 'define the product', 'pivot', 'refine the spec'."
 argument-hint: "[new \"idea\"|refine|pivot|vs|systems|wild|invert]"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch
 ---
@@ -284,6 +284,22 @@ Use the format in `templates/discovery-report.md`. Key sections:
 Bottom of every output — exactly 3 next commands contextual to mode.
 
 ---
+
+## Self-evaluation
+
+/discover succeeded if:
+- product-spec.yml exists and passes spec-quality.sh with score >= 70
+- All wiring is complete (features in rhino.yml, assertions in beliefs.yml, roadmap.yml, strategy.yml)
+- Every weak or empty spec section has a corresponding task
+- The founder approved the spec via AskUserQuestion before wiring
+
+## Cost note
+
+Define mode spawns up to 3 agents in parallel:
+- `customer` (sonnet, background) — customer signal research
+- `market-analyst` (opus, background) — competitive landscape
+- `explorer` (sonnet) — codebase analysis (only if repo has code)
+- Refine/pivot modes are agent-free (inline analysis only).
 
 ## What You Never Do
 

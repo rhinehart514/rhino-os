@@ -1,6 +1,6 @@
 ---
 name: onboard
-description: "Onboard any repo into rhino-os. Detects project, understands what it does, generates real config + assertions, starts the learning loop. One command, zero placeholders. Works for strangers, new team members, or adding a new area to an existing project."
+description: "Use when a new repo needs to be set up with rhino-os, or when a stranger/new team member runs their first command. Triggers on 'onboard', 'set this up', 'bootstrap', 'initialize', 'new here', 'what is this project?'."
 argument-hint: "[--force]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
 ---
@@ -109,6 +109,15 @@ Use output template from `references/onboarding-flow.md`. Show what was set up, 
 **There is no cap on task count.** A fresh onboard might generate 15+ tasks. Generate all of them. This IS the founder's first backlog.
 
 After onboarding, show: "Generated N tasks to get started. First priority: [task]. Run /plan to pick your first move."
+
+## Self-evaluation
+
+/onboard succeeded if:
+- `rhino score .` returns a non-zero score
+- `rhino eval .` runs without errors and writes eval-cache.json
+- Every generated feature has at least one mechanical assertion (not llm_judge)
+- Zero placeholder text remains in rhino.yml or beliefs.yml
+- The task backlog has clear next steps (first /eval, first /strategy, first /plan)
 
 ## What you never do
 
