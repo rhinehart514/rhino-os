@@ -3,43 +3,35 @@
 ## Full eval output
 
 ```
-◆ eval — N features
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  eval  70/100  ██████████████░░░░░░  6 features
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  feature_name     ████████░░░░░░░░░░░░  42  d:48 c:35  ↓3
+                                del  cra  Δ
+  todo         42 █████░░░░░░░  48   35  ↓3
     one-line gap description
-
-  feature_name     ██████████░░░░░░░░░░  58  d:62 c:50
+  scoring      58 ███████░░░░░  62   50
     one-line gap description
+  commands     76 █████████░░░  78   72  ↑46
+  learning     64 ████████░░░░  62   67  ↑13
 
   beliefs: 61/76 passing
 
-▾ outside-in
-  journey: [stage] has [N] surfaces — [implication]
-  unmet: [need] — no feature addresses this
-  market: [signal] — opportunity not captured
-  risk: [concentration warning if applicable]
-
-▾ system check
-  bottleneck: **feature** at N — why
-  strategy: confirms/contradicts — one sentence
-  plan: aligned/misaligned — one sentence
-  roadmap: advances/blocks — one sentence
-  todos: relevant open items
-
-/command arg         reason
-/command arg         reason
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  bottleneck  todo at 42  · /plan todo
+  /score quick    unified number with viability
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 ```
 
 **Rules:**
+- Same table pattern as /score: name(12), score(colored), compact bar(12), sub-scores, delta arrow
 - Features sorted worst-to-best — worst score first, always
-- One line per feature: name, bar, score, sub-scores (d:N c:N), delta arrow. Viability scored by /score, not /eval.
-- Gap line indented below — the specific problem, not a verdict label
+- Gap line indented below the feature row — one line, specific problem
 - No DELIVERS/PARTIAL/MISSING labels — the score IS the verdict
 - Beliefs are one summary line — pass count only
-- Outside-in section shows opportunity cost: journey gaps, unmet needs, market signals. NOT a score — a lens. Surface-agnostic (don't assume CLI is the fix).
-- System check section cross-references strategy, plan, roadmap, todos
 - Bold the bottleneck feature name
 - Bottom: 2-3 next commands routed to specific actions
+- Viability NOT shown (scored by /score, not /eval)
 
 ## Scoped eval output
 

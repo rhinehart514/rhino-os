@@ -88,7 +88,7 @@ item_field() {
             next
         }
         found && $0 ~ "^ *" field ":" {
-            sub(/^[^:]+: */, "")
+            sub("^ *" field ": *", "")
             gsub(/^"/, ""); gsub(/"$/, "")
             print
             exit
@@ -127,15 +127,21 @@ item_set_field() {
     else
         # Add new field after the id line
         awk -v id="$id" -v field="$field" -v value="$value" '
-            /^ *- id:/ { in_item = ($0 ~ "id: *" id "$") }
+            /^ *- id:/ && ($0 ~ "id: *" id "$") { found_target = 1 }
+            /^ *- id:/ && !($0 ~ "id: *" id "$") { found_target = 0 }
             { print }
-            in_item && /^ *- id:/ {
+            found_target && /^ *- id:/ {
+                # Detect indent from the "- id:" line: leading whitespace + "- " → field indent
+                match($0, /^[ ]*/)
+                id_indent = substr($0, RSTART, RLENGTH)
+                # The "- " prefix is 2 chars; field indent replaces those with spaces
+                field_indent = id_indent "  "
                 if (value ~ / /) {
-                    print "    " field ": \"" value "\""
+                    print field_indent field ": \"" value "\""
                 } else {
-                    print "    " field ": " value
+                    print field_indent field ": " value
                 }
-                in_item = 0
+                found_target = 0
             }
         ' "$BACKLOG_FILE" > "${BACKLOG_FILE}.tmp" && mv "${BACKLOG_FILE}.tmp" "$BACKLOG_FILE"
     fi
@@ -560,15 +566,14 @@ EOF
     created: ${today}
 EOF
 
-    release_lock
-
     # Auto-tag: detect feature from title by matching against rhino.yml feature names
+    # Still under the same lock — no release/re-acquire gap
     local rhino_yml="$PROJECT_DIR/config/rhino.yml"
     [[ ! -f "$rhino_yml" ]] && rhino_yml="$RHINO_DIR/config/rhino.yml"
+    local detected_feature=""
     if [[ -f "$rhino_yml" ]]; then
         local title_lower
         title_lower=$(echo "$title" | tr '[:upper:]' '[:lower:]')
-        local detected_feature=""
         while IFS= read -r feat_name; do
             [[ -z "$feat_name" ]] && continue
             local feat_lower
@@ -579,13 +584,14 @@ EOF
             fi
         done < <(awk '/^  features:/,/^[^ ]/' "$rhino_yml" 2>/dev/null | grep -E '^\s+[a-z]' | sed 's/:.*//' | tr -d ' ')
         if [[ -n "$detected_feature" ]]; then
-            acquire_lock || true
             item_set_field "$id" "feature" "$detected_feature"
-            release_lock
-            echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority} → ${detected_feature}${NC}"
-        else
-            echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority}${NC}"
         fi
+    fi
+
+    release_lock
+
+    if [[ -n "$detected_feature" ]]; then
+        echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority} → ${detected_feature}${NC}"
     else
         echo -e "  ${GREEN}+${NC} ${title}  ${DIM}[${id}] ${priority}${NC}"
     fi
@@ -609,6 +615,11 @@ cmd_done() {
     acquire_lock || return 1
     item_set_field "$target_id" "status" "done"
     item_set_field "$target_id" "done_at" "$(date '+%Y-%m-%d')"
+    # Increment done_count for graduation detection
+    local current_done_count
+    current_done_count=$(item_field "$target_id" "done_count")
+    current_done_count=${current_done_count:-0}
+    item_set_field "$target_id" "done_count" "$((current_done_count + 1))"
     release_lock
     echo -e "  ${GREEN}✓${NC} ${target_id} → done"
 
@@ -1269,6 +1280,85 @@ EOF
     fi
 }
 
+cmd_meta() {
+    if ! todo_exists; then
+        echo -e "  ${DIM}No todos.yml${NC}"
+        return 0
+    fi
+
+    echo ""
+    echo -e "  ${BOLD}Meta-tasks${NC}"
+    echo ""
+
+    local suggestions=0
+
+    # 1. Stale items: >14 days untouched, status not done
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local status
+        status=$(item_field "$id" "status")
+        [[ "$status" == "done" ]] && continue
+
+        local age
+        age=$(item_age_days "$id")
+        [[ -z "$age" ]] && continue
+
+        if [[ "$age" -ge 14 ]]; then
+            local title
+            title=$(item_field "$id" "title")
+            echo -e "  ${YELLOW}▸${NC} review or kill stale item: ${title}  ${DIM}[${id}] ${age}d${NC}"
+            suggestions=$((suggestions + 1))
+        fi
+    done <<< "$(item_ids)"
+
+    # 2. Graduation candidates: done_count >= 3
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local done_count
+        done_count=$(item_field "$id" "done_count")
+        done_count=${done_count:-0}
+        [[ ! "$done_count" =~ ^[0-9]+$ ]] && continue
+
+        if [[ "$done_count" -ge 3 ]]; then
+            local title
+            title=$(item_field "$id" "title")
+            echo -e "  ${CYAN}▸${NC} graduate recurring item to assertion: ${title}  ${DIM}[${id}] done ${done_count}x${NC}"
+            suggestions=$((suggestions + 1))
+        fi
+    done <<< "$(item_ids)"
+
+    # 3. Features with 0 items
+    local rhino_yml="$PROJECT_DIR/config/rhino.yml"
+    [[ ! -f "$rhino_yml" ]] && rhino_yml="$RHINO_DIR/config/rhino.yml"
+    if [[ -f "$rhino_yml" ]]; then
+        while IFS= read -r feat_name; do
+            [[ -z "$feat_name" ]] && continue
+            local has_items=false
+            while IFS= read -r id; do
+                [[ -z "$id" ]] && continue
+                local feat
+                feat=$(item_field "$id" "feature")
+                if [[ "$feat" == "$feat_name" ]]; then
+                    has_items=true
+                    break
+                fi
+            done <<< "$(item_ids)"
+            if ! $has_items; then
+                echo -e "  ${DIM}▸${NC} capture ideas for ${BOLD}${feat_name}${NC}"
+                suggestions=$((suggestions + 1))
+            fi
+        done < <(awk '/^  features:/,/^[^ ]/' "$rhino_yml" 2>/dev/null | grep -E '^\s+[a-z]' | sed 's/:.*//' | tr -d ' ')
+    fi
+
+    if [[ "$suggestions" -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} no meta-tasks — backlog is healthy"
+    else
+        echo ""
+        echo -e "  ${DIM}${suggestions} suggestion(s)${NC}"
+    fi
+    echo ""
+}
+
 # ── Main ────────────────────────────────────────────────
 
 case "${1:-show}" in
@@ -1286,8 +1376,9 @@ case "${1:-show}" in
     health)       cmd_health ;;
     sources)      cmd_sources ;;
     import)       cmd_import ;;
+    meta)         cmd_meta ;;
     *)
-        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|version|all|decay|health|sources|import]"
+        echo "Usage: rhino todo [show|add|done|edit|tag|promote|active|feature|version|all|decay|health|sources|import|meta]"
         echo ""
         echo "  show              Show todos (default)"
         echo "  add \"title\" [pri] Add a todo (auto-tags feature from title)"
@@ -1304,6 +1395,7 @@ case "${1:-show}" in
         echo "  health            Backlog health stats"
         echo "  sources           Where todos came from — /eval, /taste, /ideate, manual"
         echo "  import            Bulk-add from stdin (JSON lines)"
+        echo "  meta              Suggest meta-tasks — stale items, graduation, empty features"
         exit 1
         ;;
 esac

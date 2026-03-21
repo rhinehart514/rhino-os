@@ -3,7 +3,10 @@ name: feature
 description: "Use when the user wants to define, view, detect, or improve features — including maturity tracking, sub-scores, and feature-specific ideation"
 argument-hint: "[name|new|detect] [name]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion, WebSearch, Agent
+internal: true
 ---
+
+<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 !cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, delivery: .value.delivery_score, craft: .value.craft_score, viability: .value.viability_score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
 

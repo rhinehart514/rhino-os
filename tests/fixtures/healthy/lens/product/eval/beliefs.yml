@@ -1,4 +1,4 @@
-# Healthy — 8/8 pass
+# Healthy — 5/5 pass
 beliefs:
 
   - id: config-exists
@@ -16,33 +16,10 @@ beliefs:
     feature: scoring
     severity: warn
 
-  - id: has-signals
-    belief: "Value signals defined"
-    type: file_check
-    path: "config/rhino.yml"
-    contains: "signals:"
-    feature: scoring
-    severity: warn
-
-  - id: has-user
-    belief: "Target user defined"
-    type: file_check
-    path: "config/rhino.yml"
-    contains: "user:"
-    feature: scoring
-    severity: warn
-
   - id: has-bin
     belief: "bin/ has scripts"
     type: file_check
     path: "bin/run.sh"
-    feature: cli
-    severity: warn
-
-  - id: has-tests
-    belief: "Tests exist"
-    type: file_check
-    path: "tests/main.test.sh"
     feature: cli
     severity: warn
 
@@ -53,9 +30,9 @@ beliefs:
     feature: docs
     severity: warn
 
-  - id: has-license
-    belief: "LICENSE exists"
+  - id: has-tests
+    belief: "Tests exist"
     type: file_check
-    path: "LICENSE"
-    feature: docs
+    path: "tests/main.test.sh"
+    feature: cli
     severity: warn

@@ -3,7 +3,10 @@ name: skill
 description: "Use when the user wants to create, inspect, audit, or remove skills — the skill lifecycle manager including quality tiers and overlap detection"
 argument-hint: "[list|create <name>|install <url>|remove <name>|info <name>|health|audit|overlap <name>]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
+internal: true
 ---
+
+<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 # /skill
 

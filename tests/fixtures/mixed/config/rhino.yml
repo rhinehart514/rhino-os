@@ -1,0 +1,18 @@
+# Mixed project — partial assertions passing
+project:
+  stage: mvp
+
+value:
+  hypothesis: "Users can manage tasks faster with keyboard shortcuts"
+  user: "Power users of task management apps"
+  signals:
+    - name: task_speed
+      description: "Task creation under 2 seconds"
+      target: "< 2s per task"
+      measurable: true
+
+scoring:
+  cache_ttl: 300
+  health_gate_threshold: 20
+  health_warn_threshold: 40
+  onboarding_cap: 50

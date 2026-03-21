@@ -68,8 +68,6 @@ Skills read project state directly via the Read tool. Scripts exist for computat
 | /configure | T7 | `~/.claude/preferences.yml` |
 | /product | T1, T5 | `.claude/cache/customer-intel.json` |
 | /ideate | T1, T2, T5 | ideation-log |
-| /openclaw | T1-T3 | `~/.claude/knowledge/predictions.tsv` (bet mode) |
-| /clone | T6 (design-system) | `.claude/cache/clone-history.json`, component files |
 | /skill | skill dirs, T1, T2 | skill files, `.claude/cache/skill-health.json` |
 | quality-check | T2 (score-cache) | nothing |
 | session-summary | T2, T4 (sessions/) | nothing |

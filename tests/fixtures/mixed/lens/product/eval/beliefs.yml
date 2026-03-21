@@ -1,0 +1,40 @@
+# Mixed — 3/5 pass, 2/5 fail
+beliefs:
+
+  # PASS: these files exist in the fixture
+  - id: config-exists
+    belief: "rhino.yml exists"
+    type: file_check
+    path: "config/rhino.yml"
+    feature: scoring
+    severity: warn
+
+  - id: has-hypothesis
+    belief: "Value hypothesis defined"
+    type: file_check
+    path: "config/rhino.yml"
+    contains: "hypothesis:"
+    feature: scoring
+    severity: warn
+
+  - id: has-readme
+    belief: "README exists"
+    type: file_check
+    path: "README.md"
+    feature: docs
+    severity: warn
+
+  # FAIL: these files do not exist in the fixture
+  - id: has-tests
+    belief: "Test suite exists"
+    type: file_check
+    path: "tests/main.test.sh"
+    feature: cli
+    severity: warn
+
+  - id: has-ci
+    belief: "CI pipeline exists"
+    type: file_check
+    path: ".github/workflows/ci.yml"
+    feature: cli
+    severity: warn

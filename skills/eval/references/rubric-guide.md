@@ -58,7 +58,6 @@ Use `templates/rubric-template.json` as the base. Key fields:
   "last_scored": "2026-03-16T12:00:00Z",
   "delivery_criteria": ["specific observable criteria"],
   "craft_criteria": ["specific observable criteria"],
-  "viability_criteria": ["specific observable criteria"],
   "known_gaps": ["acknowledged weaknesses"],
   "score_history": [54, 58]
 }

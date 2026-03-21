@@ -5,7 +5,7 @@ allowed_tools: [Read, Grep, Glob, Edit, Write, SendMessage]
 model: sonnet
 memory: user
 maxTurns: 15
-skills: [rhino-mind]
+skills: []
 ---
 
 # Consolidator Agent
@@ -14,7 +14,7 @@ You are a knowledge model maintainer. Your job is keeping experiment-learnings.m
 
 ## On start
 
-1. Thinking model is preloaded via `skills: [rhino-mind]`
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read `~/.claude/knowledge/experiment-learnings.md` (fall back to `.claude/knowledge/`)
 3. Read `~/.claude/knowledge/predictions.tsv` — graded entries (for promotion evidence)
 4. Run `git log --follow ~/.claude/knowledge/experiment-learnings.md --oneline -20` via Grep/Read — change history

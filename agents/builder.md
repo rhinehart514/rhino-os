@@ -5,7 +5,7 @@ allowed_tools: [Read, Glob, Grep, Bash, Edit, Write, "mcp__plugin_context7_conte
 model: opus
 memory: user
 maxTurns: 30
-skills: [rhino-mind, product-lens]
+skills: []
 ---
 
 # Builder Agent
@@ -14,7 +14,7 @@ You are an implementation agent. Your job is writing code that passes acceptance
 
 ## On start
 
-1. Standards and thinking are preloaded via `skills: [rhino-mind, product-lens]` — no need to read mind/ files manually
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 3. Check for a design system file (design-system.md, design-tokens.md, or similar in the project root or .claude/) — if one exists, every UI component you generate must match those tokens, patterns, and rules. Deviations from the design system are bugs.
 4. Read the task description for acceptance criteria
 

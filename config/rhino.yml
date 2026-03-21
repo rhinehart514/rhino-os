@@ -123,7 +123,7 @@ features:
     delivers: "skills that route founder intent to the right action"
     for: "solo founder working in Claude Code"
     skills: ["/plan", "/go", "/taste", "/feature", "/rhino", "/research", "/ideate", "/product", "/strategy", "/roadmap", "/ship"]
-    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md", "skills/product/SKILL.md", "skills/strategy/SKILL.md", "skills/roadmap/SKILL.md", "skills/ship/SKILL.md", "skills/product/scripts/coherence-check.sh", "skills/eval/scripts/journey-weight.sh", "skills/taste/scripts/cli-taste.sh"]
+    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md", "skills/product/SKILL.md", "skills/strategy/SKILL.md", "skills/roadmap/SKILL.md", "skills/ship/SKILL.md", "skills/product/scripts/coherence-check.sh", "skills/taste/scripts/cli-taste.sh"]
     internal: ["rhino help"]
     status: active
     weight: 5

@@ -4,7 +4,10 @@ description: "Use when the user wants to tune rhino-os behavior — agent models
 argument-hint: "[show|agents|output|go|reset]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion
 context: fork
+internal: true
 ---
+
+<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 # /configure
 

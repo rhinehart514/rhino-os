@@ -309,23 +309,52 @@ if [[ "$QUIET" == false ]]; then
     fi
 fi
 
-# --- Prediction quality gate: warn on vague predictions ---
-if [[ "$QUIET" == false && -f "$PRED_FILE" ]]; then
+# --- Prediction quality gate: mark vague predictions as ungraded ---
+if [[ -f "$PRED_FILE" ]]; then
     VAGUE_COUNT=0
-    while IFS=$'\t' read -r _date _agent _pred _evidence _result _correct _update; do
-        [[ -z "$_pred" ]] && continue
-        [[ -n "$_correct" ]] && continue  # already graded, skip
+    VAGUE_TEMP=$(mktemp)
+    VAGUE_MARKED=0
+    while IFS= read -r _vague_line; do
+        if [[ "$VAGUE_MARKED" -eq 0 ]]; then
+            # Header line
+            echo "$_vague_line" >> "$VAGUE_TEMP"
+            VAGUE_MARKED=1
+            continue
+        fi
+        IFS=$'\t' read -r _date _agent _pred _evidence _result _correct _update <<< "$_vague_line"
+        [[ -z "$_pred" ]] && { echo "$_vague_line" >> "$VAGUE_TEMP"; continue; }
+        [[ -n "$_correct" ]] && { echo "$_vague_line" >> "$VAGUE_TEMP"; continue; }  # already graded, skip
         # Check for measurable target: numbers, percentages, or comparison operators
         if ! echo "$_pred" | grep -qE '[0-9]+|→|raise|drop|increase|decrease|improve|decline|from .* to'; then
             VAGUE_COUNT=$((VAGUE_COUNT + 1))
-            if [[ "$VAGUE_COUNT" -le 2 ]]; then
+            if ! $DRY_RUN; then
+                # Mark as ungraded with model_update explaining why
+                printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                    "$_date" "$_agent" "$_pred" "$_evidence" \
+                    "Prediction too vague to grade — no measurable target" "ungraded" \
+                    "Prediction too vague to grade — rewrite with measurable target (e.g. 'X will change from N to M')" >> "$VAGUE_TEMP"
+            else
+                echo "$_vague_line" >> "$VAGUE_TEMP"
+            fi
+            if [[ "$QUIET" == false && "$VAGUE_COUNT" -le 2 ]]; then
                 echo -e "  ⚠ Vague prediction: \"${_pred:0:60}\""
                 echo "    → Rewrite as: 'X will change from N to M because Y'"
             fi
+        else
+            echo "$_vague_line" >> "$VAGUE_TEMP"
         fi
-    done < <(tail -n +2 "$PRED_FILE")
-    if [[ "$VAGUE_COUNT" -gt 2 ]]; then
-        echo "  ⚠ ${VAGUE_COUNT} predictions lack measurable targets. Future predictions need numbers."
+    done < "$PRED_FILE"
+    if [[ "$VAGUE_COUNT" -gt 0 ]]; then
+        if ! $DRY_RUN; then
+            mv "$VAGUE_TEMP" "$PRED_FILE"
+        else
+            rm -f "$VAGUE_TEMP"
+        fi
+        if [[ "$QUIET" == false && "$VAGUE_COUNT" -gt 2 ]]; then
+            echo "  ⚠ ${VAGUE_COUNT} vague predictions marked as ungraded. Future predictions need numbers."
+        fi
+    else
+        rm -f "$VAGUE_TEMP"
     fi
 fi
 

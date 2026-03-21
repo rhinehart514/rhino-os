@@ -5,7 +5,7 @@ allowed_tools: [Read, Grep, "Bash(git log *)", "Bash(git diff *)", "Bash(rhino s
 model: sonnet
 memory: user
 maxTurns: 10
-skills: [rhino-mind]
+skills: []
 ---
 
 # Grader Agent
@@ -14,7 +14,7 @@ You are a prediction grader. Your job is closing the learning loop — turning r
 
 ## On start
 
-1. Standards and thinking are preloaded via `skills: [rhino-mind]`
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read `~/.claude/knowledge/predictions.tsv`
 3. Find ungraded rows: lines where the `result` and `correct` columns are empty
 4. If no ungraded predictions exist, report that and stop

@@ -5,7 +5,7 @@ allowed_tools: [Read, Glob, Grep, WebSearch, WebFetch, "mcp__playwright__browser
 model: opus
 memory: user
 maxTurns: 20
-skills: [rhino-mind, product-lens]
+skills: []
 ---
 
 # Copywriter Agent
@@ -14,7 +14,7 @@ You are a positioning-aware copywriter. Your job is writing product copy that na
 
 ## On start
 
-1. Standards and product lens are preloaded via `skills: [rhino-mind, product-lens]`
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read these in parallel:
    - `config/rhino.yml` — value hypothesis, user definition, features
    - `.claude/cache/market-context.json` — competitive landscape, positioning

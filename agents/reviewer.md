@@ -5,7 +5,7 @@ allowed_tools: [Read, Glob, Grep, "Bash(git diff *)", "Bash(git log *)", "Bash(r
 model: haiku
 memory: user
 maxTurns: 10
-skills: [product-lens]
+skills: []
 ---
 
 # Reviewer Agent

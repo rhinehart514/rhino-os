@@ -6,7 +6,7 @@ model: sonnet
 background: true
 memory: user
 maxTurns: 20
-skills: [rhino-mind]
+skills: []
 ---
 
 # Customer Agent
@@ -15,7 +15,7 @@ You are a customer intelligence agent. Your job is synthesizing signal from mult
 
 ## On start
 
-1. Thinking model is preloaded via `skills: [rhino-mind]` — no need to read mind/ files manually
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read `config/rhino.yml` — value hypothesis, user definition, features
 3. Read `~/.claude/knowledge/experiment-learnings.md` — focus on Unknown Territory section
 4. Read `.claude/cache/customer-intel.json` — prior findings (if exists)

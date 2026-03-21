@@ -3,33 +3,31 @@
 ## Full score output
 
 ```
-▾ product score: [SCORE]/100  ●●●○○ (3/5 tiers)  [sparkline] [delta]
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  67/100  █████████████░░░░░░░  ●●●●●
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-  health    [pass|fail]  (gate)
-  ─────────────────────────────────────
+                                    del  cra  via
+  todo         60 ████████░░░░  68   58   28  ●●
+  learning     64 ████████░░░░  62   67   73  ●●●●
+  install      64 ████████░░░░  72   65   35  ●●●
+  docs         67 ████████░░░░  72   68   51  ●●●
+  scoring      68 █████████░░░  72   65   79  ●●●●●
+  commands     73 █████████░░░  78   72   72  ●●●●●
 
-  [feature_name]  [SCORE]/100  w:[weight]  ●●●○○
-    delivery    ██████████████░░░░░░  [D]/100  (eval)
-    craft       ████████████░░░░░░░░  [C]/100  (eval)
-    visual      ████████████████░░░░  [V]/100  (taste)  [or "no data"]
-    behavioral  ██████████████████░░  [B]/100  (flows)  [or "no data"]
-    viability   ██████████░░░░░░░░░░  [Vi]/100 (source: agents|intelligence|capped)
-
-  [repeat for each feature]
-
-  ─────────────────────────────────────
-  stale tiers: [list of stale tiers with ages]
-  missing tiers: [list of unavailable tiers]
-  weight redistribution: [if any tiers missing, show adjusted weights]
-
-  ▸ [next command suggestion based on weakest tier/feature]
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  bottleneck  todo at 60  · /plan todo
+  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 ```
 
 **Rules:**
-- Always show tier fill badge (●●●○○) at product level and per feature
-- Always show sparkline from `rhino score . --trend` if history exists
-- Show viability source (agents/intelligence/capped) — never hide where the number comes from
-- Show score delta vs previous unified score if available
+- Header: big score + 20-char bar + tier fill badge (●○)
+- Table: name(12), score(colored), compact bar(12), sub-scores(colored), weight dots(●)
+- Sorted worst-to-best (worst at top)
+- Footer: bottleneck name + score + next command
+- Show viability source when not "agents" (! for capped, ~ for intelligence)
+- Color: green ≥80, yellow 50-79, red <50
+- No box-drawing. No prose between rows.
 
 ## Quick mode output
 

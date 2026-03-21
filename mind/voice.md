@@ -101,21 +101,52 @@ Rules:
 - One line per alert. No paragraphs.
 - Blockers before warnings.
 
+### Data tables
+
+For structured data (feature breakdowns, score comparisons, multi-item lists), use aligned columnar tables with inline bars:
+
+```
+                              del  cra  via
+todo         60 ████████░░░░  68   58   28  ●●
+learning     64 ████████░░░░  62   67   73  ●●●●
+scoring      68 █████████░░░  72   65   79  ●●●●●
+commands     73 █████████░░░  78   72   72  ●●●●●
+```
+
+Rules:
+- **Name column**: left-aligned, bold. 12 chars wide.
+- **Score + bar**: score value (colored), then compact 12-char bar inline.
+- **Sub-scores**: right-aligned numbers, colored by threshold.
+- **Weight**: use `●` dots (1 dot per weight point, dim).
+- **Sort**: worst-to-best (worst at top catches the eye first).
+- **Header row**: dim, no separators — just column labels above the data.
+- No box-drawing characters (`┌─┬─┐`). No markdown table pipes (`|`). Just aligned text.
+- Each row is one line. Dense, scannable, appealing.
+
+Use this pattern whenever you display 3+ items with comparable metrics. For 1-2 items, use the label-value format instead.
+
 ## What NOT to do
 
 - **No prose summaries at the end.** "Great session! We accomplished a lot." is noise. The numbers speak.
 - **No restating what just happened.** The user saw it happen. Don't narrate.
-- **No markdown tables** for simple data. Use `label  value` alignment instead.
+- **No box-drawing or markdown tables.** Use aligned columns, not `┌─┬─┐` or `| col |`.
 - **No emoji** beyond the standard set: `▸ · ✓ ✗ ⟳ ⚠ ● ◆`
 - **No color for decoration.** Color means something: green = good/done, yellow = warning/mid, red = bad/blocker. That's it.
 - **No long explanations between actions.** If you need to explain why, one sentence. If it takes a paragraph, the decision isn't clear enough.
 
 ## Score bar helper
 
-When displaying a score as a bar, use this formula:
-- Total bar width: 20 characters
+Two sizes depending on context:
+
+**Large bar (headers, single-score displays):** 20 characters.
 - Filled chars: `round(score / 5)` using `█`
 - Empty chars: `20 - filled` using `░`
-- Color: green if ≥80, yellow if 50-79, red if <50
 
-Example: score 73 → `██████████████░░░░░░` (14.6 → 15 filled, 5 empty, yellow)
+**Compact bar (table rows, inline):** 12 characters.
+- Filled chars: `round(score / 8)` using `█`
+- Empty chars: `12 - filled` using `░`
+
+Color: green if ≥80, yellow if 50-79, red if <50.
+
+Example (large): score 73 → `██████████████░░░░░░` (15 filled, yellow)
+Example (compact): score 73 → `█████████░░░` (9 filled, yellow)

@@ -3,7 +3,10 @@ name: strategy
 description: "Use when the user needs market intelligence, honest diagnosis, bet scoring, competitive response, or strategic positioning. Triggers on 'strategy', 'what's the strategy?', 'bottleneck', 'compete', 'market landscape', 'pricing intel'."
 argument-hint: "[bet <idea>|market <domain>|position|price|gtm|compete <name>|honest|coherence|user|research <topic>|docs <lib>|site <url>]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, AskUserQuestion, WebSearch, WebFetch, Agent
+internal: true
 ---
+
+<!-- INTERNAL: This skill is infrastructure for other skills, not marketplace distribution. -->
 
 # /strategy
 

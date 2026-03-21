@@ -1,1 +1,1 @@
-{"score_range": [0, 20], "eval_pass": null, "eval_total": null, "scoring_mode": "empty"}
+{"score_range": [0, 30], "eval_pass": 0, "eval_total": 5, "scoring_mode": "assertions"}

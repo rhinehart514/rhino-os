@@ -32,9 +32,9 @@ LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 
 SUGGESTION=""
 case "$LOWER" in
-    # Score / quality
+    # Eval / quality (absorbs old /score routing)
     *"is this good"*|*"how's the product"*|*"how is the product"*|*"product quality"*|*"unified score"*|*"score everything"*)
-        SUGGESTION="/score" ;;
+        SUGGESTION="/eval" ;;
     # Eval / assertions
     *"evaluate"*|*"run assertions"*|*"check quality"*|*"check code"*|*"delivery"*|*"craft"*)
         SUGGESTION="/eval" ;;
@@ -53,9 +53,6 @@ case "$LOWER" in
     # Onboard / setup
     *"set this up"*|*"bootstrap"*|*"initialize"*|*"onboard"*|*"new here"*|*"what is this project"*|*"first time"*)
         SUGGESTION="/onboard" ;;
-    # Features
-    *"what features"*|*"list features"*|*"how's auth"*|*"how is auth"*|*"feature status"*)
-        SUGGESTION="/feature" ;;
     # Ideate
     *"brainstorm"*|*"feature ideas"*|*"what could we build"*|*"ideas"*)
         SUGGESTION="/ideate" ;;
@@ -72,26 +69,14 @@ case "$LOWER" in
     *"what's the roadmap"*|*"what is the roadmap"*|*"versions"*|*"what's next for the project"*|*"thesis"*)
         SUGGESTION="/roadmap" ;;
     # Ship / deploy
-    *"deploy"*|*"ship it"*|*"push"*|*"release"*)
+    *"deploy"*|*"ship it"*|*"release"*)
         SUGGESTION="/ship" ;;
-    # Retro / learning
-    *"what did we learn"*|*"retro"*|*"grade predictions"*|*"review"*)
-        SUGGESTION="/retro" ;;
-    # Assert
-    *"add a test"*|*"assert"*|*"this should be true"*|*"add assertion"*)
-        SUGGESTION="/assert" ;;
-    # Strategy
-    *"what's the strategy"*|*"what is the strategy"*|*"what stage"*|*"bottleneck"*|*"honest diagnosis"*)
-        SUGGESTION="/strategy" ;;
+    # Push / quality sweep
+    *"make everything better"*|*"close all gaps"*|*"push scores"*|*"quality sweep"*|*"improve everything"*)
+        SUGGESTION="/push" ;;
     # Todo / backlog
     *"backlog"*|*"todo"*|*"capture this"*|*"add to backlog"*)
         SUGGESTION="/todo" ;;
-    # Clone
-    *"clone this"*|*"screenshot"*|*"make it look like"*)
-        SUGGESTION="/clone" ;;
-    # Skill management
-    *"create a skill"*|*"new lens"*|*"manage lenses"*|*"manage skills"*)
-        SUGGESTION="/skill" ;;
     # Product thinking
     *"is this the right thing"*|*"product thinking"*|*"who cares"*|*"assumptions"*|*"should we build this"*|*"pressure test"*)
         SUGGESTION="/product" ;;

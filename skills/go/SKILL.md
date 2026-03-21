@@ -13,199 +13,124 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebS
 
 Autonomous creation loop. Plan, predict, build, measure, learn — no human in the loop until you hit a wall or plateau.
 
-## Skill folder structure
+## Skill folder
 
-This skill is a **folder**. Read these on demand:
-
-- `scripts/pre-build-scan.sh` — quick state snapshot. Use to VERIFY your state reading.
-- `scripts/assertion-gate.sh` — checks assertions pass/fail with specifics. Run after every build.
-- `scripts/plateau-check.sh` — detects N consecutive flat moves. Use to VERIFY your plateau judgment.
-- `scripts/build-log.sh` — persistent session log across conversations. Uses `${CLAUDE_PLUGIN_DATA}`.
-- `references/keep-revert-matrix.md` — when to keep vs revert. Read before first keep/revert decision.
-- `references/build-patterns.md` — patterns that work and anti-patterns. Read before building.
-- `templates/build-session.md` — template for session log entry.
-- `templates/prediction.md` — template for a prediction before building.
-- `gotchas.md` — real failure modes. **Read this before entering the loop.**
-- `reference.md` — output formatting templates. Read when formatting output.
+- `scripts/assertion-gate.sh` — checks assertion pass/fail. Run after every build.
+- `scripts/pre-build-scan.sh` — state snapshot. Use to VERIFY your reading.
+- `scripts/plateau-check.sh` — detects N consecutive flat moves. Use to VERIFY plateau judgment.
+- `scripts/build-log.sh` — persistent session log across conversations.
+- `references/keep-revert-matrix.md` — when to keep vs revert. Read before first decision.
+- `references/build-patterns.md` — patterns that work and anti-patterns.
+- `references/beta-features.md` — speculative branching + adversarial review (opt-in).
+- `templates/move-format.md` — output formatting reference.
+- `templates/build-session.md` — session log structure.
+- `templates/prediction.md` — prediction format and quality checks.
+- `gotchas.md` — real failure modes. **Read before entering the loop.**
 
 ## Modes
 
 | Argument | Behavior |
 |----------|----------|
-| `/go` | Full beta loop: speculative branching + adversarial review |
-| `/go --safe` | Proven sequential loop only (no beta features) |
+| `/go` | Full loop with beta features (speculative branching, adversarial review) |
+| `/go --safe` | Proven sequential loop only |
 | `/go --speculate N` | Force N parallel approaches (default: 2) |
-| `/go [feature]` | Scope to a single feature |
-
-Feature scoping: `$ARGUMENTS` can name features. Single = scope everything. Multiple = work sequentially. None = target the bottleneck.
+| `/go [feature]` | Scope to a single feature. Multiple = work sequentially. None = target bottleneck. |
 
 ## The build loop
 
-### Understand the situation
+### 1. Understand the situation
 
-Read state directly — form your own picture:
+Read in parallel: `eval-cache.json`, `rhino.yml`, `plan.yml`, `predictions.tsv`, `todos.yml`, `product-spec.yml`, `preferences.yml`. Also read `gotchas.md` and `references/build-patterns.md`. Verify with `bash scripts/pre-build-scan.sh`. Capture baseline assertion count and scores.
 
-**Read in parallel:**
-- `.claude/cache/eval-cache.json` — per-feature scores, sub-dimensions, deltas
-- `config/rhino.yml` — features, weights, mode (build/ship), stage
-- `.claude/plans/plan.yml` — planned tasks, previous session state
-- `~/.claude/knowledge/predictions.tsv` — recent predictions
-- `.claude/plans/todos.yml` — backlog items
-- `config/product-spec.yml` (if exists) — build toward the spec's core loop
-- `~/.claude/preferences.yml` — cost tier (economy/balanced/premium), autonomy setting
+**Soft discovery gate:** If target feature has no eval data AND no customer-intel.json, present via AskUserQuestion. Skip if autonomy is autonomous/full-auto.
 
-**Also read:** `gotchas.md` and `references/build-patterns.md` before entering the loop.
+### 2. Pick the move — completeness-driven
 
-**Verify** with `bash scripts/pre-build-scan.sh` and `bash scripts/build-log.sh list 3` — reconcile any differences with your reading.
+**The goal is "finish the feature," not "do one thing."** Read the situation:
 
-**Capture baseline:** Note current assertion count and scores. You'll compare at session end.
+1. **Failing assertions** — fix regressions first. Verify with `bash scripts/assertion-gate.sh [feature]`.
+2. **Tasks from /eval or /taste** — specific gaps already identified.
+3. **Missing assertion coverage** — <5 assertions for a feature? Add more before building more code.
+4. **Weakest sub-score dimension** — from eval-cache, target the lowest of delivery/craft.
+5. **Promoted todos** — founder intent from todos.yml.
+6. **New work** — only when all above are clear.
 
-### Tier-aware behavior
+**Cleanup:** If the task is cleanup/refactor, spawn `rhino-os:refactorer` in worktree. Hard constraint: no behavior changes, assertions must hold.
 
-Determine the tier from eval-cache scores (verify with `bash ../../bin/maturity-tier.sh` if uncertain):
+### 3. Predict
 
-| Tier | /go behavior |
-|------|-------------|
-| **fix** (<50) | Pure build. Fix assertions, improve health. No eval between cycles. |
-| **deepen** (50-70) | Build + eval after every 3 commits. Tasks from eval gaps. |
-| **strengthen** (70-85) | Build + eval after every commit. Research inline for unknowns. |
-| **expand** (85+ score, <70 eval avg) | Check if bottleneck is "missing capability" vs "incomplete implementation." Missing capability -> suggest /ideate or /research. |
-| **mature** (85+ score, 70+ eval avg) | Shorter sessions. After every 2 cycles: is another build cycle higher leverage than /ideate, /research, or /strategy? Stop when features are good — don't grind. |
+Before every build, log to `~/.claude/knowledge/predictions.tsv`. See `templates/prediction.md` for format. Specific numbers, cited evidence, falsification condition.
 
-### Soft discovery gate
-
-If target feature has no eval data AND no customer-intel.json AND no last-discovery.yml mention:
-- Present via AskUserQuestion: "Building [feature] with no customer signal. This is fine for exploration, but viability score may suffer."
-- Options: "Build it" / "/discover first" / "/strategy user"
-- Skip if `agents.autonomy` is `autonomous` or `full-auto` (still log prediction).
-
-### Pick the move — completeness-driven
-
-**The goal is "finish the feature," not "do one thing."**
-
-Read the situation and determine what to work on:
-
-1. **Failing assertions** — read `config/beliefs.yml` and check which assertions fail for the target feature. Fix regressions first. Verify with `bash scripts/assertion-gate.sh [feature]`.
-2. **Tasks from /eval** — check TaskList for tasks tagged to this feature. These are specific gaps.
-3. **Tasks from /taste** — visual issues identified by taste eval.
-4. **Missing assertion coverage** — if a feature has <5 assertions, add more before building more code.
-5. **Weakest sub-score dimension** — from eval-cache, which of delivery/craft is lowest? Target that.
-6. **Promoted todos** — founder's captured intent from todos.yml.
-7. **New work** — only when all above are clear.
-
-**Cleanup routing**: If the task is cleanup/refactor, spawn `rhino-os:refactorer` in worktree instead of builder. Hard constraint: no behavior changes, assertions must hold.
-
-### Predict
-
-Before every build, log to `~/.claude/knowledge/predictions.tsv`:
-- **I predict**: specific outcome with numbers ("raise craft_score from 50 to 65")
-- **Because**: cite evidence from experiment-learnings or declare exploration
-- **I'd be wrong if**: falsification condition
-
-Use the structure in `templates/prediction.md`.
-
-### Approval gate
+### 4. Approval gate
 
 | Mode | Behavior |
 |------|----------|
-| **Soft-gate** (default, `mode: build`) | Present move plan inline, then proceed. Founder can interrupt. |
-| **Hard-gate** (`mode: ship` or `autonomy: supervised`) | Do NOT write code until founder acknowledges via AskUserQuestion. |
-| **No gate** (`autonomy: autonomous`/`full-auto`) | Skip entirely. |
+| `mode: build` (default) | Present plan inline, proceed. Founder can interrupt. |
+| `mode: ship` or `autonomy: supervised` | Wait for founder acknowledgment via AskUserQuestion. |
+| `autonomy: autonomous`/`full-auto` | Skip. |
 
-### Build
+### 5. Build
 
-**Safe mode**: Build directly. Atomic commits. One intent per commit.
+**Safe mode:** Build directly. Atomic commits. One intent per commit.
 
-**Beta mode**: When uncertain between approaches, spawn `rhino-os:builder` per approach in worktrees. Compare scores, keep winner. Fall back to safe on worktree failure.
+**Beta mode:** See `references/beta-features.md` for speculative branching and adversarial review.
 
-When to speculate: unfamiliar territory, multiple plausible approaches, Unknown Territory. Never: config changes, renames, assertion additions.
+### 6. Measure
 
-### Measure
+After each commit: `bash scripts/assertion-gate.sh [feature]` for pass/fail, then `rhino eval . --feature [name] --fresh` for sub-scores. Check: did the TARGETED sub-score improve?
 
-After each commit:
-- Run `bash scripts/assertion-gate.sh [feature]` — quick pass/fail
-- Run `rhino eval . --feature [name] --fresh` — read sub-scores, not just total
-- Check: did the TARGETED sub-score improve, or did something else move?
+### 7. Keep or revert
 
-### Keep/revert
+Read `references/keep-revert-matrix.md`. Assertion regressed -> revert always. Assertion improved -> keep always. Assertion stable + reviewer REVERT -> revert. On regression: spawn `rhino-os:debugger` in background.
 
-Read `references/keep-revert-matrix.md` for the full decision matrix. Core rules:
-- Assertion regressed -> revert (always, no exceptions)
-- Assertion improved -> keep (even if reviewer says REVERT)
-- Assertion stable + reviewer REVERT -> revert
+### 8. Grade prediction
 
-On regression: spawn `rhino-os:debugger` in background before reverting.
+**Mandatory before next move.** Spawn `rhino-os:grader` for predictions.tsv. Spawn `rhino-os:consolidator` in background for experiment-learnings.md.
 
-**Beta mode**: Two-stage review (spec compliance, then code quality) via `rhino-os:reviewer`.
+### 9. Plateau detection
 
-### Grade prediction
+Every 3 moves: targeted sub-score delta < 2 per move = plateau. Verify with `bash scripts/plateau-check.sh`. On plateau: stop, research or report.
 
-**Mandatory before next move.** Spawn `rhino-os:grader` to fill result/correct/model_update in predictions.tsv. If wrong, grader updates experiment-learnings.md.
+### 10. Loop or stop
 
-After grading, spawn `rhino-os:consolidator` in background to merge/dedup/prune experiment-learnings.md.
+Tasks remain and no plateau -> loop to step 2. All tasks done -> fresh eval for NEW gaps.
 
-### Plateau detection
+### Session end
 
-After every 3 moves, assess: have scores moved? Look at the targeted sub-score across the last 3 commits. If flat (delta < 2 per move), the approach is exhausted.
+Run `bash scripts/assertion-gate.sh --diff`, compare to baseline. Log with `bash scripts/build-log.sh add`. Write `.claude/sessions/YYYY-MM-DD-HH.yml` (see `templates/build-session.md`).
 
-Verify with `bash scripts/plateau-check.sh`. If plateau: stop building, research inline or report.
+Report: tasks completed, remaining, assertion delta, sub-score changes, new tasks generated, estimated sessions to completion. See `templates/move-format.md` for formatting.
 
-**Don't trust your judgment on plateaus** — the temptation is always "one more try." If 3 commits didn't move the score, commit #4 won't either.
+## Tier-aware behavior
 
-### Loop or stop
-
-After each move: grade prediction, check for plateau, check remaining tasks. If tasks remain and no plateau, loop back to "Pick the move." Work through the task list systematically.
-
-After completing all tasks for a feature, run a fresh eval to find NEW gaps. The loop is: build -> measure -> find new gaps -> build more -> until done or plateau.
-
-### Session end — completeness report
-
-Run `bash scripts/assertion-gate.sh --diff` and compare to baseline captured at start.
-
-```
-Session started with X/Y assertions passing, ended with A/B. Net: +N assertions.
-```
-
-If net is 0 or negative after 2+ moves: "Build session produced no measurable improvement. Consider /strategy honest or /research before next /go."
-
-Log session with `bash scripts/build-log.sh add [session-data]`. Write `.claude/sessions/YYYY-MM-DD-HH.yml`.
-
-**Completeness report:**
-- Tasks completed this session: N
-- Tasks remaining for this feature: M
-- Assertions: X passing / Y total (was A/B at session start)
-- Net assertion delta: +N
-- Sub-scores: delivery [d], craft [c] (was [d0], [c0])
-- New tasks generated during session: K
-- Estimated sessions to feature completion
-
-Format output per `reference.md`.
-
-## Self-evaluation
-
-This skill worked if: (1) the completeness report shows net positive assertion delta, (2) every build had a prediction graded before the next move, (3) no regressions were left unreverted, and (4) session log was written to `.claude/sessions/`.
+| Tier | Behavior |
+|------|----------|
+| **fix** (<50) | Pure build. Fix assertions, improve health. No eval between cycles. |
+| **deepen** (50-70) | Build + eval after every 3 commits. |
+| **strengthen** (70-85) | Build + eval after every commit. Research inline for unknowns. |
+| **expand** (85+, eval<70) | Check if bottleneck is "missing capability" vs "incomplete." Missing -> suggest /ideate or /research. |
+| **mature** (85+, eval 70+) | Shorter sessions. Every 2 cycles: is another build higher leverage than /ideate or /research? Stop when features are good. |
 
 ## Agent routing
 
-| Step | Agent | Why |
-|------|-------|-----|
+| Step | Agent | Notes |
+|------|-------|-------|
 | Build (safe) | direct | Single-agent, main worktree |
-| Build (speculate) | rhino-os:builder x N | Parallel, isolated worktrees |
-| Build (cleanup) | rhino-os:refactorer | No behavior changes allowed |
+| Build (cleanup) | rhino-os:refactorer | No behavior changes |
 | Measure | rhino-os:measurer or Bash | Mechanical, cheap |
-| Review (beta) | rhino-os:reviewer | Independent, honest, cheap |
 | Grade | rhino-os:grader | Has memory, learns grading |
 | Debug regression | rhino-os:debugger (bg) | Async during revert |
 
+See `references/beta-features.md` for beta-specific agent routing.
+
 ## What you never do
 
-- Skip the prediction step
-- Skip prediction grading
+- Skip the prediction or prediction grading
 - Continue past plateau without researching
 - Modify score.sh, eval.sh, taste.mjs, or skills/taste/SKILL.md (immutable eval harness)
 - Speculate on trivial moves
 - Let the reviewer block a keep when assertions improved
-- Skip presenting the move plan (soft-gate still shows the plan, just doesn't block)
+- Skip presenting the move plan (soft-gate still shows it)
 
 ## System integration
 

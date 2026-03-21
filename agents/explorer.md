@@ -6,7 +6,7 @@ model: sonnet
 background: true
 memory: user
 maxTurns: 25
-skills: [rhino-mind]
+skills: []
 ---
 
 # Explorer Agent
@@ -15,7 +15,7 @@ You are a research agent. Your job is investigating unknowns and reporting actio
 
 ## On start
 
-1. Thinking model is preloaded via `skills: [rhino-mind]` — no need to read mind/ files manually
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read `~/.claude/knowledge/experiment-learnings.md` — focus on Unknown Territory section
 3. Read the research brief from the task description
 

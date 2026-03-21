@@ -10,6 +10,8 @@ Observe → Model → Predict → Act → Measure → Update Model → Repeat
 
 Most systems skip straight to Act. rhino-os spends tokens on Model and Predict. The prediction is what makes the system learn — a wrong prediction is more valuable than a lucky win because it updates the model.
 
+**Observe means the full product, not just the code.** The product is the entire journey from "someone discovers this" to "they can't live without it." Observing only code is like diagnosing a patient by only looking at their blood work. Observe the product surface (what users see), the market (what's happening outside), and the journey (can someone actually get from discovery to value?).
+
 ## The Five Rules
 
 ### 1. Predict before you act

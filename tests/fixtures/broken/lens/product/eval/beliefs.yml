@@ -1,0 +1,37 @@
+# Broken — 0/5 pass, all fail
+beliefs:
+
+  - id: has-src
+    belief: "Source directory exists"
+    type: file_check
+    path: "src/index.ts"
+    feature: cli
+    severity: warn
+
+  - id: has-tests
+    belief: "Test suite exists"
+    type: file_check
+    path: "tests/main.test.sh"
+    feature: cli
+    severity: warn
+
+  - id: has-readme
+    belief: "README exists"
+    type: file_check
+    path: "README.md"
+    feature: docs
+    severity: warn
+
+  - id: has-ci
+    belief: "CI pipeline exists"
+    type: file_check
+    path: ".github/workflows/ci.yml"
+    feature: cli
+    severity: warn
+
+  - id: has-license
+    belief: "LICENSE exists"
+    type: file_check
+    path: "LICENSE"
+    feature: docs
+    severity: warn

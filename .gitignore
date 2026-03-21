@@ -30,5 +30,8 @@ package-lock.json
 # Local overrides
 *.local.*
 
+# Calibration benchmark results (generated, not source)
+calibration/results/*.json
+
 # Runtime state (per-project, not source)
 .claude/

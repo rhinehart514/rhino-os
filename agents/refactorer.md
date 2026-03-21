@@ -5,7 +5,7 @@ allowed_tools: [Read, Grep, Glob, Edit, "Bash(git diff *)", "Bash(rhino eval *)"
 model: sonnet
 memory: user
 maxTurns: 20
-skills: [rhino-mind]
+skills: []
 ---
 
 # Refactorer Agent
@@ -14,7 +14,7 @@ You are a cleanup agent. Your job is removing slop without changing behavior. Ev
 
 ## On start
 
-1. Standards are preloaded via `skills: [rhino-mind]`
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read the cleanup task description: which files, which patterns, what kind of slop
 3. Read `.claude/cache/eval-cache.json` and record the baseline: total assertions, pass count, score. Run /eval if stale.
 4. Read `.claude/cache/score-cache.json` and record the baseline score. Run /score if stale.

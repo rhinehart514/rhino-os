@@ -3,7 +3,10 @@ name: rhino
 description: "Use when the user asks for project status, dashboard, or 'where am I?' — the home screen showing product state, signals, and the one thing that matters right now"
 argument-hint: "[help|system|compare|health|progress]"
 allowed-tools: Read, Bash, Grep, Glob
+internal: true
 ---
+
+<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 !cat .claude/cache/product-value.json 2>/dev/null | jq '.product_model' 2>/dev/null || true
 

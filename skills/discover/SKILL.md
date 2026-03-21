@@ -3,7 +3,10 @@ name: discover
 description: "Use when the user has a new idea to define, an existing product spec to refine or pivot, or wants to compare against competitors. Triggers on 'I want to build...', 'discover', 'define the product', 'pivot', 'refine the spec'."
 argument-hint: "[new \"idea\"|refine|pivot|vs|systems|wild|invert]"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch
+internal: true
 ---
+
+<!-- INTERNAL: This skill is infrastructure for other skills, not marketplace distribution. -->
 
 # /discover — Product Discovery Pipeline
 

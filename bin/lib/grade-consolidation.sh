@@ -126,6 +126,10 @@ consolidate_knowledge() {
 
     mv "$temp_learnings" "$learnings_file"
     $QUIET || echo "Consolidated $consolidated learning(s) into experiment-learnings.md"
+
+    # Post-consolidation: deduplicate and promote
+    detect_duplicates "$learnings_file"
+    promote_uncertain_to_known "$learnings_file"
 }
 
 # --- Staleness detection: flag entries not referenced by predictions in 30+ days ---
@@ -200,4 +204,184 @@ detect_stale_entries() {
         done <<< "$(echo -e "$stale_list")"
         [[ "$demoted" -gt 0 ]] && $QUIET || true
     fi
+}
+
+# --- Deduplicate entries: entries sharing the same first 4+ words are duplicates ---
+detect_duplicates() {
+    local learnings_file="$1"
+    [[ ! -f "$learnings_file" ]] && return 0
+
+    local temp_dedup
+    temp_dedup=$(mktemp)
+    local removed=0
+
+    # Build a list of "first 4 words" keys we've seen, keeping the last (most recent) occurrence
+    # Strategy: read the file, for each bullet entry extract first 4+ words after the date,
+    # if we've seen that key before, mark the EARLIER line for removal
+
+    # Collect all entry lines with their line numbers and keys
+    local -a entry_lines=()
+    local -a entry_keys=()
+    local line_num=0
+
+    while IFS= read -r line; do
+        line_num=$((line_num + 1))
+        # Match bullet entries: "- (date) content" or "- content"
+        if [[ "$line" =~ ^[[:space:]]*-[[:space:]] ]]; then
+            # Strip leading "- (YYYY-MM-DD) " or "- " to get content
+            local content="$line"
+            content="${content#*- }"
+            content="${content#(????-??-??) }"
+            content="${content#(????) }"
+            # Extract first 4 words as dedup key
+            local key
+            key=$(echo "$content" | awk '{for(i=1;i<=4&&i<=NF;i++) printf "%s ", $i; print ""}' | tr -s ' ' | sed 's/ *$//' | tr '[:upper:]' '[:lower:]')
+            if [[ ${#key} -ge 8 ]]; then
+                entry_lines+=("$line_num")
+                entry_keys+=("$key")
+            fi
+        fi
+    done < "$learnings_file"
+
+    # Find duplicates: for each key, keep only the last occurrence (most recent)
+    local -a remove_lines=()
+    local i j
+    for ((i=0; i<${#entry_keys[@]}; i++)); do
+        for ((j=i+1; j<${#entry_keys[@]}; j++)); do
+            if [[ "${entry_keys[$i]}" == "${entry_keys[$j]}" ]]; then
+                # Mark the earlier one for removal
+                remove_lines+=("${entry_lines[$i]}")
+                removed=$((removed + 1))
+                break
+            fi
+        done
+    done
+
+    if [[ "$removed" -eq 0 ]]; then
+        rm -f "$temp_dedup"
+        return 0
+    fi
+
+    # Rebuild file without removed lines
+    line_num=0
+    while IFS= read -r line; do
+        line_num=$((line_num + 1))
+        local should_remove=false
+        for rm_line in "${remove_lines[@]}"; do
+            if [[ "$line_num" -eq "$rm_line" ]]; then
+                should_remove=true
+                break
+            fi
+        done
+        if ! $should_remove; then
+            printf "%s\n" "$line" >> "$temp_dedup"
+        fi
+    done < "$learnings_file"
+
+    mv "$temp_dedup" "$learnings_file"
+    $QUIET || echo "Deduplicated: removed $removed duplicate entries from experiment-learnings.md"
+}
+
+# --- Promote uncertain entries to known when they have 3+ supporting evidence ---
+promote_uncertain_to_known() {
+    local learnings_file="$1"
+    [[ ! -f "$learnings_file" ]] && return 0
+
+    # Extract Uncertain Patterns section entries
+    local uncertain_section
+    uncertain_section=$(awk '/^## Uncertain Patterns/,/^## [A-Z]/' "$learnings_file" 2>/dev/null)
+    [[ -z "$uncertain_section" ]] && return 0
+
+    local promoted=0
+    local entries_to_promote=""
+
+    # For each entry in Uncertain Patterns, count supporting evidence
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        # Extract a meaningful keyword from the entry (skip dates and common words)
+        local content="$entry"
+        content="${content#*- }"
+        content="${content#(????-??-??) }"
+
+        # Get first distinctive keyword (4+ chars, not a common word)
+        local keyword
+        keyword=$(echo "$content" | grep -oE '[a-zA-Z_-]{4,}' | \
+            grep -viE '^(will|from|that|this|with|have|been|into|than|they|them|were|more|each|also|does|make|confirmed|wrong|partial|mechanism|predicted|because|about|after|before|model|update|held)$' | \
+            head -1)
+        [[ -z "$keyword" ]] && continue
+
+        # Count how many entries across the ENTIRE file reference this keyword
+        local total_refs
+        total_refs=$(grep -ciF "$keyword" "$learnings_file" 2>/dev/null || echo "0")
+
+        # If 3+ references exist (including this one), promote
+        if [[ "$total_refs" -ge 3 ]]; then
+            entries_to_promote="${entries_to_promote}${entry}\n"
+            promoted=$((promoted + 1))
+        fi
+    done < <(echo "$uncertain_section" | grep '^\s*-\s')
+
+    [[ "$promoted" -eq 0 ]] && return 0
+
+    # Move entries: remove from Uncertain, add to Known
+    local temp_promote
+    temp_promote=$(mktemp)
+    local in_uncertain=false
+    local inserted_promoted=false
+
+    while IFS= read -r line; do
+        if [[ "$line" == "## Known Patterns"* ]]; then
+            printf "%s\n" "$line" >> "$temp_promote"
+            # Insert promoted entries right after the Known Patterns header
+            # (read past any existing content line first)
+            inserted_promoted=true
+            continue
+        fi
+
+        # After Known Patterns header, insert promoted entries before first blank line or next entry
+        if [[ "$inserted_promoted" == true ]]; then
+            printf "%s\n" "$line" >> "$temp_promote"
+            if [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]]; then
+                printf "%b" "$entries_to_promote" >> "$temp_promote"
+                inserted_promoted=false
+            fi
+            continue
+        fi
+
+        if [[ "$line" == "## Uncertain Patterns"* ]]; then
+            in_uncertain=true
+            printf "%s\n" "$line" >> "$temp_promote"
+            continue
+        fi
+        if $in_uncertain && [[ "$line" == "## "* ]]; then
+            in_uncertain=false
+        fi
+
+        # Skip promoted entries from uncertain section
+        if $in_uncertain && [[ "$line" =~ ^[[:space:]]*-[[:space:]] ]]; then
+            local skip_this=false
+            while IFS= read -r promo_entry; do
+                [[ -z "$promo_entry" ]] && continue
+                local promo_snippet="${promo_entry:0:50}"
+                if [[ "$line" == *"$promo_snippet"* ]]; then
+                    skip_this=true
+                    break
+                fi
+            done < <(printf "%b" "$entries_to_promote")
+            if $skip_this; then
+                continue
+            fi
+        fi
+
+        printf "%s\n" "$line" >> "$temp_promote"
+    done < "$learnings_file"
+
+    # Fallback: if Known Patterns header wasn't found, don't modify
+    if [[ "$inserted_promoted" == true ]]; then
+        # Never found blank line after header — append at end of temp
+        printf "%b" "$entries_to_promote" >> "$temp_promote"
+    fi
+
+    mv "$temp_promote" "$learnings_file"
+    $QUIET || echo "Promoted $promoted entry(ies) from Uncertain → Known Patterns (3+ supporting evidence)"
 }

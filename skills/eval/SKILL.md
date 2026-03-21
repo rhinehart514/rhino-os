@@ -1,266 +1,157 @@
 ---
 name: eval
-description: "Use when the user asks 'evaluate code', 'run assertions', 'how's the code?', or wants delivery + craft scores per feature. Reads code, judges system design, scores 0-100. Gets smarter with rubrics and accumulated knowledge."
-argument-hint: "[feature|blind|coverage|trend|slop]"
+description: "Use when the user asks 'evaluate code', 'run assertions', 'check quality', 'how good is the code', or wants delivery + craft scores per feature. Reads code, judges value delivery and system design, scores 0-100."
+argument-hint: "[feature|beliefs|add-belief|health|blind|coverage|trend|slop]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent, TaskCreate
 ---
 
 !command -v jq &>/dev/null && cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no eval cache (jq missing or cache empty)"
-!command -v jq &>/dev/null && cat .claude/cache/product-value.json 2>/dev/null | jq '{model: .product_model, loop: .value_loop[:5]}' 2>/dev/null || echo "no product-value cache (jq missing or cache empty)"
 !cat ~/.claude/knowledge/experiment-learnings.md 2>/dev/null | head -60 || echo "no knowledge model"
 
 # /eval
 
-You are a top 0.01% product engineer. You read the code to judge both VALUE DELIVERY and SYSTEM DESIGN. The number IS the verdict.
+Score features 0-100 on delivery and craft. The number IS the verdict.
 
-## Skill folder structure
+## Folder contents
 
-This skill is a **folder**, not just this file. Read on demand:
+Read on demand — not upfront:
 
-- `scripts/quick-eval.sh [feature]` — mechanical assertion score, no LLM (zero context cost)
-- `scripts/variance-check.sh <feature> <proposed_score>` — catch dangerous score drift vs rubric. Run before publishing any score.
-- `scripts/rubric-status.sh` — which features have rubrics, last scores, known gaps
+- `scripts/quick-eval.sh [feature]` — mechanical assertion score, no LLM
+- `scripts/variance-check.sh <feature> <proposed_score>` — catch score drift vs rubric
+- `scripts/rubric-status.sh` — which features have rubrics, last scores, gaps
 - `scripts/eval-history.sh [feature]` — score trends over time
-- `scripts/outside-in.sh [project-dir]` — reads intelligence caches to surface what the product is MISSING
-- `references/scoring-guide.md` — dimensions, scale, honesty rules, anti-inflation checks
-- `references/rubric-guide.md` — how rubrics work, how to write good ones
+- `references/scoring-guide.md` — dimensions, scale, honesty rules, anti-inflation
+- `references/rubric-guide.md` — how rubrics work, how to write them
 - `templates/rubric-template.json` — structure for feature rubrics
-- `templates/eval-report.md` — output formatting templates for all eval modes
+- `templates/eval-report.md` — output formatting for all modes
 - `gotchas.md` — real failure modes. **Read before scoring.**
 
 ## Routing
 
-Parse `$ARGUMENTS`. Exact keyword wins, then feature name, then free-form.
-
-| Argument | Mode |
-|----------|------|
+| Argument | What happens |
+|----------|-------------|
 | (none) | Score all active features, parallel evaluators |
-| `<feature>` | Deep eval of one feature, inline |
+| `<feature>` | Deep eval of one feature |
+| `beliefs` | Run mechanical assertion checks (beliefs.yml) |
+| `add-belief <feature>: <text>` | Add a new assertion to beliefs.yml |
+| `health` | Assertion coverage — type distribution, gaps per feature |
 | `blind` | Cold-read code vs claims, score alignment |
 | `coverage` | Assertion type distribution, signal quality |
 | `trend` | Classify assertions: stable, flapping, changed |
 | `slop` | Scan for LLM-generated code patterns |
-| `execute` | Run commands, check runtime behavior, then score with evidence |
+| `execute` | Run commands, check runtime, then score with evidence |
+| `adversarial` | Spawn agent to find gaps and propose new assertions |
+| `mutation` | Test assertion strength — break code, check if assertions catch it |
 | `taste` / `vs <url>` | Redirect to `/taste` |
 
-## The eval model
+## Scoring model
 
 **Formula:** `delivery * 0.60 + craft * 0.40`
 
-### Delivery (60%)
+**Delivery (60%)** — Does this feature deliver real value? Read `delivers:` and `for:` from rhino.yml, then read ALL code. Score what a user would experience.
 
-Does this feature deliver real value to its target user? Read the `delivers:` field (the promise) and `for:` field (who it promises to) from rhino.yml. Then read ALL the code. Judge: is this complete, useful, worth someone's time?
+**Craft (40%)** — Is this well-made? Error handling, architecture, product surface quality.
 
-**Delivery includes user understanding.** Code that works but confuses the user caps at 69. Evaluate the product surface:
-- **5-second test**: Would someone encountering this cold understand it? If not, cap at 69.
-- **Value moment**: Steps from first encounter to value. One step = potential 90+. Five steps = cap at 70.
-- **Next action clarity**: After the feature runs, does the user know what to do next? No next action = cap at 75.
-- **Error communication**: Generic errors or silent failures = delivery penalty.
+Detailed scoring anchors, caps, and hard rules are in `references/scoring-guide.md`.
 
-**Hard rule:** Delivery > 80 requires evidence the product surface communicates clearly. Cite the specific output/UI/response.
+Viability is NOT scored by /eval. That's `/score` via agent-backed research.
 
-### Craft (40%)
-
-Is this well-made — both the code AND the experience? Code craft (error handling, architecture) + product surface craft (output formatting, consistency).
-
-**Hard rules:**
-- craft > 70 requires zero critical unhandled error paths
-- craft > 80 requires evidence of intentional product surface design
-
-### Viability — NOT scored by /eval
-
-Viability is scored by `/score` using agent-backed research. This prevents LLM self-assessment bias.
-
-### Journey-aware weighting
-
-Features at entry positions (from topology.json) get a 1.2x delivery multiplier. Core = 1.1x. Leaf = 1.0x. This makes delivery count MORE for features that gate user value.
-
-## How to evaluate
-
-### Read state (parallel)
+## What to read
 
 - `config/rhino.yml` — features, claims, code paths
-- `config/product-spec.yml` — grounds scoring in what the product claims to deliver
-- `.claude/cache/eval-cache.json` — previous scores for delta comparison
-- `.claude/cache/rubrics/<feature>.json` — anchoring rubrics per feature
-- `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`)
-- `.claude/plans/strategy.yml`, `roadmap.yml`, `plan.yml`, `todos.yml`
-- `.claude/cache/customer-intel.json`, `market-context.json`, `product-value.json`, `topology.json` (if they exist)
+- `.claude/cache/eval-cache.json` — previous scores for delta
+- `.claude/cache/rubrics/<feature>.json` — anchoring rubrics
+- `~/.claude/knowledge/experiment-learnings.md`
+- `gotchas.md` — calibrate before scoring
 
-Read `gotchas.md` — calibrate before scoring.
+## How to score
 
-### Full eval (no arguments)
+For each active feature:
 
-For each active feature in rhino.yml:
+1. Read ALL files in `code:` paths — no skimming
+2. Check rubric — `.claude/cache/rubrics/<feature>.json`. Anchor to it.
+3. Judge delivery and craft with file:line evidence
+4. Run `bash scripts/variance-check.sh <feature> <score>` before publishing
+5. Run `bash scripts/quick-eval.sh` for mechanical belief results alongside
 
-1. **Read ALL files** in `code:` paths — no skimming, no shortcuts
-2. **Check rubric** — `.claude/cache/rubrics/<feature>.json`. If it exists, anchor to it. Same code should get same score.
-3. **Judge delivery** — read the `delivers:` claim. Does the code actually deliver it? Where are the gaps? What would a user experience? Cite file:line evidence.
-4. **Judge craft** — error handling, architecture, product surface quality. Zero critical unhandled paths for >70. Cite file:line evidence.
-5. **Apply journey weighting** — check topology.json for position. Entry features: `delivery * 0.72 + craft * 0.28`. Core: `delivery * 0.66 + craft * 0.34`. Leaf: standard `0.60/0.40`.
-6. **Verify score** — run `bash scripts/variance-check.sh <feature> <score>` before publishing. If drift >15 from rubric, re-examine.
-7. **Check claim-in-output** — run `bash skills/shared/claim-verify.sh [project-dir] [feature]` to mechanically verify the feature's commands produce output matching its `delivers:` claim. Low match = delivery gap.
-
-Run `bash scripts/quick-eval.sh` for mechanical belief results alongside.
-
-**Parallel evaluator spawning (full eval only):** For 3+ features, spawn one evaluator per feature:
+**Parallel evaluators (3+ features):** Spawn one evaluator per feature:
 ```
-For each feature with status: active:
-  Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft 0-100 with file:line evidence. Check rubric. Do NOT score viability.", run_in_background: true)
+Agent(subagent_type: "rhino-os:evaluator", prompt: "Deep eval '[name]'. Read ALL code in [paths]. Score delivery/craft 0-100 with file:line evidence. Check rubric.", run_in_background: true)
 ```
 
-### Write results
+**Multi-sample median:** For contested scores, run 3 evaluations and take the median. This kills the +/-15pt LLM variance problem.
 
-- Merge into `.claude/cache/eval-cache.json` — preserve unscored features, don't overwrite
-- Include `journey_position` field per feature
-- Include `recommendations` field per feature — tier based on score, all lower tiers included
-- Write/update rubrics per feature — see `references/rubric-guide.md`
+## What to write
 
-### Outside-in pass
+- Merge into `.claude/cache/eval-cache.json` — preserve unscored features
+- Write/update rubrics per feature
+- Output: scores, gaps, file:line evidence, delta vs previous
 
-Run `bash scripts/outside-in.sh [project-dir]` to surface what the product is MISSING from intelligence caches. Present as "outside-in" section. This is a lens showing opportunity cost, not a score. Surface-agnostic — "acquire: 0 surfaces" could mean landing page, dashboard, API, or distribution channel.
+## Belief sub-commands
 
-### Cross-skill synthesis
+/eval absorbs assertion management from the former /assert skill.
 
-After scoring: Does eval bottleneck match strategy bottleneck? Are plan tasks targeting weak features? Do results advance/block roadmap evidence?
+**`eval beliefs`** — Run mechanical assertion checks via `bash scripts/quick-eval.sh`. Shows pass/fail counts per feature.
 
-Suggest `/score` for the unified product quality number. If web-facing features exist, suggest `/taste <url>`.
+**`eval add-belief <feature>: <text>`** — Append to `lens/product/eval/beliefs.yml`. Auto-detect type: file path → `file_check`, "contains"/"has" → `content_check`, "command"/"runs" → `command_check`, else → `llm_judge` (flag it — mechanical preferred). Default severity: `warn`.
 
-### Other modes
+**`eval health`** — Read beliefs.yml directly. Show: assertion count per feature, type distribution, mechanical-vs-llm ratio, coverage gaps. Cross-reference features in rhino.yml to find features with zero assertions.
 
-- **Scoped eval (`<feature>`)**: Same depth, one feature. Full code read, full rubric check. No agent spawn needed.
-- **Blind**: Cold-read code vs claims, score alignment 0-100. Categories: ALIGNED, INFLATED, DEFLATED, DISCONNECTED.
-- **Coverage**: Count assertions per feature, type distribution. Ideal: 30% mechanical, 50% content/command, 20% llm_judge.
-- **Trend**: Run `bash scripts/quick-eval.sh`, read `.claude/evals/assertion-history.tsv`. Classify: stable, flapping, recently changed.
-- **Slop**: Scan for comments restating code, over-engineered abstractions, generic names, empty catch blocks. Cite file:line. Report human-quality %.
+## Other modes
 
-## Task generation — the path to completion
+- **Blind**: Cold-read code vs `delivers:` claims. Categories: ALIGNED, INFLATED, DEFLATED, DISCONNECTED.
+- **Coverage**: Assertion type distribution per feature. Ideal: 30% mechanical, 50% content/command, 20% llm_judge.
+- **Trend**: Read `.claude/evals/assertion-history.tsv`. Classify: stable, flapping, recently changed.
+- **Slop**: Comments restating code, over-engineered abstractions, generic names, empty catches. Cite file:line. Report human-quality %.
 
-See `../shared/task-generation.md` for the protocol. For EVERY feature scored, generate the complete task list:
+## Adversarial mode
 
-- **Delivery tasks**: gaps between claim and code, stubs, dead-ending flows, missing error handling
-- **Craft tasks**: rubric criteria not met, unhandled edge cases, fragile patterns (grep/sed parsing, hardcoded paths)
-- **Coverage tasks**: features with <3 assertions, existence-only assertions that need strengthening
-- **Regression tasks**: score drops vs previous eval, assertions that were passing and now fail
+Spawns an evaluator agent in a worktree to find product gaps that current assertions don't cover.
 
-Tag with `source: /eval`, feature name, and dimension. Priority: highest-weight features first.
+The agent:
+1. Reads all active features from rhino.yml
+2. Reads current beliefs.yml to know what's already tested
+3. Explores the codebase looking for: missing error handling, dead ends, uncovered edge cases, untested flows
+4. For each gap found, proposes a new assertion in beliefs.yml format
+5. Returns proposed assertions for founder review — never auto-adds
 
-## Maturity-gated recommendations
+Use AskUserQuestion to confirm each proposed assertion before adding.
 
-As a feature matures, the evaluation question evolves. Low scores need gap analysis. High scores need vision. Each tier ADDS a new type of recommendation on top of all previous tiers — score 80 still shows gaps AND craft AND micro-features AND micro-systems.
+## Mutation mode
 
-### Tier 1: Gaps (all scores)
+Tests whether assertions actually protect against regressions.
 
-What's broken or missing. The standard eval output — delivery gaps, missing functionality, blockers, assertion failures. Always included regardless of score.
+For each high-value assertion:
+1. Identify the code path it tests
+2. Spawn an agent in worktree isolation
+3. Agent makes a minimal breaking change (remove error handler, delete redirect, break validation)
+4. Run quick-eval.sh to check if the assertion catches the break
+5. Revert (worktree is disposable)
 
-### Tier 2: Craft prescriptions (score 40+)
+Report: "N/M assertions caught their mutation. K assertions passed despite broken code — these are decorative."
 
-Specific improvements to existing code. Not "needs better error handling" but "function X handles the happy path but not [edge case Y]." "Output format buries the key information under N lines of noise." Concrete, implementable, scoped to code that already exists.
-
-### Tier 3: Micro-features (score 65+)
-
-Small, focused additions that improve an existing feature without changing its scope. These are 1-2 hour implementations, not new features. They emerge from understanding what the feature ALMOST does but doesn't quite.
-
-Examples of what micro-features look like:
-- "Add a `--compare` flag that shows before/after for the last N changes"
-- "Track dimension trends over time, not just current score"
-- "Auto-detect when a dependent cache is stale and suggest the refresh command"
-
-**Cross-reference /ideate**: At tier 3+, eval recommendations overlap with ideation. Mention that `/ideate [feature]` can explore promising micro-features in depth — eval identifies them, ideate pressure-tests them.
-
-### Tier 4: Micro-systems (score 80+)
-
-Interconnected capabilities that emerge from combining existing features. Not improvements to one feature — connections BETWEEN features that create system-level intelligence.
-
-Examples:
-- "If /plan reads taste history alongside eval cache, it can detect visual regression while code improves"
-- "Prediction accuracy by domain could feed into strategic focus — wrong predictions about craft suggest taste calibration is off"
-- "Score trajectory could auto-suggest version bumps when thesis evidence accumulates"
-
-These recommendations require reading multiple features' code and state to identify. The evaluator should look at what data this feature produces that other features could consume, and vice versa.
-
-### Tier 5: Product theory (score 90+)
-
-What could the feature BECOME? Not incremental improvements but conceptual evolution. The question shifts from "how do we improve this?" to "what new capability does this unlock?"
-
-Examples:
-- "Scoring currently answers 'is this good?' — at this level it could answer 'what would make this great?' by generating rubrics of what 100 looks like for any project"
-- "The learning feature could become a teaching feature — not just tracking what works but explaining WHY patterns work to new users of the system"
-- "Eval currently measures code against claims — it could measure claims against market, becoming the product strategy sensor"
-
-### Recommendation output format
-
-Include a `recommendations` field in eval-cache.json per feature, alongside existing fields:
-
-```json
-{
-  "feature_name": {
-    "delivery_score": 72,
-    "craft_score": 68,
-    "score": 70,
-    "recommendations": {
-      "tier": "micro-features",
-      "items": [
-        {
-          "type": "gap",
-          "idea": "Error path for missing config file produces stack trace instead of guidance",
-          "rationale": "Users hitting this in first run. Blocks value delivery.",
-          "effort": "small",
-          "connects_to": ["onboarding"]
-        },
-        {
-          "type": "craft-prescription",
-          "idea": "Score output buries the feature name 4 lines deep — lead with it",
-          "rationale": "When scanning multiple features, users need the name first.",
-          "effort": "small",
-          "connects_to": []
-        },
-        {
-          "type": "micro-feature",
-          "idea": "Track score dimension trends over time, show sparkline per dimension",
-          "rationale": "Currently only overall score has history. Per-dimension trends reveal which improvements actually moved which numbers.",
-          "effort": "medium",
-          "connects_to": ["scoring", "learning"]
-        }
-      ]
-    }
-  }
-}
-```
-
-**Tier determination**: Use the feature's overall score to select the highest active tier. All lower tiers are always included. The `tier` field reflects the highest recommendation type generated, not the only type.
-
-**Effort sizing**: `small` = under 30 minutes, `medium` = 1-2 hours, `large` = half day or more. This helps /plan and /go prioritize.
-
-**`connects_to`**: Other features this recommendation touches. Empty for self-contained items. This field is what makes tier 4 (micro-systems) recommendations discoverable — they always connect to 2+ features.
-
-## Self-evaluation
-
-This skill worked if: (1) eval-cache.json was updated with scores for all active features, (2) every score has file:line evidence, (3) variance-check.sh passed for each score, (4) tasks were generated for every gap found, and (5) recommendations were generated at the appropriate maturity tier for each feature's score.
-
-## Agents: **rhino-os:evaluator** (parallel per feature), **rhino-os:measurer** (cheap mechanical)
-
-## What you never do
-
-- Present beliefs as the primary result — 0-100 scores are the eval
-- Score without reading code — Read every file before scoring
-- Give a score without file:line evidence
-- Grade predictions or write to predictions.tsv — that is /retro
-- Edit code — eval is measurement only
+Cost note: spawns 1 agent per assertion tested. Use `mutation [feature]` to limit scope.
 
 ## First-run guidance
 
-If no features defined in rhino.yml:
-- Show: "No features yet. Define what your product delivers:"
-- Show a quick rhino.yml example with one feature
-- Suggest: `/feature new [name]` or `/onboard` to auto-detect
+No features in rhino.yml:
+- "No features yet. `/feature new [name]` or `/onboard` to auto-detect."
+
+## What you never do
+
+- Score without reading code — read every file before scoring
+- Give a score without file:line evidence
+- Present beliefs as the primary result — 0-100 scores are the eval
+- Grade predictions or write to predictions.tsv — that's /retro
+- Edit code — eval is measurement only
 
 ## System integration
 
-Reads: rhino.yml, product-spec.yml, eval-cache.json, rubrics/*.json, experiment-learnings.md, strategy.yml, roadmap.yml, plan.yml, todos.yml, customer-intel.json, market-context.json, product-value.json, topology.json
-Writes: eval-cache.json, rubrics/<feature>.json, tasks (via TaskCreate)
+Reads: rhino.yml, eval-cache.json, rubrics/*.json, experiment-learnings.md, beliefs.yml
+Writes: eval-cache.json, rubrics/<feature>.json, beliefs.yml (add-belief/health modes)
 Triggers: /score (unified quality), /taste (visual quality for web), /go (build from gaps)
 Triggered by: /go (measurement), /plan (stale data), /score (code tier)
+Agents: **rhino-os:evaluator** (parallel per feature), **rhino-os:measurer** (cheap mechanical)
 
 ## If something breaks
 
@@ -269,5 +160,6 @@ Triggered by: /go (measurement), /plan (stale data), /score (code tier)
 - Cache missing: no delta, establish baseline
 - Rubric missing: score from scratch, write rubric after
 - Beliefs fail: run `bash scripts/quick-eval.sh` to diagnose
+- Scripts fail on missing `jq`: tell user `brew install jq`, continue manually
 
 $ARGUMENTS

@@ -1,3 +1,18 @@
-# Broken project — no value hypothesis, no structure
+# Broken project — all assertions fail
 project:
   stage: mvp
+
+value:
+  hypothesis: "Users can do something"
+  user: "Someone"
+  signals:
+    - name: something
+      description: "Something works"
+      target: "It works"
+      measurable: true
+
+scoring:
+  cache_ttl: 300
+  health_gate_threshold: 20
+  health_warn_threshold: 40
+  onboarding_cap: 50

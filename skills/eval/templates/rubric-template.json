@@ -10,10 +10,6 @@
     "REPLACE: error handling quality at specific paths",
     "REPLACE: system design decisions that serve or hinder the user"
   ],
-  "viability_criteria": [
-    "REPLACE: market position or differentiation evidence",
-    "REPLACE: adoption signals or barriers"
-  ],
   "known_gaps": [
     "REPLACE: acknowledged weaknesses from this eval"
   ],

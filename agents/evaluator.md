@@ -5,7 +5,7 @@ allowed_tools: [Read, Glob, Grep, Bash, TaskUpdate, SendMessage]
 model: opus
 memory: user
 maxTurns: 20
-skills: [rhino-mind]
+skills: []
 ---
 
 # Evaluator Agent

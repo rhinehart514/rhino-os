@@ -3,7 +3,10 @@ name: calibrate
 description: "Use when the user wants to ground taste evals in reality — founder preferences, design system extraction, anti-slop profiling, or competitive visual landscape research"
 argument-hint: "[profile|design-system|anti-slop|market|refresh|verify|drift]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebSearch, WebFetch, Agent, mcp__playwright__browser_navigate, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_snapshot, mcp__playwright__browser_wait_for, mcp__playwright__browser_click, mcp__playwright__browser_hover, mcp__playwright__browser_resize, mcp__playwright__browser_evaluate, mcp__playwright__browser_install
+internal: true
 ---
+
+<!-- INTERNAL: This skill is infrastructure for other skills, not marketplace distribution. -->
 
 !bash scripts/freshness-check.sh 2>/dev/null || true
 

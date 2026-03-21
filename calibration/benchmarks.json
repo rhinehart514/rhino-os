@@ -1,0 +1,7 @@
+{
+  "benchmarks": [
+    {"name": "rhino-os", "path": ".", "expected_range": [60, 85]},
+    {"name": "fixture-healthy", "path": "tests/fixtures/healthy", "expected_range": [80, 100]},
+    {"name": "fixture-broken", "path": "tests/fixtures/broken", "expected_range": [0, 30]}
+  ]
+}

@@ -16,9 +16,13 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 - `rhino tier` — maturity tier router. Determines project tier from score + eval data. Consumed by /plan, /go, session hook. Status: operational.
 - `rhino self` — 4-system self-diagnostic. Status: operational.
 
-### Skills (the product surface)
-22 skills in `skills/*/SKILL.md`, each with explicit output templates and state awareness:
-/plan, /go, /score, /eval, /taste, /feature, /init, /ship, /ideate, /research, /roadmap, /rhino, /assert, /clone, /retro, /skill, /strategy, /todo, /product, /configure, /money, /copy
+### Skills
+24 skills in `skills/*/SKILL.md`. Split into marketplace (user-facing) and internal (self-management):
+
+**Marketplace (14):** /eval, /taste, /go, /plan, /push, /ship, /onboard, /research, /ideate, /product, /money, /copy, /todo, /roadmap
+**Internal (10):** /score, /calibrate, /strategy, /discover, /feature, /assert, /retro, /rhino, /skill, /configure
+
+Demoted to `.claude/rules/`: rhino-mind, product-lens. Demoted to hooks: quality-check, session-summary. Killed: /openclaw, /clone.
 
 ### Agents
 14 custom agents in agents/: measurer, explorer, builder, reviewer, evaluator, market-analyst, grader, debugger, refactorer, customer, founder-coach, consolidator, gtm, copywriter
@@ -132,7 +136,7 @@ Two install modes, same capabilities:
 **Critical constraint**: `context: fork` and Agent spawning are MUTUALLY EXCLUSIVE. Forked skills run AS subagents and cannot spawn sub-subagents.
 
 **Two skill architectures:**
-- **Architecture A (Inline Orchestrator)**: No fork, spawns named agents. Skills: /go, /eval, /research, /strategy, /discover, /ideate, /taste, /retro, /roadmap, /ship, /openclaw, /product, /money, /copy
+- **Architecture A (Inline Orchestrator)**: No fork, spawns named agents. Skills: /go, /eval, /research, /strategy, /discover, /ideate, /taste, /retro, /roadmap, /ship, /product, /money, /copy
 - **Architecture B (Forked Task)**: Fork, does all work itself. Skills: /configure
 
 **14 agents**, all with `memory: user` (cross-session learning) and `maxTurns` (safety valve):

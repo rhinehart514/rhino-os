@@ -360,22 +360,19 @@ if [[ -n "$SCORE_DISPLAY" ]]; then
         if command -v jq &>/dev/null && [[ -f "$SCORE_CACHE" ]]; then
             FEAT_LIST=$(jq -r '.features // {} | to_entries | sort_by(if .value.type == "generative" then .value.score else (.value.pass / (.value.total + 0.001) * 100) end) | .[:4] | .[] | if .value.type == "generative" then "\(.key)|\(.value.score)" else "\(.key)|\(.value.pass * 100 / (.value.total + 1) | floor)" end' "$SCORE_CACHE" 2>/dev/null || true)
             if [[ -n "$FEAT_LIST" ]]; then
-                echo -e "              ${C_DIM}features${C_NC}"
                 while IFS='|' read -r fname fscore; do
                     [[ -z "$fname" ]] && continue
-                    # Get the delivers: claim from rhino.yml
-                    _claim=""
-                    if [[ -f "$RHINO_YML" ]]; then
-                        _claim=$(awk "/^  ${fname}:/{found=1;next} found && /delivers:/{gsub(/.*delivers: *\"?/,\"\"); gsub(/\"$/,\"\"); print; exit} found && /^  [a-z]/{exit}" "$RHINO_YML" 2>/dev/null)
-                    fi
-                    _claim="${_claim:0:50}"
-                    if [[ "$fscore" -ge 70 ]]; then
-                        echo -e "              ${C_GREEN}✓${C_NC} ${fname} ${C_GREEN}${fscore}${C_NC}  ${C_DIM}${_claim}${C_NC}"
-                    elif [[ "$fscore" -ge 50 ]]; then
-                        echo -e "              ${C_YELLOW}·${C_NC} ${fname} ${C_YELLOW}${fscore}${C_NC}  ${C_DIM}${_claim}${C_NC}"
-                    else
-                        echo -e "              ${C_RED}▸${C_NC} ${fname} ${C_RED}${fscore}${C_NC}  ${C_DIM}${_claim}${C_NC}"
-                    fi
+                    # Inline compact bar (8 chars)
+                    _bfilled=$(( (fscore + 6) / 12 ))
+                    [[ $_bfilled -gt 8 ]] && _bfilled=8
+                    _bempty=$((8 - _bfilled))
+                    _bcolor="$C_RED"
+                    [[ "$fscore" -ge 50 ]] && _bcolor="$C_YELLOW"
+                    [[ "$fscore" -ge 80 ]] && _bcolor="$C_GREEN"
+                    _bbar="" _btrail=""
+                    for ((_bb=0; _bb<_bfilled; _bb++)); do _bbar="${_bbar}█"; done
+                    for ((_bb=0; _bb<_bempty; _bb++)); do _btrail="${_btrail}░"; done
+                    printf "              ${C_BOLD}%-12s${C_NC} ${_bcolor}%2d${C_NC} ${_bcolor}${_bbar}${C_DIM}${_btrail}${C_NC}\n" "$fname" "$fscore"
                 done <<< "$FEAT_LIST"
             fi
         fi
@@ -475,6 +472,12 @@ if [[ -f "$PRED_FILE" ]]; then
             echo -e "  ${C_RED}●${C_NC} ${WRONG_7D_COUNT} wrong prediction(s) this week in: ${WRONG_AREAS}"
             echo -e "    ${C_DIM}→ /plan should target these areas — the model is wrong here${C_NC}"
             HAS_ALERTS=true
+
+            # Write wrong-prediction areas to cache so /plan can read them
+            local wrong_cache_dir="$PROJECT_DIR/.claude/cache"
+            [[ ! -d "$wrong_cache_dir" ]] && wrong_cache_dir="$HOME/.claude/cache"
+            mkdir -p "$wrong_cache_dir" 2>/dev/null
+            echo "$WRONG_AREAS" > "$wrong_cache_dir/wrong-prediction-areas.txt"
         fi
     fi
 
@@ -527,6 +530,8 @@ fi
 
 if [[ -n "$GRADE_SUMMARY" ]]; then
     echo -e "  ${C_GREEN}✓${C_NC} ${GRADE_SUMMARY}"
+    # When predictions were graded, prompt consolidation of learnings
+    echo -e "    ${C_DIM}→ consolidate: update experiment-learnings.md with graded predictions${C_NC}"
     HAS_ALERTS=true
 fi
 

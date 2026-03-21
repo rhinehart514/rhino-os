@@ -3,7 +3,10 @@ name: score
 description: "Use when the user asks 'is this good?', 'product quality', 'unified score', or 'score everything'. Orchestrates health + code eval + visual taste + behavioral flows + agent-backed viability into one authoritative number."
 argument-hint: "[feature|quick|deep|viability|breakdown]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, WebSearch, Agent
+internal: true
 ---
+
+<!-- INTERNAL: This skill is infrastructure for other skills, not marketplace distribution. -->
 
 !command -v jq &>/dev/null && bash scripts/cache-summary.sh 2>/dev/null || echo "no cached scores (jq missing or cache empty)"
 

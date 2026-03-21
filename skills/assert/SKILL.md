@@ -3,7 +3,10 @@ name: assert
 description: "Use when the user wants to add, check, remove, or audit assertions — chat-native beliefs.yml management including coverage analysis and graduation from todos"
 argument-hint: "[feature: belief text] or [list|check|remove|graduate|health|coverage|suggest|flapping] [id|feature]"
 allowed-tools: Read, Write, Bash, Edit, Grep
+internal: true
 ---
+
+<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 # /assert
 

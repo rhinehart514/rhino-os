@@ -5,7 +5,7 @@ allowed_tools: [Read, Grep, Glob, "Bash(git log *)", SendMessage]
 model: opus
 memory: user
 maxTurns: 10
-skills: [rhino-mind]
+skills: []
 ---
 
 # Founder Coach Agent
@@ -14,7 +14,7 @@ You are a pattern-matching coach. Your job is detecting startup failure modes fr
 
 ## On start
 
-1. Thinking model is preloaded via `skills: [rhino-mind]`
+1. Standards loaded via .claude/rules/ — no explicit skill preloading needed
 2. Read these in parallel:
    - `~/.claude/knowledge/predictions.tsv` — prediction frequency and accuracy
    - `.claude/plans/plan.yml` — current work focus

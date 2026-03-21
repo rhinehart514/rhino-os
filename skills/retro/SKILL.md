@@ -3,7 +3,10 @@ name: retro
 description: "Use when the user wants to review what was learned, grade predictions, audit the knowledge model, or check learning health. Triggers on 'retro', 'what did we learn?', 'review', 'grade predictions', 'learning health'."
 argument-hint: "[accuracy|stale|session|health|dimensions|auto]"
 allowed-tools: Read, Bash, Grep, Edit, Agent
+internal: true
 ---
+
+<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 # /retro
 

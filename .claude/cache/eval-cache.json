@@ -1,98 +1,141 @@
 {
   "scoring": {
-    "score": 68,
-    "delivery_score": 70,
-    "craft_score": 67,
-    "delta": "better",
-    "delta_vs": 65,
+    "score": 69,
+    "delivery_score": 72,
+    "craft_score": 65,
     "gaps": [
-      "score.sh:1014 health gate failure prints BUILD GATE FAIL (wrong label, should say HEALTH GATE)",
-      "eval.sh eval cache uses only age check (1h TTL) not file-mtime invalidation \u2014 stale eval scores survive code edits for up to 1 hour",
-      "score.sh:650-652 ASSERTION_COUNT estimated via regex on 2-space-indented YAML keys, can overcount"
+      "synthesize.sh:55-68 health gate silently skipped on first run when score-cache.json doesn't exist yet",
+      "score.sh:1108 visual output buries the Score: line under 3-4 sections of gate/health status — fails 5-second test",
+      "skills/score/SKILL.md:114 'The synthesis is YOUR work' creates ambiguity about whether Claude computes scores or delegates to synthesize.sh",
+      "Three independent YAML parsers: config.sh:24-87, eval.sh:435-581, synthesize.sh:41 — fragile, duplicated, divergent behavior on edge cases",
+      "eval.sh:759-761 score scale normalization (<=5 means 1-5 scale) could misfire on legitimate low 0-100 scores",
+      "synthesize.sh:424 uses 'local' keyword outside function scope in text output mode"
     ],
-    "evidence": "Cache invalidation now covers lib/utils/types/server/pages/skills/hooks. Health gate breakdown shows struct/hygiene sub-bullets. Stage ceiling shows actionable celebration. Gates are true gates with no override. Per-feature sort worst-first with delta arrows.",
-    "verdict": "PARTIAL",
-    "cached_at": "2026-03-20T05:18:48Z"
+    "strengths": [
+      "Health gate enforced in BOTH score.sh:619-621,708-709 AND synthesize.sh:55-68 with actionable error messages",
+      "Multi-sample median eval reduces LLM variance: eval.sh:696-716",
+      "Four output modes (visual/json/quiet/trend) all working: score.sh:927-1199",
+      "Integrity checks detect cosmetic-only, inflation, plateau, stage ceiling: score.sh:738-796"
+    ],
+    "evidence": "Health gate now enforced in both score.sh and synthesize.sh. Multi-sample median, four output modes, integrity checks all working. Remaining gaps: first-run edge case, score buried in output, three YAML parsers.",
+    "delta": "better",
+    "delta_vs": 57,
+    "cached_at": "2026-03-20T22:30:00Z"
   },
   "learning": {
-    "verdict": "PARTIAL",
+    "score": 64,
+    "delivery_score": 62,
+    "craft_score": 67,
     "gaps": [
-      "Traceability is convention not code: predictions cite experiment-learnings by LLM convention, no mechanical validation that evidence column references a known pattern or declares exploration.",
-      "Consolidator agent exists but only wired to /retro \u2014 not triggered after grade.sh runs. Knowledge consolidation happens mechanically via grade-consolidation.sh but the agent (which could do richer analysis) is unused.",
-      "Self-diagnostic Learn system (bin/self.sh) allocates 25 points but only tests 5-8 mechanically. No trend detection, no quality assessment of the knowledge model itself."
+      "experiment-learnings.md never pruned or promoted by system — consolidate_knowledge() only appends (bin/lib/grade-consolidation.sh:8-129)",
+      "session_start.sh:531 consolidation hint is a prompt, not enforcement — Claude may ignore it",
+      "Wrong predictions don't block /plan from re-proposing failed approaches",
+      "trail.sh is read-only visualization with no downstream consumers",
+      "Prediction quality gate warns about vague predictions but doesn't prevent grading"
     ],
-    "evidence": "The feedback loop is now closed. session-context.sh reads experiment-learnings.md for model weaknesses (wrong prediction areas) and dead ends (blocks re-proposing). grade.sh produces mechanism-based model_updates, rejects tautological confirmations, warns on vague predictions, and warns before expiration. experiment-learnings.md is structured (7 Known, 7 Uncertain, 8 Unknown, 1 Dead End) with evidence citations \u2014 pruned from 199 to 67 lines. session_start.sh shows accuracy with trend (last 5 vs previous 5), calibration context, and wrong prediction areas. trail.sh renders session evidence with 600+ session files. Predictions: 89% graded (8/9). The remaining gaps are: traceability by convention not code, consolidator agent unused, self-diagnostic shallow.",
-    "score": 68,
-    "delivery_score": 68,
-    "craft_score": 68,
+    "strengths": [
+      "Auto-grading on session start with before/after diff and wrong-prediction surfacing (session_start.sh:154-186)",
+      "grade.sh has 5-tier claim parsing plus 3 signal-based fallbacks",
+      "consolidate_knowledge() now runs after every grade.sh invocation (grade.sh:334)",
+      "Atomic writes throughout — grade.sh uses mktemp+mv pattern",
+      "self.sh Learn section has 7 checks covering velocity, grading rate, freshness, trend, loop closure"
+    ],
+    "evidence": "Core gap 'consolidator only runs from /retro' now addressed: consolidate_knowledge() runs after every grade, session_start.sh prompts semantic consolidation. Auto-grade-on-boot pipeline works. Loop still doesn't fully close: knowledge appended but never pruned, wrong predictions warn but don't gate.",
     "delta": "better",
-    "delta_vs": 53,
-    "cached_at": "2026-03-20T04:53:04Z"
+    "delta_vs": 51,
+    "cached_at": "2026-03-20T22:30:00Z"
   },
   "commands": {
-    "score": 61,
-    "delivery_score": 63,
-    "craft_score": 57,
-    "delta": "better",
-    "delta_vs": 53,
+    "score": 76,
+    "delivery_score": 78,
+    "craft_score": 72,
     "gaps": [
-      "/plan Agent tool gap: documents grader+explorer spawning but Agent not in allowed-tools",
-      "Script failure handling absent across all 8 skills",
-      "Maturity-tier.sh dependency with no fallback tier",
-      "Task generation delegation unclear \u2014 TaskCreate not in /eval /taste /rhino allowed-tools",
-      "Circular routing without entry-point clarity"
+      "No runtime output evidence — skill definitions are instructions to Claude, actual output consistency untested",
+      "Output templates indirected to reference.md instead of inline (skills/plan/SKILL.md:159, skills/go/SKILL.md:182)",
+      "Overlap between /ideate [feature] and /feature [name] ideate — two paths to same goal",
+      "Preamble shell commands fail silently when jq missing or JSON malformed (all 12 SKILL.md preambles)",
+      "cli-taste.sh uses eval on user-provided command with no sanitization (skills/taste/scripts/cli-taste.sh:16)"
     ],
-    "evidence": "All scripts verified to exist. Routing tables are smart. Protocols detailed enough for working install. Gotchas have real project-specific failure modes. Held back by /plan Agent gap and script failure handling.",
-    "verdict": "PARTIAL",
-    "cached_at": "2026-03-20T05:18:48Z"
+    "strengths": [
+      "Intent routing is real and differentiated — 6-13 modes per skill with genuinely different behavior",
+      "State awareness is deep — each skill reads 7-14 state files in parallel",
+      "Tier-aware behavior changes actual recommendations across 5 maturity tiers",
+      "Cross-skill routing graph is explicit — every skill declares reads/writes/triggers/triggered-by",
+      "First-run handling in every skill with graceful degradation",
+      "Anti-sycophancy is structural — banned phrases, move count limits, specific guardrails",
+      "Agent wiring is precise — named agents, model tiers, turn limits, cost notes"
+    ],
+    "evidence": "Previous score of 30 was a pipeline failure, not code quality assessment. 15 SKILL.md files are well-structured with differentiated routing, deep state awareness, tier-aware behavior, cross-skill integration, and structural anti-sycophancy. Consistent design system across all skills without being template-slop. 88% human-quality.",
+    "delta": "better",
+    "delta_vs": 30,
+    "cached_at": "2026-03-20T22:30:00Z"
   },
   "install": {
-    "score": 71,
-    "delivery_score": 74,
-    "craft_score": 68,
-    "delta": "better",
-    "delta_vs": 52,
+    "score": 69,
+    "delivery_score": 72,
+    "craft_score": 65,
     "gaps": [
-      "install.sh:94-112 GNU stat/date detection warns but has no behavioral effect in install.sh",
-      "Plugin mode install is two commands not one",
-      "README:57 boot card implies unconditional but needs /onboard first"
+      "README.md:122 still mentions '19 commands total' — residual complexity contradicts 'don't learn commands'",
+      "install.sh:96-107 GNU stat/date checks are never used by the script — vestigial noise",
+      "install.sh:138-151 mind file and lens file symlink loops are near-identical — DRY violation",
+      "install.sh:412-414 manual-mode has 3 post-install steps vs plugin-mode's 1"
     ],
-    "evidence": "Next-step guidance at lines 388-421 comprehensive. Post-install verification runs 4 checks. Self-test adds 5+ checks. rhino doctor invoked at line 314. Previous d:48 was truncation false negative.",
-    "verdict": "ALIGNED",
-    "cached_at": "2026-03-20T05:18:48Z"
+    "strengths": [
+      "README.md:18 post-install bridge connects install to /onboard with exact command",
+      "install.sh:394 plugin-mode next-step is clear: cd your-project && claude, then /onboard",
+      "README.md:118-121 decision guide replaces 19-command dump with 3 intent-based lines",
+      "install.sh:56-64 ensure_symlink is idempotent",
+      "install.sh:256-306 plugin verification validates 5 structural checks"
+    ],
+    "evidence": "Three targeted changes close worst gaps: dead end after install gone (README.md:18, install.sh:394), command dump replaced with intent-based decision guide (README.md:118-121). install.sh infrastructure solid: idempotent symlinks, dependency checks, dual-mode, self-test.",
+    "delta": "better",
+    "delta_vs": 50,
+    "cached_at": "2026-03-20T22:30:00Z"
   },
   "todo": {
-    "score": 66,
+    "score": 64,
     "delivery_score": 68,
-    "craft_score": 62,
-    "delta": "better",
-    "delta_vs": 58,
+    "craft_score": 58,
     "gaps": [
-      "No prioritize subcommand \u2014 requires edit command",
-      "ID collision on add: title-derived ID not checked for dupes",
-      "Graduation delegated to external todo-promote.sh",
-      "Version tagging UX inconsistency between SKILL.md and cmd_tag",
-      "No keyword search subcommand"
+      "bin/todo.sh: done_count field never incremented — prevents script-level graduation detection",
+      "bin/todo.sh:135-137: item_set_field hardcodes 4-space indent regardless of actual YAML indentation",
+      "bin/todo.sh:91: item_field sub(/^[^:]+: */, '') breaks on values containing colons",
+      "bin/todo.sh: meta-task generation (SKILL.md lines 77-111) absent from script",
+      "bin/todo.sh:522-583: cmd_add acquires/releases lock twice with gap between"
     ],
-    "evidence": "All four claim verbs implemented. Atomic .tmp+mv writes. mkdir locking bash 3.2 safe. Source breakdown in cmd_show is standout. SCRIPT_DIR fix makes graduation reachable.",
-    "verdict": "PARTIAL",
-    "cached_at": "2026-03-20T05:18:48Z"
+    "strengths": [
+      "bin/todo.sh:282-317: mkdir-based file locking with stale lock detection and auto-cleanup",
+      "bin/todo.sh:129-141: item_set_field uses explicit found_target flag — field insertion fixed",
+      "bin/todo.sh:676-762: smart promote reads eval-cache for bottleneck feature",
+      "bin/todo.sh:566-592: auto-tag scans title against rhino.yml feature names",
+      "bin/todo.sh:979-1118: health command with status counts, age distribution, feature clusters, velocity"
+    ],
+    "evidence": "Working persistent backlog with locking, atomic writes, smart promote, auto-tag, health diagnostics. Previous eval scored based on truncated code read — implementations exist and are substantial. Real gaps: done_count tracking, colon-in-value parsing, meta-task delegation to Claude.",
+    "delta": "better",
+    "delta_vs": 41,
+    "cached_at": "2026-03-20T22:30:00Z"
   },
   "docs": {
-    "score": 64,
-    "delivery_score": 67,
-    "craft_score": 62,
-    "delta": "better",
-    "delta_vs": 59,
+    "score": 70,
+    "delivery_score": 72,
+    "craft_score": 68,
     "gaps": [
-      "boot card (line 57) undefined jargon",
-      "assertions used line 63 before defined line 69",
-      "19 commands listed after saying you dont need to memorize them",
-      "walkthrough predict field ambiguous",
-      "score explained late relative to commands section"
+      "README.md:74-112 output examples have no version marker — may be stale after recent skill refactors",
+      "README.md:39-57 'How it works' ASCII diagram is conceptual before actionable — should come after examples",
+      "README.md:36-37 'Session 1 is useful. Session 10 is significantly better' is unsupported at point of appearance",
+      "README.md:140 'assertions: 55/60' uses jargon before definition",
+      "README.md:122 '19 commands total' is noise after the 3-line decision guide"
     ],
-    "evidence": "Score interpretation guide closes what-do-numbers-mean gap. METR citation real and specific. Install asymmetric (plugin recommended). Your first 5 minutes is 3 numbered steps. Voice consistent throughout.",
-    "verdict": "PARTIAL",
-    "cached_at": "2026-03-20T05:18:48Z"
+    "strengths": [
+      "README.md:18 post-install bridge exists: cd your-project && claude, then /onboard",
+      "README.md:114-122 3-line decision guide replaces 19-command dump",
+      "README.md:1-7 opening passes 5-second test with METR citation",
+      "README.md:63-68 'vs alternatives' makes concrete falsifiable comparisons",
+      "skills/rhino/SKILL.md:73-82 /rhino help 'Start Here' matches README's guide — cross-file consistency"
+    ],
+    "evidence": "Two targeted fixes close the highest-weight gaps. Stranger can now answer: what is it, why care, how to install, what to do next. Remaining gaps: stale output examples, conceptual section ordering, minor jargon.",
+    "delta": "better",
+    "delta_vs": 53,
+    "cached_at": "2026-03-20T22:30:00Z"
   }
 }

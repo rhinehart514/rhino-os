@@ -93,18 +93,7 @@ fi
 # OS detection — warn about macOS-specific features on Linux
 OS_TYPE="$(uname -s)"
 if [[ "$OS_TYPE" == "Linux" ]]; then
-    # Check for GNU stat (Linux uses stat -c, macOS uses stat -f)
-    if stat --version &>/dev/null 2>&1; then
-        action "GNU stat available"
-    else
-        warn "GNU stat not found — some scripts use stat -c (GNU) with macOS fallback"
-    fi
-    # Check for GNU date
-    if date --version &>/dev/null 2>&1; then
-        action "GNU date available"
-    else
-        warn "GNU date not found — some scripts use date -d (GNU) with macOS fallback"
-    fi
+    action "Linux detected — native compatibility"
 elif [[ "$OS_TYPE" == "Darwin" ]]; then
     action "macOS detected — native compatibility"
 else
@@ -135,19 +124,23 @@ action "install path → $CONFIG_DIR/install-path"
 if ! $PLUGIN_MODE; then
     echo -e "  ${BOLD}Mind${NC}"
     echo ""
-    for mind_file in identity.md thinking.md standards.md; do
-        src="$RHINO_DIR/mind/$mind_file"
-        [[ ! -f "$src" ]] && continue
-        ensure_symlink "$src" "$CLAUDE_DIR/rules/$mind_file" "~/.claude/rules/$mind_file"
-    done
-    # Lens mind files (e.g., product-eyes.md, product-self.md)
+    # Helper: symlink matching files from a directory into ~/.claude/rules/
+    symlink_to_rules() {
+        local label_suffix="${1:-}"
+        shift
+        for src_file in "$@"; do
+            [[ ! -f "$src_file" ]] && continue
+            local name="$(basename "$src_file")"
+            local label="~/.claude/rules/$name"
+            [[ -n "$label_suffix" ]] && label="$label ($label_suffix)"
+            ensure_symlink "$src_file" "$CLAUDE_DIR/rules/$name" "$label"
+        done
+    }
+
+    symlink_to_rules "" "$RHINO_DIR"/mind/{identity,thinking,standards}.md
     for lens_dir in "$RHINO_DIR"/lens/*/mind; do
         [[ ! -d "$lens_dir" ]] && continue
-        for lens_mind in "$lens_dir"/*.md; do
-            [[ ! -f "$lens_mind" ]] && continue
-            name="$(basename "$lens_mind")"
-            ensure_symlink "$lens_mind" "$CLAUDE_DIR/rules/$name" "~/.claude/rules/$name (lens)"
-        done
+        symlink_to_rules "lens" "$lens_dir"/*.md
     done
 else
     echo -e "  ${BOLD}Mind${NC}"
@@ -391,11 +384,11 @@ else
         echo -e "    · product measurement happens in the background"
         echo ""
         echo -e "  ${BOLD}Next:${NC}"
-        echo -e "    Open Claude Code in any project and start coding."
-        echo -e "    rhino-os measures quality automatically. No commands to learn."
+        echo -e "    ${BOLD}cd your-project && claude${NC}, then type ${BOLD}/onboard${NC}"
+        echo -e "    rhino-os reads your code, generates assertions, and scores it."
         echo ""
-        echo -e "  ${DIM}Want more control? Just ask — \"is this good?\", \"what should I work on?\"${NC}"
-        echo -e "  ${DIM}rhino-os routes your intent to the right action.${NC}"
+        echo -e "  ${DIM}After onboarding, just code. rhino-os measures quality automatically.${NC}"
+        echo -e "  ${DIM}Ask \"is this good?\" or \"what should I work on?\" any time.${NC}"
     else
         # Count what was installed
         mind_count=0; agent_count_final=0
@@ -409,13 +402,11 @@ else
         echo -e "    · RHINO_DIR in ${PROFILE:-your shell profile}"
         echo ""
         echo -e "  ${BOLD}Next steps:${NC}"
-        echo -e "    ${BOLD}1.${NC} Source your shell:  ${BOLD}source ${PROFILE:-~/.zshrc}${NC}"
-        echo -e "    ${BOLD}2.${NC} In any project:     ${BOLD}rhino init${NC}"
-        echo -e "    ${BOLD}3.${NC} Then start building: ${BOLD}/plan${NC}  or  ${BOLD}/rhino help${NC}"
+        echo -e "    ${BOLD}1.${NC} ${BOLD}source ${PROFILE:-~/.zshrc} && claude${NC}"
+        echo -e "    ${BOLD}2.${NC} In any project: ${BOLD}/onboard${NC}"
         echo ""
-        echo -e "  ${DIM}Run /discover to define your product — agents research demand, competitors,${NC}"
-        echo -e "  ${DIM}and market, then auto-wire features + assertions. Install is the start of${NC}"
-        echo -e "  ${DIM}product discovery, not just setup.${NC}"
+        echo -e "  ${DIM}rhino-os reads your code, generates assertions, and scores it.${NC}"
+        echo -e "  ${DIM}After onboarding, just code. Ask \"is this good?\" any time.${NC}"
     fi
 
     echo ""
