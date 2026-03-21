@@ -22,15 +22,15 @@ No motion library (Framer Motion, GSAP, react-spring, etc.) in the codebase → 
 
 ## Generous scoring on first eval
 
-First eval has no baseline to compare against. LLMs default to polite — "this is pretty good, 65/100." On the first eval, the -5 penalty on all dimensions is now AUTOMATIC (applied in Phase 4). Beyond that: actively look for the weakest dimension and score it honestly. If avg > 60 on an early-stage product, re-check each dimension against the anchors in `references/dimensions.md`.
+First eval has no baseline to compare against. LLMs default to polite — "this is pretty good, 65/100." Actively look for the weakest dimension and score it honestly. If avg > 60 on an early-stage product, re-check each dimension against the anchors in `references/dimensions.md`.
 
 ## Slop check false positives on intentional template use
 
 The slop check flags shadcn/Tailwind defaults, but some products intentionally use these as a foundation and add craft on top. The mechanical check (slop-check.sh) looks at package.json and source patterns — it can't see whether the defaults were used as a starting point that was then customized. If the mechanical verdict is "slop" but visual inspection shows genuine craft, override the mechanical verdict in the gestalt and note why. The override must be specific: "slop-check flagged shadcn defaults, but the custom color system and motion choreography demonstrate intentional choices."
 
-## Uncalibrated eval ceiling feels arbitrary
+## Uncalibrated eval variance
 
-The cap at 70 for uncalibrated evals exists because without founder preferences and competitive context, scores above 70 are essentially the LLM projecting generic taste. This feels arbitrary but it's based on observed session variance: uncalibrated evals show 15-20 point variance on subjective dimensions (emotional_tone, distinctiveness). Capping at 70 prevents overconfidence. If the founder wants higher ceilings, they run `/calibrate`.
+Without founder preferences and competitive context, subjective dimensions (emotional_tone, distinctiveness) show 15-20 point variance across sessions. When uncalibrated, note "No calibration: moderate confidence" in the report and weight subjective dimensions lower mentally. Don't gate the eval — just be honest about confidence.
 
 ## Mobile scoring is texture, not detail
 

@@ -1,13 +1,13 @@
 ---
 name: onboard
 description: "Use when a new repo needs to be set up with rhino-os, or when a stranger/new team member runs their first command. Triggers on 'onboard', 'set this up', 'bootstrap', 'initialize', 'new here', 'what is this project?'."
-argument-hint: "[--force]"
+argument-hint: "[--force] [--dry]"
 allowed-tools: Read, Bash, Grep, Glob, Edit, Write, AskUserQuestion
 ---
 
 # /onboard
 
-**This is the first thing a stranger does.** If this doesn't work, nothing else matters. One command, zero prompts, zero placeholders. Detect what the project is, understand what it does, and make the full system work.
+**This is the first thing a stranger does.** If this doesn't work, nothing else matters. One command, zero placeholders. Detect what the project is, understand what it does, and make the full system work.
 
 The goal is **time to first value**. Stranger goes from `/onboard` to seeing a real score with real features in under 2 minutes.
 
@@ -21,6 +21,24 @@ This skill is a **folder**, not just this file. Read these on demand:
 - `references/onboarding-flow.md` — the step-by-step flow with what happens at each step
 - `templates/rhino-yml-template.yml` — skeleton config with comments explaining each field
 - `gotchas.md` — real failure modes. **Read before generating config.**
+
+## Dry-run mode
+
+`/onboard --dry` shows what WOULD be generated without writing any files. Use this to let users catch mis-detections before committing.
+
+In dry-run mode: run detection, show proposed rhino.yml + features + assertions + strategy, then stop. Print "Run `/onboard` to apply." No files written.
+
+## When to ask
+
+Use `AskUserQuestion` when detection is uncertain. Don't guess on high-impact decisions:
+
+- **Monorepo structure** — multiple package.json or app directories detected, unclear which is the product
+- **Custom framework** — no recognizable framework but substantial source code exists
+- **Stage assessment** — code quality doesn't indicate maturity, ask about users/deployment
+- **Feature weights** — if the value hypothesis is ambiguous, ask which features matter most
+- **Value hypothesis** — if README + code don't make the user/value clear, ask directly
+
+Prefer asking one well-formed question over generating wrong config that needs manual fixing.
 
 ## The protocol
 
@@ -69,52 +87,23 @@ bash scripts/first-score.sh
 
 Also run `rhino eval .` and write output to `.claude/cache/eval-cache.json`.
 
-### Step 8: Present results
+### Step 8: Present results and 3 next steps
 
-Use output template from `references/onboarding-flow.md`. Show what was set up, features detected with scores, and one clear next step.
+Use output template from `references/onboarding-flow.md`. Show what was set up, features detected with scores.
 
-## Task generation — the path from onboarded to productive
+**Generate exactly 3 tasks:**
 
-**/onboard's job is not just setup. It's generating EVERY task needed to go from "just initialized" to "productive."** After onboarding, the founder should have a full backlog of next steps. An onboarded project with no tasks is a project that doesn't know what to do next.
+1. **"Review generated config in config/rhino.yml"** — verify features, weights, and value hypothesis match reality
+2. **"Run /plan to find the bottleneck"** — picks the first move based on scores and strategy
+3. **"Run /eval to get your first scores"** — establishes baseline eval scores per feature
 
-**After onboarding completes, generate the complete task list:**
-
-### Setup completion tasks
-- No beliefs.yml or <3 assertions → task: "Only [N] assertions — run /assert suggest to add more"
-- No strategy.yml → task: "No strategic diagnosis — run /strategy honest"
-- No predictions yet → task: "No predictions — next /go session must include predictions"
-- Score below 50 → task: "Initial score is [N] — run /eval to identify gaps"
-- No roadmap.yml or empty thesis → task: "No thesis defined — run /roadmap new"
-
-### Feature gap tasks
-- Each feature detected with no assertions → task: "Feature [X] has no assertions — run /assert suggest [X]"
-- Each feature with empty code paths → task: "Feature [X] has no code — implement or remove"
-- Each feature with weight not set → task: "Feature [X] has no weight — assign based on value"
-- Features list has >7 items → task: "Too many features ([N]) — run /ideate kill to focus"
-- Features list has <2 items → task: "Only [N] features — run /feature detect to find more"
-
-### First session tasks
-- Run first /eval → task: "Run /eval to establish baseline scores"
-- Run first /strategy → task: "Run /strategy honest for initial diagnosis"
-- Run first /plan → task: "Run /plan to pick the first move"
-- Define the person → task: "Name the specific person this is for in rhino.yml value.user"
-
-### Documentation tasks
-- No README or generic README → task: "Write a real README — run /copy landing"
-- CLAUDE.md is empty or minimal → task: "Add project-specific instructions to CLAUDE.md"
-- No design-system.md for web projects → task: "Create .claude/design-system.md for visual consistency"
-
-**Write ALL tasks to /todo.** Tag with `source: /onboard` and type (setup/feature/first-session/docs). Priority: first session tasks first.
-
-**There is no cap on task count.** A fresh onboard might generate 15+ tasks. Generate all of them. This IS the founder's first backlog.
-
-After onboarding, show: "Generated N tasks to get started. First priority: [task]. Run /plan to pick your first move."
+That's it. No 15-task backlog. The founder needs a clear path, not a wall of todos.
 
 ## System integration
 
 Reads: README.md, package.json / pyproject.toml / go.mod / Cargo.toml, route structure, source files, test/CI config
 Writes: `config/rhino.yml` (features, value hypothesis), `config/beliefs.yml` (assertions), `.claude/plans/roadmap.yml`, `.claude/plans/strategy.yml`, `.claude/cache/eval-cache.json`, `~/.claude/knowledge/predictions.tsv` (header), `~/.claude/knowledge/experiment-learnings.md` (template)
-Triggers: `/eval` (establish baseline), `/plan` (pick first move), `/strategy honest` (initial diagnosis), `/todo` (generated task backlog)
+Triggers: `/eval` (establish baseline), `/plan` (pick first move)
 Triggered by: first use of any rhino-os command on uninitialized repo, manual ("set this up", "bootstrap", "new here")
 
 ## Self-evaluation
@@ -124,7 +113,7 @@ Triggered by: first use of any rhino-os command on uninitialized repo, manual ("
 - `rhino eval .` runs without errors and writes eval-cache.json
 - Every generated feature has at least one mechanical assertion (not llm_judge)
 - Zero placeholder text remains in rhino.yml or beliefs.yml
-- The task backlog has clear next steps (first /eval, first /strategy, first /plan)
+- The 3 next steps are clear and actionable
 
 ## What you never do
 
@@ -138,9 +127,9 @@ Triggered by: first use of any rhino-os command on uninitialized repo, manual ("
 
 ## If something breaks
 
-- detect-project.sh returns "unknown": the project has no recognizable package manager or entry point — manually specify the language and framework in rhino.yml
-- first-score.sh fails with "no features": rhino.yml was generated but features section is empty — re-run with `--force` or manually add features
-- beliefs.yml assertions all fail on first eval: assertions were generated from code analysis but the project may not be building — check if `npm run build` or equivalent succeeds first
+- detect-project.sh returns "unknown": use AskUserQuestion to ask about language and framework
+- first-score.sh fails with "no features": rhino.yml features section is empty — re-run with `--force` or manually add features
+- beliefs.yml assertions all fail on first eval: check if `npm run build` or equivalent succeeds first
 - "Already initialized" but config is stale: use `/onboard --force` to regenerate everything from scratch
 
 $ARGUMENTS
