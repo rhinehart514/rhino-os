@@ -249,7 +249,7 @@ score_build_health() {
     local fail_penalty=$(cfg scoring.build.build_fail_penalty -50)
 
     if [[ -f "tsconfig.json" ]] || [[ -f "apps/web/tsconfig.json" ]]; then
-        if [[ "$FORCE" == true ]]; then
+        if [[ "$FORCE" == true ]] && [[ -d "node_modules" ]]; then
             local ts_errors
             ts_errors=$(npx tsc --noEmit 2>&1 | grep -c "error TS" || true)
             if [[ "$ts_errors" -gt 0 ]]; then
@@ -269,9 +269,12 @@ score_build_health() {
                 has_build=true
                 build_age=$(( $(date +%s) - $(file_mtime "apps/web/.next") ))
             fi
-            if ! $has_build; then
+            if ! $has_build && [[ -d "node_modules" ]]; then
                 score=$((score + ts_penalty))
                 add_reason BUILD_REASONS "no build output found ($ts_penalty)"
+            elif ! $has_build; then
+                # No node_modules = deps not installed, don't penalize for missing build
+                true
             elif [[ "$build_age" -gt 86400 ]]; then
                 score=$((score + stale_penalty))
                 add_reason BUILD_REASONS "build >24h old ($stale_penalty)"
@@ -280,7 +283,7 @@ score_build_health() {
     fi
 
     if grep -q '"build"' package.json 2>/dev/null; then
-        if [[ "$FORCE" == true ]]; then
+        if [[ "$FORCE" == true ]] && [[ -d "node_modules" ]]; then
             if ! npm run build > /dev/null 2>&1; then
                 score=$((score + fail_penalty))
                 add_reason BUILD_REASONS "build command failed ($fail_penalty)"
@@ -304,16 +307,28 @@ score_structure() {
     # --- Universal structure checks (all project types) ---
 
     # Large files: >500 lines suggests missing decomposition
+    # Scale thresholds by project size — a monorepo with 500 files tolerates more large files
     local large_files=0
+    local total_files=0
     while IFS= read -r f; do
         [[ ! -f "$f" ]] && continue
+        total_files=$((total_files + 1))
         local lines
         lines=$(wc -l < "$f" 2>/dev/null | tr -d ' ')
         [[ "$lines" -gt 500 ]] && large_files=$((large_files + 1))
     done < <(find "$SRC_DIR" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.sh" -o -name "*.py" \) ! -path "*/node_modules/*" ! -path "*/.next/*" ! -name "*.d.ts" ! -name "*.min.*" 2>/dev/null)
-    if [[ "$large_files" -gt 10 ]]; then score=$((score - 15)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-15)"
-    elif [[ "$large_files" -gt 5 ]]; then score=$((score - 10)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-10)"
-    elif [[ "$large_files" -gt 2 ]]; then score=$((score - 5)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-5)"
+    # Use ratio for large projects (100+ files), absolute count for small projects
+    if [[ "$total_files" -gt 100 ]]; then
+        local large_pct=$(( large_files * 100 / total_files ))
+        if [[ "$large_pct" -gt 50 ]]; then score=$((score - 15)); add_reason STRUCTURE_REASONS "${large_pct}% large files ($large_files/$total_files >500 lines) (-15)"
+        elif [[ "$large_pct" -gt 30 ]]; then score=$((score - 10)); add_reason STRUCTURE_REASONS "${large_pct}% large files ($large_files/$total_files >500 lines) (-10)"
+        elif [[ "$large_pct" -gt 15 ]]; then score=$((score - 5)); add_reason STRUCTURE_REASONS "${large_pct}% large files ($large_files/$total_files >500 lines) (-5)"
+        fi
+    else
+        if [[ "$large_files" -gt 10 ]]; then score=$((score - 15)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-15)"
+        elif [[ "$large_files" -gt 5 ]]; then score=$((score - 10)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-10)"
+        elif [[ "$large_files" -gt 2 ]]; then score=$((score - 5)); add_reason STRUCTURE_REASONS "$large_files large files >500 lines (-5)"
+        fi
     fi
 
     # Deep nesting: files nested >5 levels deep suggest poor organization
@@ -325,13 +340,10 @@ score_structure() {
 
     # Test presence: no tests at all is a structural gap
     local has_tests=0
-    if find . -maxdepth 4 -type f \( -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" \) ! -path "*/node_modules/*" 2>/dev/null | head -1 | grep -q .; then
+    if [[ -d "tests" ]] || [[ -d "test" ]] || [[ -d "__tests__" ]]; then
         has_tests=1
-    elif [[ -d "tests" ]] || [[ -d "test" ]] || [[ -d "__tests__" ]]; then
-        # Has test directory — check if it has actual test files
-        if find tests test __tests__ -type f 2>/dev/null | head -1 | grep -q .; then
-            has_tests=1
-        fi
+    elif find . -maxdepth 5 -type f \( -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" -o -name "*.test.sh" \) ! -path "*/node_modules/*" -print -quit 2>/dev/null | grep -q .; then
+        has_tests=1
     fi
     if [[ "$has_tests" -eq 0 ]]; then
         score=$((score - 10))
