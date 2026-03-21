@@ -13,6 +13,14 @@
 
 set -uo pipefail
 
+# Resolve rhino-os root (for sourcing shared libs)
+_SYNTH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_RHINO_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$_SYNTH_DIR/../../.." && pwd)}"
+
+# Source shared config reader for _cfg_from_file()
+# shellcheck source=../../../bin/lib/config.sh
+source "$_RHINO_ROOT/bin/lib/config.sh"
+
 PROJECT_DIR="${1:-.}"
 TARGET_FEATURE=""
 OUTPUT_MODE="json"
@@ -36,9 +44,7 @@ TASTE_DIR="$PROJECT_DIR/.claude/evals/reports"
 # --- Read feature weights from rhino.yml ---
 get_feature_weight() {
     local feat="$1"
-    local w
-    w=$(grep -A 10 "^  ${feat}:" "$RHINO_YML" 2>/dev/null | grep "weight:" | head -1 | awk '{print $2}')
-    echo "${w:-1}"
+    _cfg_from_file "$RHINO_YML" "features.${feat}.weight" "1"
 }
 
 get_active_features() {
@@ -49,6 +55,41 @@ get_active_features() {
     ' "$RHINO_YML" 2>/dev/null
 }
 
+# --- Health gate check ---
+# If health gate is FAIL, the unified score is 0 regardless of feature scores.
+SCORE_CACHE="$PROJECT_DIR/.claude/cache/score-cache.json"
+# --- Read belief/assertion counts from score-cache ---
+_belief_pass=0
+_belief_total=0
+_belief_score=0
+if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
+    _belief_pass=$(jq -r '.assertion_pass_count // 0' "$SCORE_CACHE" 2>/dev/null)
+    _belief_total=$(jq -r '.assertion_count // 0' "$SCORE_CACHE" 2>/dev/null)
+    if [[ "$_belief_total" -gt 0 ]]; then
+        _belief_score=$(( _belief_pass * 100 / _belief_total ))
+    fi
+fi
+# First-run fallback: if score-cache.json doesn't exist, generate it so the
+# health gate isn't silently skipped on initial synthesis.
+if [[ ! -f "$SCORE_CACHE" ]] && [[ -x "$_RHINO_ROOT/bin/score.sh" ]]; then
+    echo "synthesize: first run — generating health cache via score.sh" >&2
+    bash "$_RHINO_ROOT/bin/score.sh" "$PROJECT_DIR" --json --quiet >/dev/null 2>&1 || true
+fi
+if [[ -f "$SCORE_CACHE" ]] && command -v jq &>/dev/null; then
+    _health_gate=$(jq -r '.health_gate // "PASS"' "$SCORE_CACHE" 2>/dev/null)
+    if [[ "$_health_gate" == "FAIL" ]]; then
+        _health_min=$(jq -r '.health_min // 0' "$SCORE_CACHE" 2>/dev/null)
+        if [[ "$OUTPUT_MODE" == "text" ]]; then
+            echo "Unified Score: 0/100  (HEALTH GATE FAIL — health ${_health_min} < threshold)"
+            echo ""
+            echo "Fix structural issues first. Run \`rhino score .\` for details."
+        else
+            echo "{\"synthesized_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"features\":{},\"product_score\":0,\"confidence\":\"blocked\",\"health_gate\":\"FAIL\",\"health_min\":${_health_min},\"tiers_filled\":0,\"total_weight\":0,\"opportunity_context\":null}"
+        fi
+        exit 0
+    fi
+fi
+
 # --- Pre-validate eval cache (once, before per-feature reads) ---
 _eval_cache_valid=false
 if [[ -f "$EVAL_CACHE" ]]; then
@@ -58,6 +99,30 @@ if [[ -f "$EVAL_CACHE" ]]; then
         echo "synthesize: eval cache corrupted — run /eval to rebuild." >&2
     fi
 fi
+
+# --- Eval age computation (score decay) ---
+get_eval_age_days() {
+    local feat="$1"
+    if [[ "$_eval_cache_valid" == true ]]; then
+        local cached_at
+        cached_at=$(jq -r --arg f "$feat" '.[$f].cached_at // empty' "$EVAL_CACHE" 2>/dev/null)
+        if [[ -n "$cached_at" ]]; then
+            local cached_epoch now_epoch
+            # macOS date vs GNU date
+            if date -j -f "%Y-%m-%dT%H:%M:%SZ" "$cached_at" "+%s" &>/dev/null; then
+                cached_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$cached_at" "+%s" 2>/dev/null)
+            else
+                cached_epoch=$(date -d "$cached_at" "+%s" 2>/dev/null)
+            fi
+            now_epoch=$(date "+%s")
+            if [[ -n "$cached_epoch" && -n "$now_epoch" ]]; then
+                echo $(( (now_epoch - cached_epoch) / 86400 ))
+                return
+            fi
+        fi
+    fi
+    echo "-1"
+}
 
 # --- Read eval cache (tier 2: delivery + craft) ---
 get_eval_scores() {
@@ -291,7 +356,16 @@ compute_feature_score() {
         fi
     fi
 
-    echo "{\"feature\":\"$feat\",\"score\":$score,\"delivery\":$delivery,\"craft\":$craft,\"visual\":$vis_out,\"behavioral\":$beh_out,\"viability\":$viability,\"viability_source\":\"$viability_src\",\"confidence\":\"$confidence\",\"tiers\":$tier_count,\"weight\":$(get_feature_weight "$feat"),\"top_recommendation\":$top_rec}"
+    # Eval age and staleness
+    local eval_age stale_flag
+    eval_age=$(get_eval_age_days "$feat")
+    if [[ "$eval_age" -gt 7 ]]; then
+        stale_flag="true"
+    else
+        stale_flag="false"
+    fi
+
+    echo "{\"feature\":\"$feat\",\"score\":$score,\"delivery\":$delivery,\"craft\":$craft,\"visual\":$vis_out,\"behavioral\":$beh_out,\"viability\":$viability,\"viability_source\":\"$viability_src\",\"confidence\":\"$confidence\",\"tiers\":$tier_count,\"weight\":$(get_feature_weight "$feat"),\"top_recommendation\":$top_rec,\"eval_age_days\":$eval_age,\"stale\":$stale_flag}"
 }
 
 # --- Main ---
@@ -306,6 +380,7 @@ _feat_results=()
 product_weighted_sum=0
 product_total_weight=0
 min_tiers=5
+_max_eval_age=0
 
 while IFS= read -r feat; do
     [[ -z "$feat" ]] && continue
@@ -321,6 +396,9 @@ while IFS= read -r feat; do
     product_weighted_sum=$(( product_weighted_sum + feat_score * feat_weight ))
     product_total_weight=$(( product_total_weight + feat_weight ))
     [[ $feat_tiers -lt $min_tiers ]] && min_tiers=$feat_tiers
+    # Track max eval age for staleness header
+    _feat_age=$(echo "$result" | jq -r '.eval_age_days')
+    [[ "$_feat_age" -gt "$_max_eval_age" ]] && _max_eval_age=$_feat_age
 done <<< "$features"
 
 # Product total
@@ -347,31 +425,92 @@ if [[ -f "$OUTSIDE_IN" ]] && command -v jq &>/dev/null; then
 fi
 
 if [[ "$OUTPUT_MODE" == "text" ]]; then
-    # --- Formatted text output ---
-    _conf_label=""
-    case "$product_confidence" in
-        high)   _conf_label="high confidence (all tiers)" ;;
-        medium) _conf_label="medium confidence (${min_tiers}/5 tiers)" ;;
-        low)    _conf_label="low confidence (${min_tiers}/5 tiers — run /taste and /eval to fill)" ;;
-    esac
-    echo "Unified Score: ${product_score}/100  (${_conf_label})"
+    # --- Formatted text output (voice.md compliant) ---
+    _C_BOLD='\033[1m'
+    _C_DIM='\033[2m'
+    _C_GREEN='\033[0;32m'
+    _C_YELLOW='\033[1;33m'
+    _C_RED='\033[0;31m'
+    _C_NC='\033[0m'
 
-    # Opportunity context line
-    if [[ "$_opp_journey_gaps" -gt 0 || "$_opp_unmet_needs" -gt 0 ]]; then
-        _opp_parts=""
-        [[ "$_opp_journey_gaps" -gt 0 ]] && _opp_parts="${_opp_journey_gaps} journey gaps"
-        if [[ "$_opp_unmet_needs" -gt 0 ]]; then
-            [[ -n "$_opp_parts" ]] && _opp_parts="$_opp_parts · "
-            _opp_parts="${_opp_parts}${_opp_unmet_needs} unmet needs"
-        fi
-        [[ -n "$_opp_top_signal" ]] && _opp_parts="$_opp_parts · ${_opp_top_signal}"
-        echo "opportunity: ${_opp_parts}"
+    # Score bar helper (compact: 12 chars)
+    _score_bar() {
+        local s=${1:-0}
+        local filled=$(( (s + 4) / 8 ))
+        [[ $filled -gt 12 ]] && filled=12
+        local empty=$((12 - filled))
+        local color="$_C_RED"
+        [[ $s -ge 50 ]] && color="$_C_YELLOW"
+        [[ $s -ge 80 ]] && color="$_C_GREEN"
+        local bar="" trail=""
+        for ((_b=0; _b<filled; _b++)); do bar="${bar}█"; done
+        for ((_b=0; _b<empty; _b++)); do trail="${trail}░"; done
+        printf "${color}${bar}${_C_DIM}${trail}${_C_NC}"
+    }
+
+    # Big score bar (20 chars) for header
+    _score_bar_lg() {
+        local s=${1:-0}
+        local filled=$(( (s + 2) / 5 ))
+        [[ $filled -gt 20 ]] && filled=20
+        local empty=$((20 - filled))
+        local color="$_C_RED"
+        [[ $s -ge 50 ]] && color="$_C_YELLOW"
+        [[ $s -ge 80 ]] && color="$_C_GREEN"
+        local bar="" trail=""
+        for ((_b=0; _b<filled; _b++)); do bar="${bar}█"; done
+        for ((_b=0; _b<empty; _b++)); do trail="${trail}░"; done
+        printf "${color}${bar}${_C_DIM}${trail}${_C_NC}"
+    }
+
+    # Color a score value — right-aligned in 2 chars
+    _color_s() {
+        local s=${1:-0}
+        if [[ $s -ge 80 ]]; then printf "${_C_GREEN}%2d${_C_NC}" "$s"
+        elif [[ $s -ge 50 ]]; then printf "${_C_YELLOW}%2d${_C_NC}" "$s"
+        else printf "${_C_RED}%2d${_C_NC}" "$s"; fi
+    }
+
+    # Tier fill badge
+    _tier_badge() {
+        local n=${1:-0} out=""
+        for ((_t=0; _t<n; _t++)); do out="${out}●"; done
+        for ((_t=n; _t<5; _t++)); do out="${out}○"; done
+        echo "$out"
+    }
+
+    _SEP="${_C_DIM}  ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯${_C_NC}"
+
+    # --- Header (dual-path: eval score + belief pass rate) ---
+    echo ""
+    echo -e "${_SEP}"
+    echo -e "  ${_C_BOLD}${product_score}${_C_NC}${_C_DIM}/100${_C_NC}  $(_score_bar_lg $product_score)  ${_C_DIM}$(_tier_badge $min_tiers)${_C_NC}"
+    # Dual-path line: beliefs + eval avg
+    echo -e "  ${_C_DIM}beliefs: ${_belief_pass}/${_belief_total} (${_belief_score}%)  ·  eval: ${product_score} avg${_C_NC}"
+    # Overall staleness from oldest eval cache
+    if [[ "$_max_eval_age" -gt 7 ]]; then
+        echo -e "  ${_C_YELLOW}⚠ eval data up to ${_max_eval_age}d old — run /eval to refresh${_C_NC}"
+    elif [[ "$_max_eval_age" -gt 3 ]]; then
+        echo -e "  ${_C_DIM}eval data up to ${_max_eval_age}d old${_C_NC}"
     fi
+    echo -e "${_SEP}"
     echo ""
 
-    # Per-feature breakdown
+    # --- Table header ---
+    echo -e "  ${_C_DIM}                                    delivery  craft  viability${_C_NC}"
+
+    # --- Sort features worst to best ---
     _bottleneck_feat="" _bottleneck_score=101
+    _sorted_indices=()
     for ((_i=0; _i<${#_feat_names[@]}; _i++)); do
+        _fs=$(echo "${_feat_results[$_i]}" | jq -r '.score')
+        _sorted_indices+=("${_fs}:${_i}")
+    done
+    IFS=$'\n' _sorted_indices=($(sort -t: -k1 -n <<< "${_sorted_indices[*]}")); unset IFS
+
+    # --- Table rows ---
+    for _si in "${_sorted_indices[@]}"; do
+        _i="${_si#*:}"
         _fn="${_feat_names[$_i]}"
         _fr="${_feat_results[$_i]}"
         _fs=$(echo "$_fr" | jq -r '.score')
@@ -380,41 +519,62 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
         _fv=$(echo "$_fr" | jq -r '.viability')
         _fvs=$(echo "$_fr" | jq -r '.viability_source')
         _fw=$(echo "$_fr" | jq -r '.weight')
-        _ft=$(echo "$_fr" | jq -r '.tiers')
+        _fage=$(echo "$_fr" | jq -r '.eval_age_days')
+        _fstale=$(echo "$_fr" | jq -r '.stale')
 
-        # Track bottleneck
         if [[ "$_fs" -lt "$_bottleneck_score" ]]; then
             _bottleneck_score=$_fs
             _bottleneck_feat=$_fn
         fi
 
-        # Direction hint based on weakest dimension
-        _hint=""
-        if [[ "$_fd" -lt "$_fc" && "$_fd" -lt "$_fv" ]]; then
-            _hint="delivery is the gap — ship more of the feature"
-        elif [[ "$_fc" -lt "$_fd" && "$_fc" -lt "$_fv" ]]; then
-            _hint="craft is the gap — polish error handling and UX"
-        elif [[ "$_fvs" == "capped" ]]; then
-            _hint="viability capped at 30 — run /research or /strategy"
-        fi
+        # Viability suffix
+        _via_suf=""
+        [[ "$_fvs" == "capped" ]] && _via_suf=" ${_C_RED}!${_C_NC}"
+        [[ "$_fvs" == "intelligence" ]] && _via_suf=" ${_C_DIM}~${_C_NC}"
 
-        printf "  %-16s %3d/100  (d:%d c:%d v:%d) w:%s  %d/5 tiers\n" "$_fn" "$_fs" "$_fd" "$_fc" "$_fv" "$_fw" "$_ft"
-        [[ -n "$_hint" ]] && echo "                   → ${_hint}"
+        # Weight dots: ● for each weight point
+        _wdots=""
+        for ((_w=0; _w<_fw; _w++)); do _wdots="${_wdots}●"; done
 
-        # Show top recommendation if available
-        local _top_rec_idea
-        _top_rec_idea=$(echo "$_fr" | jq -r '.top_recommendation.idea // empty' 2>/dev/null)
-        if [[ -n "$_top_rec_idea" ]]; then
-            local _top_rec_type
-            _top_rec_type=$(echo "$_fr" | jq -r '.top_recommendation.type // ""' 2>/dev/null)
-            echo "                   ▸ ${_top_rec_type}: ${_top_rec_idea}"
+        # Row: name  score+bar  d  c  v  weight
+        # Use fixed-width segments to keep alignment despite ANSI codes
+        _name_pad="$(printf '%-12s' "$_fn")"
+        echo -ne "  ${_C_BOLD}${_name_pad}${_C_NC} $(_color_s $_fs) $(_score_bar $_fs)"
+        echo -ne "      $(_color_s $_fd)      $(_color_s $_fc)       $(_color_s $_fv)${_via_suf}"
+        # Staleness indicator
+        _age_suf=""
+        if [[ "$_fage" -gt 7 ]]; then
+            _age_suf=" ${_C_YELLOW}⚠ stale${_C_NC}"
+        elif [[ "$_fage" -gt 3 ]]; then
+            _age_suf=" ${_C_DIM}(${_fage}d old)${_C_NC}"
         fi
+        echo -e "  ${_C_DIM}${_wdots}${_C_NC}${_age_suf}"
     done
 
     echo ""
+
+    # --- Footer ---
+    echo -e "${_SEP}"
+
+    # Bottleneck
     if [[ -n "$_bottleneck_feat" ]]; then
-        echo "Bottleneck: ${_bottleneck_feat} (${_bottleneck_score}/100) — fix this first."
+        echo -e "  ${_C_DIM}bottleneck${_C_NC}  ${_C_BOLD}${_bottleneck_feat}${_C_NC} at $(_color_s $_bottleneck_score)  ${_C_DIM}· /plan ${_bottleneck_feat}${_C_NC}"
     fi
+
+    # Opportunity context
+    if [[ "$_opp_journey_gaps" -gt 0 || "$_opp_unmet_needs" -gt 0 ]]; then
+        _opp_parts=""
+        [[ "$_opp_journey_gaps" -gt 0 ]] && _opp_parts="${_opp_journey_gaps} journey gaps"
+        if [[ "$_opp_unmet_needs" -gt 0 ]]; then
+            [[ -n "$_opp_parts" ]] && _opp_parts="$_opp_parts · "
+            _opp_parts="${_opp_parts}${_opp_unmet_needs} unmet needs"
+        fi
+        [[ -n "$_opp_top_signal" ]] && _opp_parts="$_opp_parts · ${_opp_top_signal}"
+        echo -e "  ${_C_DIM}opportunity${_C_NC} ${_opp_parts}"
+    fi
+
+    echo -e "${_SEP}"
+    echo ""
 else
     # --- JSON output (default) ---
     echo "{"
@@ -431,6 +591,9 @@ else
     echo ""
     echo "  },"
     echo "  \"product_score\": $product_score,"
+    echo "  \"belief_score\": $_belief_score,"
+    echo "  \"belief_pass\": $_belief_pass,"
+    echo "  \"belief_total\": $_belief_total,"
     echo "  \"confidence\": \"$product_confidence\","
     echo "  \"tiers_filled\": $min_tiers,"
     echo "  \"total_weight\": $product_total_weight,"
