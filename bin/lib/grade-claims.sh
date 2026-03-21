@@ -3,8 +3,8 @@
 # Requires: CACHE_FILE, PRED_FILE (set by parent grade.sh)
 # Depends on: grade-patterns.sh, grade-data.sh, grade-signals.sh
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/grade-patterns.sh"
+_GRADE_CLAIMS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${_GRADE_CLAIMS_DIR}/grade-patterns.sh"
 
 # Grade a single prediction
 grade_prediction() {

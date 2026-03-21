@@ -100,6 +100,8 @@ PRED_FILE="$TEMP_DIR/predictions.tsv"
 HISTORY_FILE="$TEMP_DIR/history.tsv"
 CACHE_FILE="$TEMP_DIR/score-cache.json"
 PROJECT_DIR="$TEMP_DIR"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+GRADED_COUNT=0
 extract_functions
 
 # --- Tier 1: Numeric patterns ---
