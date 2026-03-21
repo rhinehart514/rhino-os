@@ -124,12 +124,10 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 2. Write feature to `config/rhino.yml`
 3. Convert draft assertions to `beliefs.yml` — prefer mechanical over llm_judge
 4. Log prediction to predictions.tsv
-5. Write todo items with `source: /ideate`
 
 **When founder kills something:**
 1. Log: `scripts/idea-log.sh kill "[name]" "[reason]"`
 2. Update rhino.yml / todos.yml / beliefs.yml accordingly
-3. Generate kill tasks (see task generation below)
 
 **Always:** Log every proposed idea: `scripts/idea-log.sh add "[name]" "[evidence source]" "proposed"`
 
@@ -146,12 +144,15 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 
 ### Eval-to-ideate pipeline
 
-At higher maturities (polished 70+, proven 90+), `/eval` identifies micro-features and micro-systems rather than just gaps. These feed directly into `/ideate`:
+When `/eval` produces feature scores with gaps, `/ideate` generates improvement ideas per feature. Run `/ideate [feature]` to get evidence-weighted improvement ideas for any feature that eval scored.
 
 - `/ideate [feature]` reads eval-cache.json `recommendations` field when present — these are pre-qualified improvement signals from the eval tier
-- The pipeline flow: **score → eval → ideate → plan → go**. Each skill hands off to the next when the current tool's depth is exhausted
-- At polished maturity, eval asks "what's next?" — ideate explores the answer in depth
-- At proven maturity, eval asks "what could this become?" — ideate thinks in micro-systems, not incremental improvements
+- At higher maturities (polished 70+, proven 90+), eval identifies micro-features and micro-systems. Ideate explores these in depth.
+- The pipeline flow: **score → eval → ideate → plan → go**. Each skill hands off to the next when the current tool's depth is exhausted.
+
+### Outside-in gap discovery
+
+`/ideate` also handles "what's missing that competitors have?" analysis. When market-context.json exists or when running in `market` technique mode, compare the product's feature set against competitor capabilities to surface gaps worth filling. This is not about copying competitors — it's about finding unmet needs that competitors validate. The question is always: "does this gap matter to OUR named person?"
 
 ## Agent usage
 
@@ -159,43 +160,15 @@ At higher maturities (polished 70+, proven 90+), `/eval` identifies micro-featur
 - **Agent (rhino-os:customer)** — spawn in background for customer signal: `Agent(subagent_type: "rhino-os:customer", prompt: "Research customer signal for [product/category]. Write to .claude/cache/customer-intel.json.", run_in_background: true)`
 - **Agent (rhino-os:market-analyst)** — in feature improvement mode, spawn in background to research how best-in-class products handle this feature type: `Agent(subagent_type: "rhino-os:market-analyst", prompt: "Research best-in-class implementations of [feature type] across top products. Focus on specific UI patterns, interaction models, and what makes them work. Write findings to .claude/cache/feature-research-[name].json.", run_in_background: true)`
 
-## Task generation — ideas and kills become tasks
+## After founder commits
 
-See `../shared/task-generation.md` for the task generation protocol. /ideate generates tasks for:
+**Committed ideas:** Write feature to `config/rhino.yml`, draft 2-3 assertions for `beliefs.yml`, log prediction to predictions.tsv. The founder and /plan decide implementation order — /ideate doesn't generate implementation tasks.
 
-**For EVERY committed idea, generate the full onramp:**
-- Task: "Implement core of [feature] — [specific first step]"
-- Task: "Add 3 assertions for [feature] — 1 file_check, 1 content_check, 1 command_check"
-- Task: "Run /eval [feature] to establish baseline score"
-- Task: "Log prediction about [feature]'s first eval score"
-- Each dependency identified → task: "Feature [X] depends on [Y] — verify [Y] is ready"
+**Committed improvements:** Log prediction about the expected sub-score movement. The improvement prescription itself (from `templates/improvement-brief.md`) is specific enough to act on directly via `/go`.
 
-**For EVERY committed improvement (feature improvement mode):**
-- Task: "Implement [improvement name] — [specific element] → [specific change] (Option N chosen)"
-- Task: "Verify [improvement] — run /eval [feature] and check [sub-score] moved from [X] to [Y]+"
-- Task: "Update/add assertion for [improvement] — [what should now be true]"
-- Task: "Log prediction: '[improvement] will raise [feature] [sub-score] from X to Y'"
-- If the improvement builds on existing work → task: "Close todo [XX-NN] — addressed by [improvement]"
+**Kill decisions:** Execute immediately — remove from rhino.yml, beliefs.yml, todos.yml as appropriate. Log the kill reason to experiment-learnings.md Dead Ends.
 
-**For EVERY committed simplification (feature improvement mode):**
-- Task: "Remove/simplify [element] — [specific change]"
-- Task: "Verify removal — no assertions regress after removing [element]"
-- Task: "Update eval baseline — re-run /eval [feature] after simplification"
-
-**For EVERY kill decision, generate cleanup tasks:**
-- Kill a feature → task: "Remove feature [X] from rhino.yml"
-- Kill a feature → task: "Remove assertions for [X] from beliefs.yml"
-- Kill a feature → task: "Mark [X] todos as killed in todos.yml"
-- Kill a feature → task: "Update experiment-learnings.md with why [X] was killed"
-- Kill a todo → task: "Remove todo [id] from backlog"
-- Kill a direction → task: "Add [direction] to Dead Ends in experiment-learnings.md"
-
-**For EVERY kill audit finding (from kill-audit.sh):**
-- Each stale todo surfaced → task: "Todo [id] is kill candidate — [N]d stale, no progress"
-- Each always-passing assertion → task: "Assertion [id] always passes — remove or strengthen"
-- Each stuck feature → task: "Feature [X] stuck at [score] for [N]d — kill, pivot, or double down"
-
-Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kill cleanup first (reduce noise), then new feature onramp.
+**Always:** Log every idea via `scripts/idea-log.sh` (add, commit, or kill).
 
 ## System integration
 

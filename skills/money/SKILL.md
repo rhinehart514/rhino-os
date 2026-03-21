@@ -29,7 +29,7 @@ This skill is a **folder**. Read these on demand:
 
 ## Memory
 
-After every `/money` run, append to `${CLAUDE_PLUGIN_DATA}/money-history.json`. Read history on subsequent runs to track pricing strategy evolution.
+If `${CLAUDE_PLUGIN_DATA}` is available, append to `money-history.json` to track pricing strategy evolution. If not available, skip history — the skill works without persistence.
 
 ## Routing
 
@@ -43,25 +43,25 @@ After every `/money` run, append to `${CLAUDE_PLUGIN_DATA}/money-history.json`. 
 
 ## How it works
 
-**Mechanical scan first:** Run `bash ${CLAUDE_SKILL_DIR}/scripts/revenue-scan.sh` for current financial state. For pricing modes, also run `bash ${CLAUDE_SKILL_DIR}/scripts/pricing-compare.sh`. Read `config/product-spec.yml` if it exists — pricing should serve the spec's person.
+**Read product context:** Read `config/product-spec.yml` first — pricing should serve the spec's person. Fall back to `config/rhino.yml` if no product-spec exists. If neither exists, ask via AskUserQuestion: "Who is this for and what problem does it solve?" — pricing without a person is guessing.
+
+**Mechanical scan:** Run `bash ${CLAUDE_SKILL_DIR}/scripts/revenue-scan.sh` for current financial state. For pricing modes, also run `bash ${CLAUDE_SKILL_DIR}/scripts/pricing-compare.sh`.
 
 **Read gotchas + mode-specific reference:** `gotchas.md`, then price→`references/pricing-guide.md`, runway/unit-economics→`references/unit-economics.md`, channels→`references/channel-selection.md`, model→all references.
 
-**Agent spawning:** Full model / channels / pricing spawn both agents:
-```
-Agent(subagent_type: "rhino-os:gtm", prompt: "[mode-specific brief]", run_in_background: true)
-Agent(subagent_type: "rhino-os:market-analyst", prompt: "Research pricing and distribution for [category].", run_in_background: true)
-```
-Runway / unit-economics: GTM agent only.
+**Agent spawning** — proportional to the question:
+- **Simple pricing questions** (e.g., "what should I charge?"): No agents. Use existing market-context.json + references. Present 1 recommendation with rationale.
+- **Runway / unit-economics**: Spawn `rhino-os:gtm` only — needs financial modeling.
+- **Full model / channels / deep pricing analysis**: Spawn both `rhino-os:gtm` and `rhino-os:market-analyst` when market-context.json is stale (>7d) or missing.
 
-**Synthesize** — collect agent results, use `templates/pricing-model.md` for structure, present via AskUserQuestion with 2-3 options when decisions are needed.
+**Synthesize** — use `templates/pricing-model.md` for structure, present via AskUserQuestion with 2-3 options when decisions are needed.
 
-**Persist** — write decisions to `config/rhino.yml` under `pricing:`. Append to money-history.json.
+**Persist** — write decisions to `config/rhino.yml` under `pricing:`. Append to money-history.json if `${CLAUDE_PLUGIN_DATA}` is available.
 
 ## System integration
 
-Reads: `config/rhino.yml` (features, stage, pricing), `config/product-spec.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/eval-cache.json` (feature maturity gate)
-Writes: `config/rhino.yml` (pricing section), `${CLAUDE_PLUGIN_DATA}/money-history.json`
+Reads: `config/product-spec.yml` (primary), `config/rhino.yml` (fallback — features, stage, pricing), `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/eval-cache.json` (feature maturity gate)
+Writes: `config/rhino.yml` (pricing section), `${CLAUDE_PLUGIN_DATA}/money-history.json` (if available)
 Triggers: `/strategy honest` (business viability), `/ship release` (if ready to charge), `/todo` (financial gap tasks)
 Triggered by: `/strategy` (revenue avoidance detection), `/plan` (stage-appropriate nudge), manual
 
@@ -75,58 +75,31 @@ See `reference.md` for mode-specific templates. Every output ends with:
 /ship release         if ready to charge
 ```
 
-## Task generation — the path to a working business model
+## Output
 
-**/money's job is not just analysis. It's generating EVERY task needed to close pricing and revenue gaps.** Financial analysis without action items is a slide deck. Every gap between "what the business needs" and "what exists" is a task.
+/money produces: 1 pricing recommendation + rationale + next step. Not a task backlog.
 
-**For EVERY financial gap found, generate a task:**
+For each mode, end with:
+- The recommendation (specific: "$19/mo per seat" not "consider charging")
+- The rationale (grounded in evidence — competitor data, stage, value delivered)
+- The next step (one command: `/money channels`, `/strategy honest`, etc.)
 
-### Pricing tasks
-- No pricing config in rhino.yml → task: "Define pricing in rhino.yml — run /money price to decide"
-- No competitor pricing data → task: "Gather competitor pricing — run /strategy compete or /research market"
-- Pricing doesn't match stage → task: "Pricing strategy misaligned with stage [X] — review via /money price"
-- No free tier / trial defined → task: "No trial/free tier — evaluate for stage [X]"
-- Pricing hasn't been tested → task: "Pricing is theoretical — design pricing experiment"
-
-### Unit economics tasks
-- No CAC estimate → task: "No customer acquisition cost — estimate from channel strategy"
-- No LTV estimate → task: "No lifetime value estimate — define from pricing + retention assumption"
-- CAC > LTV → task: "Unit economics negative (CAC [X] > LTV [Y]) — fix pricing or reduce CAC"
-- No churn data → task: "No churn measurement — instrument or estimate"
-- Payback period >12mo → task: "Payback too slow ([N]mo) — review pricing or reduce acquisition cost"
-
-### Channel tasks
-- No distribution channels identified → task: "No channels — run /money channels to evaluate"
-- Channel strategy not tested → task: "Channel [X] untested — design experiment"
-- Channel cost unknown → task: "Channel [X] cost unknown — research or test with small budget"
-
-### Revenue tasks
-- Features scoring 50+ but no revenue → task: "Working features but no revenue — revenue avoidance (run /money)"
-- No runway model → task: "No runway estimate — run /money runway"
-- Burn rate unknown → task: "Monthly costs unknown — document in runway model"
-
-### Stage-appropriate tasks
-- Stage one with pricing optimization → task: "Premature pricing optimization — focus on one paying customer"
-- Stage some with no pricing at all → task: "Have users, no pricing — avoidance pattern. Run /money price"
-- Stage many with no unit economics → task: "Scaling without unit economics — dangerous. Run /money unit-economics"
-
-**Write ALL tasks to /todo.** Tag with `source: /money` and type (pricing/unit-economics/channels/revenue/stage). Priority: stage-appropriate gaps first.
-
-**There is no cap on task count.** A project with no pricing at all might need 10+ tasks. Generate all of them.
-
-After analysis, show: "Generated N tasks across M financial gaps. Most critical: [gap]."
+If the analysis surfaces a critical gap (e.g., no pricing at stage-some, negative unit economics), flag it as a single finding with a next step. Do not generate task lists — /plan handles that.
 
 ## Self-evaluation
 
 The skill worked if:
 - Every number has a cited source or is explicitly marked "estimate"
 - Pricing recommendations are stage-appropriate (no unit economics at stage one)
-- Decisions were written to rhino.yml pricing section
-- Tasks were generated for every financial gap found
+- One clear recommendation with rationale was produced
+- Decisions (when confirmed by founder) were written to rhino.yml pricing section
 
 ## Agent cost note
 
-Full model, channels, and pricing modes spawn both **gtm** (opus, background) and **market-analyst** (opus, background) -- two opus agents running in parallel. Runway and unit-economics modes spawn only gtm. If market-context.json is fresh (<7d), consider skipping market-analyst to save tokens.
+Agent spawning is proportional to the question:
+- Simple pricing questions: 0 agents (use existing data + references)
+- Runway / unit-economics: 1 agent (gtm only)
+- Full model / channels / deep pricing: up to 2 agents (gtm + market-analyst) — skip market-analyst if market-context.json is fresh (<7d)
 
 ## Gotchas
 

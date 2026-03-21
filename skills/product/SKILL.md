@@ -1,13 +1,13 @@
 ---
 name: product
 description: "Use when the user wants to pressure-test whether they're building the right thing — new ideas ('should we build this?'), existing products ('is this actually working?'), assumptions, user journey, pitch clarity, or product-market fit."
-argument-hint: "[user|assumptions|why|pitch|focus|signals|delight|market|coherence|\"I want to build...\"]"
+argument-hint: "[user|assumptions|why|pitch|focus|signals|delight|market|coherence|refine|pivot|\"I want to build...\"]"
 allowed-tools: Read, Bash, Grep, Glob, AskUserQuestion, WebSearch, Agent
 ---
 
 # /product
 
-**Two modes, one purpose: make sure you're building something that matters.**
+**Pressure-test assumptions, audit coherence, validate the value hypothesis. Make sure you're building something that matters.**
 
 ## Skill folder structure
 
@@ -38,6 +38,8 @@ Parse `$ARGUMENTS`:
 | `delight` | Craft moment identification |
 | `market` | Market reality check |
 | `coherence` | Narrative coherence audit |
+| `refine` | Pressure-test existing product-spec — is the spec still right? |
+| `pivot` | Explore alternatives — what if the hypothesis is wrong? |
 | `yc` | YC readiness check — read `references/yc-readiness.md` |
 | `[feature name]` | Product thinking scoped to one feature |
 
@@ -45,30 +47,22 @@ Parse `$ARGUMENTS`:
 
 Read `gotchas.md` first. Then read state directly — you are the product thinker, not a script runner:
 
-**Value hypothesis** — read `config/rhino.yml`:
-- Extract `value:` section (hypothesis, user, signals)
-- Extract features list (names, weights, status)
-- If no rhino.yml: "product has no value hypothesis — run /onboard"
-
-**Eval scores** — read `.claude/cache/eval-cache.json`:
-- Per-feature: score, delivery_score, craft_score, viability_score, delta
-- Maturity labels: planned(<30), building(30-49), working(50-69), polished(70-89), proven(90+)
-- **Delivery vs craft gap**: flag features where craft > delivery + 15 (polishing before delivering)
-
-**Assumption audit** — reason about this yourself:
-- Extract the hypothesis from rhino.yml. What assumptions does it make?
-- Check evidence sources: eval-cache (feature scores as evidence), predictions.tsv (wrong predictions = disproven assumptions), experiment-learnings.md (known vs unknown), customer-intel.json (external signal)
-- Per-feature assumption level: score < 30 = untested, < 50 = building, < 70 = working, >= 70 = well-supported
-- Count evidence density: how many of 4 sources (eval, predictions, learnings, customer) exist?
+**Value hypothesis** — read `config/product-spec.yml` first (the canonical product definition), fall back to `config/rhino.yml`:
+- Extract: who is the person, what problem, what changes for them, how they find it
+- If neither file exists: "no product definition — run /onboard or describe what you're building"
 
 **Coherence check** — reason about contradictions yourself:
-- README.md vs rhino.yml features: are all features mentioned in README?
+- README.md vs product-spec.yml/rhino.yml: do claims match reality?
 - Features vs beliefs.yml: do all features have assertions?
-- Eval scores vs roadmap thesis: are high-weight features scoring low?
+- Hypothesis vs features: does what you claim to build match what actually exists?
 - narrative.yml vs roadmap: does narrative claim things evidence hasn't proven?
-- Hypothesis vs features: does a hypothesis exist, and do features deliver it?
 
-**Additional context:** `config/product-spec.yml`, `.claude/plans/strategy.yml` (stage), `.claude/cache/customer-intel.json`, `.claude/plans/roadmap.yml`, `README.md`, `git log --oneline -10`
+**Additional context** (read if they exist, skip if not):
+- `.claude/cache/eval-cache.json` — feature scores as supporting evidence, not the primary input
+- `.claude/knowledge/predictions.tsv` — wrong predictions reveal disproven assumptions
+- `.claude/knowledge/experiment-learnings.md` — known vs unknown territory
+- `.claude/cache/customer-intel.json` — external signal
+- `.claude/plans/strategy.yml` (stage), `.claude/plans/roadmap.yml`, `README.md`, `git log --oneline -10`
 
 ## How to assess
 
@@ -81,11 +75,16 @@ Read `gotchas.md` first. Then read state directly — you are the product thinke
 
 For specific lens questions, read `references/pressure-tests.md` on demand.
 
-**Agent enrichment** (existing product only):
-- Spawn `rhino-os:customer` in background for customer signal
-- Spawn `rhino-os:founder-coach` for failure mode detection against startup-patterns.md
+**Agent enrichment** (optional — existing product only):
+- Do NOT auto-spawn agents. If the assessment reveals gaps that need deeper signal, ask first via AskUserQuestion: "Want deeper signal from customer research?" or "Want failure mode detection from the founder-coach?"
+- `rhino-os:customer` — customer signal research. Useful when assumptions about the user are untested.
+- `rhino-os:founder-coach` — failure mode detection against startup-patterns.md. Useful when patterns look concerning.
 
-Synthesize using `templates/product-brief.md`. Incorporate agent findings into the verdict. End with exactly 3 next commands.
+**Refine mode** (`/product refine`): Pressure-test the existing product-spec.yml. Is the named person still right? Has the problem changed? Are the assumptions holding? This absorbed the spec pressure-test that was in /discover.
+
+**Pivot mode** (`/product pivot`): The hypothesis might be wrong. Explore: what if the person is different? What if the problem is adjacent? What if the mechanism needs to change? Uses the assumption stack from `references/product-thinking.md` to identify which layer to pivot on.
+
+Synthesize using `templates/product-brief.md`. End with exactly 3 next commands.
 
 ## Tools
 
@@ -95,59 +94,22 @@ Synthesize using `templates/product-brief.md`. Incorporate agent findings into t
 - **Bash**: `scripts/*.sh`, `rhino score .`, `rhino feature`, `git log`.
 - **Agent**: customer signal (rhino-os:customer), founder coaching (rhino-os:founder-coach).
 
-## Task generation — the path to product-market fit
+## Output
 
-**/product's job is not just assessment. It's generating EVERY task needed to close the gap between what you claim and what's true.** If /product finds a problem but doesn't create a task, the founder has a diagnosis but no action plan.
+/product produces a verdict — the honest assessment of whether you're building the right thing. It names gaps between "what you claim" and "what's true."
 
-**For EVERY gap found, generate the complete task list:**
+For each gap found, state the gap, the evidence, and the next step (a specific command). Do NOT generate task lists. /product diagnoses; /plan and the founder decide what to act on.
 
-### Assumption tasks (from assumption-audit.sh)
-- Each untested assumption in the value hypothesis → task: "Assumption '[X]' has no evidence — run experiment to test"
-- Each assumption with contradicting evidence → task: "Assumption '[X]' contradicted by [evidence] — update hypothesis or pivot"
-- Each assumption marked "critical" with no test plan → task to design a test
-
-### Coherence tasks (from coherence-check.sh)
-- README claims feature X but code doesn't deliver → task: "README says [X] but [reality] — fix code or fix claim"
-- Value hypothesis doesn't match features list → task to align rhino.yml
-- Thesis evidence doesn't match what's actually being built → task to update roadmap.yml
-- Feature weights don't reflect stated priorities → task to re-weight
-
-### User journey tasks
-- Each friction point in the user journey → task with specific fix
-- Each dead end (user completes action, nowhere to go) → task to add next step
-- Each confusion point (requires prior context) → task to add guidance
-- Missing first-time experience → task to build onboarding flow
-- No return trigger identified → task to design one
-
-### Pressure test failure tasks
-- "Who gets value?" can't be answered → task: "Run /product user to name the person"
-- "What changes?" is vague → task to make the value proposition concrete
-- "Would they notice if it disappeared?" answer is no → task to reconsider feature
-- Pitch fails clarity test → task to rewrite via /copy pitch
-
-### Signal instrumentation tasks
-- No way to know if users get value → task to add measurement
-- No feedback mechanism → task to add a feedback path
-- No usage tracking → task to instrument key flows
-- Feature has no assertions → task to add via /assert
-
-### Founder coaching tasks (from founder-coach agent)
-- Each failure mode detected → task with intervention
-- Each avoidance pattern named → task to address
-- Each stage-inappropriate activity → task to redirect effort
-
-**Write ALL tasks to /todo.** Tag with `source: /product`, the specific lens (user/assumptions/coherence/signals/delight), and severity. Priority: untested critical assumptions first.
-
-**There is no cap on task count.** A product with 8 untested assumptions and 5 coherence violations might need 20 tasks. Generate all of them. /plan picks what to work on — /product's job is to make sure every gap between "what we claim" and "what's true" is captured.
-
-After writing tasks, show: "Generated N tasks across M product gaps. Most critical: [gap] — [why it matters]."
+Example output for a gap:
+- "Value hypothesis names 'developers' — not a person. Next: `/product user` to name a specific human."
+- "README claims real-time sync but code is polling. Next: fix the code or fix the claim."
 
 ## System integration
 
-Reads: `config/rhino.yml`, `.claude/cache/eval-cache.json`, `config/product-spec.yml`, `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `config/beliefs.yml`, `README.md`, `.claude/knowledge/predictions.tsv`, `.claude/knowledge/experiment-learnings.md`
-Writes: `.claude/plans/todos.yml`, `.claude/knowledge/predictions.tsv`
-Triggers: `/ideate` (gaps need solutions), `/research` (assumptions need evidence), `/discover` (spec needs updating), `/copy pitch` (pitch fails clarity test)
-Triggered by: `/plan` (product-market fit questions), `/strategy` (is the product working?), `/discover refine` (spec pressure-test)
+Reads: `config/product-spec.yml`, `config/rhino.yml`, `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `config/beliefs.yml`, `README.md`, `.claude/knowledge/predictions.tsv`, `.claude/knowledge/experiment-learnings.md`, `.claude/cache/eval-cache.json` (optional supporting evidence)
+Writes: `.claude/knowledge/predictions.tsv`
+Triggers: `/ideate` (gaps need solutions), `/research` (assumptions need evidence), `/product refine` (spec pressure-test), `/copy pitch` (pitch fails clarity test)
+Triggered by: `/plan` (product-market fit questions), `/strategy` (is the product working?)
 
 ## What you never do
 
@@ -162,17 +124,17 @@ Triggered by: `/plan` (product-market fit questions), `/strategy` (is the produc
 ## Self-evaluation
 
 /product succeeded if:
-- Every untested assumption is surfaced with a task to test it
-- Coherence check ran and every disconnect has a task
+- Every untested assumption is named with evidence (or lack thereof)
+- Coherence check ran and disconnects are surfaced
 - The founder knows the biggest gap between "what we claim" and "what's true"
 - At least one pressure test question made the founder uncomfortable
 
 ## Cost note
 
-This skill spawns 2 agents:
-- `customer` (sonnet, background) — customer signal research
-- `founder-coach` (opus) — failure mode detection against startup-patterns.md
-- Agents only spawn in existing product mode (not new idea mode). Cost tier from `~/.claude/preferences.yml`.
+Agent spawning is optional and user-prompted:
+- `customer` (sonnet, background) — only when founder confirms deeper customer signal is needed
+- `founder-coach` (opus) — only when founder confirms failure mode detection is needed
+- Most runs are agent-free. New idea mode never spawns agents.
 
 ## When to use
 

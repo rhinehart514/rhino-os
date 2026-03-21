@@ -36,6 +36,7 @@ Parse `$ARGUMENTS`:
 | `site <url>` | Live site analysis | Playwright (navigate, snapshot, evaluate) |
 | `competitor <name>` | Competitive analysis | WebSearch + Playwright + `scripts/market-scan.sh` |
 | `market` | Market landscape | Spawns market-analyst agent + `scripts/market-scan.sh` |
+| `compete` | Competitor deep-dive | Analyze specific competitors — positioning, pricing, features, weaknesses |
 | `history` | Past sessions | `scripts/research-log.sh` |
 | `gaps` | Ranked unknowns | Read knowledge model directly |
 
@@ -50,13 +51,14 @@ Use `/research` when you need evidence before making a decision — filling know
 Read `gotchas.md` first. Then check research history: `scripts/research-log.sh topic "[topic]"` for repeat detection.
 
 **Knowledge gap identification** — compute this yourself for `(none)` and `gaps` routes:
-- Read `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — extract the four zones:
+- Read `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) IF it exists — extract the four zones:
   - **Unknown Territory** entries = highest information value. Count them, list them.
   - **Uncertain Patterns** = needs confirmation. Count them.
   - **Known Patterns** = exploit territory. Count them.
   - **Dead Ends** = avoid territory. Count them.
+- If no experiment-learnings.md exists, skip the knowledge model — use codebase, eval-cache, and external sources directly. The skill works without a rhino knowledge model.
 - Read `.claude/cache/eval-cache.json` — find the bottleneck feature (lowest score among highest weight). Cross-reference unknowns with the bottleneck: bottleneck-related unknowns rank HIGH.
-- Check staleness: if experiment-learnings.md is >7 days old (file modification time), flag it.
+- Check staleness: if experiment-learnings.md exists and is >7 days old (file modification time), flag it.
 
 **Additional context:** `config/product-spec.yml` (research should resolve spec unknowns), `config/rhino.yml`, `.claude/knowledge/predictions.tsv`
 
@@ -68,36 +70,21 @@ Read `gotchas.md` first. Then check research history: `scripts/research-log.sh t
 4. **Update model** — write findings to experiment-learnings.md. Grade prediction.
 5. **Write artifacts** — `~/.claude/cache/last-research.yml`, log via `scripts/research-log.sh add`
 
-### Step 6: Task generation — the path from knowledge to action
+### Step 6: Findings with next steps
 
-See `../shared/task-generation.md` for the task generation protocol. /research generates tasks for:
+For each finding (aim for 1-3 per session), include a clear next step — not a task list. The next step is a specific command or action, not a backlog item. Let /plan handle task creation.
 
-**For EVERY finding, generate the corresponding tasks:**
+Examples of good next steps:
+- "Run `/ideate [feature]` — this finding suggests improvement opportunities"
+- "Update experiment-learnings.md — new dead end confirmed"
+- "Run `/strategy honest` — competitive picture changed"
 
-#### Evidence-implies-action tasks
-- Finding confirms a hypothesis → task: "Evidence confirms [X] — update strategy.yml and act on it"
-- Finding contradicts a hypothesis → task: "Evidence contradicts [X] — update experiment-learnings.md, reconsider approach"
-- Finding reveals a competitor capability → task: "Competitor [Y] does [Z] — evaluate: build, differentiate, or ignore"
-- Finding reveals market shift → task: "Market moving toward [X] — update strategy via /strategy market"
-- Finding reveals user need → task: "Users need [X] — evaluate as feature via /ideate"
+If a finding is critical enough to warrant a todo, write ONE task with `source: /research`. Don't generate tasks speculatively.
 
-#### Knowledge model tasks
-- Each new unknown discovered → task: "New unknown: [X] — run /research [topic] to investigate"
-- Each dead end confirmed → task: "Dead end confirmed: [X] — kill related todos and update learnings"
-- Each uncertain pattern that could be confirmed → task: "Pattern [X] needs one more experiment — design test"
-- Stale knowledge entry touched by research → task: "Knowledge entry [X] updated — retest downstream assumptions"
+### Market and competitive research
 
-#### Strategy update tasks
-- Research changes the competitive picture → task: "Update market-context.json with [finding]"
-- Research changes the stage assessment → task: "Run /strategy honest — stage may have shifted"
-- Research reveals pricing signal → task: "Competitor charges [X] — run /money price"
-
-#### Feature impact tasks
-- Finding affects a specific feature → task: "Research on [topic] affects feature [Y] — update approach"
-- Finding suggests a new feature → task: "Evidence for [X] — evaluate via /ideate or /feature new"
-- Finding invalidates a feature → task: "Evidence against feature [X] — consider killing via /ideate kill"
-
-Tag with `source: /research`, topic, and confidence level. Priority: high-confidence findings on high-weight features first.
+`/research market` gathers competitive evidence — landscape, trends, positioning gaps. Spawns market-analyst agent.
+`/research compete` analyzes specific competitors — their features, pricing, strengths, weaknesses. Uses WebSearch + Playwright + market-scan.sh. These modes absorbed competitive analysis that was previously in /strategy.
 
 ## Agent spawning
 - `Agent(subagent_type: "rhino-os:explorer", ...)` — deep codebase analysis
@@ -116,7 +103,6 @@ Tag with `source: /research`, topic, and confidence level. Priority: high-confid
 | market-context | `.claude/cache/market-context.json` | R+W |
 | rhino.yml | `config/rhino.yml` | R |
 | product-spec | `config/product-spec.yml` | R |
-| todos | `.claude/plans/todos.yml` | W |
 
 ## Output format
 
@@ -131,7 +117,7 @@ For full output templates, see `reference.md`.
 ## System integration
 
 Reads: `.claude/knowledge/experiment-learnings.md`, `.claude/knowledge/predictions.tsv`, `.claude/cache/eval-cache.json`, `config/rhino.yml`, `config/product-spec.yml`, `.claude/cache/market-context.json`
-Writes: `.claude/knowledge/experiment-learnings.md`, `.claude/knowledge/predictions.tsv`, `~/.claude/cache/last-research.yml`, `.claude/cache/market-context.json`, `.claude/plans/todos.yml`, `${CLAUDE_PLUGIN_DATA}/research-log.json`
+Writes: `.claude/knowledge/experiment-learnings.md` (if it exists), `.claude/knowledge/predictions.tsv`, `~/.claude/cache/last-research.yml`, `.claude/cache/market-context.json`, `${CLAUDE_PLUGIN_DATA}/research-log.json`
 Triggers: `/strategy` (research changes competitive picture), `/ideate` (findings suggest features), `/product` (findings affect assumptions)
 Triggered by: `/plan` (unknowns detected), `/strategy` (knowledge gaps), `/retro` (wrong predictions need investigation)
 
@@ -142,7 +128,7 @@ Triggered by: `/plan` (unknowns detected), `/strategy` (knowledge gaps), `/retro
 - Findings are synthesized (patterns named, not raw dumps)
 - experiment-learnings.md was updated with at least one new or modified entry
 - research-log.sh was called to persist the session
-- Every finding that implies action has a corresponding task
+- Every finding has a clear next step (command, model update, or experiment)
 
 ## Gotchas
 
@@ -170,7 +156,7 @@ Spawns up to 2 agents depending on mode:
 - context7 fails -> WebSearch + WebFetch for docs
 - Playwright fails -> WebSearch for site analysis
 - WebSearch fails -> codebase-only + experiment-learnings.md
-- No experiment-learnings.md -> create with standard template
+- No experiment-learnings.md -> skip knowledge model integration, research from external sources and codebase only
 - No research-log.json -> `scripts/research-log.sh` auto-creates
 
 $ARGUMENTS
