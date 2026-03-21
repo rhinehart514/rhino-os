@@ -465,7 +465,7 @@ beliefs:
   - id: commands-recommend-existing
     belief: "Commands only recommend slash commands that exist as files"
     type: command_check
-    command: for cmd in plan go eval feature ship onboard research ideate rhino roadmap retro assert strategy todo clone skill product; do test -f "skills/${cmd}/SKILL.md" || exit 1; done
+    command: for cmd in plan go eval feature ship onboard research ideate rhino roadmap retro assert strategy todo skill product; do test -f "skills/${cmd}/SKILL.md" || exit 1; done
     feature: commands
     quality: correctness
     layer: logic
