@@ -91,15 +91,27 @@ score_hygiene_product() {
         *) echo "$score" && return ;;
     esac
 
-    # Reuse tiered_penalty from score.sh (it's already defined when we're sourced)
-    # But we need our own copy since the outer one captures `score` by closure
+    # Count total source files for monorepo scaling
+    local _total_src_files
+    _total_src_files=$(find "$src_dir" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" \) ! -path "*/node_modules/*" 2>/dev/null | wc -l | tr -d ' ')
+
+    # Monorepo dampener: scale thresholds up for large codebases
+    # 100+ files → 3x thresholds, 500+ → 5x, 1000+ → 10x
+    local _threshold_mult=1
+    if [[ "$_total_src_files" -gt 1000 ]]; then _threshold_mult=10
+    elif [[ "$_total_src_files" -gt 500 ]]; then _threshold_mult=5
+    elif [[ "$_total_src_files" -gt 100 ]]; then _threshold_mult=3
+    fi
+
     _product_tiered_penalty() {
         local count=$1 defaults="$2" label="${3:-}"
         local pair threshold penalty
         for pair in $defaults; do
             threshold="${pair%%:*}"
             penalty="${pair#*:}"
-            if [[ "$count" -gt "$threshold" ]]; then
+            # Scale threshold by monorepo size
+            local adj_threshold=$(( threshold * _threshold_mult ))
+            if [[ "$count" -gt "$adj_threshold" ]]; then
                 local scaled=$(( penalty * density_mult / 100 ))
                 local cap=$(( penalty * 3 ))
                 [[ "$scaled" -lt "$cap" ]] && scaled="$cap"
