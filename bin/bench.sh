@@ -50,7 +50,22 @@ fi
 for fixture in "$FIXTURE_DIR"/*/; do
     [[ ! -d "$fixture" ]] && continue
     name=$(basename "$fixture")
+    # Skip overlay dirs — they're config overlays for submodule fixtures, not fixtures themselves
+    [[ "$name" == *-overlay ]] && continue
+
+    # Support two patterns:
+    # 1. Self-contained: expected.json inside the fixture dir
+    # 2. Overlay: {name}-overlay/ dir with expected.json + config files (for submodules)
     expected_file="$fixture/expected.json"
+    overlay_dir="$FIXTURE_DIR/${name}-overlay"
+    _overlay_applied=false
+
+    if [[ -f "$overlay_dir/expected.json" ]]; then
+        expected_file="$overlay_dir/expected.json"
+        # Copy overlay config into fixture before scoring
+        cp -r "$overlay_dir/config" "$fixture/" 2>/dev/null && _overlay_applied=true
+    fi
+
     [[ ! -f "$expected_file" ]] && continue
 
     TOTAL=$((TOTAL + 1))
@@ -65,6 +80,11 @@ for fixture in "$FIXTURE_DIR"/*/; do
     # Run score.sh against the fixture
     # Use --force to skip cache, --json for machine output
     score_json=$(cd "$fixture" && bash "$RHINO_DIR/bin/score.sh" . --json --force 2>/dev/null) || score_json=""
+
+    # Clean up overlay files from submodule to keep it pristine
+    if $_overlay_applied; then
+        rm -rf "$fixture/config" "$fixture/.claude" 2>/dev/null
+    fi
 
     actual_score=""
     actual_mode=""

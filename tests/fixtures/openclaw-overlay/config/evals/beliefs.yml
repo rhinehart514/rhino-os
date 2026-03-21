@@ -1,0 +1,424 @@
+# beliefs.yml — What must be true about this project
+#
+# Types:
+#   file_check     — file exists, contains string, min lines
+#   command_check  — run a shell command, exit 0 = pass (runs in project dir)
+#   llm_judge      — Claude evaluates code against a prompt (requires prompt: field)
+#   feature_review — Claude evaluates feature completeness
+#
+# Fields:
+#   id:        unique identifier
+#   belief:    human-readable description
+#   type:      one of the types above
+#   severity:  block (score = 0 if failing) | warn (flags but continues)
+#   path:      file or directory to check (file_check, llm_judge)
+#   contains:  string that must appear in the file (file_check)
+#   min_lines: minimum line count (file_check)
+#   command:   shell command to run (command_check)
+#   prompt:    evaluation question for Claude (llm_judge)
+#   feature:   feature name to scope context (llm_judge, feature_review)
+
+beliefs:
+
+  # ── Core — does the project know what it's for? ──
+
+  - id: has-value-hypothesis
+    belief: "Project has a defined value hypothesis"
+    type: file_check
+    path: "config/rhino.yml"
+    contains: "hypothesis:"
+    severity: block
+
+  - id: has-readme
+    belief: "README exists and explains the project"
+    type: file_check
+    path: "README.md"
+    min_lines: 5
+    severity: warn
+
+  # ── CLI/Node — does the tool run? ──
+
+  - id: main-entry-exists
+    belief: "Main entry point exists"
+    type: command_check
+    command: "test -f index.js -o -f index.mjs -o -f index.cjs -o -f lib/index.js -o -f src/index.ts -o -f src/index.js || node -e 'var m=require(\"./package.json\").main;if(!m)process.exit(1);require(\"fs\").accessSync(m)' 2>/dev/null"
+    severity: warn
+
+  - id: tests-pass
+    belief: "Test suite passes"
+    type: command_check
+    command: npm test 2>&1 | tail -1
+    severity: warn
+
+  # ── Features — do they exist and have substance? ──
+
+  - id: acp-has-substance
+    belief: "acp has real implementation"
+    type: command_check
+    command: test $(find src/acp/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: acp
+    severity: warn
+
+  - id: agents-has-substance
+    belief: "agents has real implementation"
+    type: command_check
+    command: test $(find src/agents/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: agents
+    severity: warn
+
+  - id: auto-reply-has-substance
+    belief: "auto-reply has real implementation"
+    type: command_check
+    command: test $(find src/auto-reply/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: auto-reply
+    severity: warn
+
+  - id: bindings-has-substance
+    belief: "bindings has real implementation"
+    type: command_check
+    command: test $(find src/bindings/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: bindings
+    severity: warn
+
+  - id: bootstrap-has-substance
+    belief: "bootstrap has real implementation"
+    type: command_check
+    command: test $(find src/bootstrap/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: bootstrap
+    severity: warn
+
+  - id: browser-has-substance
+    belief: "browser has real implementation"
+    type: command_check
+    command: test $(find src/browser/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: browser
+    severity: warn
+
+  - id: canvas-host-has-substance
+    belief: "canvas-host has real implementation"
+    type: command_check
+    command: test $(find src/canvas-host/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: canvas-host
+    severity: warn
+
+  - id: channels-has-substance
+    belief: "channels has real implementation"
+    type: command_check
+    command: test $(find src/channels/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: channels
+    severity: warn
+
+  - id: cli-has-substance
+    belief: "cli has real implementation"
+    type: command_check
+    command: test $(find src/cli/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: cli
+    severity: warn
+
+  - id: commands-has-substance
+    belief: "commands has real implementation"
+    type: command_check
+    command: test $(find src/commands/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: commands
+    severity: warn
+
+  - id: compat-has-substance
+    belief: "compat has real implementation"
+    type: command_check
+    command: test $(find src/compat/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: compat
+    severity: warn
+
+  - id: context-engine-has-substance
+    belief: "context-engine has real implementation"
+    type: command_check
+    command: test $(find src/context-engine/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: context-engine
+    severity: warn
+
+  - id: cron-has-substance
+    belief: "cron has real implementation"
+    type: command_check
+    command: test $(find src/cron/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: cron
+    severity: warn
+
+  - id: daemon-has-substance
+    belief: "daemon has real implementation"
+    type: command_check
+    command: test $(find src/daemon/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: daemon
+    severity: warn
+
+  - id: docs-has-substance
+    belief: "docs has real implementation"
+    type: command_check
+    command: test $(find src/docs/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: docs
+    severity: warn
+
+  - id: gateway-has-substance
+    belief: "gateway has real implementation"
+    type: command_check
+    command: test $(find src/gateway/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: gateway
+    severity: warn
+
+  - id: i18n-has-substance
+    belief: "i18n has real implementation"
+    type: command_check
+    command: test $(find src/i18n/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: i18n
+    severity: warn
+
+  - id: image-generation-has-substance
+    belief: "image-generation has real implementation"
+    type: command_check
+    command: test $(find src/image-generation/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: image-generation
+    severity: warn
+
+  - id: infra-has-substance
+    belief: "infra has real implementation"
+    type: command_check
+    command: test $(find src/infra/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: infra
+    severity: warn
+
+  - id: interactive-has-substance
+    belief: "interactive has real implementation"
+    type: command_check
+    command: test $(find src/interactive/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: interactive
+    severity: warn
+
+  - id: line-has-substance
+    belief: "line has real implementation"
+    type: command_check
+    command: test $(find src/line/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: line
+    severity: warn
+
+  - id: link-understanding-has-substance
+    belief: "link-understanding has real implementation"
+    type: command_check
+    command: test $(find src/link-understanding/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: link-understanding
+    severity: warn
+
+  - id: logging-has-substance
+    belief: "logging has real implementation"
+    type: command_check
+    command: test $(find src/logging/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: logging
+    severity: warn
+
+  - id: markdown-has-substance
+    belief: "markdown has real implementation"
+    type: command_check
+    command: test $(find src/markdown/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: markdown
+    severity: warn
+
+  - id: media-understanding-has-substance
+    belief: "media-understanding has real implementation"
+    type: command_check
+    command: test $(find src/media-understanding/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: media-understanding
+    severity: warn
+
+  - id: media-has-substance
+    belief: "media has real implementation"
+    type: command_check
+    command: test $(find src/media/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: media
+    severity: warn
+
+  - id: memory-has-substance
+    belief: "memory has real implementation"
+    type: command_check
+    command: test $(find src/memory/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: memory
+    severity: warn
+
+  - id: node-host-has-substance
+    belief: "node-host has real implementation"
+    type: command_check
+    command: test $(find src/node-host/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: node-host
+    severity: warn
+
+  - id: pairing-has-substance
+    belief: "pairing has real implementation"
+    type: command_check
+    command: test $(find src/pairing/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: pairing
+    severity: warn
+
+  - id: plugin-sdk-has-substance
+    belief: "plugin-sdk has real implementation"
+    type: command_check
+    command: test $(find src/plugin-sdk/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: plugin-sdk
+    severity: warn
+
+  - id: plugins-has-substance
+    belief: "plugins has real implementation"
+    type: command_check
+    command: test $(find src/plugins/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: plugins
+    severity: warn
+
+  - id: process-has-substance
+    belief: "process has real implementation"
+    type: command_check
+    command: test $(find src/process/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: process
+    severity: warn
+
+  - id: providers-has-substance
+    belief: "providers has real implementation"
+    type: command_check
+    command: test $(find src/providers/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: providers
+    severity: warn
+
+  - id: routing-has-substance
+    belief: "routing has real implementation"
+    type: command_check
+    command: test $(find src/routing/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: routing
+    severity: warn
+
+  - id: scripts-has-substance
+    belief: "scripts has real implementation"
+    type: command_check
+    command: test $(find src/scripts/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: scripts
+    severity: warn
+
+  - id: secrets-has-substance
+    belief: "secrets has real implementation"
+    type: command_check
+    command: test $(find src/secrets/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: secrets
+    severity: warn
+
+  - id: security-has-substance
+    belief: "security has real implementation"
+    type: command_check
+    command: test $(find src/security/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: security
+    severity: warn
+
+  - id: sessions-has-substance
+    belief: "sessions has real implementation"
+    type: command_check
+    command: test $(find src/sessions/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: sessions
+    severity: warn
+
+  - id: shared-has-substance
+    belief: "shared has real implementation"
+    type: command_check
+    command: test $(find src/shared/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: shared
+    severity: warn
+
+  - id: terminal-has-substance
+    belief: "terminal has real implementation"
+    type: command_check
+    command: test $(find src/terminal/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: terminal
+    severity: warn
+
+  - id: test-helpers-has-substance
+    belief: "test-helpers has real implementation"
+    type: command_check
+    command: test $(find src/test-helpers/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: test-helpers
+    severity: warn
+
+  - id: test-utils-has-substance
+    belief: "test-utils has real implementation"
+    type: command_check
+    command: test $(find src/test-utils/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: test-utils
+    severity: warn
+
+  - id: tts-has-substance
+    belief: "tts has real implementation"
+    type: command_check
+    command: test $(find src/tts/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: tts
+    severity: warn
+
+  - id: tui-has-substance
+    belief: "tui has real implementation"
+    type: command_check
+    command: test $(find src/tui/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: tui
+    severity: warn
+
+  - id: web-search-has-substance
+    belief: "web-search has real implementation"
+    type: command_check
+    command: test $(find src/web-search/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: web-search
+    severity: warn
+
+  - id: whatsapp-has-substance
+    belief: "whatsapp has real implementation"
+    type: command_check
+    command: test $(find src/whatsapp/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: whatsapp
+    severity: warn
+
+  - id: wizard-has-substance
+    belief: "wizard has real implementation"
+    type: command_check
+    command: test $(find src/wizard/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: wizard
+    severity: warn
+
+  - id: clawdbot-has-substance
+    belief: "clawdbot has real implementation"
+    type: command_check
+    command: test $(find packages/clawdbot/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: clawdbot
+    severity: warn
+
+  - id: moltbot-has-substance
+    belief: "moltbot has real implementation"
+    type: command_check
+    command: test $(find packages/moltbot/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: moltbot
+    severity: warn
+
+  - id: android-has-substance
+    belief: "android has real implementation"
+    type: command_check
+    command: test $(find apps/android/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: android
+    severity: warn
+
+  - id: ios-has-substance
+    belief: "ios has real implementation"
+    type: command_check
+    command: test $(find apps/ios/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: ios
+    severity: warn
+
+  - id: macos-has-substance
+    belief: "macos has real implementation"
+    type: command_check
+    command: test $(find apps/macos/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: macos
+    severity: warn
+
+  - id: shared-has-substance
+    belief: "shared has real implementation"
+    type: command_check
+    command: test $(find apps/shared/ -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' -o -name '*.sh' \) 2>/dev/null | wc -l | tr -d ' ') -ge 1
+    feature: shared
+    severity: warn

@@ -1,0 +1,8 @@
+{
+  "description": "OpenClaw — large TypeScript monorepo (20+ messaging channels, 53 features)",
+  "project_type": "node",
+  "score_range": [70, 100],
+  "scoring_mode": "assertions",
+  "health_min": 30,
+  "notes": "No node_modules installed — build gate must not penalize. Large file ratio matters, not absolute count."
+}

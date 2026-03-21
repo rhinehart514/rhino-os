@@ -1,0 +1,3 @@
+[submodule "tests/fixtures/openclaw"]
+	path = tests/fixtures/openclaw
+	url = https://github.com/openclaw/openclaw

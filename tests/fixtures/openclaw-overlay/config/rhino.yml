@@ -1,0 +1,353 @@
+project:
+  stage: mvp
+  mode: build
+
+value:
+  hypothesis: "Users can ask their AI assistant questions across WhatsApp/Telegram/Slack/Discord/Signal/iMessage simultaneously without switching apps, faster than cloud-only alternatives and with full local control"
+  user: "Solo founders, developers, and privacy-conscious professionals who use multiple messaging channels and want one unified AI assistant they control"
+  signals:
+    - name: core_value
+      description: "[What the product delivers]"
+      target: "[How to measure it]"
+      measurable: false
+
+# ── Features ─────────────────────────────────────────
+# Each feature declares what it delivers and for whom.
+# rhino eval reads these and has Claude judge the gap.
+#
+# Maturity computed from eval scores (not manual):
+#   0-29=planned, 30-49=building, 50-69=working, 70-89=polished, 90+=proven
+# weight: 1-5 (importance to value hypothesis)
+# depends_on: [feature_name] (what must work first)
+features:
+  acp:
+    delivers: "[what acp delivers — edit this]"
+    for: "[who uses acp]"
+    code: ["src/acp/"]
+    status: active
+    weight: 1
+  agents:
+    delivers: "Multi-turn conversation AI that can use tools (browser, canvas, media), understand context, and maintain memory across sessions"
+    for: "End users asking questions and getting intelligent responses; the core AI runtime"
+    code: ["src/agents/"]
+    status: active
+    weight: 5
+    depends_on: [shared]
+  auto-reply:
+    delivers: "Automatic message handling for specific patterns (greetings, commands) without invoking the full agent"
+    for: "Users reducing latency for common queries or avoiding unnecessary API costs"
+    code: ["src/auto-reply/"]
+    status: active
+    weight: 3
+  bindings:
+    delivers: "Protocol bindings for Telegram (grammY), Discord (discord.js), Slack (Bolt), Signal (signal-cli), Matrix, IRC, and 15+ others"
+    for: "System maintainers ensuring compatibility across vastly different messaging APIs"
+    code: ["src/bindings/"]
+    status: active
+    weight: 4
+  bootstrap:
+    delivers: "Initial setup automation for config generation, credential storage, and default workspace creation"
+    for: "New users who need structured guidance beyond manual YAML editing"
+    code: ["src/bootstrap/"]
+    status: active
+    weight: 3
+  browser:
+    delivers: "Dedicated Chromium browser controlled by agents for snapshots, navigation, form fill, and web actions"
+    for: "Users asking the agent to check websites, fill forms, or take screenshots"
+    code: ["src/browser/"]
+    status: active
+    weight: 3
+  canvas-host:
+    delivers: "Live visual workspace on macOS/iOS/Android that agents can control with A2UI (push updates, eval, reset)"
+    for: "Users who need visual feedback from the agent (diagrams, dashboards, task tracking)"
+    code: ["src/canvas-host/"]
+    status: active
+    weight: 3
+  channels:
+    delivers: "Connect to 20+ messaging platforms (WhatsApp, Telegram, Slack, Discord, Signal, iMessage, Microsoft Teams, Matrix, Feishu, LINE, Mattermost, Zalo, etc.) as a single unified inbox"
+    for: "Users who communicate across multiple messaging platforms and want one AI assistant instead of juggling 20 different interfaces"
+    code: ["src/channels/"]
+    status: active
+    weight: 5
+    depends_on: [plugin-sdk]
+  cli:
+    delivers: "Command-line interface for gateway control, agent queries, message sending, and onboarding setup"
+    for: "Developers, power users, and system operators managing OpenClaw from terminal"
+    code: ["src/cli/"]
+    status: active
+    weight: 4
+  commands:
+    delivers: "Agent commands for tool invocation (agent --message, canvas eval, browser snapshots)"
+    for: "Developers and power users programmatically invoking agent capabilities"
+    code: ["src/commands/"]
+    status: active
+    weight: 2
+  compat:
+    delivers: "Compatibility layers for different Node versions, runtime environments, and API versions"
+    for: "Maintainers ensuring OpenClaw runs across diverse environments (Node 22+, WSL, Docker)"
+    code: ["src/compat/"]
+    status: active
+    weight: 1
+  context-engine:
+    delivers: "Session context management (message history, user metadata, channel state) injected into agent prompts"
+    for: "Agent needing rich context to make intelligent decisions"
+    code: ["src/context-engine/"]
+    status: active
+    weight: 3
+  cron:
+    delivers: "Scheduled job automation (cron expressions) and webhook triggers for proactive assistant tasks"
+    for: "Users automating daily briefings, reminders, or periodic data collection"
+    code: ["src/cron/"]
+    status: active
+    weight: 2
+  daemon:
+    delivers: "Background service installation (launchd on macOS, systemd on Linux) so OpenClaw stays running without a terminal"
+    for: "Users wanting always-on availability without keeping a terminal window open"
+    code: ["src/daemon/"]
+    status: active
+    weight: 3
+  docs:
+    delivers: "Comprehensive user and developer documentation (getting started, channel guides, API reference)"
+    for: "Users and developers learning how to use and extend OpenClaw"
+    code: ["src/docs/"]
+    status: active
+    weight: 1
+  gateway:
+    delivers: "WebSocket control plane that routes inbound messages from all channels to the AI agent, manages sessions, configuration, and webhooks"
+    for: "System operators running the OpenClaw server; enables all other features to function"
+    code: ["src/gateway/"]
+    status: active
+    weight: 5
+  i18n:
+    delivers: "Internationalization support for docs and UI in multiple languages (Chinese, etc.)"
+    for: "Non-English speaking users accessing docs and onboarding"
+    code: ["src/i18n/"]
+    status: active
+    weight: 1
+  image-generation:
+    delivers: "Model-based image generation capabilities (DALL-E, etc.) invoked by agents"
+    for: "Users asking the agent to generate images or diagrams"
+    code: ["src/image-generation/"]
+    status: active
+    weight: 1
+  infra:
+    delivers: "Infrastructure utilities (error formatting, port management, binary resolution)"
+    for: "Internal system code managing runtime dependencies"
+    code: ["src/infra/"]
+    status: active
+    weight: 1
+  interactive:
+    delivers: "Interactive CLI prompts (yes/no, choices, text input) for dynamic user workflows"
+    for: "Users providing input during agent execution (approve actions, select options)"
+    code: ["src/interactive/"]
+    status: active
+    weight: 2
+  line:
+    delivers: "LINE messaging platform integration"
+    for: "LINE users in Asia accessing OpenClaw"
+    code: ["src/line/"]
+    status: active
+    weight: 1
+  link-understanding:
+    delivers: "Automatic link preview and content extraction so agent can understand URLs without full page load"
+    for: "Users sharing links and expecting the agent to understand the content"
+    code: ["src/link-understanding/"]
+    status: active
+    weight: 1
+  logging:
+    delivers: "Structured logging and observability for gateway events, agent decisions, and channel errors"
+    for: "System operators debugging issues or monitoring production behavior"
+    code: ["src/logging/"]
+    status: active
+    weight: 2
+  markdown:
+    delivers: "Markdown rendering and conversion for formatted agent responses"
+    for: "Users reading code snippets, tables, and formatted responses"
+    code: ["src/markdown/"]
+    status: active
+    weight: 1
+  media-understanding:
+    delivers: "Image and video analysis via Claude Vision or comparable model APIs"
+    for: "Users sending screenshots/videos for the agent to analyze"
+    code: ["src/media-understanding/"]
+    status: active
+    weight: 2
+  media:
+    delivers: "Media pipeline for images, audio, video transcription, size caps, and temp file lifecycle management"
+    for: "Users sending images/audio to the agent and expecting transcription or analysis"
+    code: ["src/media/"]
+    status: active
+    weight: 3
+  memory:
+    delivers: "Session persistence and conversation memory so the agent remembers context across messages and channels"
+    for: "Users who want the agent to recall previous conversations without re-explaining context"
+    code: ["src/memory/"]
+    status: active
+    weight: 4
+  node-host:
+    delivers: "Runtime for iOS/Android nodes exposing system capabilities (camera, screen, notifications, location, SMS)"
+    for: "Agents needing to access device sensors/actions beyond messaging"
+    code: ["src/node-host/"]
+    status: active
+    weight: 3
+  pairing:
+    delivers: "Device pairing flow for mobile apps using Bonjour (local network) and setup codes"
+    for: "Users connecting iOS/Android devices to a local OpenClaw gateway without manual token copying"
+    code: ["src/pairing/"]
+    status: active
+    weight: 2
+  plugin-sdk:
+    delivers: "Public SDK for building extension plugins that add new channels, tools, or capabilities without forking OpenClaw"
+    for: "Developers building integrations (e.g., Zalo, LINE, custom channels) on top of OpenClaw"
+    code: ["src/plugin-sdk/"]
+    status: active
+    weight: 3
+  plugins:
+    delivers: "Plugin system with bundled/managed/workspace skill support, install gating, and UI-driven skill discovery"
+    for: "Users extending OpenClaw with custom capabilities or third-party integrations"
+    code: ["src/plugins/"]
+    status: active
+    weight: 3
+  process:
+    delivers: "Process execution and system.run command for agents to execute local scripts and binaries"
+    for: "Users automating local system tasks via the agent"
+    code: ["src/process/"]
+    status: active
+    weight: 1
+  providers:
+    delivers: "Support for multiple AI model providers (OpenAI, Claude, Gemini, etc.) with automatic failover and model switching"
+    for: "Users with different model subscriptions or cost/performance preferences"
+    code: ["src/providers/"]
+    status: active
+    weight: 4
+  routing:
+    delivers: "Intelligent message routing: mention gating in groups, reply-back to specific channels, per-agent isolation, and retry logic"
+    for: "Users in group chats who want to gate the bot or route responses back to specific channels"
+    code: ["src/routing/"]
+    status: active
+    weight: 4
+  scripts:
+    delivers: "Utility scripts for common tasks (packaging, deployments, migrations)"
+    for: "Maintainers and developers deploying OpenClaw"
+    code: ["src/scripts/"]
+    status: active
+    weight: 1
+  secrets:
+    delivers: "Credential and API key storage with encryption at rest and environment variable injection into agent context"
+    for: "Users securely passing auth tokens and API keys to agents and tools"
+    code: ["src/secrets/"]
+    status: active
+    weight: 3
+  security:
+    delivers: "DM pairing codes, allowlist control, local-first architecture avoiding data uploads, and configurable privacy policies per channel"
+    for: "Privacy-conscious users who don't trust cloud AI services with their messages"
+    code: ["src/security/"]
+    status: active
+    weight: 4
+  sessions:
+    delivers: "Session model isolating conversations in main channel, group chats, and per-agent workspaces with activation/queue modes"
+    for: "Users managing multiple conversations and agents simultaneously without crosstalk"
+    code: ["src/sessions/"]
+    status: active
+    weight: 4
+  shared:
+    delivers: "Shared utility functions and types across the codebase"
+    for: "Internal code organization"
+    code: ["src/shared/"]
+    status: active
+    weight: 1
+  terminal:
+    delivers: "ANSI-safe terminal output with tables, colors, and formatting for readable CLI responses"
+    for: "Terminal users reading structured data in the CLI"
+    code: ["src/terminal/"]
+    status: active
+    weight: 2
+  test-helpers:
+    delivers: "Testing utilities for unit/integration tests"
+    for: "Developers writing tests"
+    code: ["src/test-helpers/"]
+    status: active
+    weight: 1
+  test-utils:
+    delivers: "Testing utilities and fixtures"
+    for: "Test infrastructure"
+    code: ["src/test-utils/"]
+    status: active
+    weight: 1
+  tts:
+    delivers: "Text-to-speech output via ElevenLabs or system TTS fallback for voice responses"
+    for: "Users receiving audio responses from the agent during voice interactions"
+    code: ["src/tts/"]
+    status: active
+    weight: 2
+  tui:
+    delivers: "Terminal UI components (spinners, prompts, progress) for interactive CLI experiences"
+    for: "Users navigating setup wizards and interactive commands"
+    code: ["src/tui/"]
+    status: active
+    weight: 2
+  web-search:
+    delivers: "Real-time web search capability allowing agents to fetch current information beyond their training data"
+    for: "Users asking the agent current events, stock prices, or breaking news"
+    code: ["src/web-search/"]
+    status: active
+    weight: 2
+  whatsapp:
+    delivers: "WhatsApp integration via Baileys protocol; largest messaging platform support"
+    for: "WhatsApp users (2B+ global) accessing OpenClaw as their default chat app"
+    code: ["src/whatsapp/"]
+    status: active
+    weight: 4
+  wizard:
+    delivers: "Interactive onboarding that walks users through gateway setup, channel auth, workspace config, and skill selection"
+    for: "New users who don't want to edit YAML files and need step-by-step guidance"
+    code: ["src/wizard/"]
+    status: active
+    weight: 3
+  clawdbot:
+    delivers: "Optional bot account mode for testing and community deployment"
+    for: "Developers testing on shared infrastructure or community instances"
+    code: ["packages/clawdbot/"]
+    status: active
+    weight: 2
+  moltbot:
+    delivers: "Alternative bot mode (lower priority)"
+    for: "Community/testing deployments"
+    code: ["packages/moltbot/"]
+    status: active
+    weight: 1
+  android:
+    delivers: "Android app with canvas, voice, screen recording, device commands (location, SMS, contacts, calendar), and Bonjour pairing"
+    for: "Android users who want mobile access to OpenClaw's canvas and voice features"
+    code: ["apps/android/"]
+    status: active
+    weight: 3
+  ios:
+    delivers: "iOS app with canvas, voice wake, talk mode, camera, screen recording, and device pairing"
+    for: "iPhone/iPad users wanting mobile voice control and visual interface"
+    code: ["apps/ios/"]
+    status: active
+    weight: 3
+  macos:
+    delivers: "Menu bar app with voice wake words, push-to-talk overlay, live canvas rendering, and local gateway control without terminal"
+    for: "macOS users who want always-on voice control and visual workspace without opening a terminal"
+    code: ["apps/macos/"]
+    status: active
+    weight: 4
+    depends_on: [infra]
+  shared:
+    delivers: "Shared utility functions and types across the codebase"
+    for: "Internal code organization"
+    code: ["apps/shared/"]
+    status: active
+    weight: 1
+
+scoring:
+  cache_ttl: 300
+  health_gate_threshold: 20
+  health_warn_threshold: 40
+  onboarding_cap: 50
+
+evals:
+  generative: true
+  beliefs_fallback: true
