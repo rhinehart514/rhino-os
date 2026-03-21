@@ -13,13 +13,13 @@ Positioning-aware product copy. Names a specific person, states what changes for
 
 This skill is a **folder**. Read these on demand:
 
-- `scripts/slop-check.sh <file>` — mechanical slop word + quality detector (pipe text or pass file)
+- `scripts/slop-check.sh <file>` — mechanical slop detector. **Standalone utility** — run `bash scripts/slop-check.sh <file>` independently to check any text for slop patterns, outside of /copy.
 - `scripts/copy-log.sh` — persistent copy history (add, list, stats). Uses `${CLAUDE_PLUGIN_DATA}`
 - `scripts/copy-diff.sh [type]` — shows copy iteration history
-- `references/voice-guide.md` — how to write in the product's voice, not generic marketing
+- `references/voice-guide.md` — how to write in the product's voice (optional — read when voice alignment matters, Claude has good defaults)
 - `references/slop-words.md` — the banned word list with why each is banned
 - `references/positioning-frameworks.md` — category creation, competitor wedge framing
-- `references/copy-patterns.md` — headline formulas, CTA patterns, voice guidelines
+- `references/copy-patterns.md` — headline formulas, CTA patterns
 - `templates/landing-page.md` — hero + problem + solution + proof + CTA structure
 - `templates/release-announcement.md` — release announcement template (user-facing, not changelog)
 - `templates/pitch-narrative.md` — elevator/tweet/paragraph narrative
@@ -30,26 +30,26 @@ This skill is a **folder**. Read these on demand:
 
 ## Routing
 
-| Input | Mode |
-|-------|------|
-| (none) | Ask what copy is needed via AskUserQuestion |
-| `landing` | Landing page: hero, problem, solution, CTA |
-| `pitch` | Elevator (10s), tweet (280c), paragraph (50w) |
-| `outreach` | Cold email/DM with specific targeting |
-| `release` | Release notes from roadmap data |
-| `onboard` | First-screen + success moment copy |
-| `empty-states` | Copy for every empty state in the product |
-| `[any text]` | Custom copy brief |
+| Input | Mode | Agent? |
+|-------|------|--------|
+| (none) | Ask what copy is needed via AskUserQuestion | — |
+| `landing` | Landing page: hero, problem, solution, CTA | copywriter + market-analyst |
+| `pitch` | Elevator (10s), tweet (280c), paragraph (50w) | copywriter + market-analyst |
+| `outreach` | Cold email/DM with specific targeting | copywriter |
+| `release` | Release notes from roadmap data | no agent — review draft via quality gate |
+| `onboard` | First-screen + success moment copy | no agent — review draft via quality gate |
+| `empty-states` | Copy for every empty state in the product | no agent — review draft via quality gate |
+| `review` | Check existing copy for quality | no agent — quality verdict + specific fixes only |
+| `[any text]` | Custom copy brief | copywriter |
 
 ## How it works
 
-**Read state first** (parallel): `config/rhino.yml` (user, features), `config/product-spec.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`. Then read `gotchas.md`, `references/voice-guide.md`, `references/slop-words.md`. For landing/pitch: also `references/positioning-frameworks.md`.
+**Read state first** (parallel): `config/rhino.yml` (user, features), `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`. Then read `gotchas.md` and `references/slop-words.md`. For landing/pitch: also `references/positioning-frameworks.md` and `references/voice-guide.md`.
 
-**Spawn copywriter agent:**
-```
-Agent(subagent_type: "rhino-os:copywriter", prompt: "[copy brief with all context from state reads]")
-```
-For `landing` and `pitch`, also spawn market-analyst in background for competitive messaging.
+**Agent spawning** — only for modes that need it:
+- `landing`, `pitch`, `outreach`, custom briefs → spawn `rhino-os:copywriter` with full context from state reads. For `landing` and `pitch`, also spawn `rhino-os:market-analyst` in background for competitive messaging.
+- `release`, `onboard`, `empty-states` → write the draft yourself, then run it through the quality gate. These are simpler modes that don't justify agent cost.
+- `review` → no draft generation. Run the quality gate on the founder's existing copy. Output: verdict (pass/fail per check) + specific line-level fixes. Not a full rewrite.
 
 **Quality gate (mandatory)** — before presenting ANY copy:
 1. Names a person? (not "developers" — a specific situation)
@@ -62,91 +62,38 @@ Any failure = rewrite before presenting.
 
 ## System integration
 
-Reads: `config/rhino.yml`, `config/product-spec.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`
+Reads: `config/rhino.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/cache/narrative.yml`, `.claude/design-system.md`
 Writes: `${CLAUDE_PLUGIN_DATA}/copy-log.json`, copy files in project
-Triggers: `/taste` (check copy visually), `/ship release` (use copy in release notes), `/todo` (copy gap tasks)
+Triggers: `/taste` (check copy visually), `/ship release` (use copy in release notes)
 Triggered by: `/onboard` (empty-states), `/ship` (release notes), `/ideate` (positioning), manual
 
 ## Output format
 
-See `reference.md` for mode-specific templates. Every output ends with:
+See `reference.md` for mode-specific templates.
 
-```
-/copy [other mode]   different copy type
-/taste               check if the copy works visually
-/ship release        use this copy in release notes
-```
+For **review mode**: quality verdict per check (pass/fail) + specific fixes. Not a full rewrite.
 
-## Task generation — the path to great copy everywhere
-
-**/copy's job is not just writing. It's generating EVERY task needed to eliminate bad copy across the product.** Slop words, missing copy, positioning gaps, inconsistent voice — all are tasks. Every surface where users read text is /copy's responsibility.
-
-**For EVERY copy gap found, generate a task:**
-
-### Slop tasks (from slop-check.sh)
-- Each file with slop words → task: "File [X] contains slop words ([list]) — rewrite"
-- Each landing page with generic copy → task: "Landing page uses generic copy — rewrite with /copy landing"
-- Each README with slop → task: "README contains [N] slop words — rewrite hero section"
-- Each empty-state with no copy → task: "Empty state at [location] has no guidance — write copy"
-
-### Positioning tasks
-- No positioning statement → task: "No positioning — run /copy pitch to define"
-- Positioning doesn't name a person → task: "Positioning says 'developers' not a person — rewrite with /product user"
-- Positioning doesn't differentiate → task: "Positioning doesn't name alternatives — rewrite with competitor awareness"
-- Positioning claims undelivered features → task: "Copy claims [X] but feature scores [Y] — fix code or fix claim"
-
-### Voice consistency tasks
-- No voice-guide.md → task: "No voice guide — create from existing copy patterns"
-- Different voice across pages → task: "Voice inconsistent between [page A] and [page B] — align"
-- Marketing voice doesn't match product voice → task: "Landing page tone differs from in-app — harmonize"
-
-### Coverage tasks
-- No landing page copy → task: "No landing page — run /copy landing"
-- No README hero section → task: "README missing hero section — run /copy landing for content"
-- No onboarding copy → task: "No first-screen copy — run /copy onboard"
-- No empty-state copy → task: "Empty states have no guidance — run /copy empty-states"
-- No release notes for current version → task: "No release notes — run /copy release"
-- No pitch (elevator/tweet/paragraph) → task: "No pitch copy — run /copy pitch"
-
-### Quality tasks
-- Copy that fails the quality gate → task: "Copy at [location] fails gate: [which check] — rewrite"
-- Copy not grounded in customer language → task: "Copy uses founder language not customer language — rewrite with customer-intel.json"
-- Copy not design-system aligned → task: "Copy doesn't match design system tone — align"
-
-**Write ALL tasks to /todo.** Tag with `source: /copy` and type (slop/positioning/voice/coverage/quality). Priority: slop on user-facing surfaces first.
-
-**There is no cap on task count.** A product with no copy strategy might need 20+ tasks. Generate all of them.
-
-After copy generation, show: "Generated N copy tasks. [M] slop issues, [X] positioning gaps, [Y] coverage gaps."
+For **generation modes**: draft + quality gate results.
 
 ## Self-evaluation
 
 The skill worked if:
 - Copy names a specific person (not "developers" or "teams")
 - Copy states a tangible outcome (not "improve your workflow")
-- Copy differentiates from a named alternative
 - `slop-check.sh` returned 0 slop words
-- Tasks were generated for every copy gap found
-
-## Agent cost note
-
-`/copy` spawns a **copywriter** agent (opus). For `landing` and `pitch` modes, it also spawns **market-analyst** (opus, background) for competitive messaging. Two opus agents = significant token cost. For quick internal copy (empty-states, onboard), consider skipping the market-analyst.
-
-## Quality gate latency
-
-The mandatory quality gate (Step 4) pipes generated copy through `slop-check.sh` and rewrites on failure. This adds a round-trip per copy block. For batch modes (empty-states), expect multiple rewrites. The gate is non-negotiable -- slop copy is worse than slow copy.
+- Review mode: specific fixes were provided, not a full rewrite
 
 ## What you never do
 
-- Write copy without reading market context — unpositioned copy is generic copy
 - Use slop words — the ban list is absolute (see `references/slop-words.md`)
 - Claim features that score <50 — only claim what's delivered
 - Skip the quality gate — every piece of copy gets checked
 - Generate copy for a product with no user defined — flag and help define
+- Spawn agents for simple modes (release, onboard, empty-states) — write the draft yourself
 
 ## If something breaks
 
-- No value.user in rhino.yml: "Who is this for? Run `/product user` first."
+- No value.user in rhino.yml: "Who is this for? Define the user before writing copy."
 - No market-context.json: degrade to un-positioned copy, flag it
 - No customer-intel.json: use founder language from rhino.yml
 - No design-system.md: use neutral tone, suggest creating one

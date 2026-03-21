@@ -156,53 +156,9 @@ predictions during v7.0: 4 total, 3 correct (75%)
 - Forward thought: one sentence at the bottom — a question, not a recommendation
 - Bottom: exactly 3 next commands
 
-## The Version Completion Cycle
+## Version completion and lifecycle
 
-Product completion % is **per-version**, not global. Each version defines what done looks like.
-
-```
-v8.0 starts → completion: 15%
-  work happens, features mature, evidence collected
-v8.0 proven → completion hit ~80%, /roadmap bump
-  ─────────────────────────────────────────────
-v9.0 starts → completion: 10% (new thesis, new requirements)
-  new features planned, new evidence needed
-  climb again
-```
-
-**How to compute version completion** (for the current version):
-
-1. **Evidence completion** (50% weight): proven evidence items / total evidence items
-2. **Feature readiness** (30% weight): for features relevant to this version's thesis, compute weighted maturity average. Identify relevant features by checking which features' `delivers:` text relates to the thesis question, or by explicit `version:` tags.
-3. **Todo clearance** (20% weight): todos tagged to this version done / total tagged
-
-When version completion crosses 80%, rhino should surface: "v[X] is nearing proven. `/roadmap bump` when ready."
-
-When `/roadmap bump` confirms:
-- Current version → `proven`
-- Completion for next version recalculates (drops because new thesis)
-- Todos not tagged to the new version carry forward
-- Features retain their maturity (they don't reset — the product keeps growing)
-- But the QUESTION changes, so what matters changes
-- Proven thesis → Known Pattern in experiment-learnings.md
-- Disproven evidence → Dead End in experiment-learnings.md
-
-**The /rhino dashboard shows both:**
-- Product completion % (cumulative — all features, all time)
-- Version completion % (current thesis — what's this version asking, how close are we to answering it)
-
-## How versions relate to other state
-
-- **roadmap.yml** = theses being tested (months-level thinking)
-- **strategy.yml** = current bottleneck (weeks-level thinking)
-- **plan.yml** = current session tasks (hours-level thinking)
-- **todos.yml** = backlog items, taggable to versions (cross-session)
-- **experiment-learnings.md** = the causal model (permanent)
-- **narrative.yml** = external story derived from proven theses
-- **changelog.md** = user-facing version history
-- **positioning.yml** = competitive positioning derived from evidence
-
-Proven theses feed into experiment-learnings.md as Known Patterns. Disproven theses become Dead Ends.
+See `references/version-lifecycle.md` for the full version completion formulas (full mode vs standalone), three-tier lifecycle, and state relationships.
 
 ---
 
@@ -336,15 +292,4 @@ When generating external copy:
 - **Honest gaps are OK.** "We haven't proven X yet" is better copy than pretending X is true. Founders respect honesty.
 - **The founder edits.** Always present via AskUserQuestion. The narrative is a draft, not a deliverable.
 
-## How versions relate to other state
-
-- **roadmap.yml** = theses being tested (months-level thinking)
-- **strategy.yml** = current bottleneck (weeks-level thinking)
-- **plan.yml** = current session tasks (hours-level thinking)
-- **todos.yml** = backlog items, taggable to versions (cross-session)
-- **experiment-learnings.md** = the causal model (permanent)
-- **narrative.yml** = external story derived from proven theses
-- **changelog.md** = user-facing version history
-- **positioning.yml** = competitive positioning derived from evidence
-
-Proven theses feed into experiment-learnings.md as Known Patterns. Disproven theses become Dead Ends. Proven theses also feed into narrative.yml as defensible marketing claims.
+For version-to-state relationships, see `references/version-lifecycle.md`.

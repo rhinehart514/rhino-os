@@ -13,23 +13,31 @@ Two jobs. One command.
 
 **External**: Every proven thesis is a story worth telling. The roadmap is the source of truth for marketing copy, changelogs, positioning, and the "why now" narrative.
 
+## Standalone check
+
+Two modes based on project state:
+
+- **Full mode** (default when `config/rhino.yml` + `.claude/cache/eval-cache.json` exist): version completion uses evidence (50%) + feature readiness from eval scores (30%) + todo clearance (20%).
+- **Standalone mode** (no rhino.yml or no eval-cache): version completion = proven evidence items / total evidence items. No eval-cache dependency. Evidence items are manually marked proven/todo.
+
 ## Skill folder structure
 
 This skill is a **folder**, not just this file. Read these on demand:
 
 - `scripts/version-history.sh` — all past versions with thesis/status — **real utility for version archaeology** (`/roadmap v7.0`)
 - `references/version-guide.md` — major/minor/patch rules, when to bump, thesis design
+- `references/version-lifecycle.md` — detailed version completion cycle, three-tier lifecycle, state relationships
 - `references/changelog-guide.md` — how to write good changelogs, what to include
 - `templates/roadmap-template.yml` — template for a version entry
 - `templates/changelog-template.md` — changelog format
-- `reference.md` — output formatting templates and version completion cycle
+- `reference.md` — output formatting templates and narrative anti-slop rules
 - `gotchas.md` — real failure modes. **Read before generating output.**
 
 Scripts `scripts/version-progress.sh` and `scripts/evidence-tracker.sh` exist for verification — run to cross-check your analysis.
 
 ## Mode awareness
 
-Read `project.mode` from `config/rhino.yml`:
+Read `project.mode` from `config/rhino.yml` (when available):
 - **build mode** (default): no shipping pressure. The roadmap is a lab notebook, not a release schedule.
 - **ship mode**: full pipeline. Shipping language, deadlines, deploy verification.
 
@@ -37,16 +45,13 @@ Read `project.mode` from `config/rhino.yml`:
 
 Every route reads these first:
 1. `.claude/plans/roadmap.yml` — theses, evidence, version history
-2. `config/rhino.yml` — features (weight/depends_on), mode, value hypothesis
-3. `config/product-spec.yml` — theses should test spec claims. Evidence items should prove spec assumptions.
-4. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions mentioning the thesis
-5. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known/uncertain/unknown/dead patterns
-6. `git log --oneline -20` — recent work
-7. `.claude/plans/strategy.yml` — bottleneck, stage
-8. `.claude/cache/eval-cache.json` — per-feature sub-scores
-9. `.claude/cache/narrative.yml` — current external narrative (if exists)
+2. `config/rhino.yml` — features, mode, value hypothesis (optional — standalone works without)
+3. `.claude/knowledge/predictions.tsv` (fall back to `~/.claude/knowledge/`) — predictions mentioning the thesis
+4. `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — known/uncertain/unknown/dead patterns
+5. `git log --oneline -20` — recent work
+6. `.claude/cache/eval-cache.json` — per-feature sub-scores (optional — standalone uses evidence-only completion)
 
-For the full state source list, see [STATE_MANIFEST.md](../STATE_MANIFEST.md).
+Additional state when available: `config/product-spec.yml`, `.claude/plans/strategy.yml`, `.claude/cache/narrative.yml`.
 
 ## The Reflection (always comes first)
 
@@ -69,7 +74,7 @@ Parse `$ARGUMENTS`:
 Run `scripts/version-progress.sh` and `scripts/version-history.sh`. Write reflection, show version list, one forward-looking thought.
 
 ### `next` → diagnose what's most provable
-Run `scripts/evidence-tracker.sh`. For each evidence item, map to features, score provability (`ready`/`close`/`blocked`/`unknown`). Recommend the first experiment.
+Run `scripts/evidence-tracker.sh`. For each evidence item, map to features (when available), score provability (`ready`/`close`/`blocked`/`unknown`). Recommend the first experiment.
 
 ### `ideate` → brainstorm future theses
 Check 4 sources: proven evidence patterns, dead ends, unknown territory, gap between proven and aspirational. Generate 3-4 candidate theses with question, why now, evidence items, and disproven value. Present with AskUserQuestion. **Note:** This is thesis-level brainstorming (where the project goes next). For deep feature-level ideation, use `/ideate` or `/ideate [feature]` instead.
@@ -102,45 +107,8 @@ Run on every invocation:
 - **Stall**: no evidence movement in >14 days → diagnose why
 - **Disproven**: check `if_disproven:` field, write to experiment-learnings.md as Dead End
 
-When showing full roadmap, detect: recurring hard evidence, acceleration/deceleration, thesis evolution arc. For output templates, version completion, narrative anti-slop rules, see [reference.md](reference.md).
-
-## Task generation — the path to thesis completion
-
-**/roadmap's job is not just tracking theses. It's generating EVERY task needed to prove or disprove the current thesis.** Evidence items that haven't moved are tasks. Stalled theses are tasks. Every gap between "what we need to prove" and "what we've proven" is a task.
-
-**For EVERY evidence gap found, generate the complete task list:**
-
-### Evidence tasks (from evidence-tracker.sh)
-- Each evidence item marked `todo` → task: "Evidence '[X]' unproven — design experiment to test"
-- Each evidence item marked `partial` → task: "Evidence '[X]' partially proven — complete the proof"
-- Each evidence item unchanged >14d → task: "Evidence '[X]' hasn't moved in [N]d — prove, disprove, or abandon"
-- Each evidence item with no related feature → task: "Evidence '[X]' has no feature supporting it — create feature or rethink evidence"
-
-### Thesis health tasks
-- Thesis stalled (no evidence movement >14d) → task: "Thesis stalled for [N]d — run /research to unblock or /roadmap ideate to pivot"
-- >50% thesis predictions wrong → task: "Thesis contradicted by evidence — run /strategy honest to reassess"
-- Thesis evidence items >5 → task: "Thesis too broad ([N] items) — narrow to 3-4 most critical"
-- Disproven evidence → task: "Evidence '[X]' disproved — update if_disproven action, write to dead ends"
-
-### Version completion tasks
-- Version completion <30% after 14d → task: "Version [X] barely started — is the thesis right?"
-- Version completion >80% → task: "Version [X] nearly complete — prepare bump via /roadmap bump"
-- Features tagged to version but not scored → task: "Feature [X] tagged to [version] but never evaluated — run /eval"
-
-### Narrative tasks
-- narrative.yml stale >14d → task: "External narrative hasn't been updated — run /roadmap narrative"
-- Proven evidence not reflected in narrative → task: "Evidence '[X]' proven but not in narrative — update via /roadmap narrative"
-- Changelog not updated for recent version → task: "No changelog for [version] — run /roadmap changelog"
-
-### Cross-version tasks
-- Recurring hard evidence across versions → task: "Pattern '[X]' recurs across versions — promote to Known Pattern"
-- Previous version's unproven evidence still relevant → task: "Evidence '[X]' from [old version] still unproven — carry forward or kill"
-
-**Write ALL tasks to /todo.** Tag with `source: /roadmap`, version, and evidence item. Priority: evidence items on the current thesis first, then stalled items.
-
-**There is no cap on task count.** A thesis with 5 evidence items might generate 10+ tasks. Generate all of them.
-
-After writing tasks, show: "Generated N tasks for version [X]. [M] evidence items need attention. Thesis completion: [%]."
+For version completion formulas and the full lifecycle: `references/version-lifecycle.md`
+For output templates and narrative anti-slop rules: `reference.md`
 
 ## Agent usage — `rhino-os:explorer` for thesis research when evidence sources are insufficient.
 
@@ -149,7 +117,6 @@ After writing tasks, show: "Generated N tasks for version [X]. [M] evidence item
 /roadmap succeeded if:
 - roadmap.yml was read and updated (or created if missing)
 - The reflection cites specific data (git log, evidence status, prediction accuracy), not vibes
-- Every evidence gap found has a corresponding task in /todo
 - The founder has a clear answer to "what should we prove next?"
 
 ## What you never do
@@ -163,5 +130,7 @@ After writing tasks, show: "Generated N tasks for version [X]. [M] evidence item
 
 ## If something breaks
 - No roadmap.yml → create from git log. Missing ID → list available. Missing predictions → skip, note it.
+- No rhino.yml → standalone mode (evidence-only completion)
+- No eval-cache → standalone completion formula (proven/total evidence)
 
 $ARGUMENTS
