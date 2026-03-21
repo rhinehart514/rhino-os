@@ -30,7 +30,7 @@ process_belief() {
                 # Expand ~ to $HOME, resolve relative paths against project root
                 local expanded_path="${belief_path/#\~/$HOME}"
                 if [[ "$expanded_path" != /* ]]; then
-                    expanded_path="${PROJECT_ROOT}/${expanded_path}"
+                    expanded_path="./${expanded_path}"
                 fi
                 if [[ "$belief_exists" == "false" ]]; then
                     # File should NOT exist
@@ -183,7 +183,7 @@ process_belief() {
                     local expanded_path="${belief_path/#\~/$HOME}"
                     # Resolve relative paths against project root
                     if [[ "$expanded_path" != /* ]]; then
-                        expanded_path="${PROJECT_ROOT}/${expanded_path}"
+                        expanded_path="./${expanded_path}"
                     fi
                     if [[ -f "$expanded_path" ]]; then
                         judge_context=$(head -500 "$expanded_path" 2>/dev/null)
@@ -284,7 +284,7 @@ ${judge_context}"
                 local expanded_path="${belief_path/#\~/$HOME}"
                 # Resolve relative paths against project root
                 if [[ "$expanded_path" != /* ]]; then
-                    expanded_path="${PROJECT_ROOT}/${expanded_path}"
+                    expanded_path="./${expanded_path}"
                 fi
                 if [[ -f "$expanded_path" ]]; then
                     review_context=$(head -500 "$expanded_path" 2>/dev/null)

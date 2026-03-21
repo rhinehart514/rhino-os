@@ -50,6 +50,17 @@ for arg in "$@"; do
     prev_arg="$arg"
 done
 
+# Resolve RHINO_DIR before cd (BASH_SOURCE is relative, breaks after cd)
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+    RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
+else
+    _EVAL_SOURCE="${BASH_SOURCE[0]}"
+    while [[ -L "$_EVAL_SOURCE" ]]; do
+        _EVAL_SOURCE="$(readlink "$_EVAL_SOURCE")"
+    done
+    RHINO_DIR="$(cd "$(dirname "$_EVAL_SOURCE")/.." && pwd)"
+fi
+
 PROJECT_ROOT="${POSITIONAL:-.}"
 cd "$PROJECT_ROOT"
 
@@ -225,16 +236,7 @@ fi
 
 fi  # end SCORE_MODE != true (default checks)
 
-# Resolve RHINO_DIR early — needed by infrastructure checks and eval tools
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
-    RHINO_DIR="$CLAUDE_PLUGIN_ROOT"
-else
-    _EVAL_SOURCE="${BASH_SOURCE[0]}"
-    while [[ -L "$_EVAL_SOURCE" ]]; do
-        _EVAL_SOURCE="$(readlink "$_EVAL_SOURCE")"
-    done
-    RHINO_DIR="$(cd "$(dirname "$_EVAL_SOURCE")/.." && pwd)"
-fi
+# RHINO_DIR already resolved before cd (see top of file)
 
 source "$RHINO_DIR/bin/lib/config.sh"
 

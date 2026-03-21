@@ -32,7 +32,7 @@ check_bench() {
 check_command() {
     if [[ -n "$belief_command" ]]; then
         local cmd_output
-        cmd_output=$(cd "$PROJECT_ROOT" && eval "$belief_command" 2>&1) && \
+        cmd_output=$(eval "$belief_command" 2>&1) && \
             check_pass "$belief_id" "$cmd_output" || \
             check_fail "$belief_id" "${cmd_output:-command failed}" "warn" 3
     else
