@@ -40,7 +40,7 @@ value:
       target: "Qualitative — ask"
       measurable: false
 
-# ── Scoring (score.sh) — Value, not health ────────
+# ── Scoring — Value, not health ────────────────────
 scoring:
   cache_ttl: 300
   health_gate_threshold: 20    # health < this → score = 0
@@ -79,7 +79,7 @@ go:
 
 # ── Features ─────────────────────────────────────────
 # Each feature declares what it delivers and for whom.
-# `rhino eval .` reads these and scores delivery/craft/viability.
+# /eval reads these and scores delivery/craft/viability.
 #
 # Maturity is computed from eval scores (not manually set):
 #   0-29  = planned    — does not exist or fundamentally broken
@@ -95,15 +95,17 @@ features:
   scoring:
     delivers: "honest number that tells a founder if their product improved"
     for: "solo founder who just made changes"
-    code: ["bin/score.sh", "bin/eval.sh", "bin/lib/config.sh", "skills/shared/product-topology.sh", "skills/shared/claim-verify.sh", "skills/score/scripts/synthesize.sh"]
-    commands: ["rhino score .", "rhino eval ."]
+    skills: ["/score", "/eval"]
+    code: ["skills/score/SKILL.md", "skills/eval/SKILL.md", "bin/score.sh", "bin/eval.sh", "bin/lib/config.sh", "skills/shared/product-topology.sh", "skills/shared/claim-verify.sh", "skills/score/scripts/synthesize.sh"]
+    internal: ["rhino score .", "rhino eval ."]
     status: active
     weight: 5
   learning:
     delivers: "a model that gets smarter every session — predictions, grading, knowledge updates, session trail"
     for: "the system itself — compounds over time"
-    code: ["hooks/session_start.sh", "bin/self.sh", "bin/grade.sh", "bin/trail.sh", "~/.claude/knowledge/predictions.tsv"]
-    commands: ["rhino trail"]
+    skills: ["/retro"]
+    code: ["skills/retro/SKILL.md", "hooks/session_start.sh", "bin/self.sh", "bin/grade.sh", "bin/trail.sh", "~/.claude/knowledge/predictions.tsv"]
+    internal: ["rhino trail"]
     status: active
     weight: 4
     depends_on: [scoring]
@@ -120,28 +122,32 @@ features:
   commands:
     delivers: "skills that route founder intent to the right action"
     for: "solo founder working in Claude Code"
-    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md", "skills/product/scripts/coherence-check.sh", "skills/eval/scripts/journey-weight.sh", "skills/taste/scripts/cli-taste.sh"]
-    commands: ["rhino help"]
+    skills: ["/plan", "/go", "/taste", "/feature", "/rhino", "/research", "/ideate", "/product", "/strategy", "/roadmap", "/ship"]
+    code: ["skills/plan/SKILL.md", "skills/go/SKILL.md", "skills/eval/SKILL.md", "skills/taste/SKILL.md", "skills/feature/SKILL.md", "skills/rhino/SKILL.md", "skills/research/SKILL.md", "skills/ideate/SKILL.md", "skills/product/SKILL.md", "skills/strategy/SKILL.md", "skills/roadmap/SKILL.md", "skills/ship/SKILL.md", "skills/product/scripts/coherence-check.sh", "skills/eval/scripts/journey-weight.sh", "skills/taste/scripts/cli-taste.sh"]
+    internal: ["rhino help"]
     status: active
     weight: 5
   install:
     delivers: "one-command setup — clone, run install.sh, everything works"
     for: "new user trying rhino-os for the first time"
-    code: ["install.sh", "README.md"]
-    commands: ["rhino init"]
+    skills: ["/onboard"]
+    code: ["skills/onboard/SKILL.md", "install.sh", "README.md"]
+    internal: ["rhino init"]
     status: active
     weight: 3
   todo:
     delivers: "persistent backlog that survives across sessions — capture, tag, prioritize, promote"
     for: "solo founder managing ideas across sessions"
-    code: ["bin/todo.sh", "skills/todo/SKILL.md"]
-    commands: ["rhino todo"]
+    skills: ["/todo"]
+    code: ["skills/todo/SKILL.md", "bin/todo.sh"]
+    internal: ["rhino todo"]
     status: active
     weight: 2
   docs:
     delivers: "clear explanation of what rhino-os is and how to use it"
     for: "someone who has never heard of rhino-os"
-    code: ["README.md"]
+    skills: ["/onboard", "/rhino"]
+    code: ["README.md", "skills/onboard/SKILL.md", "skills/rhino/SKILL.md"]
     status: active
     weight: 3
   # ── v9 Skills (killed 2026-03-16) ─────────────────

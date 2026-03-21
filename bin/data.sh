@@ -57,14 +57,14 @@ print_scores() {
     local history_file=".claude/scores/history.tsv"
 
     if [[ ! -f "$history_file" ]]; then
-        echo -e "  ${DIM}No score history yet. Run: rhino score .${NC}"
+        echo -e "  ${DIM}No score history yet. Run /score${NC}"
         return
     fi
 
     local total_runs=$(( $(wc -l < "$history_file" | tr -d ' ') - 1 ))
 
     if [[ "$total_runs" -lt 1 ]]; then
-        echo -e "  ${DIM}No score history yet. Run: rhino score .${NC}"
+        echo -e "  ${DIM}No score history yet. Run /score${NC}"
         return
     fi
 

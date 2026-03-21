@@ -39,13 +39,13 @@ with open(rhino_yml) as f:
             m = re.match(r'^  ([a-zA-Z0-9_-]+):\s*$', s)
             if m:
                 current = m.group(1)
-                features[current] = {"delivers": "", "commands": [], "code": [], "status": "active"}
+                features[current] = {"delivers": "", "commands": [], "code": [], "skills": [], "internal": [], "status": "active"}
                 continue
             if current:
                 fm = re.match(r'^    ([a-zA-Z_-]+):\s*(.+)$', s)
                 if fm:
                     k, v = fm.group(1), fm.group(2).strip().strip('"').strip("'")
-                    if k in ("code", "commands"):
+                    if k in ("code", "commands", "skills", "internal"):
                         v = [x.strip().strip('"').strip("'") for x in v.strip('[]').split(',') if x.strip()]
                     features[current][k] = v
 
@@ -58,7 +58,7 @@ results = {}
 
 for fname, feat in active.items():
     claim = feat.get("delivers", "")
-    commands = feat.get("commands", [])
+    commands = feat.get("commands", []) + feat.get("internal", []) + feat.get("skills", [])
     code_paths = feat.get("code", [])
 
     verification = {

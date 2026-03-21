@@ -44,3 +44,9 @@ Triggered by: session end detection (user says goodbye/done/wrapping up), stop h
 - **Show delta, not absolute.** "+5" is more useful than "85" — they want to know if the session mattered.
 - **If no score data exists**, just summarize commits and what was built.
 - **Name what improved.** Not "score went up" but "auth flow fixed, 2 dead ends removed."
+
+## If something breaks
+
+- No session file in `.claude/sessions/` → skip "before" state, just show current snapshot and commits.
+- score-cache.json missing → fall back to git log summary only.
+- predictions.tsv missing → omit prediction count, don't error.

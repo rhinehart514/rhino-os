@@ -17,15 +17,15 @@ Two jobs. One command.
 
 This skill is a **folder**, not just this file. Read these on demand:
 
-- `scripts/version-progress.sh` — current version thesis, evidence status, completion %
-- `scripts/version-history.sh` — all past versions with thesis/status — the project timeline
-- `scripts/evidence-tracker.sh` — for each evidence item in current version, checks proven/disproven/open
+- `scripts/version-history.sh` — all past versions with thesis/status — **real utility for version archaeology** (`/roadmap v7.0`)
 - `references/version-guide.md` — major/minor/patch rules, when to bump, thesis design
 - `references/changelog-guide.md` — how to write good changelogs, what to include
 - `templates/roadmap-template.yml` — template for a version entry
 - `templates/changelog-template.md` — changelog format
 - `reference.md` — output formatting templates and version completion cycle
 - `gotchas.md` — real failure modes. **Read before generating output.**
+
+Scripts `scripts/version-progress.sh` and `scripts/evidence-tracker.sh` exist for verification — run to cross-check your analysis.
 
 ## Mode awareness
 

@@ -113,6 +113,7 @@ For each feature with status: active:
 
 - Merge into `.claude/cache/eval-cache.json` — preserve unscored features, don't overwrite
 - Include `journey_position` field per feature
+- Include `recommendations` field per feature — tier based on score, all lower tiers included
 - Write/update rubrics per feature — see `references/rubric-guide.md`
 
 ### Outside-in pass
@@ -144,9 +145,98 @@ See `../shared/task-generation.md` for the protocol. For EVERY feature scored, g
 
 Tag with `source: /eval`, feature name, and dimension. Priority: highest-weight features first.
 
+## Maturity-gated recommendations
+
+As a feature matures, the evaluation question evolves. Low scores need gap analysis. High scores need vision. Each tier ADDS a new type of recommendation on top of all previous tiers — score 80 still shows gaps AND craft AND micro-features AND micro-systems.
+
+### Tier 1: Gaps (all scores)
+
+What's broken or missing. The standard eval output — delivery gaps, missing functionality, blockers, assertion failures. Always included regardless of score.
+
+### Tier 2: Craft prescriptions (score 40+)
+
+Specific improvements to existing code. Not "needs better error handling" but "function X handles the happy path but not [edge case Y]." "Output format buries the key information under N lines of noise." Concrete, implementable, scoped to code that already exists.
+
+### Tier 3: Micro-features (score 65+)
+
+Small, focused additions that improve an existing feature without changing its scope. These are 1-2 hour implementations, not new features. They emerge from understanding what the feature ALMOST does but doesn't quite.
+
+Examples of what micro-features look like:
+- "Add a `--compare` flag that shows before/after for the last N changes"
+- "Track dimension trends over time, not just current score"
+- "Auto-detect when a dependent cache is stale and suggest the refresh command"
+
+**Cross-reference /ideate**: At tier 3+, eval recommendations overlap with ideation. Mention that `/ideate [feature]` can explore promising micro-features in depth — eval identifies them, ideate pressure-tests them.
+
+### Tier 4: Micro-systems (score 80+)
+
+Interconnected capabilities that emerge from combining existing features. Not improvements to one feature — connections BETWEEN features that create system-level intelligence.
+
+Examples:
+- "If /plan reads taste history alongside eval cache, it can detect visual regression while code improves"
+- "Prediction accuracy by domain could feed into strategic focus — wrong predictions about craft suggest taste calibration is off"
+- "Score trajectory could auto-suggest version bumps when thesis evidence accumulates"
+
+These recommendations require reading multiple features' code and state to identify. The evaluator should look at what data this feature produces that other features could consume, and vice versa.
+
+### Tier 5: Product theory (score 90+)
+
+What could the feature BECOME? Not incremental improvements but conceptual evolution. The question shifts from "how do we improve this?" to "what new capability does this unlock?"
+
+Examples:
+- "Scoring currently answers 'is this good?' — at this level it could answer 'what would make this great?' by generating rubrics of what 100 looks like for any project"
+- "The learning feature could become a teaching feature — not just tracking what works but explaining WHY patterns work to new users of the system"
+- "Eval currently measures code against claims — it could measure claims against market, becoming the product strategy sensor"
+
+### Recommendation output format
+
+Include a `recommendations` field in eval-cache.json per feature, alongside existing fields:
+
+```json
+{
+  "feature_name": {
+    "delivery_score": 72,
+    "craft_score": 68,
+    "score": 70,
+    "recommendations": {
+      "tier": "micro-features",
+      "items": [
+        {
+          "type": "gap",
+          "idea": "Error path for missing config file produces stack trace instead of guidance",
+          "rationale": "Users hitting this in first run. Blocks value delivery.",
+          "effort": "small",
+          "connects_to": ["onboarding"]
+        },
+        {
+          "type": "craft-prescription",
+          "idea": "Score output buries the feature name 4 lines deep — lead with it",
+          "rationale": "When scanning multiple features, users need the name first.",
+          "effort": "small",
+          "connects_to": []
+        },
+        {
+          "type": "micro-feature",
+          "idea": "Track score dimension trends over time, show sparkline per dimension",
+          "rationale": "Currently only overall score has history. Per-dimension trends reveal which improvements actually moved which numbers.",
+          "effort": "medium",
+          "connects_to": ["scoring", "learning"]
+        }
+      ]
+    }
+  }
+}
+```
+
+**Tier determination**: Use the feature's overall score to select the highest active tier. All lower tiers are always included. The `tier` field reflects the highest recommendation type generated, not the only type.
+
+**Effort sizing**: `small` = under 30 minutes, `medium` = 1-2 hours, `large` = half day or more. This helps /plan and /go prioritize.
+
+**`connects_to`**: Other features this recommendation touches. Empty for self-contained items. This field is what makes tier 4 (micro-systems) recommendations discoverable — they always connect to 2+ features.
+
 ## Self-evaluation
 
-This skill worked if: (1) eval-cache.json was updated with scores for all active features, (2) every score has file:line evidence, (3) variance-check.sh passed for each score, and (4) tasks were generated for every gap found.
+This skill worked if: (1) eval-cache.json was updated with scores for all active features, (2) every score has file:line evidence, (3) variance-check.sh passed for each score, (4) tasks were generated for every gap found, and (5) recommendations were generated at the appropriate maturity tier for each feature's score.
 
 ## Agents: **rhino-os:evaluator** (parallel per feature), **rhino-os:measurer** (cheap mechanical)
 

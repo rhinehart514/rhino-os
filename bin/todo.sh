@@ -273,7 +273,7 @@ decay_summary() {
     done <<< "$(item_ids)"
 
     if [[ "$stale_count" -gt 0 ]]; then
-        echo -e "  ${YELLOW}⚠${NC} ${stale_count} stale item(s) — run ${DIM}rhino todo decay${NC} for details"
+        echo -e "  ${YELLOW}⚠${NC} ${stale_count} stale item(s) — run ${DIM}/todo decay${NC} for details"
         echo ""
     fi
 }

@@ -38,3 +38,9 @@ Triggered by: post_edit hook (auto, after 3+ files changed), post_commit hook
 - **Terse when bad.** One line for minor drops. Two lines max for major drops.
 - **Never run if score cache is fresh** (<5 min). This prevents over-triggering.
 - **Never run during /go loops** — /go has its own measurement cycle.
+
+## If something breaks
+
+- score.sh fails or times out → skip silently. Never block the user's work for a background check.
+- score-cache.json is missing or corrupted → skip silently. First /score run will recreate it.
+- Assertion count changes between runs (beliefs.yml was edited) → compare pass rates, not absolute counts.

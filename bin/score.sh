@@ -581,7 +581,7 @@ score_assertions() {
     _sa_err=$(mktemp /tmp/rhino-sa-err.XXXXXX)
     eval_score=$("$SCRIPT_DIR/eval.sh" . --score 2>"$_sa_err") || eval_score=""
     if [[ -z "$eval_score" && -s "$_sa_err" ]]; then
-        echo "score: assertion eval failed — $(head -1 "$_sa_err"). Run 'rhino eval .' to debug." >&2
+        echo "score: assertion eval failed — $(head -1 "$_sa_err"). Run /eval to debug." >&2
     fi
     rm -f "$_sa_err"
     if [[ -n "$eval_score" && "$eval_score" =~ ^[0-9]+$ ]]; then
@@ -664,7 +664,7 @@ if [[ "$ASSERTION_COUNT" -gt 0 ]]; then
         elif grep -q "permission" "$_eval_err" 2>/dev/null; then
             echo "score: eval failed — permission error. Run: chmod +x bin/eval.sh" >&2
         else
-            echo "score: eval failed — ${_err_lines}Run 'rhino eval .' for full output." >&2
+            echo "score: eval failed — ${_err_lines}Run /eval for full output." >&2
         fi
     fi
     rm -f "$_eval_err"
@@ -1234,7 +1234,7 @@ EOF
             fi
             echo -e "  Taste      ${color}${bar}\033[0m  ${TASTE_SCORE}/100  \033[2mUX, flows, delight (visual eval)\033[0m${stale_note}"
         else
-            echo -e "  Taste      \033[2m░░░░░░░░░░░░░░░░░░░░\033[0m   —     \033[2mrun: rhino taste\033[0m"
+            echo -e "  Taste      \033[2m░░░░░░░░░░░░░░░░░░░░\033[0m   —     \033[2mrun: /taste\033[0m"
         fi
 
         echo ""

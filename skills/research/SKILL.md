@@ -13,10 +13,9 @@ A cofounder filling gaps in the knowledge model so the next build session is sma
 
 This skill is a **folder**, not just this file. Read these on demand:
 
-- `scripts/knowledge-gaps.sh` — scans experiment-learnings.md, counts unknowns, ranks by bottleneck relevance
 - `scripts/research-log.sh` — persistent research history (add, stats, repeats, topic search). Uses `${CLAUDE_PLUGIN_DATA}`.
-- `scripts/source-quality.sh` — rates sources by reliability tier (T1-T5). Run `tiers` for the hierarchy.
-- `scripts/market-scan.sh` — structured competitor/market data. Outputs JSON for market-context.json.
+- `scripts/source-quality.sh` — rates sources by reliability tier (T1-T5). **Real utility — run to rate evidence quality.**
+- `scripts/market-scan.sh` — structured competitor/market data via WebSearch. **Real utility — run for market/competitor routes.**
 - `references/research-methods.md` — when to use WebSearch vs context7 vs Playwright vs codebase. Signal vs noise.
 - `references/evidence-hierarchy.md` — ranking evidence types (user behavior > statements > market > desk research > intuition)
 - `templates/research-brief.md` — template for research output (findings, confidence, unknowns resolved)
@@ -30,7 +29,7 @@ Parse `$ARGUMENTS`:
 
 | Input | Mode | Primary tools |
 |-------|------|---------------|
-| (none) | Top unknown | Run `scripts/knowledge-gaps.sh` first |
+| (none) | Top unknown | Read knowledge model, identify highest-value gap |
 | `[feature]` | Feature deep-dive | Grep/Glob + context7 + WebSearch |
 | `"topic"` | Free-form | WebSearch + WebFetch + context7 |
 | `docs <library>` | Library docs | context7 (resolve-library-id -> query-docs) |
@@ -38,7 +37,7 @@ Parse `$ARGUMENTS`:
 | `competitor <name>` | Competitive analysis | WebSearch + Playwright + `scripts/market-scan.sh` |
 | `market` | Market landscape | Spawns market-analyst agent + `scripts/market-scan.sh` |
 | `history` | Past sessions | `scripts/research-log.sh` |
-| `gaps` | Ranked unknowns | `scripts/knowledge-gaps.sh` |
+| `gaps` | Ranked unknowns | Read knowledge model directly |
 
 **Ambiguous input:** exact keyword match wins -> feature name match -> free-form topic. Never ask "did you mean?" — just act.
 
@@ -46,31 +45,28 @@ Parse `$ARGUMENTS`:
 
 Use `/research` when you need evidence before making a decision — filling knowledge gaps, investigating unknowns, or gathering competitive intel. Use `/ideate` instead when you already have enough evidence and need ideas for what to build. Use `/product` when the question is "should this exist?" rather than "how should it work?" Use `/strategy` when the question is about positioning, not information gathering.
 
-## The protocol
+## State to read
 
-### Step 0: Read gotchas + check history
-Read `gotchas.md`. Run `scripts/research-log.sh topic "[topic]"` to check for repeat research. Read `config/product-spec.yml` if it exists — research should resolve unknowns in the spec. Spec questions > random curiosity.
+Read `gotchas.md` first. Then check research history: `scripts/research-log.sh topic "[topic]"` for repeat detection.
 
-### Step 1: Predict
-```
-I predict: [specific outcome]
-Because: [evidence or "exploring unknown territory"]
-I'd be wrong if: [what would surprise me]
-```
-Log to `.claude/knowledge/predictions.tsv`.
+**Knowledge gap identification** — compute this yourself for `(none)` and `gaps` routes:
+- Read `.claude/knowledge/experiment-learnings.md` (fall back to `~/.claude/knowledge/`) — extract the four zones:
+  - **Unknown Territory** entries = highest information value. Count them, list them.
+  - **Uncertain Patterns** = needs confirmation. Count them.
+  - **Known Patterns** = exploit territory. Count them.
+  - **Dead Ends** = avoid territory. Count them.
+- Read `.claude/cache/eval-cache.json` — find the bottleneck feature (lowest score among highest weight). Cross-reference unknowns with the bottleneck: bottleneck-related unknowns rank HIGH.
+- Check staleness: if experiment-learnings.md is >7 days old (file modification time), flag it.
 
-### Step 2: Investigate
-Use tools based on route. Read `references/research-methods.md` for tool selection. Rate sources via `scripts/source-quality.sh`. Run multiple sources in parallel where possible.
+**Additional context:** `config/product-spec.yml` (research should resolve spec unknowns), `config/rhino.yml`, `.claude/knowledge/predictions.tsv`
 
-### Step 3: Synthesize
-Don't dump raw findings. Structure output using `templates/research-brief.md`. Every 5 findings, pause and write the pattern.
+## How to research
 
-### Step 4: Update model
-Write findings to `.claude/knowledge/experiment-learnings.md`. Grade prediction.
-
-### Step 5: Write artifacts
-- `~/.claude/cache/last-research.yml` — for /plan to read (format in `reference.md`)
-- `scripts/research-log.sh add "[topic]" "[route]" [count] "[key finding]" "[confidence]"`
+1. **Predict** before investigating — log to predictions.tsv
+2. **Investigate** using tools based on route. Read `references/research-methods.md` for tool selection. Rate sources via `scripts/source-quality.sh`. For market/competitor routes, run `scripts/market-scan.sh`. Run multiple sources in parallel where possible.
+3. **Synthesize** using `templates/research-brief.md`. Every 5 findings, pause and write the pattern.
+4. **Update model** — write findings to experiment-learnings.md. Grade prediction.
+5. **Write artifacts** — `~/.claude/cache/last-research.yml`, log via `scripts/research-log.sh add`
 
 ### Step 6: Task generation — the path from knowledge to action
 
@@ -131,6 +127,13 @@ Tag with `source: /research`, topic, and confidence level. Priority: high-confid
 - Dense, no preamble, no trailing summaries
 
 For full output templates, see `reference.md`.
+
+## System integration
+
+Reads: `.claude/knowledge/experiment-learnings.md`, `.claude/knowledge/predictions.tsv`, `.claude/cache/eval-cache.json`, `config/rhino.yml`, `config/product-spec.yml`, `.claude/cache/market-context.json`
+Writes: `.claude/knowledge/experiment-learnings.md`, `.claude/knowledge/predictions.tsv`, `~/.claude/cache/last-research.yml`, `.claude/cache/market-context.json`, `.claude/plans/todos.yml`, `${CLAUDE_PLUGIN_DATA}/research-log.json`
+Triggers: `/strategy` (research changes competitive picture), `/ideate` (findings suggest features), `/product` (findings affect assumptions)
+Triggered by: `/plan` (unknowns detected), `/strategy` (knowledge gaps), `/retro` (wrong predictions need investigation)
 
 ## Self-evaluation
 

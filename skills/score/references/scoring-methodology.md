@@ -16,7 +16,7 @@ Default weights (all tiers available):
 
 | Tier | Weight | Source | What it measures |
 |------|--------|--------|-----------------|
-| Health | gate | `rhino score .` | Build passes, structure, hygiene. < 20 = score 0. |
+| Health | gate | `/score` (bin/score.sh) | Build passes, structure, hygiene. < 20 = score 0. |
 | Delivery | 40% | `/eval` | Does the user get real value? (includes user understanding, not just code completeness) |
 | Craft | 25% | `/eval` | Is the experience well-made? (code craft + product surface craft) |
 | Visual | 15% | `/taste` | Does the product surface look/feel exceptional? (web: screenshots, CLI: output formatting, API: response design) |
@@ -110,6 +110,26 @@ product_score = sum(feature_score * feature_weight) / sum(feature_weight)
 ```
 
 Only active features are included.
+
+## Score-to-Recommendation Pipeline
+
+Eval produces recommendations gated by feature maturity. As scores rise, the question evolves:
+
+| Maturity | Score range | Question | Recommendation type |
+|----------|-----------|----------|-------------------|
+| planned | 0-29 | What's broken? | Missing foundations — code paths, assertions, basic structure |
+| building | 30-49 | What's rough? | Delivery gaps — incomplete flows, missing error handling, dead ends |
+| working | 50-69 | What's missing? | Craft gaps — UX polish, edge cases, empty states, loading states |
+| polished | 70-89 | What's next? | Micro-features — small additions that compound value |
+| proven | 90+ | What could this become? | Micro-systems — new capabilities that emerge from the feature's foundation |
+
+`/score` surfaces the highest-priority recommendation per feature alongside the score (from eval-cache.json `recommendations` field, if present). This creates a natural pipeline:
+
+1. `/score` shows the number + top recommendation per feature
+2. Founder runs `/eval` for detailed recommendations per dimension
+3. At higher maturities, `/eval` suggests `/ideate [feature]` for deeper exploration
+
+The pipeline flow: **score → eval → ideate → plan → go**. Each skill hands off to the next when the current tool's depth is exhausted.
 
 ## Stage Ceilings
 

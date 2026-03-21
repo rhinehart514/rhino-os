@@ -514,8 +514,8 @@ parse_features() {
             continue
         fi
 
-        # commands: (inline array — CLI commands for UX eval)
-        if echo "$line" | grep -q '^\s*commands:'; then
+        # internal: or commands: (inline array — CLI commands for UX eval)
+        if echo "$line" | grep -q '^\s*\(internal\|commands\):'; then
             in_commands=true
             in_code=false
             local inline
@@ -523,6 +523,22 @@ parse_features() {
             if [[ -n "$inline" ]]; then
                 current_commands=$(echo "$inline" | tr -d '[]"' | sed 's/, */,/g')
                 in_commands=false
+            fi
+            continue
+        fi
+
+        # skills: (inline array — slash command references, verified by skill existence)
+        if echo "$line" | grep -q '^\s*skills:'; then
+            local inline
+            inline=$(echo "$line" | grep -o '\[.*\]' || true)
+            if [[ -n "$inline" ]]; then
+                local skill_cmds
+                skill_cmds=$(echo "$inline" | tr -d '[]"' | sed 's/, */,/g')
+                if [[ -n "$current_commands" && -n "$skill_cmds" ]]; then
+                    current_commands="${current_commands},${skill_cmds}"
+                elif [[ -n "$skill_cmds" ]]; then
+                    current_commands="$skill_cmds"
+                fi
             fi
             continue
         fi

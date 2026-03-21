@@ -182,12 +182,20 @@ Scripts `cache-summary.sh` and `synthesize.sh` exist as verification — run the
 
 ## After scoring — what to suggest
 
+### Surface eval recommendations
+
+After computing the unified score, check eval-cache.json for a `recommendations` field per feature. If present, surface the highest-priority recommendation alongside each feature's score. This turns /score from "here's a number" into "here's a number and what to do about it."
+
+### Next command — maturity-gated
+
 One next command. Pick the one that fills the biggest gap:
 - Lowest-scoring feature → `/plan` to target the bottleneck
 - Visual confidence low + URL exists → `/taste <url>`
 - Behavioral confidence low → `/taste <url> flows`
 - Viability is the weakest dimension → `/research` or `/strategy`
 - Journey gaps or unmet needs in outside-in.json → `/ideate`
+- Unified score 65+ → suggest `/eval` for micro-feature ideas, not just gap-fixing
+- Unified score 80+ → suggest `/ideate` for micro-system thinking (features are mature enough that the next lever is new capabilities, not polish)
 - All tiers high confidence + score > 80 → `/ship`
 
 ## System integration

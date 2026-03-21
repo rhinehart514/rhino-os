@@ -281,7 +281,17 @@ compute_feature_score() {
     $has_visual && vis_out="$visual" || vis_out="null"
     $has_behavioral && beh_out="$behavioral" || beh_out="null"
 
-    echo "{\"feature\":\"$feat\",\"score\":$score,\"delivery\":$delivery,\"craft\":$craft,\"visual\":$vis_out,\"behavioral\":$beh_out,\"viability\":$viability,\"viability_source\":\"$viability_src\",\"confidence\":\"$confidence\",\"tiers\":$tier_count,\"weight\":$(get_feature_weight "$feat")}"
+    # Read top recommendation from eval cache if available
+    local top_rec="null"
+    if [[ "$_eval_cache_valid" == true ]]; then
+        local rec_item
+        rec_item=$(jq -r --arg f "$feat" '.[$f].recommendations.items[0] // empty' "$EVAL_CACHE" 2>/dev/null)
+        if [[ -n "$rec_item" ]]; then
+            top_rec=$(jq -c --arg f "$feat" '.[$f].recommendations.items[0]' "$EVAL_CACHE" 2>/dev/null)
+        fi
+    fi
+
+    echo "{\"feature\":\"$feat\",\"score\":$score,\"delivery\":$delivery,\"craft\":$craft,\"visual\":$vis_out,\"behavioral\":$beh_out,\"viability\":$viability,\"viability_source\":\"$viability_src\",\"confidence\":\"$confidence\",\"tiers\":$tier_count,\"weight\":$(get_feature_weight "$feat"),\"top_recommendation\":$top_rec}"
 }
 
 # --- Main ---
@@ -390,6 +400,15 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
 
         printf "  %-16s %3d/100  (d:%d c:%d v:%d) w:%s  %d/5 tiers\n" "$_fn" "$_fs" "$_fd" "$_fc" "$_fv" "$_fw" "$_ft"
         [[ -n "$_hint" ]] && echo "                   → ${_hint}"
+
+        # Show top recommendation if available
+        local _top_rec_idea
+        _top_rec_idea=$(echo "$_fr" | jq -r '.top_recommendation.idea // empty' 2>/dev/null)
+        if [[ -n "$_top_rec_idea" ]]; then
+            local _top_rec_type
+            _top_rec_type=$(echo "$_fr" | jq -r '.top_recommendation.type // ""' 2>/dev/null)
+            echo "                   ▸ ${_top_rec_type}: ${_top_rec_idea}"
+        fi
     done
 
     echo ""

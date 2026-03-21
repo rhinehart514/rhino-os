@@ -13,9 +13,7 @@ A cofounder diagnosing what actually matters. Reads your code, metrics, predicti
 
 This skill is a **folder**, not just this file. Read these on demand:
 
-- `scripts/stage-check.sh` — mechanically determines project stage from eval-cache + features + user signals
-- `scripts/work-impact.sh` — reads git log + eval-cache, shows which recent work actually moved scores
-- `scripts/competitive-scan.sh` — outputs structured competitor data, checks market-context.json freshness
+- `scripts/competitive-scan.sh` — outputs structured competitor data via WebSearch, checks market-context.json freshness. **Real utility — run for market/compete/position modes.**
 - `scripts/strategy-freshness.sh` — checks strategy.yml age, flags staleness, shows what changed since last run
 - `references/strategy-frameworks.md` — stage-appropriate frameworks and bet scoring dimensions
 - `references/honest-diagnosis.md` — how to name what the founder is avoiding. Read before `/strategy honest`.
@@ -44,35 +42,36 @@ Parse `$ARGUMENTS`:
 | `docs <lib>` | Library docs | context7 MCP: resolve-library-id -> query-docs |
 | `site <url>` | Live analysis | Playwright: navigate -> snapshot -> synthesize |
 
-## The protocol
+## State to read
 
-### Step 1: Run scripts (always first)
+Read `gotchas.md` first. Then read these in parallel — you reason from state, not script output:
 
-```bash
-bash scripts/stage-check.sh
-bash scripts/work-impact.sh
-bash scripts/strategy-freshness.sh
-bash scripts/competitive-scan.sh
-```
+**Stage determination** — compute this yourself from eval-cache.json + rhino.yml:
+- Read `.claude/cache/eval-cache.json` — count features by score band: planned(0-29), building(30-49), working(50-69), polished(70-89), proven(90+). Find worst/best feature. Check for craft > delivery + 15 (polishing-before-delivering).
+- Read `config/rhino.yml` — declared stage, user count, value hypothesis
+- Read `.claude/cache/customer-intel.json` — user_count if available
+- Infer stage: no features scored = pre-product, avg < 30 = pre-product, no working+ features = stage one, users <= 10 = stage some, users <= 100 = stage many, else growth
+- Flag warnings: feature sprawl (>3 in building range), polishing before delivering, stage mismatch between declared and inferred
 
-These produce structured output at zero context cost. Only their output enters the conversation.
+**Work-to-impact** — compute from git + eval-cache:
+- `git log --oneline --since="7 days ago"` — commit volume, commits/day, burnout signal (>15/day sustained)
+- Eval-cache delta field per feature — which features moved, which are stale
+- `.claude/scores/history.tsv` — score delta over period, pts/commit ratio
+- Flag: high effort low impact (>10 commits, <3 pts), suspicious jumps (>15 pts)
+- `.claude/knowledge/predictions.tsv` — prediction frequency, ungraded count, starvation (<3 in 7d)
 
-### Step 2: Read gotchas
+**Additional state:** `config/product-spec.yml`, `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/knowledge/experiment-learnings.md`, `.claude/plans/todos.yml`, `git log --oneline -20`
 
-Read `gotchas.md` before generating. Every gotcha is a failure mode from a real session.
+**External:** `.claude/cache/market-context.json` (if exists), `market-context-base.json` (ships with skill)
 
-### Step 3: Read state (parallel)
-
-**Internal:** rhino.yml, `config/product-spec.yml` (strategy should defend and advance the spec's positioning and why_now), eval-cache.json, strategy.yml, roadmap.yml, predictions.tsv, experiment-learnings.md, todos.yml, `git log --oneline -20`
-
-**External:** market-context.json (if exists), market-context-base.json (ships with skill)
+**Freshness check:** Run `bash scripts/strategy-freshness.sh` to check strategy.yml staleness.
 
 **Cost tier** from `~/.claude/preferences.yml` -> `agents.cost`:
 - economy: explorer=haiku, market-analyst=sonnet
 - balanced: explorer=sonnet, market-analyst=opus (default)
 - premium: explorer=opus, market-analyst=opus
 
-### Step 4: Diagnose honestly (eval-grounded)
+## How to diagnose
 
 Sort features by eval score, worst first. For worst 3, check sub-score pattern:
 - delivery dragging (d < c, d < v) -> should this feature exist?
@@ -81,15 +80,11 @@ Sort features by eval score, worst first. For worst 3, check sub-score pattern:
 
 Check stage-appropriateness, work-to-impact ratio, feature sprawl, measurement health, market position.
 
-### Step 5: Deliver using template
+For competitive data in market/compete/position modes, run `bash scripts/competitive-scan.sh` — this does real WebSearch work.
 
-Read `templates/strategy-brief.md` for the output structure. Read `reference.md` for detailed examples.
+Deliver using `templates/strategy-brief.md` for output structure. Read `reference.md` for detailed examples.
 
-### Step 6: Update strategy.yml
-
-Write diagnosis to `.claude/plans/strategy.yml` including market context.
-
-### Step 7: Log prediction
+Update `.claude/plans/strategy.yml` with diagnosis including market context.
 
 Every recommendation is a prediction. Log to `~/.claude/knowledge/predictions.tsv`.
 
@@ -143,6 +138,13 @@ Spawn named agents, not generic:
 **There is no cap on task count.** A project with 5 strategic gaps might need 15 tasks. Generate all of them. /plan picks what to work on — /strategy's job is to make sure every gap is captured.
 
 After writing tasks, show: "Generated N tasks across M strategic gaps. Most urgent: [gap] needs [action]."
+
+## System integration
+
+Reads: `config/rhino.yml`, `.claude/cache/eval-cache.json`, `.claude/plans/strategy.yml`, `.claude/plans/roadmap.yml`, `.claude/knowledge/predictions.tsv`, `.claude/knowledge/experiment-learnings.md`, `.claude/plans/todos.yml`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `config/product-spec.yml`, `.claude/scores/history.tsv`
+Writes: `.claude/plans/strategy.yml`, `.claude/knowledge/predictions.tsv`, `.claude/plans/todos.yml`
+Triggers: `/plan` (act on diagnosis), `/research` (fill knowledge gaps), `/roadmap` (update narrative), `/money price` (pricing gaps)
+Triggered by: `/plan` (needs strategic context), `/score` (score drop investigation), `/product` (positioning questions)
 
 ## Self-evaluation
 

@@ -337,13 +337,13 @@ if os.path.exists(rhino_yml):
                 m = re.match(r'^  ([a-zA-Z0-9_-]+):\s*$', s)
                 if m:
                     current = m.group(1)
-                    feature_data[current] = {"code": [], "commands": [], "status": "active", "weight": 1, "depends_on": []}
+                    feature_data[current] = {"code": [], "commands": [], "skills": [], "internal": [], "status": "active", "weight": 1, "depends_on": []}
                     continue
                 if current:
                     fm = re.match(r'^    ([a-zA-Z_-]+):\s*(.+)$', s)
                     if fm:
                         k, v = fm.group(1), fm.group(2).strip().strip('"').strip("'")
-                        if k in ("code", "commands", "depends_on"):
+                        if k in ("code", "commands", "skills", "internal", "depends_on"):
                             v = [x.strip().strip('"').strip("'") for x in v.strip('[]').split(',') if x.strip()]
                         elif k == "weight":
                             try: v = int(v)
@@ -382,7 +382,7 @@ if os.path.exists(rhino_yml):
                         surfaces[sid]["feature"] = fname
                         bound = True
                         break
-        for cmd in feat.get("commands", []):
+        for cmd in feat.get("commands", []) + feat.get("internal", []):
             parts = cmd.replace("rhino ", "").split()
             if parts:
                 cid = f"cli/{parts[0]}"

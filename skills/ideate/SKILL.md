@@ -13,9 +13,9 @@ A cofounder saying "here's what we should build next and here's what would make 
 
 This skill is a **folder**, not just this file. Read these on demand:
 
-- `scripts/evidence-scan.sh` — runs first, scans ALL project state, outputs structured evidence (zero context cost). Supports `--feature [name]` for deep per-feature scan.
-- `scripts/idea-log.sh` — persistent idea history across sessions (add, kill, commit, list, stats)
-- `scripts/kill-audit.sh` — finds kill candidates (stale todos, always-passing assertions, stuck features)
+- `scripts/idea-log.sh` — persistent idea history across sessions (add, kill, commit, list, stats). **Real utility — always log ideas.**
+- `scripts/kill-audit.sh` — finds kill candidates (stale todos, always-passing assertions, stuck features). **Real utility — run for kill list.**
+- `scripts/list-techniques.sh` — lists available technique files in `techniques/`
 - `techniques/` — 11 creative thinking modes, each a separate file. Read the relevant one based on the mode. Includes `feature-improve.md` for the feature improvement engine.
 - `templates/idea-brief.md` — the structure for every NEW idea brief
 - `templates/improvement-brief.md` — the structure for feature IMPROVEMENT prescriptions (rx-style, not idea-style)
@@ -37,21 +37,31 @@ Parse `$ARGUMENTS`:
 | `[technique]` | Named technique | Run `scripts/list-techniques.sh` to see all available techniques, then read the matching file from `techniques/`. Any .md file in techniques/ is a valid technique name. |
 | `[any text]` | Constrained ideation | Ideas within a specific direction |
 
-## The protocol
+## State to read
 
-### Step 1: Evidence scan (always first)
+Read `gotchas.md` first. Then gather evidence yourself — you reason from state directly:
 
-Run `scripts/evidence-scan.sh` via Bash. This scans eval-cache, predictions, backlog, thesis, dead ends, customer intel, and git history. Outputs structured data at zero context cost — only the output enters the conversation.
+**Evidence sources** (read in parallel, ranked by signal strength):
+1. **Wrong predictions** — read `.claude/knowledge/predictions.tsv`, filter for `no` or `partial` grades. These reveal real gaps.
+2. **Sub-score gaps** — read `.claude/cache/eval-cache.json`. Per feature: score, delivery_score, craft_score, delta. Find the bottleneck (lowest score). Flag stale features (delta = "same").
+3. **Backlog clusters** — read `.claude/plans/todos.yml`. Count todos per feature/tag. 3+ on same topic = pattern worth addressing.
+4. **Thesis gaps** — read `.claude/plans/roadmap.yml`. Find evidence_needed items in active version that are unproven.
+5. **Dead end rebounds** — read `.claude/knowledge/experiment-learnings.md`, Dead Ends section. Failures that point to better approaches.
+6. **Unknown territory** — same file, Unknown Territory section. Highest information value.
+7. **Customer signals** — read `.claude/cache/customer-intel.json` if it exists.
+8. **Taste/flows data** — read latest report in `.claude/evals/reports/taste-*.json` and `flows-*.json` if they exist. Weak dimensions and top issues are strong ideation signals.
 
-Also read `config/product-spec.yml` if it exists — generate ideas that advance the spec. Ideas that contradict the spec need strong evidence.
+**For feature improvement mode** (`/ideate [feature]`), also read:
+- The feature's actual code (components, routes, styles)
+- Feature-specific eval sub-scores, taste prescriptions, flow issues
+- Feature-specific predictions and backlog items
+- `.claude/cache/market-context.json` for best-in-class comparisons
 
-Also run `scripts/idea-log.sh stats` to show ideation history.
+**Additional context:** `config/product-spec.yml` (ideas should advance the spec), `config/rhino.yml`, `git log --oneline -20`
 
-### Step 2: Read gotchas
+Run `scripts/idea-log.sh stats` to show ideation history.
 
-Read `gotchas.md` before generating. Every gotcha is a failure mode from a real session.
-
-### Step 3: Generate ideas
+## How to generate ideas
 
 **Default mode (no arguments or feature):** Follow evidence-weighted generation.
 
@@ -134,6 +144,15 @@ Show ideas + kill list. Founder picks which to commit and which to kill.
 | `/research` | **HOW** | What do we need to know before deciding? |
 | `/feature new` | **DO** | Commit to building a named feature. |
 
+### Eval-to-ideate pipeline
+
+At higher maturities (polished 70+, proven 90+), `/eval` identifies micro-features and micro-systems rather than just gaps. These feed directly into `/ideate`:
+
+- `/ideate [feature]` reads eval-cache.json `recommendations` field when present — these are pre-qualified improvement signals from the eval tier
+- The pipeline flow: **score → eval → ideate → plan → go**. Each skill hands off to the next when the current tool's depth is exhausted
+- At polished maturity, eval asks "what's next?" — ideate explores the answer in depth
+- At proven maturity, eval asks "what could this become?" — ideate thinks in micro-systems, not incremental improvements
+
 ## Agent usage
 
 - **Agent (rhino-os:explorer)** — for deep codebase analysis when evidence-scan isn't enough. In feature improvement mode, use to trace the feature's code path (components, routes, data flow) so prescriptions reference real code.
@@ -177,6 +196,13 @@ See `../shared/task-generation.md` for the task generation protocol. /ideate gen
 - Each stuck feature → task: "Feature [X] stuck at [score] for [N]d — kill, pivot, or double down"
 
 Tag with `source: /ideate` and type (materialize/kill/kill-audit). Priority: kill cleanup first (reduce noise), then new feature onramp.
+
+## System integration
+
+Reads: `.claude/cache/eval-cache.json`, `.claude/knowledge/predictions.tsv`, `.claude/knowledge/experiment-learnings.md`, `.claude/plans/todos.yml`, `.claude/plans/roadmap.yml`, `.claude/cache/customer-intel.json`, `.claude/evals/reports/taste-*.json`, `.claude/evals/reports/flows-*.json`, `.claude/cache/market-context.json`, `config/product-spec.yml`, `config/rhino.yml`
+Writes: `config/rhino.yml` (new features), `config/beliefs.yml` (new assertions), `.claude/knowledge/predictions.tsv`, `.claude/plans/todos.yml`, `${CLAUDE_PLUGIN_DATA}/idea-log.json`
+Triggers: `/feature new` (commit an idea), `/go` (build committed idea), `/eval` (baseline new feature), `/research` (fill evidence gap)
+Triggered by: `/plan` (needs ideas for bottleneck), `/strategy` (strategic gaps need solutions), `/retro` (wrong predictions suggest new approaches)
 
 ## Self-evaluation
 

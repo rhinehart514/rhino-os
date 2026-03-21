@@ -142,7 +142,7 @@ cmd_list() {
 
         if [[ -z "$features" ]]; then
             echo -e "  ${DIM}No features defined. Add features: to rhino.yml${NC}"
-            echo -e "  ${DIM}or run: rhino feature detect${NC}"
+            echo -e "  ${DIM}or run /feature detect${NC}"
             echo ""
             return
         fi
@@ -248,10 +248,10 @@ cmd_view() {
                     done
                 fi
             else
-                echo -e "  ${DIM}no eval data — run: rhino eval .${NC}"
+                echo -e "  ${DIM}no eval data — run /eval${NC}"
             fi
         else
-            echo -e "  ${DIM}no eval data — run: rhino eval .${NC}"
+            echo -e "  ${DIM}no eval data — run /eval${NC}"
         fi
     else
         # Fallback: run eval for this feature from beliefs.yml

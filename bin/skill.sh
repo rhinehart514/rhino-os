@@ -99,7 +99,7 @@ cmd_install() {
     local version
     version=$(grep '^version:' "$LENS_DIR/$name/lens.yml" 2>/dev/null | head -1 | sed 's/^version:[[:space:]]*//')
     echo -e "  ${GREEN}✓${NC} Installed ${BOLD}${name}${NC} ${DIM}v${version}${NC}"
-    echo -e "  ${DIM}Run 'rhino init' to wire up mind files and commands.${NC}"
+    echo -e "  ${DIM}Run /onboard to wire up mind files and skills.${NC}"
     echo ""
 }
 
@@ -117,7 +117,7 @@ cmd_remove() {
 
     rm -rf "$LENS_DIR/$name"
     echo -e "  ${GREEN}✓${NC} Removed lens ${BOLD}${name}${NC}"
-    echo -e "  ${DIM}Run 'rhino init' to clean up mind symlinks and commands.${NC}"
+    echo -e "  ${DIM}Run /onboard to clean up mind symlinks and skills.${NC}"
     echo ""
 }
 

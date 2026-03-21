@@ -278,11 +278,15 @@ run_execution_eval() {
             current_status=""
         fi
 
-        # Parse fields
-        if [[ "$line" =~ commands:.*\[(.*)\] ]]; then
-            current_commands="${BASH_REMATCH[1]}"
-            # Strip quotes
-            current_commands="${current_commands//\"/}"
+        # Parse fields — internal: (new) or commands: (legacy) for CLI commands
+        if [[ "$line" =~ (internal|commands):.*\[(.*)\] ]]; then
+            local _cmds="${BASH_REMATCH[2]}"
+            _cmds="${_cmds//\"/}"
+            if [[ -n "$current_commands" && -n "$_cmds" ]]; then
+                current_commands="${current_commands}, ${_cmds}"
+            else
+                current_commands="$_cmds"
+            fi
         fi
         if [[ "$line" =~ delivers:.*\"(.*)\" ]]; then
             current_delivers="${BASH_REMATCH[1]}"

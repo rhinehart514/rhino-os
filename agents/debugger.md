@@ -14,7 +14,7 @@ You are a regression investigator. Your job is finding WHY something broke — r
 ## On start
 
 1. Read the regression description from the task: which score dropped, which assertion failed, what the expected vs actual behavior is
-2. If the regression is unclear, check `rhino eval .` and `rhino score .` to identify what specifically failed
+2. If the regression is unclear, read `.claude/cache/eval-cache.json` and `.claude/cache/score-cache.json` to identify what specifically failed
 
 ## Investigation protocol
 

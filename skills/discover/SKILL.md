@@ -5,8 +5,6 @@ argument-hint: "[new \"idea\"|refine|pivot|vs|systems|wild|invert]"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch
 ---
 
-!bash scripts/discovery-scan.sh 2>/dev/null || echo "no existing spec"
-
 # /discover — Product Discovery Pipeline
 
 From "I have an idea" to a wired-up project in one session. Or: pressure-test an existing product until the weak spots show.
@@ -15,9 +13,8 @@ From "I have an idea" to a wired-up project in one session. Or: pressure-test an
 
 This skill is a **folder**. Read these on demand:
 
-- `scripts/discovery-scan.sh` — runs FIRST. Scans existing product-spec.yml + eval-cache + market data. Outputs structured state.
-- `scripts/spec-wire.sh` — reads product-spec.yml, outputs what needs to be created (features, assertions, roadmap entries).
-- `scripts/spec-quality.sh` — grades product-spec.yml completeness and quality. Empty fields, vague claims, missing evidence.
+- `scripts/spec-wire.sh` — reads product-spec.yml, outputs what needs to be created. **Run as verification after you generate the wiring plan.**
+- `scripts/spec-quality.sh` — grades product-spec.yml completeness and quality. **Real utility — run as quality gate on generated specs.**
 - `references/discovery-guide.md` — how the pipeline works, what makes a good spec.
 - `references/refinement-guide.md` — how to refine/pivot/kill. The ruthless questions.
 - `references/market-2026.md` — 2026 market context. Read on every session.
@@ -25,6 +22,22 @@ This skill is a **folder**. Read these on demand:
 - `gotchas.md` — real failure modes. **Read before starting.**
 
 The product spec template lives at `skills/onboard/templates/product-spec-template.yml`. That's the schema. Discover GENERATES it.
+
+## State to read
+
+Read `gotchas.md` first. Then assess existing state yourself:
+
+**Product spec status** — check `config/product-spec.yml`:
+- Does it exist? If yes, check for empty fields (`""`), read key fields (person, situation, in_one_sentence, trigger, model). Check last_reviewed date.
+- If no spec exists: this is a define-from-scratch session.
+
+**Eval state** — read `.claude/cache/eval-cache.json`: feature count, per-feature scores with sub-scores, average score.
+
+**Market/customer data** — check if `.claude/cache/market-context.json` and `.claude/cache/customer-intel.json` exist. If they exist, check file age (>7d = stale, recommend re-research).
+
+**Project wiring** — check existence and key fields of: `.claude/plans/roadmap.yml` (thesis, version), `.claude/plans/strategy.yml` (bottleneck, stage), `config/beliefs.yml` (assertion count), `config/rhino.yml` (user, name).
+
+**Predictions** — read `.claude/knowledge/predictions.tsv`, count recent (last 7d). Flag starvation if <3.
 
 ## Routing
 
@@ -100,7 +113,7 @@ Present the full spec to founder via AskUserQuestion for approval/editing. "Here
 
 ### Phase 3: Auto-wire (after founder approves spec)
 
-Run `bash scripts/spec-wire.sh` to compute what needs creating. Then wire:
+Generate the wiring yourself from the spec, then run `bash scripts/spec-wire.sh` to verify completeness:
 
 **3A: Roadmap** — Create/update `.claude/plans/roadmap.yml`:
 - Version thesis derived from spec's `change.in_one_sentence`
@@ -284,6 +297,13 @@ Use the format in `templates/discovery-report.md`. Key sections:
 Bottom of every output — exactly 3 next commands contextual to mode.
 
 ---
+
+## System integration
+
+Reads: `config/product-spec.yml`, `.claude/cache/eval-cache.json`, `.claude/cache/market-context.json`, `.claude/cache/customer-intel.json`, `.claude/plans/roadmap.yml`, `.claude/plans/strategy.yml`, `config/beliefs.yml`, `config/rhino.yml`, `.claude/knowledge/predictions.tsv`
+Writes: `config/product-spec.yml`, `config/rhino.yml`, `config/beliefs.yml`, `.claude/plans/roadmap.yml`, `.claude/plans/strategy.yml`, `.claude/knowledge/predictions.tsv`, `.claude/plans/todos.yml`
+Triggers: `/plan` (start building), `/eval` (baseline new features), `/research` (fill evidence gaps), `/product` (pressure-test the spec)
+Triggered by: `/onboard` (new project needs spec), `/strategy` (pivot needed), `/product` (spec is stale or weak)
 
 ## Self-evaluation
 

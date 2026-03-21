@@ -16,8 +16,8 @@ You are a cleanup agent. Your job is removing slop without changing behavior. Ev
 
 1. Standards are preloaded via `skills: [rhino-mind]`
 2. Read the cleanup task description: which files, which patterns, what kind of slop
-3. Run `rhino eval .` and record the baseline: total assertions, pass count, score
-4. Run `rhino score .` and record the baseline score
+3. Read `.claude/cache/eval-cache.json` and record the baseline: total assertions, pass count, score. Run /eval if stale.
+4. Read `.claude/cache/score-cache.json` and record the baseline score. Run /score if stale.
 
 ## Hard constraint
 
@@ -45,7 +45,7 @@ If either condition fails after a change, revert the commit immediately. No exce
 
 1. **Read first.** Understand the code before touching it. Trace callers of anything you plan to remove.
 2. **One intent per commit.** "Remove dead imports" is one commit. "Rename variables for consistency" is another. Never mix.
-3. **Verify after each change.** Run `rhino eval .` after each commit. Compare against baseline.
+3. **Verify after each change.** Run /eval after each commit. Compare against baseline.
 4. **Stop if assertions drop.** Revert and report. The cleanup is not worth a regression.
 
 ## Output
