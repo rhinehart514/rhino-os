@@ -19,8 +19,8 @@ How rhino-os itself is performing. Updated from real data, not guesses.
 ### Skills
 24 skills in `skills/*/SKILL.md`. Split into marketplace (user-facing) and internal (self-management):
 
-**Marketplace (14):** /eval, /taste, /go, /plan, /push, /ship, /onboard, /research, /ideate, /product, /money, /copy, /todo, /roadmap
-**Internal (10):** /score, /calibrate, /strategy, /discover, /feature, /assert, /retro, /rhino, /skill, /configure
+**Marketplace (15):** /eval, /taste, /go, /plan, /push, /ship, /onboard, /research, /ideate, /product, /money, /copy, /todo, /roadmap, /retro
+**Internal (9):** /score, /calibrate, /strategy, /discover, /feature, /assert, /rhino, /skill, /configure
 
 Demoted to `.claude/rules/`: rhino-mind, product-lens. Demoted to hooks: quality-check, session-summary. Killed: /openclaw, /clone.
 

@@ -2,15 +2,12 @@
 name: retro
 description: "Use when the user wants to review what was learned, grade predictions, audit the knowledge model, or check learning health. Triggers on 'retro', 'what did we learn?', 'review', 'grade predictions', 'learning health'."
 argument-hint: "[accuracy|stale|session|health|dimensions|auto]"
-allowed-tools: Read, Bash, Grep, Edit, Agent
-internal: true
+allowed-tools: Read, Bash, Grep, Edit, Agent, TaskCreate
 ---
-
-<!-- INTERNAL: This skill is for rhino-os self-management, not marketplace distribution. -->
 
 # /retro
 
-The learning system's health check. `/go` grades predictions inline — that's the high-frequency case. `/retro` is the periodic audit: catching missed predictions, pruning stale knowledge, evaluating the learning system itself. Run between sessions, not during them.
+Grade predictions. Prune stale knowledge. Fix the learning model. `/go` grades predictions inline during builds — `/retro` is the periodic audit that catches everything `/go` missed and generates tasks to close learning gaps.
 
 **`/go`** = grade predictions as you build (every move)
 **`/retro`** = grade everything missed + audit the learning model (weekly)
@@ -72,24 +69,84 @@ Read `gotchas.md` and `references/grading-guide.md` first. Then read these in pa
 
 ## How to retro
 
-Read gotchas and grading guide first. Then route based on mode:
+Read `gotchas.md` and `references/grading-guide.md` first. Then execute based on the routed mode:
 
-**Grade predictions:**
-1. Run `bash bin/grade.sh` for mechanical first pass (numeric targets)
-2. For remaining ungraded, spawn grader agent:
+### Mode: (none) — Full retro
+
+The complete audit. Runs all phases sequentially:
+
+1. **Grade** — run `bash bin/grade.sh` for mechanical first pass, then spawn grader for remaining ungraded:
    ```
    Agent(subagent_type: "rhino-os:grader", prompt: "Batch grade all ungraded predictions in predictions.tsv. Check git log, eval-cache, experiment-learnings for evidence.")
    ```
-3. Run anti-rationalization checks (see `references/grading-guide.md`)
+2. **Anti-rationalization** — check grades per `references/grading-guide.md`
+3. **Model update** — for each wrong prediction, identify WHY and update experiment-learnings.md. Then spawn consolidator:
+   ```
+   Agent(subagent_type: "rhino-os:consolidator", prompt: "Consolidate experiment-learnings.md. [N] predictions graded. Merge duplicates, promote uncertain→known where 3+ confirm, flag stale, revive zombie dead ends.")
+   ```
+4. **Staleness scan** — run `bash scripts/stale-knowledge.sh`, flag entries per `references/knowledge-maintenance.md`
+5. **Task generation** — generate tasks for every gap found (see Task generation section below)
+6. **Log** — append to retro log via `bash scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. Format per `templates/retro-report.md`.
 
-**Update knowledge model:**
-For wrong predictions: identify WHY, update experiment-learnings.md. Then spawn consolidator:
-```
-Agent(subagent_type: "rhino-os:consolidator", prompt: "Consolidate experiment-learnings.md. [N] predictions graded. Merge duplicates, promote uncertain→known where 3+ confirm, flag stale, revive zombie dead ends.")
-```
-Read `references/knowledge-maintenance.md` for promotion/pruning rules.
+### Mode: accuracy
 
-**Log the session** — append to retro log via `bash scripts/retro-log.sh`. Write `~/.claude/cache/last-retro.yml`. Format output per `templates/retro-report.md`.
+One-line output. Compute from predictions.tsv directly:
+- `(correct + partial * 0.5) / graded * 100`
+- Report: accuracy %, total graded, ungraded backlog count, calibration verdict (50-70% = well-calibrated)
+
+### Mode: stale
+
+Staleness audit only. Run `bash scripts/stale-knowledge.sh`, then:
+- Flag Known Patterns with no recent prediction confirmation
+- Flag Uncertain Patterns >14d old — candidates for promotion or pruning
+- Flag zombie Dead Ends that appear in recent predictions
+- Generate staleness tasks (see Task generation section)
+
+### Mode: session
+
+Grade only the current session's predictions (filter by today's date in predictions.tsv):
+- Grade each, write model_update for wrong ones
+- Report session accuracy vs overall accuracy
+- Flag if session had 0 predictions (learning loop starving)
+
+### Mode: health
+
+Dashboard view. No grading, no model changes. Read-only analysis:
+- Prediction frequency (per week, last 4 weeks) via `bash scripts/learning-velocity.sh`
+- Grading latency (how many ungraded, oldest ungraded date)
+- Model freshness (file age of experiment-learnings.md)
+- Section balance (Known vs Uncertain vs Unknown vs Dead Ends counts)
+- Accuracy trend (rolling 5-prediction window, improving/declining/flat)
+
+### Mode: dimensions
+
+By-topic accuracy breakdown:
+- Classify predictions by keyword (score/craft/delivery/eval/commands/learning/docs/approach)
+- Compute accuracy per domain
+- Flag domains with 3+ graded and <40% accuracy as overconfident
+- Flag domains with 0 predictions as blind spots
+- Generate coverage tasks for blind spots
+
+### Mode: auto
+
+The hands-off audit. Designed for programmatic invocation (from `/go` post-session, `/plan` health checks). Runs the full pipeline without asking questions:
+
+1. **Mechanical grade** — run `bash bin/grade.sh` for numeric-target predictions
+2. **Agent grade** — spawn grader for remaining ungraded:
+   ```
+   Agent(subagent_type: "rhino-os:grader", prompt: "Batch grade all ungraded predictions in predictions.tsv. Check git log, eval-cache, score-cache, experiment-learnings for evidence. Grade decisively — no 'insufficient evidence' cop-outs.")
+   ```
+3. **Wrong prediction analysis** — for each newly graded `no`:
+   - Identify the mechanism that was wrong (not just "prediction didn't match")
+   - Write `model_update` column in predictions.tsv
+   - Update experiment-learnings.md with the corrected understanding
+4. **Consolidate** — spawn consolidator:
+   ```
+   Agent(subagent_type: "rhino-os:consolidator", prompt: "Consolidate experiment-learnings.md. [N] predictions graded this session. Merge duplicates, promote uncertain→known where 3+ confirm, flag stale, revive zombie dead ends.")
+   ```
+5. **Generate ALL tasks** — run full task generation (see below). Write to todos.yml tagged `source: /retro auto`
+6. **Log** — write `~/.claude/cache/last-retro.yml` with summary stats
+7. **Output** — compact summary: accuracy, predictions graded, tasks generated, model updates made
 
 ## Task generation — the path to a smarter model
 
