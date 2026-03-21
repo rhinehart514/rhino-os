@@ -64,6 +64,8 @@ Parse `$ARGUMENTS`:
 
 When `[name] ideate` is triggered, this is a context-aware improvement engine, not a brainstorm. Read `references/improvement-protocol.md` for the full method.
 
+For deep feature improvement with creative techniques (divergent thinking, market analysis, cross-domain patterns), use `/ideate [feature]` instead. `/feature [name] ideate` focuses on score-driven diagnosis and buildable prescriptions from existing state; `/ideate [feature]` brings the full creative toolkit.
+
 **What to read:** The feature's eval-cache sub-scores, its code files (from rhino.yml `code:` field), its assertions and pass rates, its todos, accumulated intelligence via `skills/plan/scripts/intelligence-query.sh [project] [feature]`, and any taste/flows reports that mention it.
 
 **What to synthesize:** Diagnose the gap — delivery (doesn't work), craft (works but rough), or viability (works but who cares?). Cite sub-scores. Generate 3-5 specific, buildable prescriptions with predicted score impact. Include a kill list: complexity that serves no user.

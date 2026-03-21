@@ -5,7 +5,7 @@ argument-hint: "[feature|quick|deep|viability|breakdown]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, WebSearch, Agent
 ---
 
-!bash scripts/cache-summary.sh 2>/dev/null || echo "no cached scores"
+!command -v jq &>/dev/null && bash scripts/cache-summary.sh 2>/dev/null || echo "no cached scores (jq missing or cache empty)"
 
 # /score — Unified Product Quality
 
@@ -111,7 +111,7 @@ Read `gotchas.md` before any scoring run.
 
 Read all state files in parallel. For each tier, assess: is data present? Is it fresh? Assign confidence (high/medium/low) based on staleness thresholds. Then synthesize — weighted average across tiers, redistributing weight from missing tiers to present ones.
 
-**The synthesis is YOUR work.** Read the cached data, compute the weighted score, determine confidence. `scripts/synthesize.sh` exists as a cross-check — run it to verify your math, not as the primary path.
+Run `bash scripts/synthesize.sh` to compute the unified score. Cross-check against your own reading of the tier data.
 
 Product total = weighted average across features (by `weight:` field in rhino.yml). Per-feature score = weighted sum across tiers (delivery 40%, craft 25%, visual 15%, behavioral 10%, viability 10%), with weight redistributed when tiers are missing.
 
@@ -179,6 +179,10 @@ Read these directly — synthesize, don't delegate:
 | `.claude/cache/outside-in.json` | Journey gaps, unmet needs (if present) |
 
 Scripts `cache-summary.sh` and `synthesize.sh` exist as verification — run them to cross-check your synthesis, not as the primary source.
+
+## Presenting scores
+
+Always present the unified score number FIRST, then supporting detail. Don't bury the answer. The raw `score.sh` output places the score line after several sections of gate/health status — when presenting to the founder, lead with the number from `synthesize.sh`, then show tier breakdowns as supporting evidence.
 
 ## After scoring — what to suggest
 

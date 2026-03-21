@@ -5,8 +5,8 @@ argument-hint: "[feature...] [--safe] [--speculate N]"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch, TaskCreate, TaskGet, TaskList, TaskUpdate
 ---
 
-!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache"
-!cat .claude/cache/product-value.json 2>/dev/null | jq '{loop: .value_loop[:5], type: .product_type}' 2>/dev/null || true
+!command -v jq &>/dev/null && cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, score: .value.score, delta: .value.delta}) | from_entries' 2>/dev/null || echo "no eval cache (jq missing or cache empty)"
+!command -v jq &>/dev/null && cat .claude/cache/product-value.json 2>/dev/null | jq '{loop: .value_loop[:5], type: .product_type}' 2>/dev/null || echo "no product-value cache (jq missing or cache empty)"
 !tail -3 ~/.claude/knowledge/predictions.tsv 2>/dev/null || echo "no predictions"
 
 # /go

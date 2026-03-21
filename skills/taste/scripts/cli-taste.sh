@@ -13,7 +13,7 @@ STDERR_FILE=$(mktemp /tmp/rhino-cli-stderr.XXXXXX)
 
 START_S=$(date +%s)
 EXIT_CODE=0
-(cd "$PROJECT_DIR" && eval "$COMMAND") > "$STDOUT_FILE" 2> "$STDERR_FILE" || EXIT_CODE=$?
+(cd "$PROJECT_DIR" && bash -c "$COMMAND") > "$STDOUT_FILE" 2> "$STDERR_FILE" || EXIT_CODE=$?
 END_S=$(date +%s)
 DURATION_MS=$(( (END_S - START_S) * 1000 ))
 

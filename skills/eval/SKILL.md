@@ -5,8 +5,8 @@ argument-hint: "[feature|blind|coverage|trend|slop]"
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion, WebFetch, Agent, TaskCreate
 ---
 
-!cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no cache"
-!cat .claude/cache/product-value.json 2>/dev/null | jq '{model: .product_model, loop: .value_loop[:5]}' 2>/dev/null || true
+!command -v jq &>/dev/null && cat .claude/cache/eval-cache.json 2>/dev/null | jq 'to_entries | map({key, d: .value.delivery_score, c: .value.craft_score, score: .value.score}) | from_entries' 2>/dev/null || echo "no eval cache (jq missing or cache empty)"
+!command -v jq &>/dev/null && cat .claude/cache/product-value.json 2>/dev/null | jq '{model: .product_model, loop: .value_loop[:5]}' 2>/dev/null || echo "no product-value cache (jq missing or cache empty)"
 !cat ~/.claude/knowledge/experiment-learnings.md 2>/dev/null | head -60 || echo "no knowledge model"
 
 # /eval
