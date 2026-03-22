@@ -181,9 +181,9 @@ status_icon() {
 item_age_days() {
     local id="$1"
     local created
-    created=$(item_field "$id" "created")
-    # Also check created_at for backward compat
-    [[ -z "$created" ]] && created=$(item_field "$id" "created_at")
+    created=$(item_field "$id" "created_at")
+    # Fall back to "created" for backward compat
+    [[ -z "$created" ]] && created=$(item_field "$id" "created")
     [[ -z "$created" || "$created" == "null" ]] && echo "" && return
 
     local today_ts created_ts
@@ -531,7 +531,7 @@ cmd_add() {
     id=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 30)
 
     # Check for duplicate ID
-    if todo_exists && grep -q "id: ${id}$" "$BACKLOG_FILE" 2>/dev/null; then
+    if todo_exists && grep -qF "id: ${id}" "$BACKLOG_FILE" 2>/dev/null; then
         # Append timestamp suffix to make unique
         id="${id}-$(date +%s | tail -c 5)"
     fi
@@ -1253,7 +1253,7 @@ EOF
         id=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 30)
 
         # Skip duplicates
-        if grep -q "id: ${id}$" "$BACKLOG_FILE" 2>/dev/null; then
+        if grep -qF "id: ${id}" "$BACKLOG_FILE" 2>/dev/null; then
             skipped=$((skipped + 1))
             continue
         fi

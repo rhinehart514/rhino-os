@@ -92,9 +92,13 @@ fi
 
 # --- Pre-validate eval cache (once, before per-feature reads) ---
 _eval_cache_valid=false
+_eval_cache_empty=true
 if [[ -f "$EVAL_CACHE" ]]; then
     if jq empty "$EVAL_CACHE" 2>/dev/null; then
         _eval_cache_valid=true
+        # Check if cache has any feature entries (not just {})
+        _feat_count=$(jq 'keys | length' "$EVAL_CACHE" 2>/dev/null || echo "0")
+        [[ "$_feat_count" -gt 0 ]] && _eval_cache_empty=false
     else
         echo "synthesize: eval cache corrupted — run /eval to rebuild." >&2
     fi
@@ -129,14 +133,14 @@ get_eval_scores() {
     local feat="$1"
     if [[ "$_eval_cache_valid" == true ]]; then
         local result
-        result=$(jq -r --arg f "$feat" '.[$f] // {} | "\(.delivery_score // 0) \(.craft_score // 0)"' "$EVAL_CACHE" 2>/dev/null)
-        if [[ -z "$result" || "$result" == "null null" ]]; then
-            echo "0 0"
+        result=$(jq -r --arg f "$feat" '.[$f] // {} | "\(.delivery_score // 0) \(.craft_score // 0) \(.confidence_interval // 0)"' "$EVAL_CACHE" 2>/dev/null)
+        if [[ -z "$result" || "$result" == "null null null" ]]; then
+            echo "0 0 0"
         else
             echo "$result"
         fi
     else
-        echo "0 0"
+        echo "0 0 0"
     fi
 }
 
@@ -280,9 +284,11 @@ compute_feature_score() {
     local feat="$1"
     local eval_scores
     eval_scores=$(get_eval_scores "$feat")
-    local delivery craft
+    local delivery craft ci
     delivery=$(echo "$eval_scores" | awk '{print $1}')
     craft=$(echo "$eval_scores" | awk '{print $2}')
+    ci=$(echo "$eval_scores" | awk '{print $3}')
+    [[ -z "$ci" || "$ci" == "null" ]] && ci=0
 
     local visual behavioral viability
     visual=$(get_visual_score)
@@ -365,7 +371,16 @@ compute_feature_score() {
         stale_flag="false"
     fi
 
-    echo "{\"feature\":\"$feat\",\"score\":$score,\"delivery\":$delivery,\"craft\":$craft,\"visual\":$vis_out,\"behavioral\":$beh_out,\"viability\":$viability,\"viability_source\":\"$viability_src\",\"confidence\":\"$confidence\",\"tiers\":$tier_count,\"weight\":$(get_feature_weight "$feat"),\"top_recommendation\":$top_rec,\"eval_age_days\":$eval_age,\"stale\":$stale_flag}"
+    # Effective weight: halved when stale
+    local raw_weight effective_weight
+    raw_weight=$(get_feature_weight "$feat")
+    if [[ "$stale_flag" == "true" ]]; then
+        effective_weight=$(( (raw_weight + 1) / 2 ))  # ceiling division
+    else
+        effective_weight=$raw_weight
+    fi
+
+    echo "{\"feature\":\"$feat\",\"score\":$score,\"delivery\":$delivery,\"craft\":$craft,\"visual\":$vis_out,\"behavioral\":$beh_out,\"viability\":$viability,\"viability_source\":\"$viability_src\",\"confidence\":\"$confidence\",\"tiers\":$tier_count,\"weight\":$raw_weight,\"effective_weight\":$effective_weight,\"confidence_interval\":$ci,\"top_recommendation\":$top_rec,\"eval_age_days\":$eval_age,\"stale\":$stale_flag}"
 }
 
 # --- Main ---
@@ -387,7 +402,7 @@ while IFS= read -r feat; do
 
     result=$(compute_feature_score "$feat")
     feat_score=$(echo "$result" | jq -r '.score')
-    feat_weight=$(echo "$result" | jq -r '.weight')
+    feat_weight=$(echo "$result" | jq -r '.effective_weight')
     feat_tiers=$(echo "$result" | jq -r '.tiers')
 
     _feat_names+=("$feat")
@@ -422,6 +437,17 @@ if [[ -f "$OUTSIDE_IN" ]] && command -v jq &>/dev/null; then
     _opp_journey_gaps=$(jq -r '.journey_gaps | length // 0' "$OUTSIDE_IN" 2>/dev/null || echo "0")
     _opp_unmet_needs=$(jq -r '.unmet_needs | length // 0' "$OUTSIDE_IN" 2>/dev/null || echo "0")
     _opp_top_signal=$(jq -r '(.market_opportunities // [])[0].signal // empty' "$OUTSIDE_IN" 2>/dev/null || true)
+fi
+
+# --- First-run guidance: no eval data yet ---
+if [[ "$_eval_cache_empty" == true && "$OUTPUT_MODE" == "text" ]]; then
+    echo ""
+    echo "  No eval data yet. Run /eval to score your features."
+    echo ""
+    exit 0
+elif [[ "$_eval_cache_empty" == true ]]; then
+    echo "{\"synthesized_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"features\":{},\"product_score\":0,\"confidence\":\"none\",\"message\":\"No eval data yet. Run /eval to score your features.\",\"tiers_filled\":0,\"total_weight\":0,\"opportunity_context\":null}"
+    exit 0
 fi
 
 if [[ "$OUTPUT_MODE" == "text" ]]; then
@@ -540,6 +566,8 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
         _fv=$(echo "$_fr" | jq -r '.viability')
         _fvs=$(echo "$_fr" | jq -r '.viability_source')
         _fw=$(echo "$_fr" | jq -r '.weight')
+        _few=$(echo "$_fr" | jq -r '.effective_weight')
+        _fci=$(echo "$_fr" | jq -r '.confidence_interval')
         _fage=$(echo "$_fr" | jq -r '.eval_age_days')
         _fstale=$(echo "$_fr" | jq -r '.stale')
 
@@ -560,15 +588,27 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
         _wdots=""
         for ((_w=0; _w<_fw; _w++)); do _wdots="${_wdots}●"; done
 
+        # Confidence interval suffix
+        _ci_suf=""
+        if [[ "$_fci" -gt 0 ]]; then
+            _ci_suf=" ${_C_DIM}±${_fci}${_C_NC}"
+        fi
+
+        # Stale tag and weight penalty indicator
+        _stale_suf=""
+        if [[ "$_fstale" == "true" ]]; then
+            _stale_suf=" ${_C_YELLOW}(stale)${_C_NC}"
+        fi
+
         # Row: name  score+bar  d  c  v  weight
         # Use fixed-width segments to keep alignment despite ANSI codes
         _name_pad="$(printf '%-12s' "$_fn")"
-        echo -ne "  ${_C_BOLD}${_name_pad}${_C_NC} $(_color_s $_fs) $(_score_bar $_fs)"
+        echo -ne "  ${_C_BOLD}${_name_pad}${_C_NC} $(_color_s $_fs)${_ci_suf} $(_score_bar $_fs)"
         echo -ne "      $(_color_s $_fd)      $(_color_s $_fc)       $(_color_s $_fv)${_via_suf}"
         # Staleness indicator
         _age_suf=""
-        if [[ "$_fage" -gt 7 ]]; then
-            _age_suf=" ${_C_YELLOW}⚠ stale${_C_NC}"
+        if [[ "$_fstale" == "true" ]]; then
+            _age_suf="${_stale_suf}"
         elif [[ "$_fage" -gt 3 ]]; then
             _age_suf=" ${_C_DIM}(${_fage}d old)${_C_NC}"
         fi
@@ -581,10 +621,26 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
             _d_impact=$(( (100 - _fd) * 40 * _fw / 100 ))
             _c_impact=$(( (100 - _fc) * 25 * _fw / 100 ))
             _v_impact=$(( (100 - _fv) * 10 * _fw / 100 ))
+            _vis_impact=$(( (100 - _vis_global) * 15 * _fw / 100 ))
+            _beh_impact=$(( (100 - _beh_global) * 10 * _fw / 100 ))
+        elif $_has_vis_global; then
+            _d_impact=$(( (100 - _fd) * 40 * _fw / 100 ))
+            _c_impact=$(( (100 - _fc) * 25 * _fw / 100 ))
+            _v_impact=$(( (100 - _fv) * 10 * _fw / 100 ))
+            _vis_impact=$(( (100 - _vis_global) * 15 * _fw / 100 ))
+            _beh_impact=0
+        elif $_has_beh_global; then
+            _d_impact=$(( (100 - _fd) * 40 * _fw / 100 ))
+            _c_impact=$(( (100 - _fc) * 25 * _fw / 100 ))
+            _v_impact=$(( (100 - _fv) * 10 * _fw / 100 ))
+            _vis_impact=0
+            _beh_impact=$(( (100 - _beh_global) * 10 * _fw / 100 ))
         else
             _d_impact=$(( (100 - _fd) * 50 * _fw / 100 ))
             _c_impact=$(( (100 - _fc) * 30 * _fw / 100 ))
             _v_impact=$(( (100 - _fv) * 20 * _fw / 100 ))
+            _vis_impact=0
+            _beh_impact=0
         fi
 
         if [[ $_d_impact -gt $_best_mover_impact ]]; then
@@ -601,6 +657,16 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
             _best_mover_impact=$_v_impact
             _best_mover_dim="viability"
             _best_mover_action="/research ${_fn} — viability at ${_fv}, weight ${_fw}"
+        fi
+        if [[ $_vis_impact -gt $_best_mover_impact ]]; then
+            _best_mover_impact=$_vis_impact
+            _best_mover_dim="visual"
+            _best_mover_action="/taste — visual at ${_vis_global}"
+        fi
+        if [[ $_beh_impact -gt $_best_mover_impact ]]; then
+            _best_mover_impact=$_beh_impact
+            _best_mover_dim="behavioral"
+            _best_mover_action="/taste flows — behavioral at ${_beh_global}"
         fi
     done
 

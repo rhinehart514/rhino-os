@@ -128,7 +128,7 @@ features:
     status: active
     weight: 5
   install:
-    delivers: "one-command setup — clone, run install.sh, everything works"
+    delivers: "two-step setup — install.sh + /onboard gets everything working"
     for: "new user trying rhino-os for the first time"
     skills: ["/onboard"]
     code: ["skills/onboard/SKILL.md", "install.sh", "README.md"]

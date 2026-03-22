@@ -17,7 +17,9 @@ That's it. Start a Claude Code session in any project. rhino-os measures as you 
 
 **After install:** `cd your-project && claude`, then type `/onboard`. rhino-os reads your code, infers what it does, and gives you a score. It may ask 2-3 questions if auto-detection is uncertain.
 
-**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS or Linux, [jq](https://jqlang.github.io/jq/download/)
+**Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) ([get it here](https://claude.ai/download)), macOS or Linux, [jq](https://jqlang.github.io/jq/download/)
+
+**First session:** install the plugin, then `cd your-project && claude` and run `/onboard` to get a score. Run `/plan` to find the bottleneck, then `/go` to fix it autonomously.
 
 ## What happens
 
@@ -110,7 +112,7 @@ The score combines 5 measurement tiers — health, code eval, visual quality, be
 |-------|---------------|------------|
 | < 30 | Structural issues, missing foundations | `/plan` to find the bottleneck, then `/go` to fix it |
 | 30-49 | Half-built — features exist but incomplete | `/eval` to see which features lag, then build the weakest |
-| 50-69 | Works but has gaps in craft or coverage | `/taste <url>` to find UX gaps, `/go` to close them |
+| 50-69 | Works but has gaps in craft (code + UX quality) or coverage (assertion completeness) | `/taste <url>` to find UX gaps, `/go` to close them |
 | 70-89 | Solid — ships and works | `/strategy` to check market fit, `/push` to surface remaining gaps |
 | 90+ | Genuinely excellent (flagged if early-stage) | `/product` to pressure-test assumptions, `/roadmap` to plan what's next |
 

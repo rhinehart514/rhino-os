@@ -166,6 +166,7 @@ echo -e "  ${BOLD}Skills${NC}"
 SKILL_COUNT=$(find "$RHINO_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 if $PLUGIN_MODE; then
     echo -e "    ${DIM}${SKILL_COUNT} skills loaded via plugin system${NC}"
+    echo -e "    ${DIM}key commands: /plan, /eval, /go, /score, /onboard, /rhino${NC}"
 else
     echo -e "    ${DIM}${SKILL_COUNT} skills found — install as plugin for slash commands${NC}"
     echo -e "    ${DIM}Manual mode: use 'rhino' CLI. Plugin mode: /plan, /go, /eval, etc.${NC}"
