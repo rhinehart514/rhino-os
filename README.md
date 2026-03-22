@@ -15,7 +15,7 @@ claude /plugin install rhino-os@rhino-marketplace
 
 That's it. Start a Claude Code session in any project. rhino-os works automatically.
 
-**After install:** `cd your-project && claude`, then type `/onboard`. rhino-os reads your code, infers what it does, and gives you a score — no configuration needed.
+**After install:** `cd your-project && claude`, then type `/onboard`. rhino-os reads your code, infers what it does, and gives you a score. It may ask 2-3 questions if auto-detection is uncertain.
 
 **Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), macOS or Linux, [jq](https://jqlang.github.io/jq/download/)
 
@@ -24,13 +24,13 @@ That's it. Start a Claude Code session in any project. rhino-os works automatica
 You don't learn commands. You don't configure anything. You just code.
 
 **While you code:**
-- Every file edit is checked for missing error states, loading indicators, dead ends, and hardcoded secrets. Claude sees the warnings and fixes them in the next turn — you don't have to ask.
-- After significant changes, product quality is measured automatically. If the score drops, you're told immediately.
+- Every file edit is checked for missing error states, loading indicators, dead ends, and hardcoded secrets. Warnings appear on every edit. Run `/go` to fix automatically.
+- After significant changes, product quality is continuously measured. If the score drops, you're told immediately.
 
 **When you ask:**
 - "Is this good?" → honest product quality score with specific gaps
 - "What should I work on?" → finds the bottleneck, proposes the highest-leverage fix
-- "Just build it" → autonomous build loop that measures after every change and reverts regressions
+- "Just build it" → autonomous build loop that measures after every change and offers to revert when score drops
 
 **Across sessions:**
 - Every action starts with a prediction. Wrong predictions update the model. The system gets smarter over time.
@@ -80,9 +80,9 @@ Session 20:  74% complete  ·  56/62 assertions  ·  score 58
 Session 38:  92% complete  ·  61/62 assertions  ·  score 65 ●●○○○
 ```
 
-## How it works
+## How it works (and how it's different)
 
-rhino-os measures **product quality** (not code quality). It plants assertions (testable beliefs about your product, like "the signup flow completes in under 30 seconds"), scores them, and reverts changes that make things worse.
+rhino-os measures **product quality** (not code quality). It plants assertions (testable beliefs about your product, like "the signup flow completes in under 30 seconds"), scores them, and offers to revert when the score drops.
 
 ```
   Observe ─── what's the product state?
@@ -100,16 +100,19 @@ rhino-os measures **product quality** (not code quality). It plants assertions (
      └──────── repeat ─── compounds across sessions
 ```
 
-The score combines 5 measurement tiers — health, code eval, visual quality, behavioral testing, and market viability — into one honest number. Score goes up = you shipped value. Score drops = the change gets reverted.
+The score combines 5 measurement tiers — health, code eval, visual quality, behavioral testing, and market viability — into one honest number. Score goes up = you shipped. Score drops = you're prompted to revert.
 
-**Reading the scores:** 90+ = genuinely excellent. 70-89 = solid, ships and works. 50-69 = works but has gaps. 30-49 = half-built. Below 30 = broken. Scores are honest — early-stage products scoring 75+ are flagged as suspicious.
+**CI/GitHub Actions** measure whether code passes tests. **SonarQube/CodeClimate** catch code smells. **Linear/Jira** measure task throughput. rhino-os measures whether the product actually improved — features that don't deliver get caught, craft that doesn't compound gets flagged, and a "done" task that drops the score gets flagged for revert.
 
-## vs alternatives
+### Next steps by score
 
-- **CI / GitHub Actions** measure whether code passes tests. rhino-os measures whether the product delivers value.
-- **SonarQube / CodeClimate** catch code smells. rhino-os catches product smells — features that don't deliver, craft that doesn't compound.
-- **Linear / Jira** measure task throughput. rhino-os measures outcomes — a "done" task that drops the product score gets reverted automatically.
-- **Cursor / Copilot** generate code. rhino-os measures whether the generated code helped, learns what works, and stops doing what doesn't.
+| Score | What it means | What to do |
+|-------|---------------|------------|
+| < 30 | Structural issues, missing foundations | `/plan` to find the bottleneck, then `/go` to fix it |
+| 30-49 | Half-built — features exist but incomplete | `/eval` to see which features lag, then build the weakest |
+| 50-69 | Works but has gaps in craft or coverage | `/taste <url>` to find UX gaps, `/go` to close them |
+| 70-89 | Solid — ships and works | `/strategy` to check market fit, `/push` to surface remaining gaps |
+| 90+ | Genuinely excellent (flagged if early-stage) | `/product` to pressure-test assumptions, `/roadmap` to plan what's next |
 
 ## If you want more control
 
@@ -118,8 +121,9 @@ You don't need these — but they're there when you want to dig deeper.
 - **"Is my product good?"** → `/score` (unified quality) or `/eval` (code-level detail)
 - **"What should I work on?"** → `/plan` (find the bottleneck, propose the fix)
 - **"Just build it"** → `/go` (autonomous build loop with measurement)
+- **"Where am I?"** → `/rhino` (dashboard: score, assertions, completion, bottleneck)
 
-Type `/rhino help` to see them all. Or just talk naturally: "brainstorm ideas", "deploy", "what's the strategy" — rhino-os routes to the right command.
+Type `/rhino help` to see all commands. Or just talk naturally: "brainstorm ideas", "deploy", "what's the strategy" — rhino-os routes to the right command.
 
 ## On a fresh project
 
@@ -132,14 +136,18 @@ claude
   detected: Node.js web app, 12 routes, 3 API endpoints
   generated: 6 features, 10 assertions, initial roadmap
   score: 45 ●○○○○ — structural issues found, no eval data yet
+
+> /rhino
+  score: 45 ●○○○○  · assertions: 10/10 · completion: 22%
+  bottleneck: auth at 35 — weight:4, missing error handling
 ```
 
-No configuration. rhino-os reads your code, infers what it does, generates assertions, and gives you a score.
+Minimal configuration — `/onboard` asks 2-3 questions if auto-detection is uncertain. Otherwise it reads your code, infers what it does, generates assertions, and gives you a score.
 
 ## Tested on
 
 - **rhino-os itself** — score 20 to 65 over ~38 sessions, 61/62 assertions passing, 63% prediction accuracy
-- **commander.js** — 80/100 on first init, zero configuration
+- **commander.js** — 80/100 on first init, minimal configuration
 
 ## Troubleshooting
 

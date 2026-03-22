@@ -6,6 +6,43 @@
 _GRADE_CLAIMS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_GRADE_CLAIMS_DIR}/grade-patterns.sh"
 
+# Validate that a model_update references experiment-learnings.md or declares a new pattern.
+# Returns the validated (possibly amended) model_update string.
+# If invalid, returns empty string (suppresses the update from consolidation).
+validate_model_update() {
+    local update="$1"
+    local learnings_file="$PROJECT_DIR/.claude/knowledge/experiment-learnings.md"
+    [[ ! -f "$learnings_file" ]] && learnings_file="$HOME/.claude/knowledge/experiment-learnings.md"
+
+    [[ -z "$update" ]] && return 0
+
+    # Check if it references an existing pattern in experiment-learnings.md
+    local references_existing=false
+    if [[ -f "$learnings_file" ]]; then
+        # Extract a distinctive keyword (4+ chars) from the update
+        local ref_keyword
+        ref_keyword=$(echo "$update" | grep -oE '[a-zA-Z_-]{4,}' | \
+            grep -viE '^(will|from|that|this|with|have|been|into|than|they|them|were|more|each|also|does|make|confirmed|wrong|partial|mechanism|predicted|because|about|after|before|model|update|held|score|target|reached|points|improved|decreased)$' | \
+            head -1)
+        if [[ -n "$ref_keyword" ]] && grep -qiF "$ref_keyword" "$learnings_file" 2>/dev/null; then
+            references_existing=true
+        fi
+    fi
+
+    # Check if it declares a new pattern (contains pattern-declaring language)
+    local declares_new=false
+    if echo "$update" | grep -qiE 'new pattern|first time|not seen before|novel|unknown territory|new: |discovered that|turns out|the mechanism'; then
+        declares_new=true
+    fi
+
+    if [[ "$references_existing" == true || "$declares_new" == true ]]; then
+        echo "$update"
+    else
+        # Amend with "new pattern:" prefix to declare it as new learning
+        echo "new pattern: ${update}"
+    fi
+}
+
 # Grade a single prediction
 grade_prediction() {
     local prediction="$1"

@@ -237,6 +237,11 @@ while IFS= read -r line; do
             ;;
     esac
 
+    # Validate model_update references learnings or declares new pattern
+    if [[ -n "$local_model_update" ]]; then
+        local_model_update=$(validate_model_update "$local_model_update")
+    fi
+
     if $DRY_RUN; then
         # Show what would be graded without writing
         echo "$line" >> "$TEMP_FILE"
@@ -309,11 +314,16 @@ if [[ "$QUIET" == false ]]; then
     fi
 fi
 
-# --- Prediction quality gate: mark vague predictions as ungraded ---
+# --- Prediction quality gate: mark vague predictions as needs_target ---
 if [[ -f "$PRED_FILE" ]]; then
     VAGUE_COUNT=0
     VAGUE_TEMP=$(mktemp)
     VAGUE_MARKED=0
+    NEEDS_TARGET_FILE="$PROJECT_DIR/.claude/cache/needs-target-predictions.tsv"
+    # Clear previous needs_target markers
+    if ! $DRY_RUN; then
+        printf "date\tprediction\n" > "$NEEDS_TARGET_FILE"
+    fi
     while IFS= read -r _vague_line; do
         if [[ "$VAGUE_MARKED" -eq 0 ]]; then
             # Header line
@@ -328,16 +338,18 @@ if [[ -f "$PRED_FILE" ]]; then
         if ! echo "$_pred" | grep -qE '[0-9]+|→|raise|drop|increase|decrease|improve|decline|from .* to'; then
             VAGUE_COUNT=$((VAGUE_COUNT + 1))
             if ! $DRY_RUN; then
-                # Mark as ungraded with model_update explaining why
+                # Mark as needs_target — surface for /plan to pick up
                 printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
                     "$_date" "$_agent" "$_pred" "$_evidence" \
-                    "Prediction too vague to grade — no measurable target" "ungraded" \
-                    "Prediction too vague to grade — rewrite with measurable target (e.g. 'X will change from N to M')" >> "$VAGUE_TEMP"
+                    "needs_target: no measurable claim — rewrite with numbers/direction" "needs_target" \
+                    "" >> "$VAGUE_TEMP"
+                # Write to needs-target file so /plan can surface them
+                printf "%s\t%s\n" "$_date" "${_pred:0:120}" >> "$NEEDS_TARGET_FILE"
             else
                 echo "$_vague_line" >> "$VAGUE_TEMP"
             fi
-            if [[ "$QUIET" == false && "$VAGUE_COUNT" -le 2 ]]; then
-                echo -e "  ⚠ Vague prediction: \"${_pred:0:60}\""
+            if [[ "$QUIET" == false && "$VAGUE_COUNT" -le 3 ]]; then
+                echo "  ▸ needs_target: \"${_pred:0:60}\""
                 echo "    → Rewrite as: 'X will change from N to M because Y'"
             fi
         else
@@ -350,11 +362,11 @@ if [[ -f "$PRED_FILE" ]]; then
         else
             rm -f "$VAGUE_TEMP"
         fi
-        if [[ "$QUIET" == false && "$VAGUE_COUNT" -gt 2 ]]; then
-            echo "  ⚠ ${VAGUE_COUNT} vague predictions marked as ungraded. Future predictions need numbers."
-        fi
+        $QUIET || echo "  ▸ ${VAGUE_COUNT} prediction(s) marked needs_target — /plan will surface for rewrite"
     else
         rm -f "$VAGUE_TEMP"
+        # No vague predictions — clean up marker file
+        ! $DRY_RUN && rm -f "$NEEDS_TARGET_FILE"
     fi
 fi
 
@@ -364,3 +376,20 @@ if ! $DRY_RUN && [[ "$GRADED_COUNT" -gt 0 ]]; then
 fi
 
 detect_stale_entries
+
+# --- Self-prediction quota check ---
+# Warn if <30% of predictions are about rhino-os itself
+if [[ "$QUIET" == false && -f "$PRED_FILE" ]]; then
+    TOTAL_PREDS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$3 != "" { c++ } END { print c+0 }')
+    if [[ "$TOTAL_PREDS" -ge 5 ]]; then
+        SELF_PREDS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' 'tolower($3) ~ /rhino/ { c++ } END { print c+0 }')
+        if [[ "$TOTAL_PREDS" -gt 0 ]]; then
+            SELF_PCT=$((SELF_PREDS * 100 / TOTAL_PREDS))
+            if [[ "$SELF_PCT" -lt 30 ]]; then
+                echo ""
+                echo "  ▸ Self-prediction quota: ${SELF_PCT}% of predictions reference rhino-os (${SELF_PREDS}/${TOTAL_PREDS})"
+                echo "    The system learns most from predictions about itself. Target: 30%+"
+            fi
+        fi
+    fi
+fi

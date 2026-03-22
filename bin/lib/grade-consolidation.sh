@@ -34,6 +34,13 @@ consolidate_knowledge() {
         # Skip empty model_updates (tautological predictions filtered upstream)
         [[ -z "$model_update" || "$model_update" == "Confirmed: " ]] && continue
 
+        # Tautology filter: model_update must contain a mechanism word/phrase
+        # Not just restating the outcome — must explain WHY
+        if ! echo "$model_update" | grep -qiE 'because|the assumption was|discovered that|the mechanism|turns out|caused by|due to|implies that|root cause|the reason|driven by|explained by|which means|indicating|suggests that'; then
+            $QUIET || echo "  ⚠ Skipping tautological model_update (no mechanism): ${model_update:0:60}"
+            continue
+        fi
+
         local entry="- (${_date}) ${model_update}"
 
         # Route to correct zone based on grading result

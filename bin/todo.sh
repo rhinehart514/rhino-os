@@ -563,7 +563,7 @@ EOF
     status: backlog
     context: ""
     source: "manual"
-    created: ${today}
+    created_at: ${today}
 EOF
 
     # Auto-tag: detect feature from title by matching against rhino.yml feature names
@@ -607,7 +607,7 @@ cmd_done() {
         echo "No todos.yml found"
         return 1
     fi
-    if ! grep -q "id: ${target_id}$" "$BACKLOG_FILE" 2>/dev/null; then
+    if ! grep -qF "id: ${target_id}" "$BACKLOG_FILE" 2>/dev/null; then
         echo "Item '$target_id' not found"
         return 1
     fi
@@ -643,7 +643,7 @@ cmd_edit() {
         echo "No todos.yml found"
         return 1
     fi
-    if ! grep -q "id: ${target_id}$" "$BACKLOG_FILE" 2>/dev/null; then
+    if ! grep -qF "id: ${target_id}" "$BACKLOG_FILE" 2>/dev/null; then
         echo "Item '$target_id' not found"
         return 1
     fi
@@ -672,7 +672,7 @@ cmd_tag() {
         echo "No todos.yml found"
         return 1
     fi
-    if ! grep -q "id: ${target_id}$" "$BACKLOG_FILE" 2>/dev/null; then
+    if ! grep -qF "id: ${target_id}" "$BACKLOG_FILE" 2>/dev/null; then
         echo "Item '$target_id' not found"
         return 1
     fi
@@ -777,7 +777,7 @@ cmd_promote() {
         echo "No todos.yml found"
         return 1
     fi
-    if ! grep -q "id: ${target_id}$" "$BACKLOG_FILE" 2>/dev/null; then
+    if ! grep -qF "id: ${target_id}" "$BACKLOG_FILE" 2>/dev/null; then
         echo "Item '$target_id' not found"
         return 1
     fi
@@ -1267,7 +1267,7 @@ EOF
     status: backlog
     context: "${context}"
     source: "${source}"
-    created: ${today}
+    created_at: ${today}
 EOF
         count=$((count + 1))
     done

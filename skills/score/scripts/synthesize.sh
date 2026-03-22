@@ -496,12 +496,33 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
     echo -e "${_SEP}"
     echo ""
 
+    # --- Formula line ---
+    # Determine which formula variant is active based on available tiers
+    _has_vis_global=true _has_beh_global=true
+    _vis_global=$(get_visual_score)
+    _beh_global=$(get_behavioral_score)
+    [[ "$_vis_global" == "-1" ]] && _has_vis_global=false
+    [[ "$_beh_global" == "-1" ]] && _has_beh_global=false
+
+    if $_has_vis_global && $_has_beh_global; then
+        echo -e "  ${_C_DIM}formula${_C_NC}  d×40% + c×25% + visual×15% + behavioral×10% + viability×10%"
+    elif ! $_has_vis_global && ! $_has_beh_global; then
+        echo -e "  ${_C_DIM}formula${_C_NC}  d×50% + c×30% + viability×20%  ${_C_DIM}(no visual/behavioral — run /taste to unlock)${_C_NC}"
+    elif $_has_vis_global; then
+        echo -e "  ${_C_DIM}formula${_C_NC}  d×40% + c×25% + visual×15% + viability×10%  ${_C_DIM}(no behavioral — run /taste flows to unlock)${_C_NC}"
+    else
+        echo -e "  ${_C_DIM}formula${_C_NC}  d×40% + c×25% + behavioral×10% + viability×10%  ${_C_DIM}(no visual — run /taste to unlock)${_C_NC}"
+    fi
+    echo ""
+
     # --- Table header ---
     echo -e "  ${_C_DIM}                                    delivery  craft  viability${_C_NC}"
 
-    # --- Sort features worst to best ---
+    # --- Sort features worst to best + track biggest mover ---
     _bottleneck_feat="" _bottleneck_score=101
     _sorted_indices=()
+    # Track weighted gap per dimension for "biggest mover" recommendation
+    _best_mover_dim="" _best_mover_impact=0 _best_mover_action=""
     for ((_i=0; _i<${#_feat_names[@]}; _i++)); do
         _fs=$(echo "${_feat_results[$_i]}" | jq -r '.score')
         _sorted_indices+=("${_fs}:${_i}")
@@ -527,10 +548,13 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
             _bottleneck_feat=$_fn
         fi
 
-        # Viability suffix
+        # Viability suffix — explain source/cap reason
         _via_suf=""
-        [[ "$_fvs" == "capped" ]] && _via_suf=" ${_C_RED}!${_C_NC}"
-        [[ "$_fvs" == "intelligence" ]] && _via_suf=" ${_C_DIM}~${_C_NC}"
+        if [[ "$_fvs" == "capped" ]]; then
+            _via_suf=" ${_C_RED}capped${_C_NC}"
+        elif [[ "$_fvs" == "intelligence" ]]; then
+            _via_suf=" ${_C_DIM}~intel${_C_NC}"
+        fi
 
         # Weight dots: ● for each weight point
         _wdots=""
@@ -549,9 +573,49 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
             _age_suf=" ${_C_DIM}(${_fage}d old)${_C_NC}"
         fi
         echo -e "  ${_C_DIM}${_wdots}${_C_NC}${_age_suf}"
+
+        # --- Compute biggest mover for this feature ---
+        # Impact = weight_pct × gap_from_100 for each dimension
+        # Use the active formula weights to determine which dimension gains the most
+        if $_has_vis_global && $_has_beh_global; then
+            _d_impact=$(( (100 - _fd) * 40 * _fw / 100 ))
+            _c_impact=$(( (100 - _fc) * 25 * _fw / 100 ))
+            _v_impact=$(( (100 - _fv) * 10 * _fw / 100 ))
+        else
+            _d_impact=$(( (100 - _fd) * 50 * _fw / 100 ))
+            _c_impact=$(( (100 - _fc) * 30 * _fw / 100 ))
+            _v_impact=$(( (100 - _fv) * 20 * _fw / 100 ))
+        fi
+
+        if [[ $_d_impact -gt $_best_mover_impact ]]; then
+            _best_mover_impact=$_d_impact
+            _best_mover_dim="delivery"
+            _best_mover_action="/eval ${_fn} — delivery at ${_fd}, weight ${_fw}"
+        fi
+        if [[ $_c_impact -gt $_best_mover_impact ]]; then
+            _best_mover_impact=$_c_impact
+            _best_mover_dim="craft"
+            _best_mover_action="/eval ${_fn} — craft at ${_fc}, weight ${_fw}"
+        fi
+        if [[ $_v_impact -gt $_best_mover_impact ]]; then
+            _best_mover_impact=$_v_impact
+            _best_mover_dim="viability"
+            _best_mover_action="/research ${_fn} — viability at ${_fv}, weight ${_fw}"
+        fi
     done
 
     echo ""
+
+    # --- Viability explanation (if any feature has capped viability) ---
+    _any_capped=false
+    for ((_i=0; _i<${#_feat_results[@]}; _i++)); do
+        _fvs_chk=$(echo "${_feat_results[$_i]}" | jq -r '.viability_source')
+        [[ "$_fvs_chk" == "capped" ]] && _any_capped=true && break
+    done
+    if $_any_capped; then
+        echo -e "  ${_C_YELLOW}viability capped at 30 — no market data. Run /research to unlock${_C_NC}"
+        echo ""
+    fi
 
     # --- Footer ---
     echo -e "${_SEP}"
@@ -559,6 +623,11 @@ if [[ "$OUTPUT_MODE" == "text" ]]; then
     # Bottleneck
     if [[ -n "$_bottleneck_feat" ]]; then
         echo -e "  ${_C_DIM}bottleneck${_C_NC}  ${_C_BOLD}${_bottleneck_feat}${_C_NC} at $(_color_s $_bottleneck_score)  ${_C_DIM}· /plan ${_bottleneck_feat}${_C_NC}"
+    fi
+
+    # Biggest mover recommendation
+    if [[ -n "$_best_mover_dim" ]]; then
+        echo -e "  ${_C_DIM}best move${_C_NC}   improve ${_C_BOLD}${_best_mover_dim}${_C_NC}  ${_C_DIM}· ${_best_mover_action}${_C_NC}"
     fi
 
     # Opportunity context

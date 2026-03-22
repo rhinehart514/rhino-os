@@ -90,6 +90,14 @@ GENERATIVE_SCORES=""
 GENERATIVE_COUNT=0
 GENERATIVE_SUM=0
 
+# --- Dependency checks ---
+# jq is required for generative eval (cache read/write, JSON processing).
+# Warn early rather than crash silently mid-eval.
+if ! command -v jq &>/dev/null; then
+    echo "warning: jq not found — generative eval and caching will be limited" >&2
+    echo "  install: brew install jq (macOS) or apt install jq (Linux)" >&2
+fi
+
 # --- Colors ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -374,7 +382,15 @@ run_dom_eval() {
             done
             [[ -z "$dom_script" ]] && dom_script="$RHINO_DIR/bin/dom-eval.mjs"
             if [[ -f "$dom_script" ]]; then
-                DOM_RESULTS=$(node "$dom_script" --url "$EVAL_URL" --eval 2>/dev/null) || DOM_RESULTS=""
+                local _dom_err
+                _dom_err=$(mktemp)
+                DOM_RESULTS=$(node "$dom_script" --url "$EVAL_URL" --eval 2>"$_dom_err") || {
+                    local _dom_stderr
+                    _dom_stderr=$(cat "$_dom_err")
+                    [[ -n "$_dom_stderr" ]] && echo "  [dom-eval] error: $(echo "$_dom_stderr" | head -1)" >&2
+                    DOM_RESULTS=""
+                }
+                rm -f "$_dom_err"
             fi
         fi
     fi
@@ -390,7 +406,15 @@ run_copy_eval() {
             done
             [[ -z "$copy_script" ]] && copy_script="$RHINO_DIR/bin/copy-eval.mjs"
             if [[ -f "$copy_script" ]]; then
-                COPY_RESULTS=$(node "$copy_script" --url "$EVAL_URL" --eval 2>/dev/null) || COPY_RESULTS=""
+                local _copy_err
+                _copy_err=$(mktemp)
+                COPY_RESULTS=$(node "$copy_script" --url "$EVAL_URL" --eval 2>"$_copy_err") || {
+                    local _copy_stderr
+                    _copy_stderr=$(cat "$_copy_err")
+                    [[ -n "$_copy_stderr" ]] && echo "  [copy-eval] error: $(echo "$_copy_stderr" | head -1)" >&2
+                    COPY_RESULTS=""
+                }
+                rm -f "$_copy_err"
             fi
         fi
     fi
@@ -399,7 +423,15 @@ run_copy_eval() {
 run_self_eval() {
     if [[ "$SELF_RAN" != "true" ]]; then
         SELF_RAN=true
-        SELF_RESULTS=$(bash "$RHINO_DIR/bin/self.sh" --eval 2>/dev/null) || true
+        local _self_err
+        _self_err=$(mktemp)
+        SELF_RESULTS=$(bash "$RHINO_DIR/bin/self.sh" --eval 2>"$_self_err") || {
+            local _self_stderr
+            _self_stderr=$(cat "$_self_err")
+            [[ -n "$_self_stderr" ]] && echo "  [self-eval] error: $(echo "$_self_stderr" | head -1)" >&2
+            SELF_RESULTS=""
+        }
+        rm -f "$_self_err"
     fi
 }
 
@@ -667,6 +699,7 @@ run_generative_eval() {
 
         local verdict="" gaps="" evidence="" feat_score=""
         local delivery_score="" craft_score=""
+        local _confidence_interval=""
 
         if [[ -n "$cached" && "$cached" != "" ]]; then
             verdict=$(echo "$cached" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
@@ -675,6 +708,7 @@ run_generative_eval() {
             feat_score=$(echo "$cached" | jq -r '.score // 50' 2>/dev/null)
             delivery_score=$(echo "$cached" | jq -r '.delivery_score // empty' 2>/dev/null)
             craft_score=$(echo "$cached" | jq -r '.craft_score // empty' 2>/dev/null)
+            _confidence_interval=$(echo "$cached" | jq -r '.confidence_interval // empty' 2>/dev/null)
         else
             # Gather code and call Claude
             local code_context
@@ -683,7 +717,15 @@ run_generative_eval() {
             # Append execution eval results when --execute is active
             if [[ "$EXECUTE_MODE" == true ]]; then
                 local exec_results
-                exec_results=$(run_execution_eval "$feat_name" 2>/dev/null) || exec_results=""
+                local _exec_err
+                _exec_err=$(mktemp)
+                exec_results=$(run_execution_eval "$feat_name" 2>"$_exec_err") || {
+                    local _exec_stderr
+                    _exec_stderr=$(cat "$_exec_err")
+                    [[ -n "$_exec_stderr" ]] && echo "  [exec-eval:$feat_name] error: $(echo "$_exec_stderr" | head -1)" >&2
+                    exec_results=""
+                }
+                rm -f "$_exec_err"
                 if [[ -n "$exec_results" ]]; then
                     code_context+="
 $(format_execution_context "$exec_results")"
@@ -694,27 +736,66 @@ $(format_execution_context "$exec_results")"
                 # Generate per-feature rubric (async, cached 24h) — runs in background for next eval
                 generate_feature_rubric "$feat_name" "$delivers" "$for_whom" "$code_context" &
                 local judge_result best_result
-                # Multi-sample median: run N times, take median score
+                # Multi-sample median: run N times, take median of delivery and craft independently
                 local n_samples="${EVAL_SAMPLES:-3}"
+                local _confidence_interval=""
                 if [[ "$n_samples" -le 1 ]]; then
                     judge_result=$(run_logic_research "$feat_name" "$delivers" "$for_whom" "$code_context")
                 else
-                    local sample_scores=() sample_results=()
+                    local sample_delivery=() sample_craft=() sample_results=()
                     for ((si=0; si<n_samples; si++)); do
                         local sample
                         sample=$(run_logic_research "$feat_name" "$delivers" "$for_whom" "$code_context")
-                        local s_score
-                        s_score=$(echo "$sample" | jq -r '.score // 50' 2>/dev/null)
-                        [[ -z "$s_score" || ! "$s_score" =~ ^[0-9]+$ ]] && s_score=50
-                        sample_scores+=("$s_score")
+                        local s_del s_cra
+                        s_del=$(echo "$sample" | jq -r '.delivery_score // 50' 2>/dev/null)
+                        s_cra=$(echo "$sample" | jq -r '.craft_score // 50' 2>/dev/null)
+                        [[ -z "$s_del" || ! "$s_del" =~ ^[0-9]+$ ]] && s_del=50
+                        [[ -z "$s_cra" || ! "$s_cra" =~ ^[0-9]+$ ]] && s_cra=50
+                        sample_delivery+=("$s_del")
+                        sample_craft+=("$s_cra")
                         sample_results+=("$sample")
                     done
-                    # Sort scores and pick median index
-                    local sorted_indices
-                    sorted_indices=$(for i in "${!sample_scores[@]}"; do echo "$i ${sample_scores[$i]}"; done | sort -k2 -n | awk '{print $1}')
-                    local median_idx
-                    median_idx=$(echo "$sorted_indices" | sed -n "$((n_samples / 2 + 1))p")
-                    judge_result="${sample_results[$median_idx]}"
+
+                    # Compute median delivery_score
+                    local sorted_del
+                    sorted_del=$(printf '%s\n' "${sample_delivery[@]}" | sort -n)
+                    local median_del
+                    median_del=$(echo "$sorted_del" | sed -n "$((n_samples / 2 + 1))p")
+
+                    # Compute median craft_score
+                    local sorted_cra
+                    sorted_cra=$(printf '%s\n' "${sample_craft[@]}" | sort -n)
+                    local median_cra
+                    median_cra=$(echo "$sorted_cra" | sed -n "$((n_samples / 2 + 1))p")
+
+                    # Compute confidence interval: (max - min) / 2 of the overall scores
+                    local sample_totals=()
+                    for ((si=0; si<n_samples; si++)); do
+                        sample_totals+=("$(( sample_delivery[si] * 60 / 100 + sample_craft[si] * 40 / 100 ))")
+                    done
+                    local sorted_totals
+                    sorted_totals=$(printf '%s\n' "${sample_totals[@]}" | sort -n)
+                    local _ci_min _ci_max
+                    _ci_min=$(echo "$sorted_totals" | head -1)
+                    _ci_max=$(echo "$sorted_totals" | tail -1)
+                    _confidence_interval="$(( (_ci_max - _ci_min + 1) / 2 ))"
+
+                    # Pick the result closest to the median delivery score for gaps/evidence
+                    local best_idx=0 best_diff=999
+                    for ((si=0; si<n_samples; si++)); do
+                        local diff=$(( sample_delivery[si] - median_del ))
+                        [[ "$diff" -lt 0 ]] && diff=$(( -diff ))
+                        if [[ "$diff" -lt "$best_diff" ]]; then
+                            best_diff="$diff"
+                            best_idx="$si"
+                        fi
+                    done
+
+                    # Build judge_result from median scores + best-match qualitative data
+                    judge_result=$(echo "${sample_results[$best_idx]}" | jq -c \
+                        --argjson d "$median_del" --argjson c "$median_cra" \
+                        --argjson s "$(( median_del * 60 / 100 + median_cra * 40 / 100 ))" \
+                        '.delivery_score = $d | .craft_score = $c | .score = $s')
                 fi
                 verdict=$(echo "$judge_result" | jq -r '.verdict // "PARTIAL"' 2>/dev/null)
                 gaps=$(echo "$judge_result" | jq -r '.gaps // [] | join("; ")' 2>/dev/null)
@@ -750,6 +831,25 @@ $(format_execution_context "$exec_results")"
             fi
         fi
 
+        # Claim-verify integration: cap delivery_score if mechanical checks fail
+        if [[ -n "$delivery_score" && "$delivery_score" != "null" && "$delivery_score" -gt 60 ]]; then
+            local claim_verify_script="$PROJECT_DIR/skills/shared/claim-verify.sh"
+            if [[ -f "$claim_verify_script" ]]; then
+                local cv_result
+                cv_result=$(bash "$claim_verify_script" "$PROJECT_DIR" "$feat_name" 2>/dev/null) || cv_result=""
+                if [[ -n "$cv_result" ]]; then
+                    local cv_verdict
+                    cv_verdict=$(echo "$cv_result" | jq -r ".features.\"$feat_name\".verdict // \"unknown\"" 2>/dev/null)
+                    if [[ "$cv_verdict" == "broken" || "$cv_verdict" == "gap" ]]; then
+                        local cv_rate
+                        cv_rate=$(echo "$cv_result" | jq -r ".features.\"$feat_name\".pass_rate // 0" 2>/dev/null)
+                        delivery_score=60
+                        gaps="${gaps:+${gaps}; }claim-verify: ${cv_verdict} (${cv_rate}% checks pass)"
+                    fi
+                fi
+            fi
+        fi
+
         # Track as numeric score (0-100)
         # -1 signals eval failure — don't mask with a plausible number
         if [[ -z "$feat_score" || "$feat_score" == "null" ]]; then
@@ -766,11 +866,12 @@ $(format_execution_context "$exec_results")"
         GENERATIVE_COUNT=$((GENERATIVE_COUNT + 1))
         GENERATIVE_SUM=$((GENERATIVE_SUM + feat_score))
 
-        # Accumulate for display (include sub-scores)
+        # Accumulate for display (include sub-scores and confidence interval)
         if [[ "$SCORE_MODE" != "true" ]]; then
             local _sub_scores=""
             [[ -n "$delivery_score" && "$delivery_score" != "null" ]] && _sub_scores="d:${delivery_score}"
             [[ -n "$craft_score" && "$craft_score" != "null" ]] && _sub_scores="${_sub_scores:+${_sub_scores} }c:${craft_score}"
+            [[ -n "${_confidence_interval:-}" && "${_confidence_interval:-0}" -gt 0 ]] && _sub_scores="${_sub_scores:+${_sub_scores} }±${_confidence_interval}"
             GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}|${_sub_scores}")
         fi
 
@@ -779,6 +880,7 @@ $(format_execution_context "$exec_results")"
         local cache_extras=""
         [[ -n "$delivery_score" ]] && cache_extras+=",\"delivery_score\":${delivery_score}"
         [[ -n "$craft_score" ]] && cache_extras+=",\"craft_score\":${craft_score}"
+        [[ -n "${_confidence_interval:-}" && "${_confidence_interval:-0}" -gt 0 ]] && cache_extras+=",\"confidence_interval\":${_confidence_interval}"
         [[ -n "$delta" ]] && cache_extras+=",\"delta\":\"${delta}\""
         [[ -n "$delta_vs" ]] && cache_extras+=",\"delta_vs\":${delta_vs}"
         # Use printf %s to avoid trailing newline that contaminates jq -Rs output

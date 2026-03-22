@@ -7,6 +7,32 @@
 #
 # Requires: file_mtime(), FRESH_MODE, EVAL_SAMPLES, RHINO_DIR to be set before sourcing.
 
+# Portable timeout wrapper — works on macOS (no GNU coreutils) and Linux
+# Usage: _timeout SECONDS COMMAND [ARGS...]
+# Returns 124 on timeout (matching GNU timeout behavior)
+_timeout() {
+    local duration="$1"
+    shift
+    if command -v timeout &>/dev/null; then
+        timeout "$duration" "$@"
+    elif command -v gtimeout &>/dev/null; then
+        gtimeout "$duration" "$@"
+    else
+        # Perl-based fallback for macOS without coreutils
+        # Uses SIGALRM to kill child after duration seconds, returns 124 on timeout
+        perl -e '
+            $SIG{ALRM} = sub { kill("TERM", $pid); $timed_out = 1 };
+            alarm(shift @ARGV);
+            $pid = fork();
+            if ($pid == 0) { exec(@ARGV) or exit(127) }
+            waitpid($pid, 0);
+            alarm(0);
+            exit(124) if $timed_out;
+            exit($? >> 8);
+        ' "$duration" "$@"
+    fi
+}
+
 # Gather code content for a feature's code paths
 # Smart reading: small files fully, large files with targeted extraction
 gather_code_context() {
@@ -151,9 +177,9 @@ Output ONLY a JSON object:
         local tmp_file
         tmp_file=$(mktemp)
         echo "$rubric_prompt" > "$tmp_file"
-        rubric_result=$(claude -p "$(cat "$tmp_file")" --model haiku --output-format text --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || {
+        rubric_result=$(_timeout "${EVAL_TIMEOUT:-120}" claude -p "$(cat "$tmp_file")" --model haiku --output-format text --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || {
             # Retry without --output-format if flag not supported
-            rubric_result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || rubric_result=""
+            rubric_result=$(_timeout "${EVAL_TIMEOUT:-120}" claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Output only valid JSON." 2>/dev/null </dev/null) || rubric_result=""
         }
         rm -f "$tmp_file"
     else
@@ -305,13 +331,19 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
         # Capture both stdout and stderr to diagnose failures
         local cli_stderr
         cli_stderr=$(mktemp)
-        result=$(claude -p "$(cat "$tmp_file")" --model haiku --output-format text --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>"$cli_stderr" </dev/null) || {
-            _parse_diag="claude CLI exit code $?; stderr: $(head -5 "$cli_stderr" 2>/dev/null)"
+        local _eval_timeout="${EVAL_TIMEOUT:-120}"
+        result=$(_timeout "${_eval_timeout}" claude -p "$(cat "$tmp_file")" --model haiku --output-format text --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>"$cli_stderr" </dev/null) || {
+            local _exit_code=$?
+            if [[ "$_exit_code" -eq 124 ]]; then
+                _parse_diag="claude CLI timed out after ${_eval_timeout}s"
+            else
+                _parse_diag="claude CLI exit code $_exit_code; stderr: $(head -5 "$cli_stderr" 2>/dev/null)"
+            fi
             result=""
         }
         # If --output-format text is not supported, retry without it
         if [[ -z "$result" && -s "$cli_stderr" ]] && grep -qi 'output-format\|unknown.*flag\|unrecognized' "$cli_stderr" 2>/dev/null; then
-            result=$(claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>/dev/null </dev/null) || result=""
+            result=$(_timeout "${_eval_timeout}" claude -p "$(cat "$tmp_file")" --model haiku --append-system-prompt "Be deterministic. Output only valid JSON. No markdown fences." 2>/dev/null </dev/null) || result=""
             _parse_diag=""
         fi
         rm -f "$tmp_file" "$cli_stderr"
@@ -345,7 +377,7 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
                     }],
                     messages:[{role:"user",content:$prompt}]
                 }')
-            response=$(curl -s "https://api.anthropic.com/v1/messages" \
+            response=$(_timeout "${EVAL_TIMEOUT:-120}" curl -s --max-time "${EVAL_TIMEOUT:-120}" "https://api.anthropic.com/v1/messages" \
                 -H "x-api-key: $api_key" \
                 -H "anthropic-version: 2023-06-01" \
                 -H "content-type: application/json" \
@@ -381,7 +413,7 @@ Output ONLY this JSON object — no markdown fences, no text before or after:
             payload=$(jq -n \
                 --arg prompt "$prompt" \
                 '{model:"claude-haiku-4-5-20251001",max_tokens:2048,temperature:0,messages:[{role:"user",content:$prompt}]}')
-            response=$(curl -s "https://api.anthropic.com/v1/messages" \
+            response=$(_timeout "${EVAL_TIMEOUT:-120}" curl -s --max-time "${EVAL_TIMEOUT:-120}" "https://api.anthropic.com/v1/messages" \
                 -H "x-api-key: $api_key" \
                 -H "anthropic-version: 2023-06-01" \
                 -H "content-type: application/json" \

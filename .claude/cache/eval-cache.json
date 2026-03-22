@@ -1,141 +1,71 @@
-{
-  "scoring": {
-    "score": 69,
-    "delivery_score": 72,
-    "craft_score": 65,
-    "gaps": [
-      "synthesize.sh:55-68 health gate silently skipped on first run when score-cache.json doesn't exist yet",
-      "score.sh:1108 visual output buries the Score: line under 3-4 sections of gate/health status — fails 5-second test",
-      "skills/score/SKILL.md:114 'The synthesis is YOUR work' creates ambiguity about whether Claude computes scores or delegates to synthesize.sh",
-      "Three independent YAML parsers: config.sh:24-87, eval.sh:435-581, synthesize.sh:41 — fragile, duplicated, divergent behavior on edge cases",
-      "eval.sh:759-761 score scale normalization (<=5 means 1-5 scale) could misfire on legitimate low 0-100 scores",
-      "synthesize.sh:424 uses 'local' keyword outside function scope in text output mode"
-    ],
-    "strengths": [
-      "Health gate enforced in BOTH score.sh:619-621,708-709 AND synthesize.sh:55-68 with actionable error messages",
-      "Multi-sample median eval reduces LLM variance: eval.sh:696-716",
-      "Four output modes (visual/json/quiet/trend) all working: score.sh:927-1199",
-      "Integrity checks detect cosmetic-only, inflation, plateau, stage ceiling: score.sh:738-796"
-    ],
-    "evidence": "Health gate now enforced in both score.sh and synthesize.sh. Multi-sample median, four output modes, integrity checks all working. Remaining gaps: first-run edge case, score buried in output, three YAML parsers.",
-    "delta": "better",
-    "delta_vs": 57,
-    "cached_at": "2026-03-20T22:30:00Z"
-  },
-  "learning": {
-    "score": 64,
-    "delivery_score": 62,
-    "craft_score": 67,
-    "gaps": [
-      "experiment-learnings.md never pruned or promoted by system — consolidate_knowledge() only appends (bin/lib/grade-consolidation.sh:8-129)",
-      "session_start.sh:531 consolidation hint is a prompt, not enforcement — Claude may ignore it",
-      "Wrong predictions don't block /plan from re-proposing failed approaches",
-      "trail.sh is read-only visualization with no downstream consumers",
-      "Prediction quality gate warns about vague predictions but doesn't prevent grading"
-    ],
-    "strengths": [
-      "Auto-grading on session start with before/after diff and wrong-prediction surfacing (session_start.sh:154-186)",
-      "grade.sh has 5-tier claim parsing plus 3 signal-based fallbacks",
-      "consolidate_knowledge() now runs after every grade.sh invocation (grade.sh:334)",
-      "Atomic writes throughout — grade.sh uses mktemp+mv pattern",
-      "self.sh Learn section has 7 checks covering velocity, grading rate, freshness, trend, loop closure"
-    ],
-    "evidence": "Core gap 'consolidator only runs from /retro' now addressed: consolidate_knowledge() runs after every grade, session_start.sh prompts semantic consolidation. Auto-grade-on-boot pipeline works. Loop still doesn't fully close: knowledge appended but never pruned, wrong predictions warn but don't gate.",
-    "delta": "better",
-    "delta_vs": 51,
-    "cached_at": "2026-03-20T22:30:00Z"
-  },
-  "commands": {
-    "score": 76,
-    "delivery_score": 78,
-    "craft_score": 72,
-    "gaps": [
-      "No runtime output evidence — skill definitions are instructions to Claude, actual output consistency untested",
-      "Output templates indirected to reference.md instead of inline (skills/plan/SKILL.md:159, skills/go/SKILL.md:182)",
-      "Overlap between /ideate [feature] and /feature [name] ideate — two paths to same goal",
-      "Preamble shell commands fail silently when jq missing or JSON malformed (all 12 SKILL.md preambles)",
-      "cli-taste.sh uses eval on user-provided command with no sanitization (skills/taste/scripts/cli-taste.sh:16)"
-    ],
-    "strengths": [
-      "Intent routing is real and differentiated — 6-13 modes per skill with genuinely different behavior",
-      "State awareness is deep — each skill reads 7-14 state files in parallel",
-      "Tier-aware behavior changes actual recommendations across 5 maturity tiers",
-      "Cross-skill routing graph is explicit — every skill declares reads/writes/triggers/triggered-by",
-      "First-run handling in every skill with graceful degradation",
-      "Anti-sycophancy is structural — banned phrases, move count limits, specific guardrails",
-      "Agent wiring is precise — named agents, model tiers, turn limits, cost notes"
-    ],
-    "evidence": "Previous score of 30 was a pipeline failure, not code quality assessment. 15 SKILL.md files are well-structured with differentiated routing, deep state awareness, tier-aware behavior, cross-skill integration, and structural anti-sycophancy. Consistent design system across all skills without being template-slop. 88% human-quality.",
-    "delta": "better",
-    "delta_vs": 30,
-    "cached_at": "2026-03-20T22:30:00Z"
-  },
-  "install": {
-    "score": 69,
-    "delivery_score": 72,
-    "craft_score": 65,
-    "gaps": [
-      "README.md:122 still mentions '19 commands total' — residual complexity contradicts 'don't learn commands'",
-      "install.sh:96-107 GNU stat/date checks are never used by the script — vestigial noise",
-      "install.sh:138-151 mind file and lens file symlink loops are near-identical — DRY violation",
-      "install.sh:412-414 manual-mode has 3 post-install steps vs plugin-mode's 1"
-    ],
-    "strengths": [
-      "README.md:18 post-install bridge connects install to /onboard with exact command",
-      "install.sh:394 plugin-mode next-step is clear: cd your-project && claude, then /onboard",
-      "README.md:118-121 decision guide replaces 19-command dump with 3 intent-based lines",
-      "install.sh:56-64 ensure_symlink is idempotent",
-      "install.sh:256-306 plugin verification validates 5 structural checks"
-    ],
-    "evidence": "Three targeted changes close worst gaps: dead end after install gone (README.md:18, install.sh:394), command dump replaced with intent-based decision guide (README.md:118-121). install.sh infrastructure solid: idempotent symlinks, dependency checks, dual-mode, self-test.",
-    "delta": "better",
-    "delta_vs": 50,
-    "cached_at": "2026-03-20T22:30:00Z"
-  },
-  "todo": {
-    "score": 64,
-    "delivery_score": 68,
-    "craft_score": 58,
-    "gaps": [
-      "bin/todo.sh: done_count field never incremented — prevents script-level graduation detection",
-      "bin/todo.sh:135-137: item_set_field hardcodes 4-space indent regardless of actual YAML indentation",
-      "bin/todo.sh:91: item_field sub(/^[^:]+: */, '') breaks on values containing colons",
-      "bin/todo.sh: meta-task generation (SKILL.md lines 77-111) absent from script",
-      "bin/todo.sh:522-583: cmd_add acquires/releases lock twice with gap between"
-    ],
-    "strengths": [
-      "bin/todo.sh:282-317: mkdir-based file locking with stale lock detection and auto-cleanup",
-      "bin/todo.sh:129-141: item_set_field uses explicit found_target flag — field insertion fixed",
-      "bin/todo.sh:676-762: smart promote reads eval-cache for bottleneck feature",
-      "bin/todo.sh:566-592: auto-tag scans title against rhino.yml feature names",
-      "bin/todo.sh:979-1118: health command with status counts, age distribution, feature clusters, velocity"
-    ],
-    "evidence": "Working persistent backlog with locking, atomic writes, smart promote, auto-tag, health diagnostics. Previous eval scored based on truncated code read — implementations exist and are substantial. Real gaps: done_count tracking, colon-in-value parsing, meta-task delegation to Claude.",
-    "delta": "better",
-    "delta_vs": 41,
-    "cached_at": "2026-03-20T22:30:00Z"
-  },
-  "docs": {
-    "score": 70,
-    "delivery_score": 72,
-    "craft_score": 68,
-    "gaps": [
-      "README.md:74-112 output examples have no version marker — may be stale after recent skill refactors",
-      "README.md:39-57 'How it works' ASCII diagram is conceptual before actionable — should come after examples",
-      "README.md:36-37 'Session 1 is useful. Session 10 is significantly better' is unsupported at point of appearance",
-      "README.md:140 'assertions: 55/60' uses jargon before definition",
-      "README.md:122 '19 commands total' is noise after the 3-line decision guide"
-    ],
-    "strengths": [
-      "README.md:18 post-install bridge exists: cd your-project && claude, then /onboard",
-      "README.md:114-122 3-line decision guide replaces 19-command dump",
-      "README.md:1-7 opening passes 5-second test with METR citation",
-      "README.md:63-68 'vs alternatives' makes concrete falsifiable comparisons",
-      "skills/rhino/SKILL.md:73-82 /rhino help 'Start Here' matches README's guide — cross-file consistency"
-    ],
-    "evidence": "Two targeted fixes close the highest-weight gaps. Stranger can now answer: what is it, why care, how to install, what to do next. Remaining gaps: stale output examples, conceptual section ordering, minor jargon.",
-    "delta": "better",
-    "delta_vs": 53,
-    "cached_at": "2026-03-20T22:30:00Z"
-  }
-}
+{"scoring":{"verdict":"PARTIAL","gaps":[
+  "Stale eval data is scored anyway—synthesize.sh line 300+ computes a score from eval_age_days > 7 without capping or forcing refresh. Defeats 'tells a founder if they improved' when changes were made 5 days ago but score-cache is 3 days old. Should either auto-refresh stale tiers or refuse to score.",
+  "Silent cache corruption fallback—synthesize.sh line 137-143 checks jq validity but if jq is missing, silently marks eval-cache as invalid. Founder gets a score with no warning that eval data was discarded. Also, if eval cache JSON is corrupted, error message assumes founder understands `/eval` redeploy.",
+  "Circular first-run dependency—synthesize.sh line 90-115 calls `bash score.sh` if score-cache missing, which then reads score-cache to present. Works but creates unclear startup semantics for first-time user. Should document required setup order.",
+  "Input validation missing throughout—rhino.yml malformed = silent defaults (config.sh line 50+). Feature name doesn't exist in eval cache = jq returns null, converted to 0 with no warning. Eval cache has string in delivery_score field = jq fails silently. These are production risk points.",
+  "Monolithic score.sh (1287 lines) does health detection, config parsing, cache invalidation, reason accumulation, and output formatting in one script. Hard to test, reuse, or debug individual pieces. Health gate is immutable (good) but everything else is entangled.",
+  "Viability capping philosophy (max 30, 45, 60, 100 based on intelligence data) is clever but undocumented in SKILL.md. A founder scoring viability at 30 would not understand it's capped, not measured. Should explain in output when cap is applied.",
+  "Product topology and claim-verify scripts exist (product-topology.sh, claim-verify.sh) but are never called by /score. They're orphaned infrastructure—either integrate them into the unified score or document why they're separate.",
+  "Accessible output fails on limited terminals—uses ANSI codes, Unicode bars (█░), bullets (●), warning symbols (⚠). No NO_COLOR support. A founder on a basic terminal or in CI would see garbled output.",
+  "Health gate presentation is unclear—score.sh shows health min/max AFTER the number, in a separate section. A founder sees '65/100' then scrolls down to see 'health: 50' and doesn't understand why the score isn't 0. Ordering matters.",
+  "Cache write is best-effort with no failure feedback—.claude/cache/score-cache.json is written but errors are swallowed. If .claude/cache doesn't exist, write fails silently and founder runs /score next time with no cache, doubling runtime."
+],"evidence":"Scoring is infrastructure that mostly works for its target (solo founder running /score after changes). But it has foundational weaknesses: (1) stale data is scored anyway, breaking the 'tells if you improved' promise; (2) error handling is defensive but silent, hiding problems; (3) design cleverness is undocumented, creating user friction. The health gate and cache invalidation are genuinely well-made. The output is polished. But this is a 1200-line script doing everything in one place, with sharp edges under pressure. It's the work of a systems thinker who hasn't yet shipped to hostile environments. Delivery is incomplete because stale eval scores defeat the core promise. Craft is solid but rough—readable code with insufficient error handling and input validation.","score":59,"delivery_score":58,"craft_score":63,"delta":"same","delta_vs":59,"cached_at":"2026-03-21T23:59:32Z"},"learning":{"verdict":"PARTIAL","gaps":[
+  "predictions.tsv→experiment-learnings.md bridge missing — grade.sh fills model_update column but consolidate_knowledge() is called but not defined in visible code. Model never updates from predictions. skills/retro/SKILL.md:128-145 claims consolidator merges/promotes but the actual consolidation mechanism doesn't exist or isn't wired.",
+  "predictions logged after results, not before — 2026-03-16 entries have 'result' field pre-filled when prediction is logged. grade.sh cannot distinguish between forecasts and post-hoc explanations. This defeats the learning purpose entirely.",
+  "Auto-grading expires predictions after 14 days (bin/grade.sh:240-248) — predictions without gradable numeric signals are marked 'Expired' instead of 'Needs manual grading'. This discards unresolved hypotheses instead of preserving them for /retro.",
+  "Signal-based grading is brittle and over-engineered — grade.sh attempts to grade non-numeric predictions by regex-matching against customer-intel.json, strategy.yml, eval-cache.json. But those files may not exist, format varies, and keyword matching cannot validate 'leaders will confirm pain point' or 'market gap exists'. The fallback mechanism contradicts 'learning'.",
+  "No hypothesis structure — predictions are free-form text without baseline/target/criterion format. grade.sh struggles to extract directional claims from natural language (parse_claim function referenced but logic opaque). This makes grading inconsistent and prevents systematic learning.",
+  "consolidate_knowledge referenced but not defined — bin/grade.sh:323 calls consolidate_knowledge",
+  "it's sourced from lib/grade-consolidation.sh but that file is not in visible code. This is a critical gap: where does knowledge model consolidation actually happen?",
+  "Accuracy tracking exists but is not actionable — session_start.sh computes accuracy from last 10 predictions and trail.sh shows trends, but there's no mechanism to identify which domains are overconfident (>70% accuracy) or broken (<35%) and force exploration. Self.sh checks prediction frequency but doesn't route to /research when accuracy is poor.",
+  "No explicit unknown territory tracking before action — mind/thinking.md and mind/standards.md document the concept of Unknown Territory, but there's no code that: (1) declares what you don't know before starting, (2) forces predictions on unknowns, (3) grades whether exploration answered the question. Unknown territory is aspirational in the model but not enforced in practice.",
+  "Session-based learning unproven — trail.sh shows session metadata (moves, kept, score_after) and accuracy per session (trail.sh:27-38), but no mechanism routes these to /retro or auto-generates learning tasks. Session data exists but is not consumed.",
+  "Mechanical vs hypothesis-driven grading mismatch — grade.sh works perfectly for numeric targets ('score will go from X to Y') but produces false negatives for product/market predictions. 2026-03-12 prediction 'leaders will confirm pain' graded 'no' with result 'untested — no interviews conducted' — but the grading system has no way to run the experiment. It can only mark it expired."
+],"evidence":"Learning infrastructure is 50% built. Predictions log and grade reliably for numeric code-quality metrics, but the system doesn't actually update its model from learnings or enforce hypothesis-driven exploration. The predictions.tsv→experiment-learnings.md bridge is missing (consolidate_knowledge called but not defined), signal-based grading is over-engineered for unmeasurable hypotheses, and predictions are often logged after results instead of before action. Grade.sh auto-expires ungraded predictions after 14 days, discarding unknowns. The code is well-written bash with good error handling, but the design has fundamental gaps: no explicit unknown-territory forcing, no accuracy→action routing, no verification that model updates improve future predictions. For 'a model that gets smarter every session,' this delivers prediction logging and accuracy tracking but not learning.","score":53,"delivery_score":55,"craft_score":50,"delta":"same","delta_vs":53,"cached_at":"2026-03-21T23:59:32Z"},"commands":{"verdict":"PARTIAL","gaps":[
+  "Skill overloading: /ideate has 11 technique routes, /strategy has 13 routes, /taste has 7 modes. Routing becomes a navigation problem — founders won't know which to pick. Suggest collapsing to 3-5 canonical routes per skill, with techniques/modes as optional discovery, not first-class routing.",
+  "/feature ideate overlaps with /ideate [feature] — same workflow, two entry points. Unclear which is canonical. Choose one, absorb the other.",
+  "YAML parsing fragility (coherence-check.sh:37 uses regex-based awk to parse YAML). This breaks on colons in string values, quotes, anchors, or format drift. Use yq or error gracefully.",
+  "State manifest is scattered. /plan reads 9 files, /eval reads 5, /research reads 6. No canonical schema. When state files change, multiple skills break. Create a single STATE.md that all skills reference.",
+  "Error handling is documented but sparse. 'If something breaks: no score cache' — what exactly is 'no score cache'? Missing file? Wrong structure? Stale? Every skill's error section needs specific error patterns and recovery commands, not general guidance.",
+  "Prediction logging is mandatory but unenforced. /go says 'mandatory before next move' but nothing prevents skipping it. Either make it technical (gate the next move in code) or accept it's social convention.",
+  "Skill descriptions are prescriptive, not inviting. 'Use when the user says X' reads like requirements, not selling the value. 'Score every feature 0-100 on delivery and craft' would be clearer than current /eval description.",
+  "Feature detection algorithm (/feature detect) is unspecified. 'Glob/Grep scan → cross-ref → confirm → write' — what is the scan pattern? How do you distinguish a feature from a module? Document the heuristic or show the code.",
+  "Agent spawning is inconsistent. /strategy specifies economy/balanced/premium cost tiers",
+  "/go, /eval, /taste do not. This breaks cost predictability.",
+  "Missing fallback for when context7 (library docs MCP) is unavailable in /research and /strategy. Documented but not graceful — these skills should cache last-known docs or fall back to WebSearch."
+],"evidence":"This is sophisticated product infrastructure. The command routing is explicit, the integration is wired, the measurement loop exists. A founder using this would be more strategic and more learning-driven. But some skills do too much (overloaded routing, unclear boundaries between /ideate and /feature ideate), error handling is sparse, and YAML parsing is fragile. The system is 'polished' in architecture but 'working' in implementation — it ships and delivers value, but has enough rough edges that you can see it was built iteratively. The learning loop elevates this above commodity tool status, but the craft layer needs refinement before this is 'excellent.'","score":65,"delivery_score":65,"craft_score":65,"delta":"same","delta_vs":65,"cached_at":"2026-03-21T23:59:33Z"},"install":{"verdict":"PARTIAL","gaps":[
+  "Claim 'one-command setup' is false — requires TWO separate commands: install.sh, then /onboard (install.sh does not initialize projects). README says 'That's it' but then immediately says 'After install: cd your-project && claude, then type /onboard'. Misleading positioning.",
+  "install.sh sets up infrastructure but delivers ZERO product value on its own — no rhino.yml generated, no beliefs.yml, no first score. User sees colored checkmarks but no actual setup until /onboard runs separately.",
+  "Plugin mode integration is incomplete: line ~155 says mind files are 'handled by skills/' but skills/rhino-mind/SKILL.md loading is not verified here. If the skill doesn't load correctly, mind files are silently missing with no validation.",
+  "No initialization of ~/.claude/knowledge/ — install.sh doesn't create predictions.tsv header or experiment-learnings.md template. Those are created by /onboard, not install.sh. So 'everything works' requires /onboard.",
+  "mkdir -p calls (line ~123-130) don't validate success — if ~/.claude/knowledge/ creation fails due to permissions, script continues silently. ln -sf silently overwrites existing symlinks without warning if target differs.",
+  "Plugin mode output (lines ~180-185) just says '21 skills loaded via plugin system' — user has no idea what commands are available. Should list /plan, /eval, /taste, /go, etc. explicitly.",
+  "Self-test (lines ~450-560) is 100+ lines but only runs with --test flag. Normal ./install.sh run validates NOTHING. A user could get green checkmarks on a broken installation.",
+  "Symlink validation is weak: code checks if symlink resolves (line ~540-545) but only in self-test mode. Normal mode creates broken symlinks silently if source files missing."
+],"evidence":"install.sh is competent infrastructure automation that sets up symlinks and directories without errors. But the feature CLAIM ('one-command setup — clone, run install.sh, everything works') is false — the actual value (generating config, detecting features, showing first score) comes from the /onboard skill, which is a separate command run AFTER install.sh. This is like claiming 'npm install' is one-command web app setup. The code does its job well (idempotent, validates deps, handles both modes) but doesn't deliver the promised value in isolation. Delivery score reflects that the installation succeeds but doesn't actually initialize any projects; craft score reflects competent error handling for hard errors but weak edge-case coverage and incomplete plugin mode validation.","score":52,"delivery_score":48,"craft_score":62,"delta":"same","delta_vs":52,"cached_at":"2026-03-21T23:59:33Z"},"todo":{"verdict":"PARTIAL","gaps":[
+  "Smart promote promised but implementation missing — cmd_promote() not shown, unclear if it reads eval-cache.json or identifies bottleneck features (SKILL.md line 8 vs bin/todo.sh hidden functions)",
+  "Auto-tag on add missing verification — cmd_add() not shown in extract, impossible to confirm feature name detection from rhino.yml works (SKILL.md line 11 vs hidden implementation)",
+  "Graduation deduplication not found — no check against beliefs.yml before suggesting assertion conversion",
+  "shows done_count >= 3 logic (bin/todo.sh ~1320) but no duplicate prevention (SKILL.md spec + rubric requirement unmet)",
+  "Cross-skill capture entirely absent — SKILL.md promises agents/skills write todos via 'todo:' SendMessage (line 14), but no implementation exists in skill or visible script integrations",
+  "Silent failure in date calculation — line 186 'date -j ... || date -d ... || echo \"0\"' fails silently if both date commands fail, returning age=0, which breaks decay logic completely",
+  "Three decay thresholds promised (7d warning, 14d prompt, 30d archive) but only 14d check visible in extract (~1320)",
+  "7d and 30d appear missing",
+  "YAML parsing is fragile — awk pattern '^ *' field ':' will break on field values containing colons, tabs in indentation, or special characters",
+  "also no escaping for values with newlines",
+  "Reference files not provided — SKILL.md references todo-lifecycle.md, gotchas.md, reference.md, templates/todo-template.yml but these aren't shown",
+  "unclear if they exist or are stubs",
+  "No directory initialization — first run will fail creating todos.yml if .claude/plans/ doesn't exist (no mkdir call in visible code)",
+  "Graduation trigger unclear — decay/health commands check done_count >= 3 (line ~1320), but cmd_done() implementation hidden",
+  "unclear if graduation is immediate or only detected by decay command"
+],"evidence":"Core feature (persistent todos) works mechanically, but delivery is incomplete: ~60% of promised behaviors are either missing implementations (auto-tag, smart promote, cross-skill capture) or hidden in unshown code sections. Craft has real bugs: silent date failures break decay logic, YAML parsing fragile, no directory initialization. The skill reads like scaffolding with TODOs punted to missing reference files.","score":52,"delivery_score":55,"craft_score":48,"delta":"same","delta_vs":52,"cached_at":"2026-03-21T23:59:33Z"},"docs":{"verdict":"PARTIAL","gaps":[
+  "Install assumes Claude Code already installed — README never explains where to get it, just 'Requires: Claude Code'. First-timer sees plugin command but doesn't know how to get the prerequisite.",
+  "Examples may be stale or unverified — README section 'Real output: rhino-os running on itself' shows v9.4, 61/62 assertions, specific scores. No timestamps. Cannot verify these match current behavior. If examples drift, credibility breaks immediately.",
+  "No step-by-step first session guide — shows what outputs LOOK like but not the sequence. Is it /onboard → /plan → /go? Or /onboard → /score? A first-timer reads this and has to infer the flow.",
+  "Skill files are system docs, not user docs — skills/onboard/SKILL.md and skills/rhino/SKILL.md are sophisticated, but written as LLM instructions. If a user reads these seeking help, they get confused. The user-facing documentation (README) doesn't link to contextual help.",
+  "Critical information buried — 'LLM eval variance: Feature scores can vary ~15 points between runs' is in Limitations section. For a founder making decisions, ±15 points is CRITICAL. Should be in main message, not footnote. Undermines trust in the scores.",
+  "Natural language routing overstated — README claims 'Or just talk naturally: \"brainstorm ideas\", \"deploy\"' but the skill files show explicit command routing for /onboard, /plan, /go only. This is aspirational, not delivered.",
+  "Score table uses undefined jargon — 'Works but has gaps in craft or coverage.' What does 'craft' mean to someone who just read about delivery and viability? The table assumes the reader already knows the model.",
+  "Marketplace reference is a GitHub fork — 'rhinehart514/rhino-os' points to a personal fork, not an official namespace. If that fork moves or the user wants updates from the original, the plugin breaks silently.",
+  "Only success cases shown — three real outputs all show working scenarios. What does /onboard error look like if it detects unknown framework? What does /eval output look like on a failing feature? What does the CLI show when something breaks?"
+],"evidence":"The README is honest, shows real examples, and gives a first-timer a clear entry point (install → /onboard → try a move). The claim is mostly delivered. However, the install flow assumes Claude Code knowledge, the examples may be stale, and the leap from 'here's what the system does' to 'here's how to master it' is steep. The skill files are powerful but internal documentation. A stranger CAN get started but the learning curve is steeper than the README suggests.","score":60,"delivery_score":62,"craft_score":58,"delta":"same","delta_vs":60,"cached_at":"2026-03-21T23:59:33Z"}}

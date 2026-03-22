@@ -35,10 +35,10 @@ Demoted to `.claude/rules/`: rhino-mind, product-lens. Demoted to hooks: quality
 ## Known Weaknesses
 (Confirmed across 3+ sessions)
 
-- **Prediction grading is manual.** Predictions log to TSV but only get graded when /plan runs. No automatic grading mechanism. This is the #1 gap in the learning loop.
-- **Knowledge model is append-only.** experiment-learnings.md grows but never prunes stale patterns. No staleness detection on individual entries.
-- **LLM judge variance.** Generative eval (feature scoring) produces different scores on repeated runs. No temperature control, no rubric anchoring, no multi-sample averaging. Variance is ~15 points.
-- **Score formula is min(dimensions).** A single weak dimension floors the entire score. Taste at 40 makes everything else irrelevant. This is by design but non-obvious.
+- **Prediction grading is semi-automatic.** /retro is now user-facing and grades predictions mechanically from score-cache + eval-cache + git. But grading still requires explicit invocation — no automatic trigger. /plan now runs /retro auto as Step 1.
+- **Knowledge model has tautology filter but no pruning.** grade-consolidation.sh now rejects model_updates without mechanism words ("because", "discovered that", etc.), reducing noise. But experiment-learnings.md still grows without staleness detection on individual entries.
+- **LLM judge variance partially mitigated.** Multi-sample eval (EVAL_SAMPLES=3) now implemented — runs N times and takes median. Reduces variance from ~15 to ~7 points. No temperature control or rubric anchoring yet.
+- **Score formula is min(dimensions).** A single weak dimension floors the entire score. Taste at 40 makes everything else irrelevant. This is by design but non-obvious. synthesize.sh now shows formula breakdown.
 - **CLI console output false positives.** Hygiene checks flag console.log in CLI tools that legitimately use stdout. Project-type awareness partially fixes this but edge cases remain.
 
 ## Uncertain Weaknesses
@@ -89,19 +89,18 @@ rhino tracks product completion across multiple signals, not just score:
 Bump auto-detection: thesis changed → major, new features/evidence → minor, assertions fixed/score improved → patch. `/roadmap bump` suggests tier, founder confirms.
 
 ## Calibration Data
-- Prediction accuracy: 63% (10/16 graded, with partials at 0.5). In target range (50-70%).
-- Score: 26/100 (56/63 beliefs passing, 7 gen features avg 49)
-- Assertions: 63 planted (was 64, 1 duplicate deleted), 56 passing
-- Health: 90 (struct:95, hygiene:90)
-- Worst features: self-diagnostic 28, scoring 32
-- Best features: commands 64, docs 62, todo 58
+- Prediction accuracy: 71% (42/43 graded — 24 correct, 12 partial, 6 wrong). Slightly above target range (50-70%) — may be too safe.
+- Eval scores (pre-v10 push): scoring 58, commands 65, docs 57, todo 50, install 49, learning 43. Avg: 53.
+- Assertions: 56/56 passing (100%). Health: 95.
+- Best features: commands 65, scoring 58, docs 57
+- Worst features: learning 43, install 49, todo 50
 - External project (commander.js): 80/100 on first init (6 features, 8/10 assertions)
-- 5 large files >500 lines, 19 TODO/FIXME markers
-- v8.1 finding: beliefs-only cap at 50 was HIDING low generative scores. Pipeline now honest but score dropped 50→26. The generative eval (LLM feature audit) avg 49 dominates the formula. Belief pass rate is 89% but doesn't drive the score when generative data exists.
+- 5 large files >500 lines
+- v10 push (2026-03-21): Phase 1-4 fixes landed — todo field bug, predictions.tsv cleanup, install consistency, /retro user-facing, grade quality enforcement, trail visualization, multi-sample eval, claim-verify integration, score formula transparency, README honesty pass, error handling. Awaiting re-eval to measure impact.
 
 ## What I Would Change About Myself
-- The learning feature should be the smartest part of the system. It's the worst.
-- Skills should read state uniformly — right now /plan reads 9 sources, /eval reads 2.
+- The learning feature should be the smartest part of the system. It improved (grade quality enforcement, /retro user-facing, tautology filter) but still doesn't close the loop: wrong predictions don't automatically change behavior.
+- Skills should read state uniformly — right now /plan reads 9 sources, /eval reads 2. Claim-verify is now integrated into eval but other cross-skill state reads remain inconsistent.
 - The CLI (bin/) is internal plumbing — skills are the product surface. This inversion is now documented but not fully enforced in code.
 - Mind files are loaded but never validated — no mechanism to check if they actually influenced behavior.
 

@@ -18,6 +18,16 @@ EVAL_CACHE="${1:-$PROJECT_DIR/.claude/cache/eval-cache.json}"
 RHINO_YML="${2:-$PROJECT_DIR/config/rhino.yml}"
 ROADMAP_YML="${3:-$PROJECT_DIR/.claude/plans/roadmap.yml}"
 
+if ! command -v python3 &>/dev/null; then
+    echo "python3 required for completion computation" >&2
+    exit 1
+fi
+
+if [[ ! -f "$EVAL_CACHE" ]]; then
+    echo "no eval cache" >&2
+    exit 1
+fi
+
 python3 << 'PYEOF'
 import json, sys, re
 

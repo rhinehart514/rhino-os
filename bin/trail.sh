@@ -197,6 +197,7 @@ fi
 echo ""
 
 # Top learnings (last 5, deduplicated) — from sessions or model_update column in predictions.tsv
+# Extracts causal mechanisms (X→Y because Z) from model_update text
 if [[ -z "$LEARNINGS" ]]; then
     PRED_FILE="$PROJECT_DIR/.claude/knowledge/predictions.tsv"
     # Only fall back to global predictions if running from within rhino-os itself
@@ -209,18 +210,86 @@ if [[ -z "$LEARNINGS" ]]; then
     fi
     if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
         # Extract non-empty model_update entries (column 7) from graded predictions
+        # Then distill to causal mechanism: find sentences with →, because, discovered, confirmed, etc.
         LEARNINGS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$7 != "" && $6 != "" { print $7 }' | tail -10 | sort -u | tail -5 | while IFS= read -r l; do
-            [[ -n "$l" ]] && echo "${l}\n"
+            [[ -z "$l" ]] && continue
+            # Try to extract a mechanism sentence (contains causal markers)
+            mechanism=""
+            # First priority: sentences with → (explicit causal notation)
+            mechanism=$(echo "$l" | sed 's/\. /\n/g' | grep -m1 '→' 2>/dev/null || true)
+            # Second: sentences with "because" or "since"
+            if [[ -z "$mechanism" ]]; then
+                mechanism=$(echo "$l" | sed 's/\. /\n/g' | grep -im1 'because\|since\|causes\|leads to' 2>/dev/null || true)
+            fi
+            # Third: sentences with "discovered", "confirmed", "proved", "validated"
+            if [[ -z "$mechanism" ]]; then
+                mechanism=$(echo "$l" | sed 's/\. /\n/g' | grep -im1 'discover\|confirm\|prove\|validat\|must be\|always\|never' 2>/dev/null || true)
+            fi
+            # Fallback: first sentence only (not the whole blob)
+            if [[ -z "$mechanism" ]]; then
+                mechanism=$(echo "$l" | sed 's/\. .*/\./')
+            fi
+            # Trim whitespace
+            mechanism=$(echo "$mechanism" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            echo "${mechanism}\n"
         done)
     fi
 fi
 
 if [[ -n "$LEARNINGS" ]]; then
-    echo -e "  ${C_DIM}▾ top learnings${C_NC}"
+    echo -e "  ${C_DIM}▾ mechanisms learned${C_NC}"
     echo -e "$LEARNINGS" | grep -v '^$' | sort -u | tail -5 | while IFS= read -r l; do
         [[ -n "$l" ]] && echo -e "    ${C_DIM}·${C_NC} ${l}"
     done
     echo ""
+fi
+
+# --- Prediction vs outcome: show what changed (last 3 graded predictions) ---
+if [[ -z "${PRED_FILE:-}" ]]; then
+    PRED_FILE="$PROJECT_DIR/.claude/knowledge/predictions.tsv"
+    if [[ ! -f "$PRED_FILE" && -f "$PROJECT_DIR/config/rhino.yml" ]]; then
+        PRED_FILE="$HOME/.claude/knowledge/predictions.tsv"
+    elif [[ ! -f "$PRED_FILE" ]]; then
+        PRED_FILE=""
+    fi
+fi
+
+if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
+    # Show last 3 graded predictions with predicted vs actual
+    DIFFS=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$5 != "" && $6 != "" {
+        pred = $3
+        result = $5
+        grade = $6
+        # Truncate prediction to first clause
+        gsub(/[—,].*/, "", pred)
+        # Truncate result to first clause
+        gsub(/[—,].*/, "", result)
+        # Trim to 55 chars
+        if (length(pred) > 55) pred = substr(pred, 1, 52) "..."
+        if (length(result) > 55) result = substr(result, 1, 52) "..."
+        # Symbol by grade
+        sym = "·"
+        if (grade == "yes") sym = "✓"
+        else if (grade == "no") sym = "✗"
+        else if (grade == "partial") sym = "◐"
+        printf "%s|%s|%s\n", sym, pred, result
+    }' | tail -3)
+
+    if [[ -n "$DIFFS" ]]; then
+        echo -e "  ${C_DIM}▾ predicted vs actual${C_NC}"
+        while IFS='|' read -r sym pred result; do
+            [[ -z "$sym" ]] && continue
+            case "$sym" in
+                "✓") color="$C_GREEN" ;;
+                "✗") color="$C_RED" ;;
+                "◐") color="$C_YELLOW" ;;
+                *) color="$C_DIM" ;;
+            esac
+            echo -e "    ${color}${sym}${C_NC} ${C_DIM}predicted:${C_NC} ${pred}"
+            echo -e "      ${C_DIM}actual:${C_NC}    ${result}"
+        done <<< "$DIFFS"
+        echo ""
+    fi
 fi
 
 # --- Knowledge model growth ---
@@ -265,21 +334,37 @@ if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
         echo -e "  ${C_DIM}▾ prediction accuracy${C_NC}"
         echo -e "    ${C_BOLD}${EFFECTIVE}%${C_NC} overall (${GRADED_TOTAL} graded)  ${C_DIM}·${C_NC}  ${CORRECT_CT} correct, ${PARTIAL_CT} partial"
 
-        # Show trend if enough data: accuracy of first half vs second half
+        # Show trend: compare last 10 predictions vs overall, plus trajectory arrow
         if [[ "$GRADED_TOTAL" -ge 6 ]]; then
-            HALF=$((GRADED_TOTAL / 2))
-            EARLY_CORRECT=$(echo "$GRADED_ALL" | head -"$HALF" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
-            EARLY_PARTIAL=$(echo "$GRADED_ALL" | head -"$HALF" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
-            EARLY_EFF=$(awk "BEGIN { printf \"%d\", ($EARLY_CORRECT + $EARLY_PARTIAL * 0.5) * 100 / $HALF }")
-            LATE_CORRECT=$(echo "$GRADED_ALL" | tail -"$HALF" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
-            LATE_PARTIAL=$(echo "$GRADED_ALL" | tail -"$HALF" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
-            LATE_EFF=$(awk "BEGIN { printf \"%d\", ($LATE_CORRECT + $LATE_PARTIAL * 0.5) * 100 / $HALF }")
-            if [[ "$LATE_EFF" -gt "$EARLY_EFF" ]]; then
-                echo -e "    ${C_GREEN}↑${C_NC} trajectory: ${EARLY_EFF}% → ${LATE_EFF}% (improving)"
-            elif [[ "$LATE_EFF" -lt "$EARLY_EFF" ]]; then
-                echo -e "    ${C_RED}↓${C_NC} trajectory: ${EARLY_EFF}% → ${LATE_EFF}% (declining)"
+            # Recent window: last 10 graded (or all if <10)
+            RECENT_WINDOW=10
+            if [[ "$GRADED_TOTAL" -lt "$RECENT_WINDOW" ]]; then
+                RECENT_WINDOW="$GRADED_TOTAL"
+            fi
+            RECENT_CORRECT=$(echo "$GRADED_ALL" | tail -"$RECENT_WINDOW" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
+            RECENT_PARTIAL=$(echo "$GRADED_ALL" | tail -"$RECENT_WINDOW" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
+            RECENT_EFF=$(awk "BEGIN { printf \"%d\", ($RECENT_CORRECT + $RECENT_PARTIAL * 0.5) * 100 / $RECENT_WINDOW }")
+
+            # Earlier window: everything before the last 10
+            EARLIER_CT=$((GRADED_TOTAL - RECENT_WINDOW))
+            if [[ "$EARLIER_CT" -gt 0 ]]; then
+                EARLIER_CORRECT=$(echo "$GRADED_ALL" | head -"$EARLIER_CT" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
+                EARLIER_PARTIAL=$(echo "$GRADED_ALL" | head -"$EARLIER_CT" | awk -F'\t' '$6 == "partial" { c++ } END { print c+0 }')
+                EARLIER_EFF=$(awk "BEGIN { printf \"%d\", ($EARLIER_CORRECT + $EARLIER_PARTIAL * 0.5) * 100 / $EARLIER_CT }")
+
+                DELTA=$((RECENT_EFF - EARLIER_EFF))
+                if [[ "$DELTA" -gt 5 ]]; then
+                    echo -e "    ${C_GREEN}↑${C_NC} ${C_BOLD}${EFFECTIVE}%${C_NC} ${C_DIM}(last ${RECENT_WINDOW}: ${RECENT_EFF}%, prior: ${EARLIER_EFF}%)${C_NC}"
+                elif [[ "$DELTA" -lt -5 ]]; then
+                    echo -e "    ${C_RED}↓${C_NC} ${C_BOLD}${EFFECTIVE}%${C_NC} ${C_DIM}(last ${RECENT_WINDOW}: ${RECENT_EFF}%, prior: ${EARLIER_EFF}%)${C_NC}"
+                else
+                    echo -e "    ${C_DIM}→${C_NC} ${C_BOLD}${EFFECTIVE}%${C_NC} ${C_DIM}(stable — last ${RECENT_WINDOW}: ${RECENT_EFF}%, prior: ${EARLIER_EFF}%)${C_NC}"
+                fi
+                # Set for next-action logic
+                LATE_EFF="$RECENT_EFF"
+                EARLY_EFF="$EARLIER_EFF"
             else
-                echo -e "    ${C_DIM}→ trajectory: stable at ${LATE_EFF}%${C_NC}"
+                echo -e "    ${C_DIM}→${C_NC} ${C_BOLD}${EFFECTIVE}%${C_NC} ${C_DIM}(${RECENT_WINDOW} predictions — need more for trend)${C_NC}"
             fi
         fi
         echo ""

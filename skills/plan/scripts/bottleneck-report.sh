@@ -12,9 +12,21 @@ echo "=== BOTTLENECK REPORT ==="
 echo ""
 
 # --- Primary bottleneck ---
-RESULT=$("$RHINO_DIR/bin/compute-bottleneck.sh" 2>/dev/null || echo "")
+_bn_err=$(mktemp)
+RESULT=$("$RHINO_DIR/bin/compute-bottleneck.sh" 2>"$_bn_err") || true
+_bn_stderr=$(cat "$_bn_err")
+rm -f "$_bn_err"
 if [[ -z "$RESULT" ]]; then
-    echo "  no eval data — run rhino eval . first"
+    if [[ "$_bn_stderr" == *"no eval cache"* || "$_bn_stderr" == *"no features scored"* ]]; then
+        echo "  no eval data — run rhino eval . first"
+    elif [[ "$_bn_stderr" == *"python3 required"* ]]; then
+        echo "  error: python3 not found — install python3 to compute bottleneck"
+    elif [[ -n "$_bn_stderr" ]]; then
+        echo "  error: compute-bottleneck.sh crashed:"
+        echo "$_bn_stderr" | head -5 | sed 's/^/    /'
+    else
+        echo "  no eval data — run rhino eval . first"
+    fi
     echo "=== REPORT COMPLETE ==="
     exit 0
 fi
@@ -98,7 +110,15 @@ done
 echo ""
 
 # --- Completion ---
-COMPLETION=$("$RHINO_DIR/bin/compute-completion.sh" 2>/dev/null || echo "")
+_comp_err=$(mktemp)
+COMPLETION=$("$RHINO_DIR/bin/compute-completion.sh" 2>"$_comp_err") || true
+_comp_stderr=$(cat "$_comp_err")
+rm -f "$_comp_err"
+if [[ -n "$_comp_stderr" && -z "$COMPLETION" ]]; then
+    echo "▸ completion"
+    echo "  error: compute-completion.sh failed: $(echo "$_comp_stderr" | head -1)"
+    echo ""
+fi
 if [[ -n "$COMPLETION" ]]; then
     echo "▸ completion"
     echo "$COMPLETION" | sed 's/^/  /'

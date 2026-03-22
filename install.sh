@@ -20,6 +20,17 @@ if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] || [[ -f "$RHINO_DIR/.claude-plugin/plugin
     PLUGIN_MODE=true
 fi
 
+# Validate plugin.json when plugin mode is active via CLAUDE_PLUGIN_ROOT
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+    plugin_json_path="$RHINO_DIR/.claude-plugin/plugin.json"
+    if [[ ! -f "$plugin_json_path" ]]; then
+        echo -e "    \033[0;31m✗\033[0m CLAUDE_PLUGIN_ROOT is set but plugin.json not found at $plugin_json_path"
+        echo -e "      \033[2mEnsure .claude-plugin/plugin.json exists in the rhino-os directory.\033[0m"
+        echo ""
+        exit 1
+    fi
+fi
+
 SELF_TEST=false
 for arg in "$@"; do
     case "$arg" in
@@ -86,8 +97,10 @@ fi
 if command -v claude &>/dev/null; then
     action "Claude Code available"
 else
-    warn "claude CLI not found — rhino-os is a Claude Code plugin"
+    echo -e "    ${RED}✗${NC} claude CLI is required — rhino-os is a Claude Code plugin"
     echo -e "      ${DIM}Install: https://docs.anthropic.com/en/docs/claude-code${NC}"
+    echo ""
+    exit 1
 fi
 
 # OS detection — warn about macOS-specific features on Linux
@@ -234,6 +247,13 @@ if ! $PLUGIN_MODE; then
         else
             $DRY_RUN || echo 'export PATH="$HOME/bin:$PATH"' >> "$PROFILE"
             action '~/bin added to PATH'
+        fi
+        # Warn if ~/bin is not in the current session PATH
+        if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+            echo ""
+            warn "~/bin is not in your current PATH"
+            echo -e "      ${DIM}Run now:  export PATH=\"\$HOME/bin:\$PATH\"${NC}"
+            echo -e "      ${DIM}Or:       source $PROFILE${NC}"
         fi
     else
         echo -e "    \033[1;33m⚠\033[0m No shell profile found (.zshrc, .bashrc, .bash_profile)"
@@ -409,6 +429,7 @@ else
         echo -e "  ${DIM}After onboarding, just code. Ask \"is this good?\" any time.${NC}"
     fi
 
+    echo -e "  ${BOLD}rhino-os installed. Try: cd your-project && claude /onboard${NC}"
     echo ""
 
     # --- Self-test mode ---
