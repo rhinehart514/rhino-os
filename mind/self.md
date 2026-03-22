@@ -200,6 +200,6 @@ Full reference: `skills/CAPABILITIES.md`.
 
 ## Meta-Learning
 - The predict→measure→update loop works when predictions are graded. It breaks when they're not.
-- 63% accuracy is well-calibrated. Predictions are informative, not performative.
-- Wrong predictions (8/16) produced the most valuable model updates — confirming the system design.
+- 71% accuracy (42/43 graded, 24 correct, 12 partial, 6 wrong). Slightly above target range (50-70%) — may be too safe.
+- Wrong predictions produced the most valuable model updates — confirming the system design.
 - The highest-information experiments are always in Unknown Territory, but the system gravitates toward known patterns. Need to enforce exploration.

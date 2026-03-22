@@ -2,7 +2,7 @@
 
 Product quality measurement for vibe-coded products.
 
-You build with AI. rhino-os tells you if your product actually got better — automatically, while you work, without learning any commands.
+You build with AI. rhino-os tells you if your product actually got better — continuously, while you work, without learning any commands.
 
 Developers using AI coding tools think they're 20% more productive. [They're actually 19% less productive](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/). The gap is measurement — nobody checks whether AI-assisted work actually made the product better. rhino-os closes that gap.
 
@@ -13,7 +13,7 @@ claude /plugin marketplace add rhinehart514/rhino-os
 claude /plugin install rhino-os@rhino-marketplace
 ```
 
-That's it. Start a Claude Code session in any project. rhino-os works automatically.
+That's it. Start a Claude Code session in any project. rhino-os measures as you work.
 
 **After install:** `cd your-project && claude`, then type `/onboard`. rhino-os reads your code, infers what it does, and gives you a score. It may ask 2-3 questions if auto-detection is uncertain.
 
