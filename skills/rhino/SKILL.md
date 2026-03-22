@@ -84,6 +84,50 @@ Start Here
   The flow: /score → /plan → /go → /score (repeat)
 ```
 
+Then render the skill catalog with argument hints. For each skill, extract its `argument-hint` from frontmatter and display it inline:
+
+```
+Skill Catalog
+
+  Measure
+    /score [feature|quick|deep|viability|breakdown]     — unified quality number
+    /eval [feature|beliefs|add-belief|health|blind|coverage|trend|slop] — code eval per feature
+    /taste <url> [flows|mobile|vs <url>|deep|trend] | cli [feature] — visual product intelligence
+
+  Build
+    /plan [feature...|brainstorm|critique|task text]    — find the bottleneck, propose work
+    /go [feature...] [--safe] [--speculate N]           — autonomous build loop
+    /push [feature] [extract] [target-score]            — push a feature to a target score
+    /todo [add "title"|done <id>|promote <id>|active|health|decay] — living backlog
+
+  Think
+    /product [user|assumptions|why|pitch|focus|signals|delight|market|coherence|refine|pivot|"..."] — product thinking
+    /ideate [feature|wild|kill|deep|technique-name|"constraint"] — evidence-weighted ideas
+    /research [feature|docs <lib>|site <url>|competitor <name>|market|history|gaps|"topic"] — gather evidence
+    /strategy [bet|market|position|price|gtm|compete|honest|coherence|user|research|docs|site] — strategic diagnosis
+    /money [price|runway|unit-economics|channels|model] — pricing and revenue
+
+  Ship
+    /ship [release [tag]]                               — deploy + releases + PRs
+    /roadmap [next|bump|ideate|narrative|changelog|positioning|add|done|new|v<X.Y>] — version theses
+    /copy [landing|pitch|outreach|release|onboard|empty-states|"..."] — product copy
+
+  Learn
+    /retro [accuracy|stale|session|health|dimensions|auto] — audit predictions + knowledge model
+    /assert [feature: belief text] or [list|check|remove|graduate|health|coverage|suggest|flapping] — assertions
+
+  System
+    /onboard [--force] [--dry]                          — bootstrap any project
+    /rhino [help|system|compare|health|progress]        — this dashboard
+    /feature [name|new|detect] [name]                   — manage features
+    /calibrate [profile|design-system|anti-slop|market|refresh|verify|drift] — ground taste eval
+    /skill [list|create|install|remove|info|health|audit|overlap] — manage skills
+    /configure [show|agents|output|go|reset]            — configure rhino settings
+    /discover [new "idea"|refine|pivot|vs|systems|wild|invert] — feature discovery
+```
+
+Show ALL modes for each skill. The argument hints come from each skill's `argument-hint` frontmatter field. This is the authoritative list of what each skill can do.
+
 **Default view** — after rendering, save current state to `.claude/cache/rhino-snapshots.json`. Keep last 20 snapshots, trim oldest on append.
 
 ## Task generation — dashboard alerts become tasks

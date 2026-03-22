@@ -1,6 +1,6 @@
 ---
 name: retro
-description: "Use when the user wants to review what was learned, grade predictions, audit the knowledge model, or check learning health. Triggers on 'retro', 'what did we learn?', 'review', 'grade predictions', 'learning health'."
+description: "Review what worked, what didn't, and what the system learned. Audit prediction accuracy and knowledge model health. Triggers on 'retro', 'what did we learn?', 'review', 'grade predictions', 'learning health'."
 argument-hint: "[accuracy|stale|session|health|dimensions|auto]"
 allowed-tools: Read, Bash, Grep, Edit, Agent, TaskCreate
 ---

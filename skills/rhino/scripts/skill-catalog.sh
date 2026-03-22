@@ -37,8 +37,9 @@ for SKILL_FILE in "$SKILLS_DIR"/*/SKILL.md; do
     SKILL_DIR="$(dirname "$SKILL_FILE")"
     SKILL_NAME="$(basename "$SKILL_DIR")"
 
-    # Extract description from frontmatter
+    # Extract description and argument-hint from frontmatter
     DESC=$(awk '/^---/{n++; next} n==1 && /^description:/{gsub(/^description: *"?/,""); gsub(/"$/,""); print; exit}' "$SKILL_FILE" 2>/dev/null)
+    HINT=$(awk '/^---/{n++; next} n==1 && /^argument-hint:/{gsub(/^argument-hint: *"?/,""); gsub(/"$/,""); print; exit}' "$SKILL_FILE" 2>/dev/null)
 
     # Count folder contents
     SCRIPTS=$(find "$SKILL_DIR/scripts" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -61,7 +62,11 @@ for SKILL_FILE in "$SKILLS_DIR"/*/SKILL.md; do
     if [[ "$HAS_GOTCHAS" == "yes" ]]; then FILES="${FILES}gotchas "; fi
     FILES="${FILES:-bare }"
 
-    echo "SKILL: $SKILL_NAME | files: ${FILES}| $DESC"
+    if [[ -n "$HINT" ]]; then
+        echo "SKILL: /$SKILL_NAME $HINT | files: ${FILES}| $DESC"
+    else
+        echo "SKILL: /$SKILL_NAME | files: ${FILES}| $DESC"
+    fi
 done
 
 echo ""
