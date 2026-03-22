@@ -461,6 +461,18 @@ if [[ -n "${PRODUCT_LINES:-}" ]]; then
     echo -e "  ${PRODUCT_LINES}"
 fi
 
+# --- Cofounder opinion (one opinionated recommendation) ---
+if [[ -f "$_SELF_CHECKS_DIR/lib/cofounder-opinion.sh" ]]; then
+    source "$_SELF_CHECKS_DIR/lib/cofounder-opinion.sh"
+elif [[ -f "$RHINO_DIR/hooks/lib/cofounder-opinion.sh" ]]; then
+    source "$RHINO_DIR/hooks/lib/cofounder-opinion.sh"
+fi
+
+if [[ -n "${COFOUNDER_OPINION:-}" ]]; then
+    echo ""
+    echo -e "  ${COFOUNDER_OPINION}"
+fi
+
 echo -e "${SEP}"
 echo ""
 
