@@ -814,16 +814,17 @@ $(format_execution_context "$exec_results")"
         fi
 
         # Pairwise delta tracking: compare against previous eval
-        local delta="" delta_vs=""
+        local delta="" delta_vs="" delta_num=""
         if [[ -f "$EVAL_CACHE_FILE" ]] && command -v jq &>/dev/null; then
             local prev_score
             prev_score=$(jq -r ".\"$feat_name\".score // empty" "$EVAL_CACHE_FILE" 2>/dev/null)
             if [[ -n "$prev_score" && "$prev_score" =~ ^[0-9]+$ && -n "$feat_score" && "$feat_score" =~ ^[0-9]+$ ]]; then
                 delta_vs="$prev_score"
                 local diff=$(( feat_score - prev_score ))
-                if [[ "$diff" -gt 3 ]]; then
+                delta_num="$diff"
+                if [[ "$diff" -gt 0 ]]; then
                     delta="better"
-                elif [[ "$diff" -lt -3 ]]; then
+                elif [[ "$diff" -lt 0 ]]; then
                     delta="worse"
                 else
                     delta="same"
@@ -872,7 +873,7 @@ $(format_execution_context "$exec_results")"
             [[ -n "$delivery_score" && "$delivery_score" != "null" ]] && _sub_scores="d:${delivery_score}"
             [[ -n "$craft_score" && "$craft_score" != "null" ]] && _sub_scores="${_sub_scores:+${_sub_scores} }c:${craft_score}"
             [[ -n "${_confidence_interval:-}" && "${_confidence_interval:-0}" -gt 0 ]] && _sub_scores="${_sub_scores:+${_sub_scores} }±${_confidence_interval}"
-            GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}|${_sub_scores}")
+            GENERATIVE_DISPLAY+=("${feat_name}|${feat_score}|${delivers}|${gaps}|${_sub_scores}|${delta_num:-}")
         fi
 
         # Build cache entry with sub-scores and delta
@@ -883,6 +884,7 @@ $(format_execution_context "$exec_results")"
         [[ -n "${_confidence_interval:-}" && "${_confidence_interval:-0}" -gt 0 ]] && cache_extras+=",\"confidence_interval\":${_confidence_interval}"
         [[ -n "$delta" ]] && cache_extras+=",\"delta\":\"${delta}\""
         [[ -n "$delta_vs" ]] && cache_extras+=",\"delta_vs\":${delta_vs}"
+        [[ -n "$delta_num" ]] && cache_extras+=",\"delta_num\":${delta_num}"
         # Use printf %s to avoid trailing newline that contaminates jq -Rs output
         cache_json+="\"$feat_name\":{\"verdict\":$(printf '%s' "$verdict" | jq -Rs .),\"gaps\":$(if [[ -n "$gaps" ]]; then printf '%s' "$gaps" | jq -Rs 'split("; ") | map(select(length > 0))'; else echo '[]'; fi),\"evidence\":$(printf '%s' "$evidence" | jq -Rs .),\"score\":${feat_score:-50}${cache_extras},\"cached_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
         cache_first=false
@@ -1286,7 +1288,7 @@ if [[ "$SCORE_MODE" != "true" ]]; then
 
     if [[ ${#GENERATIVE_DISPLAY[@]} -gt 0 ]]; then
         echo -e "  ${BOLD}features${NC}"
-        printf '%s\n' "${GENERATIVE_DISPLAY[@]}" | sort -t'|' -k2 -n | while IFS='|' read -r _fname _fscore _fdelivers _fgaps _fsub; do
+        printf '%s\n' "${GENERATIVE_DISPLAY[@]}" | sort -t'|' -k2 -n | while IFS='|' read -r _fname _fscore _fdelivers _fgaps _fsub _fdelta; do
             # Color by score band
             if [[ "$_fscore" -ge 70 ]]; then
                 _score_color="${GREEN}"
@@ -1340,11 +1342,22 @@ if [[ "$SCORE_MODE" != "true" ]]; then
                 fi
             fi
 
+            # Delta indicator (absolute point change)
+            _delta_str=""
+            if [[ -n "$_fdelta" && "$_fdelta" != "0" ]]; then
+                if [[ "$_fdelta" -gt 0 ]]; then
+                    _delta_str=" ${GREEN}(↑${_fdelta})${NC}"
+                else
+                    _fdelta_abs=$(( -_fdelta ))
+                    _delta_str=" ${RED}(↓${_fdelta_abs})${NC}"
+                fi
+            fi
+
             # Score line with sub-scores
             if [[ -n "$_fsub" ]]; then
-                printf "  %-16s %b%s%b  %b%-3s%b  ${DIM}%s${NC}\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC" "$_fsub"
+                printf "  %-16s %b%s%b  %b%-3s%b%b  ${DIM}%s${NC}\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC" "$_delta_str" "$_fsub"
             else
-                printf "  %-16s %b%s%b  %b%-3s%b\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC"
+                printf "  %-16s %b%s%b  %b%-3s%b%b\n" "$_fname" "$_score_color" "$_fbar" "$NC" "$_score_color" "$_fscore" "$NC" "$_delta_str"
             fi
 
             # Show trend trajectory (if history exists)
