@@ -1342,14 +1342,16 @@ if [[ "$SCORE_MODE" != "true" ]]; then
                 fi
             fi
 
-            # Delta indicator (absolute point change)
+            # Delta indicator (absolute point change — always shown when previous exists)
             _delta_str=""
-            if [[ -n "$_fdelta" && "$_fdelta" != "0" ]]; then
+            if [[ -n "$_fdelta" ]]; then
                 if [[ "$_fdelta" -gt 0 ]]; then
-                    _delta_str=" ${GREEN}(↑${_fdelta})${NC}"
-                else
+                    _delta_str=" ${GREEN}↑${_fdelta}${NC}"
+                elif [[ "$_fdelta" -lt 0 ]]; then
                     _fdelta_abs=$(( -_fdelta ))
-                    _delta_str=" ${RED}(↓${_fdelta_abs})${NC}"
+                    _delta_str=" ${RED}↓${_fdelta_abs}${NC}"
+                else
+                    _delta_str=" ${DIM}—${NC}"
                 fi
             fi
 
