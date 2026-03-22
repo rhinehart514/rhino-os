@@ -7,7 +7,9 @@ founder-os is the full lifecycle version: ideate → validate → decide → bui
 ## Migrate
 
 ```bash
-claude plugin add rhinehart514/founder-os
+# In Claude Code:
+/plugin marketplace add rhinehart514/founder-os
+/plugin install founder-os@founder-os-marketplace
 ```
 
 All build/measure features are preserved. Skills renamed: `/rhino` → `/founder`, `rhino.yml` → `founder.yml`, `bin/rhino` → `bin/founder`.
