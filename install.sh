@@ -39,13 +39,18 @@ for arg in "$@"; do
     esac
 done
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-DIM='\033[2m'
-NC='\033[0m'
+# NO_COLOR support (https://no-color.org/)
+if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 ]]; then
+    RED='' GREEN='' YELLOW='' CYAN='' BOLD='' DIM='' NC=''
+else
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    NC='\033[0m'
+fi
 
 action() {
     if $DRY_RUN; then
@@ -266,6 +271,39 @@ else
     echo -e "    ${DIM}plugin mode — no shell profile changes${NC}"
 fi
 
+# --- 6b. Initialize knowledge files ---
+echo ""
+echo -e "  ${BOLD}Knowledge${NC}"
+echo ""
+KNOWLEDGE_DIR="$CLAUDE_DIR/knowledge"
+$DRY_RUN || mkdir -p "$KNOWLEDGE_DIR"
+
+if [[ ! -f "$KNOWLEDGE_DIR/predictions.tsv" ]]; then
+    if ! $DRY_RUN; then
+        printf 'date\tagent\tprediction\tevidence\tresult\tcorrect\tmodel_update\n' > "$KNOWLEDGE_DIR/predictions.tsv"
+    fi
+    action "predictions.tsv initialized"
+else
+    skip "predictions.tsv"
+fi
+
+if [[ ! -f "$KNOWLEDGE_DIR/experiment-learnings.md" ]]; then
+    if ! $DRY_RUN; then
+        cat > "$KNOWLEDGE_DIR/experiment-learnings.md" <<'TMPL'
+## Known Patterns (3+ experiments, high confidence)
+
+## Uncertain Patterns (1-2 experiments, test again)
+
+## Unknown Territory (0 experiments, highest information value)
+
+## Dead Ends (confirmed failures)
+TMPL
+    fi
+    action "experiment-learnings.md initialized"
+else
+    skip "experiment-learnings.md"
+fi
+
 # --- 7. Plugin mode verification ---
 if $PLUGIN_MODE && ! $DRY_RUN; then
     echo ""
@@ -410,6 +448,8 @@ else
         echo ""
         echo -e "  ${DIM}After onboarding, just code. rhino-os measures quality automatically.${NC}"
         echo -e "  ${DIM}Ask \"is this good?\" or \"what should I work on?\" any time.${NC}"
+        echo ""
+        echo -e "  ${DIM}Type ${NC}${BOLD}/onboard${NC}${DIM} in your project to get your first score.${NC}"
     else
         # Count what was installed
         mind_count=0; agent_count_final=0

@@ -116,6 +116,24 @@ while IFS= read -r line; do
         continue
     fi
 
+    # Pre-filled result detection: result column populated but correct column empty
+    # This indicates post-hoc rationalization — someone filled in the result without grading.
+    # Flag it and skip from auto-grading so it doesn't inflate accuracy.
+    if [[ -n "$result" && -z "$correct" ]]; then
+        $QUIET || echo "  ⚠ Pre-filled result (row $LINE_NUM): \"${prediction:0:60}\" — result set without grading, skipping"
+        # Clear the pre-filled result so it doesn't contaminate accuracy calculations
+        if ! $DRY_RUN; then
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                "$date" "$agent" "$prediction" "$evidence" \
+                "" "prefilled" \
+                "Pre-filled result cleared — predictions must be graded, not narrated" >> "$TEMP_FILE"
+        else
+            echo "$line" >> "$TEMP_FILE"
+        fi
+        GRADED_COUNT=$((GRADED_COUNT + 1))
+        continue
+    fi
+
     # Try to grade — first try prediction column, then agent column
     # (some rows have shifted columns when agent field is missing)
     grade_result=$(grade_prediction "$prediction" "$date")

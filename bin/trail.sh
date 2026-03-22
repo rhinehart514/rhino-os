@@ -325,7 +325,8 @@ elif [[ ! -f "$PRED_FILE" ]]; then
 fi
 
 if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
-    GRADED_ALL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != ""' 2>/dev/null)
+    # Exclude "prefilled" and "needs_target" and "expired" from accuracy — only real grades count
+    GRADED_ALL=$(tail -n +2 "$PRED_FILE" | awk -F'\t' '$6 != "" && $6 != "prefilled" && $6 != "needs_target" && $6 != "expired"' 2>/dev/null)
     GRADED_TOTAL=$(echo "$GRADED_ALL" | grep -c '.' 2>/dev/null || echo "0")
     if [[ "$GRADED_TOTAL" -ge 3 ]]; then
         CORRECT_CT=$(echo "$GRADED_ALL" | awk -F'\t' '$6 == "yes" { c++ } END { print c+0 }')
@@ -367,6 +368,18 @@ if [[ -n "$PRED_FILE" && -f "$PRED_FILE" ]]; then
                 echo -e "    ${C_DIM}→${C_NC} ${C_BOLD}${EFFECTIVE}%${C_NC} ${C_DIM}(${RECENT_WINDOW} predictions — need more for trend)${C_NC}"
             fi
         fi
+
+        # Actionable recommendation based on accuracy data
+        if [[ "$EFFECTIVE" -lt 50 ]]; then
+            echo -e "    ${C_YELLOW}▸${C_NC} Model needs calibration — run /retro to diagnose"
+        elif [[ "$EFFECTIVE" -gt 80 ]]; then
+            echo -e "    ${C_YELLOW}▸${C_NC} Predictions may be too safe — explore Unknown Territory"
+        fi
+        # Check for recent decline: last-10 accuracy >10 points below overall
+        if [[ -n "${LATE_EFF:-}" && "$LATE_EFF" -lt $((EFFECTIVE - 10)) ]]; then
+            echo -e "    ${C_YELLOW}▸${C_NC} Recent accuracy declining — run /retro stale"
+        fi
+
         echo ""
     fi
 fi
